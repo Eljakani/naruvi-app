@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { AlertTriangleIcon, ChevronRightIcon, LockIcon } from "lucide-react"
 import { KIND_SINGULAR, STATUS_LABELS } from "@/components/profile/labels"
 import { Badge } from "@/components/ui/badge"
@@ -7,20 +8,17 @@ import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import type { ProfileEntry } from "@/server/profile/repository"
 
-export function EntryCard({ entry, attention, onOpen }: { entry: ProfileEntry; attention: boolean; onOpen: () => void }) {
+export function EntryCard({ entry, attention }: { entry: ProfileEntry; attention: boolean }) {
   const display = entry.display.en ?? entry.display.fr ?? {}
   const subtitle = [display.organization, display.dates, display.location].filter(Boolean).join(" · ")
   const bullets = entry.phrasings.filter((phrasing) => phrasing.role === "bullet")
   const ungrounded = bullets.filter((phrasing) => !phrasing.grounding.grounded).length
   const languages = [...new Set(entry.phrasings.map((phrasing) => phrasing.language))].sort()
   return (
+    <Link href={`/profile/${entry.id}`} className="group block rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
     <Card
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(event) => (event.key === "Enter" || event.key === " ") && (event.preventDefault(), onOpen())}
       className={cn(
-        "group flex cursor-pointer flex-row items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+        "flex flex-row items-center gap-4 px-5 py-4 transition-colors group-hover:bg-muted/40",
         entry.status === "archived" && "opacity-60",
       )}
     >
@@ -60,5 +58,6 @@ export function EntryCard({ entry, attention, onOpen }: { entry: ProfileEntry; a
       {attention ? <span className="size-2 shrink-0 rounded-full bg-amber-500" aria-label="Needs review" /> : null}
       <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </Card>
+    </Link>
   )
 }

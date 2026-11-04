@@ -18,7 +18,7 @@ import {
 import { toast } from "sonner"
 import { importProfileAction } from "@/app/(app)/profile/actions"
 import { EntryCard } from "@/components/profile/entry-card"
-import { EntrySheet } from "@/components/profile/entry-sheet"
+import Link from "next/link"
 import { IdentityDialog } from "@/components/profile/identity-dialog"
 import { KIND_LABELS } from "@/components/profile/labels"
 import { Badge } from "@/components/ui/badge"
@@ -53,8 +53,7 @@ export function needsAttention(entry: ProfileEntry) {
 export function ProfileWorkspace({ profile, entries, defaultImportPath }: { profile: Profile | null; entries: ProfileEntry[]; defaultImportPath: string }) {
   const [filter, setFilter] = useState<Filter>("all")
   const [query, setQuery] = useState("")
-  const [editing, setEditing] = useState<ProfileEntry | "new" | null>(null)
-  const [identityOpen, setIdentityOpen] = useState(false)
+    const [identityOpen, setIdentityOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
 
   const active = entries.filter((entry) => entry.status !== "archived")
@@ -118,13 +117,12 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
             <Button onClick={() => setImportOpen(true)}>
               <DownloadIcon /> Import folder
             </Button>
-            <Button variant="outline" onClick={() => setEditing("new")}>
+            <Button variant="outline" nativeButton={false} render={<Link href="/profile/new" />}>
               <PlusIcon /> Add entry
             </Button>
           </EmptyContent>
         </Empty>
         <ImportDialog open={importOpen} onOpenChange={setImportOpen} defaultPath={defaultImportPath} />
-        <EntrySheet key={editing === "new" ? "new" : (editing?.id ?? "closed")} entry={editing} onClose={() => setEditing(null)} />
       </>
     )
   }
@@ -221,7 +219,7 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <DownloadIcon /> Import
           </Button>
-          <Button onClick={() => setEditing("new")}>
+          <Button nativeButton={false} render={<Link href="/profile/new" />}>
             <PlusIcon /> Add entry
           </Button>
         </div>
@@ -230,7 +228,7 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
       {visible.length ? (
         <div className="grid gap-3">
           {visible.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} attention={needsAttention(entry)} onOpen={() => setEditing(entry)} />
+            <EntryCard key={entry.id} entry={entry} attention={needsAttention(entry)} />
           ))}
         </div>
       ) : (
@@ -241,8 +239,6 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
           </EmptyHeader>
         </Empty>
       )}
-
-      <EntrySheet key={editing === "new" ? "new" : (editing?.id ?? "closed")} entry={editing} onClose={() => setEditing(null)} />
       <IdentityDialog open={identityOpen} onOpenChange={setIdentityOpen} profile={profile} />
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} defaultPath={defaultImportPath} />
     </>

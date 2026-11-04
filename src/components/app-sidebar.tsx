@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import * as React from "react"
+import { Suspense } from "react"
 import { SparklesIcon } from "lucide-react"
 import { navItems } from "@/components/nav"
 import { NavUser } from "@/components/nav-user"
@@ -23,8 +24,6 @@ export function AppSidebar({
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { user: { name: string; email: string; avatar: string } }) {
-  const pathname = usePathname()
-  const isActive = (url: string) => (url === "/" ? pathname === "/" : pathname.startsWith(url))
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -45,16 +44,9 @@ export function AppSidebar({
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-          <SidebarMenu>
-            {navItems.map((item) => (
-              <SidebarMenuItem key={item.url}>
-                <SidebarMenuButton tooltip={item.title} isActive={isActive(item.url)} render={<Link href={item.url} />}>
-                  <item.icon />
-                  <span>{item.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
+          <Suspense fallback={<NavLinks pathname={null} />}>
+            <ActiveNavLinks />
+          </Suspense>
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
@@ -62,5 +54,25 @@ export function AppSidebar({
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  )
+}
+
+function ActiveNavLinks() {
+  return <NavLinks pathname={usePathname()} />
+}
+
+function NavLinks({ pathname }: { pathname: string | null }) {
+  const isActive = (url: string) => pathname !== null && (url === "/" ? pathname === "/" : pathname.startsWith(url))
+  return (
+    <SidebarMenu>
+      {navItems.map((item) => (
+        <SidebarMenuItem key={item.url}>
+          <SidebarMenuButton tooltip={item.title} isActive={isActive(item.url)} render={<Link href={item.url} />}>
+            <item.icon />
+            <span>{item.title}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
   )
 }

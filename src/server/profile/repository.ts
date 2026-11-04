@@ -215,3 +215,8 @@ export async function importProfileFolder(folder: string): Promise<ImportSummary
   })
   return summary
 }
+
+export async function getEntry(entryId: string) {
+  const all = await listEntries()
+  return all.find((entry) => entry.id === entryId) ?? null
+}

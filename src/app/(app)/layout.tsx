@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Separator } from "@/components/ui/separator"
@@ -12,7 +13,9 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 data-vertical:h-4 data-vertical:self-auto" />
-            <PageBreadcrumb />
+            <Suspense fallback={null}>
+              <PageBreadcrumb />
+            </Suspense>
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">{children}</div>
