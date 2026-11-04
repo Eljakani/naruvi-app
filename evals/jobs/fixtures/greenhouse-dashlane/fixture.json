@@ -1,0 +1,25 @@
+{
+  "url": "https://job-boards.greenhouse.io/dashlane/jobs/8232785",
+  "capturedAt": "2026-11-04",
+  "sources": [
+    {
+      "kind": "greenhouse",
+      "url": "https://boards-api.greenhouse.io/v1/boards/dashlane/jobs/8232785?content=true",
+      "file": "greenhouse.json"
+    },
+    {
+      "kind": "page",
+      "url": "https://job-boards.greenhouse.io/dashlane/jobs/8232785",
+      "file": "page.html"
+    }
+  ],
+  "expected": {
+    "company": "Dashlane",
+    "role": "Staff Product Security Engineer",
+    "language": "en",
+    "locationIncludes": "Paris",
+    "minDescription": 3000,
+    "website": "https://dashlane.com"
+  },
+  "note": "website: null = needs a verifying network fetch; offline resolution must not invent one"
+}

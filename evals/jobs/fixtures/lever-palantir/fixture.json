@@ -1,0 +1,20 @@
+{
+  "url": "https://jobs.lever.co/palantir/6ed76ce8-4156-4b60-b120-403538bd66cd",
+  "capturedAt": "2026-11-04",
+  "sources": [
+    {
+      "kind": "lever",
+      "url": "https://api.lever.co/v0/postings/palantir/6ed76ce8-4156-4b60-b120-403538bd66cd",
+      "file": "lever.json"
+    }
+  ],
+  "expected": {
+    "company": "Palantir",
+    "role": "Administrative Business Partner",
+    "language": "en",
+    "locationIncludes": "Singapore",
+    "minDescription": 3000,
+    "website": "https://palantir.com"
+  },
+  "note": "website: null = needs a verifying network fetch; offline resolution must not invent one"
+}

@@ -27,7 +27,7 @@ export const entryInput = z.object({
   confidential: z.boolean().default(false),
   logoPath: z
     .string()
-    .regex(/^logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg)$/)
+    .regex(/^logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg|ico)$/)
     .nullable()
     .default(null),
   facts: z.array(z.object({ id: z.string().uuid().optional(), statement: z.string().trim().min(3).max(600) })).default([]),

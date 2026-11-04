@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import {
   boolean,
   index,
@@ -341,3 +341,15 @@ export const runSteps = pgTable(
   },
   (t) => [index().on(t.runId, t.createdAt)],
 )
+
+/* ------------------------------------------------------------------ */
+/* relations (for db.query with joins)                                 */
+/* ------------------------------------------------------------------ */
+
+export const jobsRelations = relations(jobs, ({ one }) => ({
+  company: one(companies, { fields: [jobs.companyId], references: [companies.id] }),
+}))
+
+export const companiesRelations = relations(companies, ({ many }) => ({
+  jobs: many(jobs),
+}))

@@ -1,0 +1,25 @@
+{
+  "url": "https://jobs.smartrecruiters.com/BoschGroup/744000159726840",
+  "capturedAt": "2026-11-04",
+  "sources": [
+    {
+      "kind": "smartrecruiters",
+      "url": "https://api.smartrecruiters.com/v1/companies/BoschGroup/postings/744000159726840",
+      "file": "smartrecruiters.json"
+    },
+    {
+      "kind": "page",
+      "url": "https://jobs.smartrecruiters.com/BoschGroup/744000159726840",
+      "file": "page.html"
+    }
+  ],
+  "expected": {
+    "company": "Bosch Group",
+    "role": "Core Buyer - Rotating Machines",
+    "language": "en",
+    "locationIncludes": "Oakbrook Terrace",
+    "minDescription": 3000,
+    "website": "https://bosch.com"
+  },
+  "note": "website: null = needs a verifying network fetch; offline resolution must not invent one"
+}

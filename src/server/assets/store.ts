@@ -7,7 +7,7 @@ import { IMAGE_MIME, type ImageFormat, imageSize, logoShapeWarning, sniffImage }
 /** Local, content-addressed asset store (a Docker volume in compose). */
 export const ASSETS_DIR = resolve(process.env.ASSETS_DIR || "data/assets")
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024
-const ASSET_PATH = /^(logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg)|photos\/[a-f0-9]{24}\.(png|jpg|webp))$/
+const ASSET_PATH = /^(logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg|ico)|photos\/[a-f0-9]{24}\.(png|jpg|webp))$/
 
 export function isAssetPath(value: string): boolean {
   return ASSET_PATH.test(value)
@@ -43,7 +43,7 @@ async function storeImage(buffer: Buffer, folder: "logos" | "photos"): Promise<S
   if (buffer.length === 0) throw new Error("The file is empty.")
   if (buffer.length > MAX_IMAGE_BYTES) throw new Error("Images must be 2 MB or smaller.")
   const format = sniffImage(buffer)
-  if (!format) throw new Error("Unsupported image. Use PNG, JPG, WebP, GIF or SVG.")
+  if (!format) throw new Error("Unsupported image. Use PNG, JPG, WebP, GIF, SVG or ICO.")
   if (folder === "photos" && !["png", "jpg", "webp"].includes(format)) throw new Error("Use a PNG, JPG or WebP photo.")
   if (format === "svg") assertSafeSvg(buffer)
   const size = imageSize(buffer)

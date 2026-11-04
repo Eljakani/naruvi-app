@@ -1,0 +1,20 @@
+{
+  "url": "https://www.linkedin.com/jobs/view/4484853663",
+  "capturedAt": "2026-11-04",
+  "sources": [
+    {
+      "kind": "linkedin",
+      "url": "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/4484853663",
+      "file": "linkedin.html"
+    }
+  ],
+  "expected": {
+    "company": "emagine",
+    "role": "Consultant DevSecOps",
+    "language": "fr",
+    "locationIncludes": "Paris",
+    "minDescription": 2500,
+    "website": null
+  },
+  "note": "website: null = needs a verifying network fetch; offline resolution must not invent one"
+}

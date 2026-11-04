@@ -1,0 +1,25 @@
+{
+  "url": "https://jobs.ashbyhq.com/linear/d3bc1ced-3ce4-4086-a050-555055dbb1ff",
+  "capturedAt": "2026-11-04",
+  "sources": [
+    {
+      "kind": "ashby",
+      "url": "https://api.ashbyhq.com/posting-api/job-board/linear?includeCompensation=true",
+      "file": "ashby.json"
+    },
+    {
+      "kind": "page",
+      "url": "https://jobs.ashbyhq.com/linear/d3bc1ced-3ce4-4086-a050-555055dbb1ff",
+      "file": "page.html"
+    }
+  ],
+  "expected": {
+    "company": "Linear",
+    "role": "Senior / Staff Fullstack Engineer",
+    "language": "en",
+    "locationIncludes": "Europe",
+    "minDescription": 3000,
+    "website": "https://linear.app"
+  },
+  "note": "website: null = needs a verifying network fetch; offline resolution must not invent one"
+}

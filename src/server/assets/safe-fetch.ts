@@ -2,7 +2,7 @@ import "server-only"
 import { lookup } from "node:dns/promises"
 import { isIP } from "node:net"
 
-function privateAddress(address: string) {
+function privateAddress(address: string): boolean {
   if (isIP(address) === 6) {
     const a = address.toLowerCase()
     if (a.startsWith("::ffff:")) return privateAddress(a.slice(7))
@@ -12,20 +12,37 @@ function privateAddress(address: string) {
   return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224
 }
 
-/** Fetch a public http(s) URL only; every redirect hop is re-checked. Size-capped. */
-export async function safeFetchBytes(rawUrl: string, maxBytes: number, accept = "image/*"): Promise<Buffer> {
+export async function assertPublicUrl(url: URL) {
+  if (!/^https?:$/.test(url.protocol)) throw new Error("Only http(s) URLs are allowed.")
+  const addresses = isIP(url.hostname) ? [{ address: url.hostname }] : await lookup(url.hostname, { all: true })
+  if (!addresses.length || addresses.some((item) => privateAddress(item.address))) throw new Error("That address is local or private and is not allowed.")
+}
+
+export type FetchResult = { buffer: Buffer; contentType: string; finalUrl: string; status: number }
+
+/**
+ * Fetch a public http(s) URL. Every redirect hop is re-checked against private
+ * ranges, the body is size-capped while streaming, and the request times out.
+ */
+export async function safeFetch(rawUrl: string, { maxBytes, accept, timeoutMs = 15_000 }: { maxBytes: number; accept: string; timeoutMs?: number }): Promise<FetchResult> {
   let url = new URL(rawUrl)
-  for (let hop = 0; hop < 5; hop += 1) {
-    if (!/^https?:$/.test(url.protocol)) throw new Error("Only http(s) URLs are allowed.")
-    const addresses = isIP(url.hostname) ? [{ address: url.hostname }] : await lookup(url.hostname, { all: true })
-    if (!addresses.length || addresses.some((item) => privateAddress(item.address))) throw new Error("That address is local or private and is not allowed.")
-    const response = await fetch(url, { redirect: "manual", headers: { accept, "user-agent": "CareerBuddy/0.1 (+local)" }, signal: AbortSignal.timeout(15_000) })
-    if (response.status >= 300 && response.status < 400 && response.headers.get("location")) {
-      url = new URL(response.headers.get("location")!, url)
+  for (let hop = 0; hop < 6; hop += 1) {
+    await assertPublicUrl(url)
+    const response = await fetch(url, {
+      redirect: "manual",
+      headers: {
+        accept,
+        "accept-language": "en-US,en;q=0.9,fr;q=0.8",
+        "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36 CareerBuddy/0.1",
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+    const location = response.headers.get("location")
+    if (response.status >= 300 && response.status < 400 && location) {
+      url = new URL(location, url)
       continue
     }
-    if (!response.ok) throw new Error(`The server answered ${response.status}.`)
-    if (Number(response.headers.get("content-length") ?? 0) > maxBytes) throw new Error("The file is too large.")
+    if (Number(response.headers.get("content-length") ?? 0) > maxBytes) throw new Error("The response is too large.")
     const reader = response.body?.getReader()
     const chunks: Uint8Array[] = []
     let size = 0
@@ -35,11 +52,23 @@ export async function safeFetchBytes(rawUrl: string, maxBytes: number, accept = 
       size += value.length
       if (size > maxBytes) {
         await reader.cancel()
-        throw new Error("The file is too large.")
+        throw new Error("The response is too large.")
       }
       chunks.push(value)
     }
-    return Buffer.concat(chunks)
+    return { buffer: Buffer.concat(chunks), contentType: response.headers.get("content-type") ?? "", finalUrl: url.toString(), status: response.status }
   }
   throw new Error("Too many redirects.")
+}
+
+/** Back-compat helper for image downloads: throws on non-2xx. */
+export async function safeFetchBytes(rawUrl: string, maxBytes: number, accept = "image/*"): Promise<Buffer> {
+  const result = await safeFetch(rawUrl, { maxBytes, accept })
+  if (result.status >= 400) throw new Error(`The server answered ${result.status}.`)
+  return result.buffer
+}
+
+export async function safeFetchText(rawUrl: string, maxBytes = 3 * 1024 * 1024) {
+  const result = await safeFetch(rawUrl, { maxBytes, accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.5" })
+  return { ...result, text: result.buffer.toString("utf8") }
 }

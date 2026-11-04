@@ -114,8 +114,8 @@ docs/                  architecture and decisions (ADRs)
 
 1. Foundation: compose, db, schema, env, app shell. ✅
 2. Profile: entries/facts/phrasings, grounding checks, editor, my-cv import. ✅
-3. Jobs: universal link parser ← **next**: + company/logo resolver + golden evals.
-4. Analysis: requirements/keywords/fit with cited facts.
+3. Jobs: universal link parser ✅ + company/logo resolver + golden evals.
+4. Analysis ← **next**: requirements/keywords/fit with cited facts.
 5. Generation + LaTeX service + quality gate + revisions.
 6. Research, cover letters, multi-language.
 7. Tracking board, traces UI, eval dashboard.
@@ -129,3 +129,20 @@ docs/                  architecture and decisions (ADRs)
   translation with no shared words inherits the links of its sibling in the
   other language (same group, same position) and is re-verified on numbers.
 - The same checks will gate generated text in step 5.
+
+## 9. Job ingestion (implemented in `src/server/jobs/`)
+
+```
+link ─▶ ATS APIs (Greenhouse, Lever, Ashby, SmartRecruiters, LinkedIn guest) + public page
+     ─▶ parse each (vendored parser, zod-validated) ─▶ pick best (pure `select.ts`)
+     ─▶ company site: structured data, links, recruiter e-mail domain, text; weak
+        candidates verified by fetching the homepage; job-board hosts never accepted
+     ─▶ logo: posting header logo, then site icons (touch icon, JSON-LD, header img,
+        og:image last); each downloaded image is cropped to its content and scored
+        on squareness × source × resolution; best one stored
+     ─▶ draft (nothing saved) ─▶ user reviews/edits ─▶ save (idempotent on canonical URL)
+```
+
+- All network access goes through `safeFetch` (public addresses only, re-checked on every redirect, size-capped, timed out).
+- Every preview is traced (`runs` / `run_steps`): source used, confidence, site decision, logo source.
+- Golden evals: `evals/jobs/fixtures/*` hold captured raw responses; `npm run evals` checks company, role, language, location, description length and website offline. Capture new ones with `npm run jobs:capture -- <name> <url>` and review the expected values by hand.
