@@ -46,7 +46,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
         </div>
         <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />
       </div>
-      {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
+      {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
     </div>
   )
 }

@@ -272,7 +272,7 @@ export type QualitySummary = {
   errors: number
   warnings: number
   pages: number
-  checks: { id: string; status: "pass" | "warn" | "fail"; detail: string }[]
+  checks: { id: string; status: "pass" | "warn" | "fail"; label: string; detail: string }[]
 }
 
 export const revisions = pgTable(
@@ -286,7 +286,11 @@ export const revisions = pgTable(
     origin: revisionOrigin().notNull(),
     verdict: revisionVerdict().notNull().default("kept"),
     verdictReason: text().notNull().default(""),
-    latex: text().notNull(),
+    /** Structured document (see src/server/documents/model.ts). */
+    content: jsonb().$type<Record<string, unknown>>(),
+    /** Legacy/optional export; documents are structured data first. */
+    latex: text(),
+    pages: integer(),
     citedFactIds: uuid().array().notNull().default(sql`'{}'::uuid[]`),
     pdfPath: text(),
     quality: jsonb().$type<QualitySummary>(),

@@ -50,7 +50,6 @@ that plugin are baked into the design from day one instead of patched in.
 | `migrate` | One-shot: applies Drizzle migrations, then exits. |
 | `app`     | Next.js (App Router) UI + route handlers / server actions. |
 | `worker`  | Queue consumer (pg-boss) running workflow steps. |
-| `latex`   | TeX Live compile service, no network, read-only source mounts. |
 
 Local dev runs `db` in Docker and `app`/`worker` on the host with hot reload.
 
@@ -124,7 +123,7 @@ docs/                  architecture and decisions (ADRs)
 4. Analysis: requirements, evidence matching, fit, optional model review. ✅
 5. Generation ← **next**: requirements/keywords/fit with cited facts.
    Generation + LaTeX service + quality gate + revisions.
-6. Research, cover letters, multi-language.
+6. Research, cover letters, more templates & languages ← **next**
 7. Tracking board, traces UI, eval dashboard.
 
 ## 8. Grounding rules (implemented in `src/server/domain/grounding.ts`)
@@ -175,3 +174,20 @@ verified facts only ─▶ match each requirement:
 Extending to a new field: add a pack to `src/server/analysis/keywords.ts`
 (canonical key → EN/FR patterns) and, if useful, `RELATED` links. Tests in
 `src/server/domain/__tests__/analysis.test.ts` include non-tech cases.
+
+## 11. CV generation (implemented in `src/server/documents/`, see ADR 0001)
+
+```
+application (analysis) + verified profile
+  ─▶ compose (pure): verified entries only; approved, grounded phrasings in the
+     target language (facts as fallback only in the profile's own language);
+     bullets ranked by evidence for proven requirements, then job keywords;
+     entries newest first (dates parsed in EN/FR/ES/DE); extra bullets kept
+     but excluded so the user can swap them in; no language mixing
+  ─▶ render (React-PDF, classic single-column template, real text)
+  ─▶ quality gate (pure): grounded bullets, contact, headline, page budget
+     measured on the PDF, experience present, must-have evidence shown,
+     missing translations, bullet length/density
+  ─▶ immutable revision (content JSON, pages, quality, cited fact ids);
+     edits = new revision; restore = move the pointer
+```

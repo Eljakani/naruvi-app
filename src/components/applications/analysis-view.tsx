@@ -119,7 +119,7 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
 
 type Filter = "all" | "attention" | "proven"
 
-export function AnalysisView({ analysis, facts }: { analysis: StoredAnalysis; facts: FactRow[] }) {
+export function AnalysisView({ analysis, facts, cvHref }: { analysis: StoredAnalysis; facts: FactRow[]; cvHref: string }) {
   const [filter, setFilter] = useState<Filter>("all")
   const groups = useMemo(() => {
     const visible = analysis.requirements.filter((match) =>
@@ -288,13 +288,13 @@ export function AnalysisView({ analysis, facts }: { analysis: StoredAnalysis; fa
         <Card className="border-dashed">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
-              <SparklesIcon className="size-4" /> Next: generate your CV
+              <SparklesIcon className="size-4" /> Your tailored CV
             </CardTitle>
-            <CardDescription>Step 5 writes a tailored CV from the proven facts above, compiles it and runs the quality gate.</CardDescription>
+            <CardDescription>Built only from your verified entries and approved bullets, ordered for this job, then quality-checked.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button disabled className="w-full">
-              <FileTextIcon /> Generate CV (coming in step 5)
+            <Button className="w-full" nativeButton={false} render={<Link href={cvHref} />}>
+              <FileTextIcon /> Open CV
             </Button>
           </CardContent>
         </Card>
