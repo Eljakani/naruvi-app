@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Logo uploads go through server actions (2 MB images + form overhead).
+  experimental: { serverActions: { bodySizeLimit: "3mb" } },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

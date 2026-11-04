@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { safeFetchBytes } from "@/server/assets/safe-fetch"
+import { MAX_IMAGE_BYTES, storeLogo } from "@/server/assets/store"
 import { deleteEntry, importProfileFolder, saveEntry, saveIdentity, setEntryStatus } from "@/server/profile/repository"
 import type { EntryInput, IdentityInput } from "@/server/profile/schemas"
 
@@ -39,4 +41,22 @@ export async function saveIdentityAction(input: IdentityInput) {
 
 export async function importProfileAction(folder: string) {
   return run(() => importProfileFolder(z.string().trim().min(1, "Enter a folder path.").parse(folder)))
+}
+
+/** Upload a logo file. Returns the stored path; the entry is updated on Save. */
+export async function uploadLogoAction(formData: FormData) {
+  return run(async () => {
+    const file = formData.get("file")
+    if (!(file instanceof File)) throw new Error("Choose an image file.")
+    if (file.size > MAX_IMAGE_BYTES) throw new Error("Logos must be 2 MB or smaller.")
+    return storeLogo(Buffer.from(await file.arrayBuffer()))
+  })
+}
+
+/** Download a logo from a public image URL. */
+export async function logoFromUrlAction(url: string) {
+  return run(async () => {
+    const parsed = z.string().trim().url("Enter a full image URL (https://…).").parse(url)
+    return storeLogo(await safeFetchBytes(parsed, MAX_IMAGE_BYTES))
+  })
 }

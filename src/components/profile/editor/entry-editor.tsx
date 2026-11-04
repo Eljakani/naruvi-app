@@ -25,6 +25,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { deleteEntryAction, saveEntryAction } from "@/app/(app)/profile/actions"
+import { EntryLogo } from "@/components/profile/entry-logo"
+import { LogoField } from "@/components/profile/editor/logo-field"
 import { ChipInput, FactPicker, GrowText, LineList, StringLineList } from "@/components/profile/editor/inputs"
 import { type Draft, type DraftBullet, type Lang, LANGS, newKey, pairRows, toDraft, toInput } from "@/components/profile/editor/draft"
 import { KIND_SINGULAR, STATUS_LABELS } from "@/components/profile/labels"
@@ -72,6 +74,8 @@ const FIELD_COPY: Record<Draft["kind"], { role: string; organization: string; ro
   achievement: { role: "Title", organization: "Event / issuer", rolePlaceholder: "1st place", orgPlaceholder: "WOCS'hAck 2026" },
   other: { role: "Title", organization: "Organization", rolePlaceholder: "", orgPlaceholder: "" },
 }
+
+const LOGO_KINDS = new Set<Draft["kind"]>(["experience", "education", "project", "certification", "achievement"])
 
 const SECTIONS = [
   { id: "basics", label: "Basics" },
@@ -189,6 +193,7 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
         <Button variant="ghost" size="sm" onClick={() => leave("/profile")}>
           <ArrowLeftIcon /> Profile
         </Button>
+        {LOGO_KINDS.has(draft.kind) ? <EntryLogo path={draft.logoPath} name={draft.display.en.organization || title} size={32} /> : null}
         <div className="min-w-0 flex-1">
           <div className="truncate font-semibold">{title}</div>
           <div className="text-xs text-muted-foreground">
@@ -240,6 +245,12 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
               <Input id="title" value={draft.title} onChange={(event) => patch({ title: event.target.value })} placeholder={copy.orgPlaceholder || "How you'll recognise it in lists"} />
               <p className="text-xs text-muted-foreground">Only for you. Recruiters see the display fields below.</p>
             </div>
+            {LOGO_KINDS.has(draft.kind) ? (
+              <div className="grid gap-2">
+                <span className="text-sm font-medium">{draft.kind === "education" ? "School logo" : draft.kind === "certification" ? "Issuer logo" : draft.kind === "project" ? "Project logo" : "Company logo"}</span>
+                <LogoField value={draft.logoPath} name={draft.display.en.organization || draft.title || title} onChange={(logoPath) => patch({ logoPath })} />
+              </div>
+            ) : null}
           </Section>
 
           {/* 2. display */}
@@ -606,16 +617,21 @@ function Preview({ draft, lang, grounding }: { draft: Draft; lang: Lang; groundi
   }
   return (
     <div className="grid gap-2 rounded-md border bg-white p-3 text-[12.5px] leading-snug text-zinc-900 shadow-sm dark:bg-zinc-50">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="font-semibold">{display.role || "—"}</span>
-        <span className="shrink-0 text-[11px] text-zinc-500">{display.dates}</span>
-      </div>
-      {display.organization || display.location ? (
-        <div className="-mt-1.5 flex justify-between gap-2 text-[11px] text-zinc-600 italic">
-          <span>{display.organization}</span>
-          <span>{display.location}</span>
+      <div className="flex items-start gap-2.5">
+        {draft.logoPath ? <EntryLogo path={draft.logoPath} name={display.organization || draft.title} size={30} className="border-zinc-200 bg-white" /> : null}
+        <div className="grid min-w-0 flex-1 gap-0.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="font-semibold">{display.role || "—"}</span>
+            <span className="shrink-0 text-[11px] text-zinc-500">{display.dates}</span>
+          </div>
+          {display.organization || display.location ? (
+            <div className="flex justify-between gap-2 text-[11px] text-zinc-600 italic">
+              <span>{display.organization}</span>
+              <span>{display.location}</span>
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
       {bullets.length ? (
         <ul className="grid list-disc gap-1 pl-4">
           {bullets.map((bullet) => (

@@ -25,6 +25,11 @@ export const entryInput = z.object({
   evidence: lines.default([]),
   doNotClaim: lines.default([]),
   confidential: z.boolean().default(false),
+  logoPath: z
+    .string()
+    .regex(/^logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg)$/)
+    .nullable()
+    .default(null),
   facts: z.array(z.object({ id: z.string().uuid().optional(), statement: z.string().trim().min(3).max(600) })).default([]),
   phrasings: z
     .array(

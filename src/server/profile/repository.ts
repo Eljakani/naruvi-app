@@ -1,10 +1,13 @@
 import "server-only"
 import { readdir, readFile } from "node:fs/promises"
 import { basename, join } from "node:path"
-import { asc, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray, isNull } from "drizzle-orm"
+import { imageSize } from "@/server/assets/image"
+import { storeLogo } from "@/server/assets/store"
 import { db } from "@/server/db/client"
 import { entries, facts, phrasings, profiles } from "@/server/db/schema"
 import { supportFor, verifySupport } from "@/server/domain/grounding"
+import { matchLogo } from "./logo-match"
 import { parseIdentity, parsePool } from "./pool-parser"
 import { entryInput, identityInput, type EntryInput, type IdentityInput } from "./schemas"
 
@@ -77,6 +80,7 @@ export async function saveEntry(input: EntryInput, entryId?: string) {
       evidence: data.evidence,
       doNotClaim: data.doNotClaim,
       confidential: data.confidential,
+      logoPath: data.logoPath,
     }
     const [entry] = entryId
       ? await tx.update(entries).set(values).where(eq(entries.id, entryId)).returning()
@@ -151,7 +155,7 @@ async function markdownFiles(dir: string): Promise<string[]> {
   return out.sort()
 }
 
-export type ImportSummary = { entries: number; facts: number; phrasings: number; ungrounded: { entry: string; text: string; numbers: string[] }[] }
+export type ImportSummary = { entries: number; facts: number; phrasings: number; logos: number; ungrounded: { entry: string; text: string; numbers: string[] }[] }
 
 /** Idempotent: entries are upserted by key; their facts and phrasings are replaced. */
 export async function importProfileFolder(folder: string): Promise<ImportSummary> {
@@ -170,7 +174,7 @@ export async function importProfileFolder(folder: string): Promise<ImportSummary
       .where(eq(profiles.id, profile.id))
   }
 
-  const summary: ImportSummary = { entries: 0, facts: 0, phrasings: 0, ungrounded: [] }
+  const summary: ImportSummary = { entries: 0, facts: 0, phrasings: 0, logos: 0, ungrounded: [] }
   await db.transaction(async (tx) => {
     for (const [index, item] of parsed.entries()) {
       const values = {
@@ -213,7 +217,47 @@ export async function importProfileFolder(folder: string): Promise<ImportSummary
       summary.phrasings += item.phrasings.length
     }
   })
+  summary.logos = await attachLogos(folder, profile.id)
   return summary
+}
+
+const LOGO_KINDS = ["experience", "education", "project", "certification", "achievement"] as const
+
+/**
+ * Give entries without a logo the best match from <folder>/../assets/*_logos.
+ * Never overrides a logo the user already chose.
+ */
+async function attachLogos(profileFolder: string, profileId: string) {
+  const assetsDir = join(profileFolder, "..", "assets")
+  const candidates: { file: string; aspect: number | null; abs: string }[] = []
+  for (const sub of ["companies_logos", "schools_logos"]) {
+    const names = await readdir(join(assetsDir, sub)).catch(() => [] as string[])
+    for (const name of names) {
+      const abs = join(assetsDir, sub, name)
+      const size = imageSize(await readFile(abs).catch(() => Buffer.alloc(0)))
+      candidates.push({ file: `${sub}/${name}`, abs, aspect: size ? size.width / size.height : null })
+    }
+  }
+  if (!candidates.length) return 0
+  const missing = await db
+    .select()
+    .from(entries)
+    .where(and(eq(entries.profileId, profileId), isNull(entries.logoPath), inArray(entries.kind, [...LOGO_KINDS])))
+  let attached = 0
+  for (const entry of missing) {
+    const organization = entry.display.en?.organization || entry.display.fr?.organization || entry.title
+    const file = matchLogo(organization, candidates) ?? matchLogo(entry.title, candidates)
+    if (!file) continue
+    const source = candidates.find((candidate) => candidate.file === file)!
+    try {
+      const stored = await storeLogo(await readFile(source.abs))
+      await db.update(entries).set({ logoPath: stored.path }).where(eq(entries.id, entry.id))
+      attached += 1
+    } catch {
+      // unreadable or unsupported file: skip, the user can upload one
+    }
+  }
+  return attached
 }
 
 export async function getEntry(entryId: string) {

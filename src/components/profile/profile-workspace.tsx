@@ -257,7 +257,7 @@ function ImportDialog({ open, onOpenChange, defaultPath }: { open: boolean; onOp
       }
       const summary = result.data!
       toast.success(`Imported ${summary.entries} entries`, {
-        description: `${summary.facts} facts, ${summary.phrasings} phrasings${summary.ungrounded.length ? ` · ${summary.ungrounded.length} bullets need a fact link` : ""}.`,
+        description: `${summary.facts} facts, ${summary.phrasings} phrasings, ${summary.logos} logos${summary.ungrounded.length ? ` · ${summary.ungrounded.length} bullets need a fact link` : ""}.`,
       })
       onOpenChange(false)
     })

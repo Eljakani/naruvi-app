@@ -122,6 +122,8 @@ export const entries = pgTable(
     evidence: text().array().notNull().default(sql`'{}'::text[]`),
     /** Never claim these (NDA limits, overstatements). Sent to every prompt. */
     doNotClaim: text().array().notNull().default(sql`'{}'::text[]`),
+    /** Logo shown next to the entry (path inside the asset store, e.g. logos/<sha>.png). */
+    logoPath: text(),
     /** NDA-sensitive: generation must stay high-level. */
     confidential: boolean().notNull().default(false),
     sortOrder: integer().notNull().default(0),

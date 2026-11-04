@@ -15,6 +15,13 @@
       "when": 1793825153172,
       "tag": "0001_phrasing_role",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793825880896,
+      "tag": "0002_entry_logo",
+      "breakpoints": true
     }
   ]
 }

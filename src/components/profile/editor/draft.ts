@@ -17,6 +17,7 @@ export type Draft = {
   evidence: string[]
   doNotClaim: string[]
   confidential: boolean
+  logoPath: string | null
   facts: DraftFact[]
   bullets: DraftBullet[]
 }
@@ -36,6 +37,7 @@ export function toDraft(entry: ProfileEntry | null): Draft {
       evidence: [],
       doNotClaim: [],
       confidential: false,
+      logoPath: null,
       facts: [],
       bullets: [],
     }
@@ -50,6 +52,7 @@ export function toDraft(entry: ProfileEntry | null): Draft {
     evidence: entry.evidence,
     doNotClaim: entry.doNotClaim,
     confidential: entry.confidential,
+    logoPath: entry.logoPath,
     facts: entry.facts.map((fact) => ({ key: fact.id, statement: fact.statement })),
     bullets: entry.phrasings.map((phrasing) => ({
       key: phrasing.id,
@@ -80,6 +83,7 @@ export function toInput(draft: Draft): EntryInput {
     evidence: draft.evidence,
     doNotClaim: draft.doNotClaim,
     confidential: draft.confidential,
+    logoPath: draft.logoPath,
     facts: facts.map((fact) => ({ statement: fact.statement.trim() })),
     phrasings: draft.bullets
       .filter((bullet) => bullet.text.trim())

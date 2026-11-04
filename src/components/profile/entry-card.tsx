@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { AlertTriangleIcon, ChevronRightIcon, LockIcon } from "lucide-react"
+import { EntryLogo } from "@/components/profile/entry-logo"
 import { KIND_SINGULAR, STATUS_LABELS } from "@/components/profile/labels"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
@@ -22,6 +23,7 @@ export function EntryCard({ entry, attention }: { entry: ProfileEntry; attention
         entry.status === "archived" && "opacity-60",
       )}
     >
+      {["experience", "education", "project", "certification", "achievement"].includes(entry.kind) ? <EntryLogo path={entry.logoPath} name={display.organization || entry.title} size={44} /> : null}
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="truncate font-medium">{display.role || entry.title}</span>
