@@ -8,6 +8,12 @@ that plugin are baked into the design from day one instead of patched in.
 
 ## 1. Principles
 
+0. **For anyone, in any field.** CareerBuddy is open-source software for every
+   job seeker — nurses, buyers, teachers, engineers, drivers — not a tool tuned
+   to one profile. No logic may assume a field, a language pair or a CV
+   template. Field knowledge lives in data (skill vocabulary packs) and is
+   always backed by field-agnostic fallbacks (term detection, lexical match).
+
 1. **Workflows first, agents where they earn it.** The application lifecycle is a
    deterministic state machine. LLM calls happen only inside bounded steps with
    typed inputs/outputs. No open-ended "agent loop" owns the user's documents.
@@ -115,8 +121,9 @@ docs/                  architecture and decisions (ADRs)
 1. Foundation: compose, db, schema, env, app shell. ✅
 2. Profile: entries/facts/phrasings, grounding checks, editor, my-cv import. ✅
 3. Jobs: universal link parser ✅ + company/logo resolver + golden evals.
-4. Analysis ← **next**: requirements/keywords/fit with cited facts.
-5. Generation + LaTeX service + quality gate + revisions.
+4. Analysis: requirements, evidence matching, fit, optional model review. ✅
+5. Generation ← **next**: requirements/keywords/fit with cited facts.
+   Generation + LaTeX service + quality gate + revisions.
 6. Research, cover letters, multi-language.
 7. Tracking board, traces UI, eval dashboard.
 
@@ -146,3 +153,25 @@ link ─▶ ATS APIs (Greenhouse, Lever, Ashby, SmartRecruiters, LinkedIn guest)
 - All network access goes through `safeFetch` (public addresses only, re-checked on every redirect, size-capped, timed out).
 - Every preview is traced (`runs` / `run_steps`): source used, confidence, site decision, logo source.
 - Golden evals: `evals/jobs/fixtures/*` hold captured raw responses; `npm run evals` checks company, role, language, location, description length and website offline. Capture new ones with `npm run jobs:capture -- <name> <url>` and review the expected values by hand.
+
+## 10. Fit analysis (implemented in `src/server/analysis/`)
+
+```
+job text ─▶ requirements (sections: must / responsibilities / nice; years)
+         ─▶ skills: vocabulary packs (tech, business, care, education, trades,
+            languages…) + term detection for unknown tools/acronyms
+verified facts only ─▶ match each requirement:
+   proven    every named skill appears in a fact statement (named products must
+             be named; coursework only proves knowledge/certification asks)
+   partly    some skills, entry tags only, coursework, or related skills
+   not in profile   nothing backs it → listed under "Don't claim these"
+   your call        soft skills / unprovable context → shown, never scored
+─▶ optional model review (only if LLM_API_KEY): uncertain items only, candidate
+   facts by alias, invented ids dropped, "proven" requires a surviving fact
+─▶ fit score (must 1 · responsibilities 0.6 · nice 0.4), entries to lead with,
+   key skills ✓/✗, cover-letter decision; stored on the application, traced.
+```
+
+Extending to a new field: add a pack to `src/server/analysis/keywords.ts`
+(canonical key → EN/FR patterns) and, if useful, `RELATED` links. Tests in
+`src/server/domain/__tests__/analysis.test.ts` include non-tech cases.

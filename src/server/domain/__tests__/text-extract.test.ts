@@ -70,3 +70,10 @@ test("employment type needs explicit vocabulary", async () => {
   assert.equal(type("CDD de 12 mois"), "Fixed-term")
   assert.equal(type("Freelance mission, 6 months"), "Contract")
 })
+
+test("role detection works across occupations", () => {
+  assert.equal(pick("St. Mary's Hospital is hiring a Registered Nurse in Boston.").role, "Registered Nurse")
+  assert.equal(pick("La Boulangerie Dupont recrute un Boulanger H/F à Lyon.").role, "Boulanger H/F")
+  assert.equal(pick("Warehouse Operator | DHL\n\nShifts…").role, "Warehouse Operator")
+  assert.equal(pick("Join Lycée Victor Hugo as a Mathematics Teacher.").role, "Mathematics Teacher")
+})

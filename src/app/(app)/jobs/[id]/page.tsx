@@ -2,15 +2,16 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { connection } from "next/server"
-import { AlertTriangleIcon, ArrowLeftIcon, BriefcaseBusinessIcon, CalendarIcon, ExternalLinkIcon, GlobeIcon, MapPinIcon, SparklesIcon, WalletIcon } from "lucide-react"
+import { AlertTriangleIcon, ArrowLeftIcon, BriefcaseBusinessIcon, CalendarIcon, ExternalLinkIcon, GlobeIcon, MapPinIcon, ScanSearchIcon, WalletIcon } from "lucide-react"
 import { JobDescription } from "@/components/jobs/job-description"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getJob } from "@/server/jobs/ingest"
+import { applicationForJob } from "@/server/applications/repository"
+import { AnalyzeButton } from "@/components/applications/analyze-button"
 
 export const metadata = { title: "Job" }
 
@@ -28,6 +29,7 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
   const job = await getJob(id)
   if (!job) notFound()
+  const application = await applicationForJob(job.id)
   const chips = [
     job.location && { icon: MapPinIcon, text: job.location },
     job.remote && { icon: GlobeIcon, text: job.remote },
@@ -69,14 +71,16 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
               <ExternalLinkIcon /> Original
             </Button>
           ) : null}
-          <Tooltip>
-            <TooltipTrigger render={<span tabIndex={0} />}>
-              <Button disabled>
-                <SparklesIcon /> Tailor my CV
+          {application ? (
+            <>
+              <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />
+              <Button nativeButton={false} render={<Link href={`/applications/${application.id}`} />}>
+                <ScanSearchIcon /> Open analysis
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>Arrives with analysis and generation (steps 4–5).</TooltipContent>
-          </Tooltip>
+            </>
+          ) : (
+            <AnalyzeButton jobId={job.id} />
+          )}
         </div>
       </div>
 

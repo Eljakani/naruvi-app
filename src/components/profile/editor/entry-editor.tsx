@@ -65,11 +65,11 @@ const KIND_ICONS = {
 } as const
 
 const FIELD_COPY: Record<Draft["kind"], { role: string; organization: string; rolePlaceholder: string; orgPlaceholder: string }> = {
-  experience: { role: "Role", organization: "Company", rolePlaceholder: "DevSecOps Engineer", orgPlaceholder: "Oracle" },
-  project: { role: "Project name", organization: "Context", rolePlaceholder: "SIEMtinel", orgPlaceholder: "Personal project" },
-  education: { role: "Degree", organization: "School", rolePlaceholder: "MSc Cybersecurity", orgPlaceholder: "Télécom Paris" },
+  experience: { role: "Role", organization: "Company", rolePlaceholder: "Store Manager", orgPlaceholder: "Company name" },
+  project: { role: "Project name", organization: "Context", rolePlaceholder: "Community garden app", orgPlaceholder: "Personal project" },
+  education: { role: "Degree", organization: "School", rolePlaceholder: "BSc Nursing", orgPlaceholder: "University name" },
   certification: { role: "Certification", organization: "Issuer", rolePlaceholder: "KCNA", orgPlaceholder: "Linux Foundation" },
-  skill: { role: "Cluster label", organization: "Context", rolePlaceholder: "DevSecOps & Cloud", orgPlaceholder: "" },
+  skill: { role: "Cluster label", organization: "Context", rolePlaceholder: "Customer service", orgPlaceholder: "" },
   language: { role: "Label", organization: "Context", rolePlaceholder: "Languages", orgPlaceholder: "" },
   achievement: { role: "Title", organization: "Event / issuer", rolePlaceholder: "1st place", orgPlaceholder: "WOCS'hAck 2026" },
   other: { role: "Title", organization: "Organization", rolePlaceholder: "", orgPlaceholder: "" },
@@ -273,7 +273,7 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id={`${lang}-role`} label={copy.role} value={draft.display[lang].role} placeholder={copy.rolePlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], role: value } } })} />
               <Field id={`${lang}-org`} label={copy.organization} value={draft.display[lang].organization} placeholder={copy.orgPlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], organization: value } } })} />
-              <Field id={`${lang}-dates`} label="Dates" value={draft.display[lang].dates} placeholder={lang === "en" ? "Feb. 2025 – Aug. 2025" : "Février 2025 – Août 2025"} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], dates: value } } })} />
+              <Field id={`${lang}-dates`} label="Dates" value={draft.display[lang].dates} placeholder={lang === "en" ? "Feb. 2024 – Present" : "Février 2024 – aujourd’hui"} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], dates: value } } })} />
               <Field id={`${lang}-location`} label="Location" value={draft.display[lang].location} placeholder={lang === "en" ? "Paris, France" : "Paris, France"} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], location: value } } })} />
             </div>
             {lang === "fr" && !draft.display.fr.role && draft.display.en.role ? (
@@ -295,7 +295,7 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
                   bullets: draft.bullets.map((bullet) => ({ ...bullet, factKeys: bullet.factKeys.filter((key) => keys.has(key)) })),
                 })
               }}
-              placeholder="e.g. Reduced execution time by 66%."
+              placeholder="e.g. Cut average response time from 2 days to 4 hours."
               addLabel="Add fact"
               onHover={setHoverFact}
               renderMeta={(key) =>
@@ -405,7 +405,7 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Tags</Label>
-                <ChipInput values={draft.tags} onChange={(tags) => patch({ tags })} placeholder="devsecops, cloud…" />
+                <ChipInput values={draft.tags} onChange={(tags) => patch({ tags })} placeholder="customer service, scheduling…" />
                 <p className="text-xs text-muted-foreground">Matched against job requirements.</p>
               </div>
               <div className="grid gap-2">

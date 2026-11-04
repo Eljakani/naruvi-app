@@ -4,10 +4,10 @@
  * classifies sections by their heading.
  */
 import { parseJobText } from "@/lib/job-text"
-import { keywordsIn } from "./keywords"
+import { keywordsIn, termsIn } from "./keywords"
 
 export type RequirementKind = "must" | "nice" | "responsibility"
-export type Requirement = { id: string; text: string; kind: RequirementKind; section: string; keywords: string[]; years: number | null }
+export type Requirement = { id: string; text: string; kind: RequirementKind; section: string; keywords: string[]; terms?: string[]; years: number | null }
 
 const NICE = /nice to have|bonus|\bplus\b|preferred|desirable|ideally|un plus|appréci|souhait|optionnel|would be great/i
 const MUST = /require|qualification|looking for|what you bring|you (?:have|bring)|must|profil|expertise|compétences|skills|experience|about you|who you are|your background|ce que nous recherchons|vous (?:avez|êtes)|critical competencies/i
@@ -24,7 +24,8 @@ function classify(heading: string): RequirementKind | null {
 }
 
 function years(text: string): number | null {
-  const match = text.match(/(\d{1,2})\s*\+?\s*(?:years?|ans|années)/i)
+  // "3-5+ years" → 3 (the minimum is the requirement), "5+ years" → 5.
+  const match = text.match(/(\d{1,2})\s*\+?\s*(?:(?:-|–|to|à)\s*\d{1,2}\s*\+?\s*)?(?:years?|yrs|ans|années)/i)
   return match ? Number(match[1]) : null
 }
 
@@ -43,14 +44,14 @@ export function extractRequirements(rawText: string): Requirement[] {
     for (const item of block.items) {
       // An item can itself say "(nice to have)" / "is a plus".
       const itemKind: RequirementKind = kind !== "responsibility" && /\b(a plus|un plus|bonus|nice to have|preferred|idéalement|appréci)/i.test(item) ? "nice" : kind
-      out.push({ id: `r${out.length + 1}`, text: item, kind: itemKind, section: heading, keywords: keywordsIn(item), years: years(item) })
+      out.push({ id: `r${out.length + 1}`, text: item, kind: itemKind, section: heading, keywords: keywordsIn(item), terms: termsIn(item), years: years(item) })
     }
   }
   // No usable headings: treat every bullet as a requirement rather than nothing.
   if (!out.length) {
     for (const block of blocks) {
       if (block.type !== "list") continue
-      for (const item of block.items) out.push({ id: `r${out.length + 1}`, text: item, kind: "must", section: "", keywords: keywordsIn(item), years: years(item) })
+      for (const item of block.items) out.push({ id: `r${out.length + 1}`, text: item, kind: "must", section: "", keywords: keywordsIn(item), terms: termsIn(item), years: years(item) })
     }
   }
   return out

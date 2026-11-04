@@ -113,7 +113,7 @@ export const entries = pgTable(
     profileId: uuid()
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
-    /** Stable human key, e.g. exp-oracle-rd. Used by importers to upsert. */
+    /** Stable human key, e.g. exp-acme-2024. Used by importers to upsert. */
     key: text().notNull(),
     kind: entryKind().notNull(),
     status: entryStatus().notNull().default("needs_review"),
@@ -352,4 +352,8 @@ export const jobsRelations = relations(jobs, ({ one }) => ({
 
 export const companiesRelations = relations(companies, ({ many }) => ({
   jobs: many(jobs),
+}))
+
+export const applicationsRelations = relations(applications, ({ one }) => ({
+  job: one(jobs, { fields: [applications.jobId], references: [jobs.id] }),
 }))

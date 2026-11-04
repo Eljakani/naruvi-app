@@ -14,8 +14,28 @@ export type Extracted = {
   evidence: { role?: string; company?: string; location?: string }
 }
 
-const ROLE_WORD =
-  /\b(engineer|developer|d[ée]veloppeu(?:r|se)|ing[ée]nieur(?:e)?|architect(?:e)?|analyst(?:e)?|consultant(?:e)?|manager|lead|head|director|directeur|directrice|scientist|specialist|sp[ée]cialiste|administrator|administrat(?:eur|rice)|technician|technicien(?:ne)?|designer|devops|devsecops|sre|intern|internship|stagiaire|stage|alternant(?:e)?|apprenti(?:e)?|officer|researcher|chercheu(?:r|se)|expert(?:e)?|programmer|product owner|owner|coordinator|coordinat(?:eur|rice)|associate|auditor|auditeur|pentester|charg[ée]e? de|responsable|chef de projet|team lead|cto|ciso|rssi)\b/i
+// Occupation words across fields (tech, business, care, education, trades,
+// hospitality, public sector…), EN + FR. Used only as evidence that a phrase
+// is a job title; extend freely.
+const ROLE_WORD = new RegExp(
+  "\\b(" +
+    [
+      // generic levels & functions
+      "manager", "lead", "head", "director", "directeur", "directrice", "chief", "officer", "associate", "assistant(?:e)?", "coordinator", "coordinat(?:eur|rice)", "supervisor", "superviseu(?:r|se)", "specialist", "sp[ée]cialiste", "consultant(?:e)?", "advisor", "adviser", "conseill(?:er|ère)", "analyst(?:e)?", "expert(?:e)?", "responsable", "charg[ée]e? (?:de|d')", "chef", "partner", "representative", "executive", "agent", "administrator", "administrat(?:eur|rice)", "intern", "internship", "stagiaire", "stage", "alternant(?:e)?", "apprenti(?:e)?", "trainee", "graduate", "employ[ée]e?",
+      // tech & engineering
+      "engineer", "ing[ée]nieur(?:e)?", "developer", "d[ée]veloppeu(?:r|se)", "programmer", "architect(?:e)?", "designer", "devops", "devsecops", "sre", "scientist", "researcher", "chercheu(?:r|se)", "technician", "technicien(?:ne)?", "pentester", "auditor", "auditeur", "owner",
+      // business, finance, sales, people
+      "accountant", "comptable", "controller", "contr[ôo]leu(?:r|se)", "buyer", "acheteu(?:r|se)", "recruiter", "recruteu(?:r|se)", "salesperson", "vendeu(?:r|se)", "commercial(?:e)?", "marketer", "account", "cashier", "caissi(?:er|ère)", "clerk", "secretary", "secr[ée]taire", "receptionist", "r[ée]ceptionniste", "paralegal", "lawyer", "avocat(?:e)?", "juriste", "notaire", "economist", "planner", "planificat(?:eur|rice)",
+      // care, health, social
+      "nurse", "infirmi(?:er|ère)", "doctor", "physician", "m[ée]decin", "pharmacist", "pharmacien(?:ne)?", "therapist", "th[ée]rapeute", "psychologist", "psychologue", "caregiver", "aide[- ]soignante?", "midwife", "sage[- ]femme", "dentist", "dentiste", "paramedic", "social worker", "[ée]ducat(?:eur|rice)", "veterinarian", "v[ée]t[ée]rinaire",
+      // education & culture
+      "teacher", "enseignant(?:e)?", "professeur(?:e)?", "lecturer", "tutor", "trainer", "formateur", "formatrice", "librarian", "biblioth[ée]caire", "writer", "r[ée]dact(?:eur|rice)", "editor", "journalist(?:e)?", "translator", "traduct(?:eur|rice)", "photographer", "photographe",
+      // trades, logistics, hospitality, public services
+      "driver", "chauffeur", "electrician", "[ée]lectricien(?:ne)?", "plumber", "plombier", "mechanic", "m[ée]canicien(?:ne)?", "welder", "soudeu(?:r|se)", "carpenter", "menuisier", "operator", "op[ée]rat(?:eur|rice)", "warehouse", "magasinier", "logisticien(?:ne)?", "cook", "cuisini(?:er|ère)", "chef de cuisine", "baker", "boulang(?:er|ère)", "waiter", "waitress", "serveu(?:r|se)", "barista", "housekeeper", "cleaner", "agent d'entretien", "security guard", "agent de s[ée]curit[ée]", "firefighter", "pompier", "police", "gardien(?:ne)?", "pilot", "pilote", "cto", "ciso", "rssi", "ceo", "cfo", "coo",
+    ].join("|") +
+    ")\\b",
+  "i",
+)
 
 const GENERIC_COMPANY = /^(we|us|our|the company|the team|the role|the job|the position|you|nous|notre|l'entreprise|the client|our client|notre client|un grand groupe|a leading)$/i
 
@@ -76,10 +96,10 @@ export function extractFromText(raw: string): Extracted {
 
   // 2. Hiring sentences.
   const sentencePatterns: [RegExp, "company+role" | "role", string][] = [
-    [/([A-Z][\w&'’ -]{1,50}?)\s+(?:is|are)\s+(?:currently\s+)?(?:hiring|looking for|seeking|recruiting)\s+(?:an?\s+|our\s+(?:next|new|first)\s+)?([^\n.]{3,90})/, "company+role", "hiring sentence"],
-    [/([A-Z][\w&'’ -]{1,50}?)\s+(?:recrute|recherche)\s+(?:un(?:e)?\s+|son\s+|sa\s+|ses\s+|des\s+)?(?:futur(?:e)?\s+|nouveau\s+|nouvelle\s+)?([^\n.]{3,90})/, "company+role", "phrase de recrutement"],
-    [/\bjoin\s+([A-Z][\w&'’ -]{1,50}?)\s+as\s+(?:an?\s+|our\s+)?([^\n.]{3,90})/i, "company+role", "join sentence"],
-    [/\brejoi(?:ndre|gnez)\s+([A-Z][\w&'’ -]{1,50}?)\s+en tant que\s+([^\n.]{3,90})/i, "company+role", "phrase de recrutement"],
+    [/([A-ZÀ-Ý][\wÀ-ÿ&'’. -]{1,50}?)\s+(?:is|are)\s+(?:currently\s+)?(?:hiring|looking for|seeking|recruiting)\s+(?:an?\s+|our\s+(?:next|new|first)\s+)?([^\n.]{3,90})/, "company+role", "hiring sentence"],
+    [/([A-ZÀ-Ý][\wÀ-ÿ&'’. -]{1,50}?)\s+(?:recrute|recherche)\s+(?:un(?:e)?\s+|son\s+|sa\s+|ses\s+|des\s+)?(?:futur(?:e)?\s+|nouveau\s+|nouvelle\s+)?([^\n.]{3,90})/, "company+role", "phrase de recrutement"],
+    [/\bjoin\s+([A-ZÀ-Ý][\wÀ-ÿ&'’. -]{1,50}?)\s+as\s+(?:an?\s+|our\s+)?([^\n.]{3,90})/i, "company+role", "join sentence"],
+    [/\brejoi(?:ndre|gnez)\s+([A-ZÀ-Ý][\wÀ-ÿ&'’. -]{1,50}?)\s+en tant que\s+([^\n.]{3,90})/i, "company+role", "phrase de recrutement"],
     [/\b(?:we(?:'re| are)|we're)\s+(?:currently\s+)?(?:looking for|hiring|seeking)\s+(?:an?\s+)?([^\n.]{3,90})/i, "role", "hiring sentence"],
     [/\bnous\s+(?:recherchons|recrutons)\s+(?:un(?:e)?\s+)?([^\n.]{3,90})/i, "role", "phrase de recrutement"],
   ]
@@ -132,7 +152,7 @@ export function extractFromText(raw: string): Extracted {
   }
 
   // 6. "About Acme" / "À propos de Acme" headings.
-  const about = text.match(/^(?:about|à propos d[e'’]|a propos d[e'’])\s*([A-Z][\w&'’ -]{1,40})$/im)
+  const about = text.match(/^(?:about|à propos d[e'’]|a propos d[e'’])\s*([A-ZÀ-Ý][\wÀ-ÿ&'’. -]{1,40})$/im)
   if (about && !/^(us|the role|the job|the team|the position|you|nous|le poste|l'?entreprise)$/i.test(about[1].trim())) set("company", cleanCompany(about[1]), "about heading")
 
   // 7. Location phrases anywhere near the top.

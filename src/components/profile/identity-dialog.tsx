@@ -57,7 +57,7 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
                     aria-label={`Headline ${lang}`}
                     value={form.headlines[lang]}
                     onChange={(event) => setForm({ ...form, headlines: { ...form.headlines, [lang]: event.target.value } })}
-                    placeholder={lang === "en" ? "DevSecOps & Cloud Security Engineer" : "Ingénieur DevSecOps & Sécurité Cloud"}
+                    placeholder={lang === "en" ? "e.g. Registered Nurse · Pediatrics" : "ex. Infirmière diplômée · Pédiatrie"}
                   />
                 </div>
               ))}
