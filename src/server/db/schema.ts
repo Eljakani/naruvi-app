@@ -29,8 +29,7 @@ const updatedAt = () =>
 /* enums                                                               */
 /* ------------------------------------------------------------------ */
 
-export const factKind = pgEnum("fact_kind", [
-  "identity",
+export const entryKind = pgEnum("entry_kind", [
   "experience",
   "education",
   "project",
@@ -40,7 +39,7 @@ export const factKind = pgEnum("fact_kind", [
   "achievement",
   "other",
 ])
-export const factStatus = pgEnum("fact_status", ["verified", "needs_review", "archived"])
+export const entryStatus = pgEnum("entry_status", ["verified", "needs_review", "archived"])
 export const applicationStatus = pgEnum("application_status", [
   "draft",
   "parsed",
@@ -84,42 +83,93 @@ export const profiles = pgTable("profiles", {
   phone: text().notNull().default(""),
   location: text().notNull().default(""),
   links: jsonb().$type<{ label: string; url: string }[]>().notNull().default([]),
+  availability: text().notNull().default(""),
+  /** Contact fields that must never be changed by generation. */
+  locked: text().array().notNull().default(sql`'{}'::text[]`),
   defaultLanguage: text().notNull().default("en"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 })
 
+export type EntryDisplay = {
+  role?: string
+  organization?: string
+  dates?: string
+  location?: string
+  label?: string
+}
+
 /**
- * One verifiable statement about the candidate. Generated text must cite fact
- * ids; numbers in generated text must appear in a cited fact.
+ * A profile record: one job, degree, project, skill cluster, certification…
+ * It owns the facts (citable truths) and the approved phrasings.
  */
-export const facts = pgTable(
-  "facts",
+export const entries = pgTable(
+  "entries",
   {
     id: id(),
     profileId: uuid()
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
-    kind: factKind().notNull(),
-    status: factStatus().notNull().default("needs_review"),
+    /** Stable human key, e.g. exp-oracle-rd. Used by importers to upsert. */
+    key: text().notNull(),
+    kind: entryKind().notNull(),
+    status: entryStatus().notNull().default("needs_review"),
     title: text().notNull(),
-    organization: text().notNull().default(""),
-    startDate: text(),
-    endDate: text(),
-    /** The canonical claim, in the profile's default language. */
-    statement: text().notNull(),
-    /** Approved phrasings per language: { fr: [...], en: [...] } */
-    variants: jsonb().$type<Record<string, string[]>>().notNull().default({}),
-    evidence: text().notNull().default(""),
+    /** Display fields per language: { en: {...}, fr: {...} } */
+    display: jsonb().$type<Record<string, EntryDisplay>>().notNull().default({}),
     tags: text().array().notNull().default(sql`'{}'::text[]`),
-    /** Things that must never be claimed around this fact (NDA, overstatement). */
+    skills: text().array().notNull().default(sql`'{}'::text[]`),
+    evidence: text().array().notNull().default(sql`'{}'::text[]`),
+    /** Never claim these (NDA limits, overstatements). Sent to every prompt. */
     doNotClaim: text().array().notNull().default(sql`'{}'::text[]`),
+    /** NDA-sensitive: generation must stay high-level. */
     confidential: boolean().notNull().default(false),
+    sortOrder: integer().notNull().default(0),
+    source: text().notNull().default("manual"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex().on(t.profileId, t.key), index().on(t.profileId, t.kind)],
+)
+
+/** One atomic, verifiable truth. The unit that generated text must cite. */
+export const facts = pgTable(
+  "facts",
+  {
+    id: id(),
+    entryId: uuid()
+      .notNull()
+      .references(() => entries.id, { onDelete: "cascade" }),
+    statement: text().notNull(),
     sortOrder: integer().notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index().on(t.profileId, t.kind), index().on(t.status)],
+  (t) => [index().on(t.entryId)],
+)
+
+/**
+ * Approved wording for a CV bullet in one language, linked to the facts that
+ * support it. A phrasing with a number no supporting fact contains is flagged.
+ */
+export const phrasings = pgTable(
+  "phrasings",
+  {
+    id: id(),
+    entryId: uuid()
+      .notNull()
+      .references(() => entries.id, { onDelete: "cascade" }),
+    group: text().notNull().default("General"),
+    /** bullet = a claim (must be grounded); label = a heading/cluster name. */
+    role: text().$type<"bullet" | "label">().notNull().default("bullet"),
+    language: text().notNull(),
+    text: text().notNull(),
+    factIds: uuid().array().notNull().default(sql`'{}'::uuid[]`),
+    sortOrder: integer().notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.entryId, t.language)],
 )
 
 /* ------------------------------------------------------------------ */

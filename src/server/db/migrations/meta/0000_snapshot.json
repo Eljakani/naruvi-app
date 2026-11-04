@@ -1,5 +1,5 @@
 {
-  "id": "4990f60e-ef23-496d-9b5c-2ef456a79a49",
+  "id": "0268f0fc-8b06-4d2d-af17-9dc9fb25a882",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -338,8 +338,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.facts": {
-      "name": "facts",
+    "public.entries": {
+      "name": "entries",
       "schema": "",
       "columns": {
         "id": {
@@ -355,16 +355,22 @@
           "primaryKey": false,
           "notNull": true
         },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "kind": {
           "name": "kind",
-          "type": "fact_kind",
+          "type": "entry_kind",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
         "status": {
           "name": "status",
-          "type": "fact_status",
+          "type": "entry_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
@@ -376,47 +382,29 @@
           "primaryKey": false,
           "notNull": true
         },
-        "organization": {
-          "name": "organization",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "start_date": {
-          "name": "start_date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "end_date": {
-          "name": "end_date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "statement": {
-          "name": "statement",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "variants": {
-          "name": "variants",
+        "display": {
+          "name": "display",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
         },
-        "evidence": {
-          "name": "evidence",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
         "tags": {
           "name": "tags",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "skills": {
+          "name": "skills",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "evidence": {
+          "name": "evidence",
           "type": "text[]",
           "primaryKey": false,
           "notNull": true,
@@ -443,6 +431,13 @@
           "notNull": true,
           "default": 0
         },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -459,8 +454,29 @@
         }
       },
       "indexes": {
-        "facts_profile_id_kind_index": {
-          "name": "facts_profile_id_kind_index",
+        "entries_profile_id_key_index": {
+          "name": "entries_profile_id_key_index",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "entries_profile_id_kind_index": {
+          "name": "entries_profile_id_kind_index",
           "columns": [
             {
               "expression": "profile_id",
@@ -479,12 +495,80 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        }
+      },
+      "foreignKeys": {
+        "entries_profile_id_profiles_id_fk": {
+          "name": "entries_profile_id_profiles_id_fk",
+          "tableFrom": "entries",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.facts": {
+      "name": "facts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
-        "facts_status_index": {
-          "name": "facts_status_index",
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statement": {
+          "name": "statement",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "facts_entry_id_index": {
+          "name": "facts_entry_id_index",
           "columns": [
             {
-              "expression": "status",
+              "expression": "entry_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -497,12 +581,12 @@
         }
       },
       "foreignKeys": {
-        "facts_profile_id_profiles_id_fk": {
-          "name": "facts_profile_id_profiles_id_fk",
+        "facts_entry_id_entries_id_fk": {
+          "name": "facts_entry_id_entries_id_fk",
           "tableFrom": "facts",
-          "tableTo": "profiles",
+          "tableTo": "entries",
           "columnsFrom": [
-            "profile_id"
+            "entry_id"
           ],
           "columnsTo": [
             "id"
@@ -687,6 +771,115 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.phrasings": {
+      "name": "phrasings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "group": {
+          "name": "group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'General'"
+        },
+        "language": {
+          "name": "language",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fact_ids": {
+          "name": "fact_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::uuid[]"
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "phrasings_entry_id_language_index": {
+          "name": "phrasings_entry_id_language_index",
+          "columns": [
+            {
+              "expression": "entry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "language",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "phrasings_entry_id_entries_id_fk": {
+          "name": "phrasings_entry_id_entries_id_fk",
+          "tableFrom": "phrasings",
+          "tableTo": "entries",
+          "columnsFrom": [
+            "entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.profiles": {
       "name": "profiles",
       "schema": "",
@@ -738,6 +931,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'[]'::jsonb"
+        },
+        "availability": {
+          "name": "availability",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "locked": {
+          "name": "locked",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
         },
         "default_language": {
           "name": "default_language",
@@ -1206,11 +1413,10 @@
         "cover_letter"
       ]
     },
-    "public.fact_kind": {
-      "name": "fact_kind",
+    "public.entry_kind": {
+      "name": "entry_kind",
       "schema": "public",
       "values": [
-        "identity",
         "experience",
         "education",
         "project",
@@ -1221,8 +1427,8 @@
         "other"
       ]
     },
-    "public.fact_status": {
-      "name": "fact_status",
+    "public.entry_status": {
+      "name": "entry_status",
       "schema": "public",
       "values": [
         "verified",

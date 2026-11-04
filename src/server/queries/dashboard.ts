@@ -3,14 +3,14 @@ import { count, desc, eq, sql } from "drizzle-orm"
 import { connection } from "next/server"
 import { llmConfigured, env } from "@/lib/env"
 import { db } from "@/server/db/client"
-import { applications, facts, jobs, profiles, runs } from "@/server/db/schema"
+import { applications, entries, facts, jobs, profiles, runs } from "@/server/db/schema"
 
 export async function getDashboard() {
   await connection()
   const [byStatus, [jobCount], [factCount], [profileCount], recentRuns] = await Promise.all([
     db.select({ status: applications.status, n: count() }).from(applications).groupBy(applications.status),
     db.select({ n: count() }).from(jobs),
-    db.select({ n: count() }).from(facts).where(eq(facts.status, "verified")),
+    db.select({ n: count() }).from(facts).innerJoin(entries, eq(facts.entryId, entries.id)).where(eq(entries.status, "verified")),
     db.select({ n: count() }).from(profiles),
     db.select().from(runs).orderBy(desc(runs.createdAt)).limit(8),
   ])

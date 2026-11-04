@@ -1,0 +1,1 @@
+ALTER TABLE "phrasings" ADD COLUMN "role" text DEFAULT 'bullet' NOT NULL;

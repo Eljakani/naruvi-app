@@ -51,8 +51,11 @@ Local dev runs `db` in Docker and `app`/`worker` on the host with hot reload.
 ## 3. Domain model
 
 ```
-Profile ─┬─ Fact (id, kind, text, evidence, tags, doNotClaim, lang variants)
-         └─ Asset (logo, photo)
+Profile ── Entry (key, kind, status, display per language, tags, skills,
+           │        evidence, doNotClaim, confidential)
+           ├─ Fact      (one atomic, citable truth)
+           └─ Phrasing  (approved wording per language, role bullet|label,
+                         linked fact ids → grounding check)
 
 Company (name, website, logo, verified sources)
 Job     (source url, board, parsed fields, raw text, language, parse confidence)
@@ -109,10 +112,20 @@ docs/                  architecture and decisions (ADRs)
 
 ## 7. Build order (step by step)
 
-1. Foundation: compose, db, schema, env, app shell. ← **current**
-2. Profile: facts store + editor + import.
-3. Jobs: universal link parser + company/logo resolver + golden evals.
+1. Foundation: compose, db, schema, env, app shell. ✅
+2. Profile: entries/facts/phrasings, grounding checks, editor, my-cv import. ✅
+3. Jobs: universal link parser ← **next**: + company/logo resolver + golden evals.
 4. Analysis: requirements/keywords/fit with cited facts.
 5. Generation + LaTeX service + quality gate + revisions.
 6. Research, cover letters, multi-language.
 7. Tracking board, traces UI, eval dashboard.
+
+## 8. Grounding rules (implemented in `src/server/domain/grounding.ts`)
+
+- A *bullet* phrasing is grounded when it links ≥1 fact and every number it
+  states (money, %, counts; not years or "1st") appears in a linked fact.
+- *Labels* (section/cluster names) are not claims and need no facts.
+- Import links phrasings automatically (shared numbers or vocabulary); a
+  translation with no shared words inherits the links of its sibling in the
+  other language (same group, same position) and is re-verified on numbers.
+- The same checks will gate generated text in step 5.

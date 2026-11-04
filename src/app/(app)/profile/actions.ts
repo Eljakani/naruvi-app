@@ -1,0 +1,42 @@
+"use server"
+
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
+import { deleteEntry, importProfileFolder, saveEntry, saveIdentity, setEntryStatus } from "@/server/profile/repository"
+import type { EntryInput, IdentityInput } from "@/server/profile/schemas"
+
+export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string }
+
+async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
+  try {
+    const data = await fn()
+    revalidatePath("/profile")
+    revalidatePath("/")
+    return { ok: true, data }
+  } catch (error) {
+    if (error instanceof z.ZodError) return { ok: false, error: error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ") }
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+export async function saveEntryAction(input: EntryInput, entryId?: string) {
+  return run(async () => (await saveEntry(input, entryId)).id)
+}
+
+export async function setEntryStatusAction(entryId: string, status: "verified" | "needs_review" | "archived") {
+  return run(() => setEntryStatus(z.string().uuid().parse(entryId), status))
+}
+
+export async function deleteEntryAction(entryId: string) {
+  return run(() => deleteEntry(z.string().uuid().parse(entryId)))
+}
+
+export async function saveIdentityAction(input: IdentityInput) {
+  return run(async () => {
+    await saveIdentity(input)
+  })
+}
+
+export async function importProfileAction(folder: string) {
+  return run(() => importProfileFolder(z.string().trim().min(1, "Enter a folder path.").parse(folder)))
+}
