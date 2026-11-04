@@ -1,0 +1,50 @@
+name: careerbuddy
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: careerbuddy
+      POSTGRES_PASSWORD: careerbuddy
+      POSTGRES_DB: careerbuddy
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careerbuddy -d careerbuddy"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: { context: ., target: deps }
+    command: ["npx", "drizzle-kit", "migrate"]
+    environment: &app-env
+      DATABASE_URL: postgres://careerbuddy:careerbuddy@db:5432/careerbuddy
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: ["full"]
+
+  app:
+    build: { context: ., target: runner }
+    environment: *app-env
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    profiles: ["full"]
+
+  worker:
+    build: { context: ., target: deps }
+    command: ["npx", "tsx", "worker/index.mts"]
+    environment: *app-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    profiles: ["full"]
+
+volumes:
+  db-data:
