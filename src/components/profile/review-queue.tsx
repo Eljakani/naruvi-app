@@ -206,7 +206,7 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
             </Badge>
             <span className="normal-case">· {bullet.group}</span>
           </div>
-          <blockquote className="rounded-lg border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-[15px] leading-relaxed dark:bg-amber-950/30">
+          <blockquote className="rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3 dark:border-amber-900 text-[15px] leading-relaxed dark:bg-amber-950/30">
             <HighlightNumbers text={bullet.text.replace(/\*\*(.+?)\*\*/g, "$1")} missing={check.unsupportedNumbers} />
           </blockquote>
         </div>
