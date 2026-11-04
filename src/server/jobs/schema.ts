@@ -48,5 +48,7 @@ export const jobDraft = z.object({
   rawText: z.string().trim().min(80, "The job description is too short; paste the full text.").max(120_000),
   parseConfidence: z.number().min(0).max(1).default(0),
   warnings: z.array(z.string()).default([]),
+  /** Where auto-filled fields came from, e.g. { title: "hiring sentence" }. */
+  hints: z.record(z.string(), z.string()).default({}),
 })
 export type JobDraft = z.infer<typeof jobDraft>

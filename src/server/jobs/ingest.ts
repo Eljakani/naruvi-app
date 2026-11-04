@@ -10,6 +10,7 @@ import { siteLogoCandidates } from "./logo-candidates"
 import { jobDraft, parsedJob, type JobDraft, type ParsedJob } from "./schema"
 import { isJobHost, postingLogoCandidates, resolveCompanySite } from "./vendor/company-resolver"
 import { pickBest, parseSource } from "./select"
+import { extractFromText } from "./text-extract"
 import { apiCandidates, parseJobDocument, parseJobUrl } from "./vendor/job-parser"
 import { startRun } from "@/server/runs/tracer"
 
@@ -115,6 +116,27 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
 
     // Prefer the pasted text when the page only gave a teaser.
     const description = pasted.length > job.description.length ? pasted : job.description
+
+    // Fill what the parser left empty from the text itself (always for pasted
+    // text). Every filled field records the rule that found it.
+    const hints: Record<string, string> = {}
+    const extracted = extractFromText(url ? description : pasted)
+    if ((!job.role || !url) && extracted.role) {
+      job.role = extracted.role
+      hints.title = extracted.evidence.role ?? "text"
+    }
+    if ((!job.company || !url) && extracted.company) {
+      job.company = extracted.company
+      hints.company = extracted.evidence.company ?? "text"
+    }
+    if ((!job.location || !url) && extracted.location) {
+      job.location = extracted.location
+      hints.location = extracted.evidence.location ?? "text"
+    }
+    if (!job.remote && extracted.remote) job.remote = extracted.remote
+    job.warnings = job.warnings.filter(
+      (warning) => !(job.role && /role title was not detected/i.test(warning)) && !(job.company && /company was not detected/i.test(warning)),
+    )
     const known = job.company ? await db.query.companies.findFirst({ where: eq(companies.slug, slugify(job.company)) }) : undefined
 
     const site = known?.website
@@ -173,8 +195,9 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
       language: /^[a-z]{2}$/.test(job.language) ? job.language : "en",
       postedAt: job.postedAt,
       rawText: description,
-      parseConfidence: job.confidence,
+      parseConfidence: Object.keys(hints).length ? Math.min(0.9, job.confidence + Object.keys(hints).length * 0.15) : job.confidence,
       warnings: [...new Set(warnings)],
+      hints,
     }
     await run.finish("succeeded", { company: draft.company, title: draft.title, confidence: draft.parseConfidence, website: draft.companyWebsite, logo: draft.logoSource })
     return { ...draft, runId: run.id }

@@ -173,8 +173,8 @@ export function NewJobFlow() {
             <CardDescription>Everything here is editable. Fix anything the parser got wrong before saving.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <Field label="Role" id="title" value={draft.title} onChange={(title) => patch({ title })} />
-            <Field label="Company" id="company" value={draft.company} onChange={(company) => patch({ company })} />
+            <Field label="Role" id="title" value={draft.title} hint={draft.hints?.title} onChange={(title) => patch({ title, hints: { ...draft.hints, title: "" } })} />
+            <Field label="Company" id="company" value={draft.company} hint={draft.hints?.company} onChange={(company) => patch({ company, hints: { ...draft.hints, company: "" } })} />
             <div className="grid gap-2">
               <Label htmlFor="website">Company website</Label>
               <div className="flex gap-2">
@@ -195,7 +195,7 @@ export function NewJobFlow() {
               <LogoField value={draft.logoPath} name={draft.company} onChange={(logoPath) => patch({ logoPath, logoSource: logoPath ? (logoPath === draft.logoPath ? draft.logoSource : "manual") : "" })} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Location" id="location" value={draft.location} onChange={(location) => patch({ location })} />
+              <Field label="Location" id="location" value={draft.location} hint={draft.hints?.location} onChange={(location) => patch({ location, hints: { ...draft.hints, location: "" } })} />
               <Field label="Remote policy" id="remote" value={draft.remote} onChange={(remote) => patch({ remote })} placeholder="Hybrid, Remote…" />
               <Field label="Contract" id="employmentType" value={draft.employmentType} onChange={(employmentType) => patch({ employmentType })} placeholder="Full-time, CDI…" />
               <Field label="Salary" id="salary" value={draft.salary} onChange={(salary) => patch({ salary })} />
@@ -252,11 +252,31 @@ export function NewJobFlow() {
   )
 }
 
-function Field({ label, id, value, onChange, placeholder }: { label: string; id: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
+const HINT_LABEL: Record<string, string> = {
+  "labelled field": "a labelled field",
+  "hiring sentence": "the hiring sentence",
+  "phrase de recrutement": "the hiring sentence",
+  "join sentence": "the “join us” sentence",
+  "title line": "the title line",
+  "first lines": "the first lines",
+  "first line": "the first line",
+  "about heading": "the “About …” heading",
+  "location phrase": "a location mention",
+}
+
+function Field({ label, id, value, onChange, placeholder, hint }: { label: string; id: string; value: string; onChange: (value: string) => void; placeholder?: string; hint?: string }) {
+  const empty = !value.trim()
   return (
     <div className="grid gap-2">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <Input id={id} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} aria-invalid={empty && (id === "title" || id === "company") ? true : undefined} />
+      {hint && !empty ? (
+        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          <SparklesIcon className="size-3" /> Detected from {HINT_LABEL[hint] ?? hint} — check it.
+        </p>
+      ) : empty && (id === "title" || id === "company") ? (
+        <p className="text-xs text-amber-600">Not found in the text. Please fill it in.</p>
+      ) : null}
     </div>
   )
 }

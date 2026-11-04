@@ -593,10 +593,13 @@ function extractRemote(text) {
 
 function extractEmploymentType(text) {
   const value = String(text ?? '')
-  if (/\b(full[- ]time|cdi|permanent)\b/i.test(value)) return 'Full-time'
-  if (/\b(part[- ]time|temps partiel|cdd)\b/i.test(value)) return 'Part-time'
-  if (/\b(internship|intern|stage|stagiaire|alternance|apprenticeship)\b/i.test(value)) return 'Internship'
-  if (/\b(contract|freelance|contractor|mission)\b/i.test(value)) return 'Contract'
+  // Only explicit contract vocabulary: "mission" or "contract" alone appear in
+  // ordinary prose ("our mission is…"), so they are not evidence.
+  if (/\b(full[- ]time|cdi|permanent contract|permanent position|temps plein)\b/i.test(value)) return 'Full-time'
+  if (/\b(cdd|fixed[- ]term)\b/i.test(value)) return 'Fixed-term'
+  if (/\b(part[- ]time|temps partiel)\b/i.test(value)) return 'Part-time'
+  if (/\b(internship|intern|stagiaire|stage de fin d'[ée]tudes|alternance|alternant|apprenticeship)\b/i.test(value)) return 'Internship'
+  if (/\b(freelance|contractor|contract (?:role|position|basis)|portage salarial)\b/i.test(value)) return 'Contract'
   return ''
 }
 
