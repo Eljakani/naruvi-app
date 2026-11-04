@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { previewJobAction, saveJobAction } from "@/app/(app)/jobs/actions"
+import { JobDescription } from "@/components/jobs/job-description"
 import { LogoField } from "@/components/profile/editor/logo-field"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -57,6 +58,7 @@ export function NewJobFlow() {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [reading, startReading] = useTransition()
   const [saving, startSaving] = useTransition()
+  const [descriptionView, setDescriptionView] = useState<"preview" | "edit">("preview")
 
   const read = () =>
     startReading(async () => {
@@ -227,8 +229,22 @@ export function NewJobFlow() {
               ) : null}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Textarea value={draft.rawText} onChange={(event) => patch({ rawText: event.target.value })} className="h-[34rem] resize-none font-sans text-sm leading-relaxed" aria-label="Job description" />
+          <CardContent className="grid gap-3">
+            <ToggleGroup value={[descriptionView]} onValueChange={(value) => value[0] && setDescriptionView(value[0] as "preview" | "edit")} variant="outline" size="sm" className="w-fit">
+              <ToggleGroupItem value="preview" className="px-3 aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background">
+                Preview
+              </ToggleGroupItem>
+              <ToggleGroupItem value="edit" className="px-3 aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background">
+                Edit text
+              </ToggleGroupItem>
+            </ToggleGroup>
+            {descriptionView === "preview" ? (
+              <div className="max-h-[34rem] overflow-y-auto pr-2">
+                <JobDescription text={draft.rawText} collapsible={false} />
+              </div>
+            ) : (
+              <Textarea value={draft.rawText} onChange={(event) => patch({ rawText: event.target.value })} className="h-[34rem] resize-none font-sans text-sm leading-relaxed" aria-label="Job description" />
+            )}
           </CardContent>
         </Card>
       </div>

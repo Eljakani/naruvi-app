@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { connection } from "next/server"
 import { AlertTriangleIcon, ArrowLeftIcon, BriefcaseBusinessIcon, CalendarIcon, ExternalLinkIcon, GlobeIcon, MapPinIcon, SparklesIcon, WalletIcon } from "lucide-react"
+import { JobDescription } from "@/components/jobs/job-description"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -95,7 +96,7 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
           <CardDescription>Original text, kept unchanged. Treated as untrusted input by every AI step.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="max-w-3xl text-sm leading-relaxed whitespace-pre-line">{job.rawText}</div>
+          <JobDescription text={job.rawText} />
         </CardContent>
       </Card>
     </div>

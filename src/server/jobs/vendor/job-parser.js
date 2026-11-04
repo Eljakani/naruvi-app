@@ -655,7 +655,15 @@ function cleanJobText(value) {
   if (/<[a-z][\s\S]*>/i.test(source)) {
     return cleanHtml(source)
   }
-  return cleanText(source)
+  // Keep paragraph and list structure: descriptions are cleaned more than
+  // once (API parse, then finalize) and must not collapse into one line.
+  return decodeEntities(source)
+    .replace(/\r/g, '')
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/ +([,.;:!?])/g, '$1')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 function cleanHtml(html) {
