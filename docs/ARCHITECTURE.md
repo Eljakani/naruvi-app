@@ -123,7 +123,7 @@ docs/                  architecture and decisions (ADRs)
 4. Analysis: requirements, evidence matching, fit, optional model review. ✅
 5. Generation ← **next**: requirements/keywords/fit with cited facts.
    Generation + LaTeX service + quality gate + revisions.
-6. Research, cover letters, more templates & languages ← **next**
+6. Cover letters ✅ · research, more templates & non-Latin fonts ← **next**
 7. Tracking board, traces UI, eval dashboard.
 
 ## 8. Grounding rules (implemented in `src/server/domain/grounding.ts`)
@@ -191,3 +191,13 @@ application (analysis) + verified profile
   ─▶ immutable revision (content JSON, pages, quality, cited fact ids);
      edits = new revision; restore = move the pointer
 ```
+
+## 12. Cover letters (`src/server/documents/letter.ts`)
+
+Three kinds of content, never mixed: **evidence** (the user's approved,
+fact-backed bullets for proven requirements, cited), **template** wording in
+en/fr/es/de that names the company/role and claims nothing, and a
+**placeholder** for what only the candidate can say (why this company). The
+letter gate refuses "ready" while the placeholder remains, and checks company
+named, grounded highlights, length and one page. Same revisions/versions and
+PDF route as the CV.

@@ -67,7 +67,12 @@ export function CvWorkspace({ applicationId, jobTitle, company, language, worksp
       </Button>
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-lg font-semibold tracking-tight">CV · {jobTitle}</h1>
-        <p className="text-xs text-muted-foreground">{company}</p>
+        <p className="text-xs text-muted-foreground">
+          {company} ·{" "}
+          <Link href={`/applications/${applicationId}/letter?lang=${language}`} className="hover:underline">
+            cover letter
+          </Link>
+        </p>
       </div>
       <div className="flex rounded-md border p-0.5">
         {LANGS.map((item) => (

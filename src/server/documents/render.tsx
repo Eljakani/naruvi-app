@@ -1,5 +1,5 @@
 import "server-only"
-import { Document, Image, Link, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer"
+import { Document, Font, Image, Link, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer"
 import sharp from "sharp"
 import { readAsset } from "@/server/assets/store"
 import type { CvDocument, CvItem, CvSection } from "./model"
@@ -9,6 +9,10 @@ import type { CvDocument, CvItem, CvSection } from "./model"
  * people and applicant-tracking systems alike. Built-in Helvetica covers Latin
  * scripts; other scripts need a registered font (see docs/adr/0001).
  */
+// react-pdf only ships English hyphenation; applied to other languages it
+// breaks words wrongly ("dé-ploiement"). No hyphenation is the safe default.
+Font.registerHyphenationCallback((word) => [word])
+
 const INK = "#111827"
 const MUTED = "#4b5563"
 const RULE = "#d1d5db"
@@ -146,6 +150,82 @@ export async function renderCvPdf(doc: CvDocument): Promise<{ buffer: Buffer; pa
           .map((section) => (
             <Section key={section.id} section={section} logos={logos} />
           ))}
+      </Page>
+    </Document>,
+  )
+  const pages = (buffer.toString("latin1").match(/\/Type\s*\/Page(?!s)/g) ?? []).length
+  return { buffer, pages }
+}
+
+const letterStyles = StyleSheet.create({
+  page: { paddingTop: 48, paddingBottom: 48, paddingHorizontal: 56, fontFamily: "Helvetica", fontSize: 10.5, color: INK, lineHeight: 1.5 },
+  name: { fontFamily: "Helvetica-Bold", fontSize: 16, lineHeight: 1.15 },
+  contact: { flexDirection: "row", flexWrap: "wrap", marginTop: 4, fontSize: 8.8, color: MUTED },
+  rule: { borderBottomWidth: 0.8, borderBottomColor: RULE, marginTop: 12, marginBottom: 18 },
+  meta: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
+  recipient: { fontFamily: "Helvetica-Bold" },
+  date: { color: MUTED },
+  subject: { fontFamily: "Helvetica-Bold", marginBottom: 14 },
+  paragraph: { marginBottom: 10, textAlign: "justify" },
+  highlights: { marginBottom: 10 },
+  highlight: { flexDirection: "row", marginTop: 3 },
+  dot: { width: 12, color: MUTED },
+  highlightText: { flex: 1 },
+  org: { color: MUTED },
+  signoff: { marginTop: 6 },
+  signature: { fontFamily: "Helvetica-Bold", marginTop: 18 },
+})
+
+export async function renderLetterPdf(doc: import("./letter").LetterDocument): Promise<{ buffer: Buffer; pages: number }> {
+  const contact = [doc.header.email, doc.header.phone, doc.header.location].filter(Boolean)
+  const highlights = doc.highlights.filter((h) => h.included)
+  const buffer = await renderToBuffer(
+    <Document title={`${doc.header.name} — ${doc.subject}`} author={doc.header.name} language={doc.language} creator="CareerBuddy" producer="CareerBuddy">
+      <Page size="A4" style={letterStyles.page}>
+        <Text style={letterStyles.name}>{doc.header.name}</Text>
+        <View style={letterStyles.contact}>
+          {[...contact, ...doc.header.links.map((link) => link.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))].map((value) => (
+            <Text key={value} style={{ marginRight: 10 }}>
+              {value}
+            </Text>
+          ))}
+        </View>
+        <View style={letterStyles.rule} />
+        <View style={letterStyles.meta}>
+          <View>
+            <Text style={letterStyles.recipient}>{doc.recipient.company}</Text>
+            {doc.recipient.location ? <Text style={letterStyles.date}>{doc.recipient.location}</Text> : null}
+          </View>
+          <Text style={letterStyles.date}>{doc.date}</Text>
+        </View>
+        <Text style={letterStyles.subject}>{doc.subject}</Text>
+        <Text style={letterStyles.paragraph}>{doc.salutation}</Text>
+        {doc.paragraphs
+          .filter((paragraph) => paragraph.included)
+          .map((paragraph) =>
+            paragraph.kind === "highlights" ? (
+              highlights.length ? (
+                <View key={paragraph.id} style={letterStyles.highlights} wrap={false}>
+                  <Text>{doc.highlightsIntro}</Text>
+                  {highlights.map((highlight) => (
+                    <View key={highlight.id} style={letterStyles.highlight}>
+                      <Text style={letterStyles.dot}>•</Text>
+                      <Text style={letterStyles.highlightText}>
+                        {highlight.text}
+                        {highlight.organization ? <Text style={letterStyles.org}> ({highlight.organization})</Text> : null}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null
+            ) : paragraph.text.trim() ? (
+              <Text key={paragraph.id} style={letterStyles.paragraph}>
+                {paragraph.text}
+              </Text>
+            ) : null,
+          )}
+        <Text style={letterStyles.signoff}>{doc.signoff}</Text>
+        <Text style={letterStyles.signature}>{doc.header.name}</Text>
       </Page>
     </Document>,
   )

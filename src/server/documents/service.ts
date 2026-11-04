@@ -8,20 +8,32 @@ import { startRun } from "@/server/runs/tracer"
 import { composeCv } from "./compose"
 import { cvDocument, type CvDocument } from "./model"
 import { checkQuality, type QualityReport } from "./quality"
-import { renderCvPdf } from "./render"
+import { checkLetter, composeLetter, letterDocument, type LetterDocument } from "./letter"
+import { renderCvPdf, renderLetterPdf } from "./render"
 
-async function documentFor(applicationId: string, language: string) {
-  const [existing] = await db.select().from(documents).where(and(eq(documents.applicationId, applicationId), eq(documents.kind, "cv"), eq(documents.language, language))).limit(1)
+type Kind = "cv" | "cover_letter"
+
+async function documentFor(applicationId: string, language: string, kind: Kind = "cv") {
+  const [existing] = await db.select().from(documents).where(and(eq(documents.applicationId, applicationId), eq(documents.kind, kind), eq(documents.language, language))).limit(1)
   if (existing) return existing
-  const [created] = await db.insert(documents).values({ applicationId, kind: "cv", language }).returning()
+  const [created] = await db.insert(documents).values({ applicationId, kind, language }).returning()
   return created
 }
 
-async function addRevision(documentId: string, content: CvDocument, origin: "generate" | "manual", requirements: Parameters<typeof checkQuality>[2], runId?: string) {
-  const { pages } = await renderCvPdf(content)
-  const quality = checkQuality(content, pages, requirements)
+/** Render + check a document of either kind. */
+async function evaluate(content: CvDocument | LetterDocument, requirements: Parameters<typeof checkQuality>[2]) {
+  if ("kind" in content && content.kind === "cover_letter") {
+    const { pages } = await renderLetterPdf(content)
+    return { pages, quality: checkLetter(content, pages), cited: [...new Set(content.highlights.filter((h) => h.included).flatMap((h) => h.factIds))] }
+  }
+  const cv = content as CvDocument
+  const { pages } = await renderCvPdf(cv)
+  return { pages, quality: checkQuality(cv, pages, requirements), cited: [...new Set(cv.sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included).flatMap((b) => b.factIds))))] }
+}
+
+async function addRevision(documentId: string, content: CvDocument | LetterDocument, origin: "generate" | "manual", requirements: Parameters<typeof checkQuality>[2], runId?: string) {
+  const { pages, quality, cited } = await evaluate(content, requirements)
   const [doc] = await db.select().from(documents).where(eq(documents.id, documentId))
-  const cited = [...new Set(content.sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included).flatMap((b) => b.factIds))))]
   return db.transaction(async (tx) => {
     const [revision] = await tx
       .insert(revisions)
@@ -74,15 +86,51 @@ export async function generateCv(applicationId: string, language?: string) {
   }
 }
 
-/** Save an edited CV (include/exclude, order) as a new revision. */
+/** Save an edited CV or letter as a new revision. */
 export async function saveCvEdit(documentId: string, input: unknown) {
-  const content = cvDocument.parse(input)
   const [doc] = await db.select().from(documents).where(eq(documents.id, documentId))
   if (!doc) throw new Error("Document not found.")
+  const content = doc.kind === "cover_letter" ? letterDocument.parse(input) : cvDocument.parse(input)
+  if ("kind" in content) {
+    // A paragraph the user rewrote is no longer a placeholder.
+    content.paragraphs = content.paragraphs.map((p) => ({ ...p, placeholder: p.kind === "motivation" ? /^\s*\[/.test(p.text) : false }))
+  }
   const application = await getApplication(doc.applicationId)
   const result = await addRevision(documentId, content, "manual", application?.analysis?.requirements ?? [])
-  await db.update(applications).set({ status: result.quality.ready ? "ready" : "generated" }).where(eq(applications.id, doc.applicationId))
+  if (doc.kind === "cv") await db.update(applications).set({ status: result.quality.ready ? "ready" : "generated" }).where(eq(applications.id, doc.applicationId))
   return { revisionId: result.revision.id, quality: result.quality }
+}
+
+/** Compose a cover letter (grounded highlights + localized wording + placeholder). */
+export async function generateLetter(applicationId: string, language?: string) {
+  const application = await getApplication(applicationId)
+  if (!application) throw new Error("Application not found.")
+  const profile = await getProfile()
+  if (!profile) throw new Error("Create your profile first.")
+  const lang = language ?? application.language
+  const run = await startRun("letter.generate", { applicationId, language: lang }, applicationId)
+  try {
+    const entries = await listEntries()
+    const content = await run.step(
+      "compose letter (grounded)",
+      async () =>
+        composeLetter(
+          { fullName: profile.fullName, headlines: profile.headlines, email: profile.email, phone: profile.phone, location: profile.location, links: profile.links, photoPath: profile.photoPath, defaultLanguage: profile.defaultLanguage },
+          entries,
+          application.analysis,
+          { title: application.job.title, company: application.job.company?.name ?? "", location: application.job.location },
+          { language: lang },
+        ),
+      (value) => `${value.highlights.filter((h) => h.included).length} highlights`,
+    )
+    const document = await documentFor(application.id, lang, "cover_letter")
+    const { revision } = await run.step("render & quality gate", () => addRevision(document.id, content, "generate", [], run.id), (value) => `${value.revision.pages} page(s) · score ${value.quality.score}`)
+    await run.finish("succeeded", { documentId: document.id, revisionId: revision.id })
+    return { documentId: document.id, revisionId: revision.id }
+  } catch (error) {
+    await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
+    throw error
+  }
 }
 
 /** Undo/redo = move the pointer; revisions are never modified. */
@@ -93,7 +141,17 @@ export async function setCurrentRevision(documentId: string, revisionId: string)
 }
 
 export async function getCvWorkspace(applicationId: string, language: string) {
-  const [doc] = await db.select().from(documents).where(and(eq(documents.applicationId, applicationId), eq(documents.kind, "cv"), eq(documents.language, language))).limit(1)
+  return getWorkspace(applicationId, language, "cv") as Promise<Awaited<ReturnType<typeof getWorkspace>> & { current: { content: CvDocument } | null }>
+}
+
+export async function getLetterWorkspace(applicationId: string, language: string) {
+  const workspace = await getWorkspace(applicationId, language, "cover_letter")
+  if (!workspace) return null
+  return { ...workspace, current: workspace.current ? { ...workspace.current, content: workspace.current.content as unknown as LetterDocument } : null }
+}
+
+async function getWorkspace(applicationId: string, language: string, kind: Kind) {
+  const [doc] = await db.select().from(documents).where(and(eq(documents.applicationId, applicationId), eq(documents.kind, kind), eq(documents.language, language))).limit(1)
   if (!doc) return null
   const history = await db
     .select({ id: revisions.id, origin: revisions.origin, pages: revisions.pages, quality: revisions.quality, createdAt: revisions.createdAt })
@@ -112,7 +170,13 @@ export async function getCvWorkspace(applicationId: string, language: string) {
 export async function revisionPdf(revisionId: string) {
   const [revision] = await db.select().from(revisions).where(eq(revisions.id, revisionId))
   if (!revision?.content) return null
-  const content = cvDocument.parse(revision.content)
+  const raw = revision.content as { kind?: string }
+  if (raw.kind === "cover_letter") {
+    const letter = letterDocument.parse(raw)
+    const { buffer } = await renderLetterPdf(letter)
+    return { buffer, name: `${letter.header.name.replace(/[^\p{L}\p{N}]+/gu, "-")}-Cover-letter-${letter.language}.pdf` }
+  }
+  const content = cvDocument.parse(raw)
   const { buffer } = await renderCvPdf(content)
   return { buffer, name: `${content.header.name.replace(/[^\p{L}\p{N}]+/gu, "-")}-CV-${content.language}.pdf` }
 }

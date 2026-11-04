@@ -283,6 +283,11 @@ export function AnalysisView({ analysis, facts, cvHref }: { analysis: StoredAnal
             </CardTitle>
             {analysis.coverLetter.evidence ? <CardDescription className="italic">“{analysis.coverLetter.evidence.slice(0, 220)}”</CardDescription> : null}
           </CardHeader>
+          <CardContent>
+            <Button variant={analysis.coverLetter.decision === "required" ? "default" : "outline"} className="w-full" nativeButton={false} render={<Link href={cvHref.replace("/cv?", "/letter?")} />}>
+              <MailIcon /> {analysis.coverLetter.decision === "not_requested" ? "Write one anyway" : "Open cover letter"}
+            </Button>
+          </CardContent>
         </Card>
 
         <Card className="border-dashed">

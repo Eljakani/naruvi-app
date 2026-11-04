@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { z } from "zod"
-import { generateCv, saveCvEdit, setCurrentRevision } from "@/server/documents/service"
+import { generateCv, generateLetter, saveCvEdit, setCurrentRevision } from "@/server/documents/service"
 
 const uuid = z.string().uuid()
 const lang = z.string().regex(/^[a-z]{2}$/)
@@ -34,4 +34,12 @@ export async function setCurrentRevisionAction(applicationId: string, documentId
   } catch (error) {
     return { ok: false as const, error: error instanceof Error ? error.message : String(error) }
   }
+}
+
+export async function generateLetterAction(formData: FormData) {
+  const applicationId = uuid.parse(formData.get("applicationId"))
+  const language = lang.parse(formData.get("language"))
+  await generateLetter(applicationId, language)
+  revalidatePath(`/applications/${applicationId}`, "layout")
+  redirect(`/applications/${applicationId}/letter?lang=${language}`)
 }
