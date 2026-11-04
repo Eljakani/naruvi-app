@@ -7,7 +7,7 @@ import { IMAGE_MIME, type ImageFormat, imageSize, logoShapeWarning, sniffImage }
 /** Local, content-addressed asset store (a Docker volume in compose). */
 export const ASSETS_DIR = resolve(process.env.ASSETS_DIR || "data/assets")
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024
-const ASSET_PATH = /^logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg)$/
+const ASSET_PATH = /^(logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg)|photos\/[a-f0-9]{24}\.(png|jpg|webp))$/
 
 export function isAssetPath(value: string): boolean {
   return ASSET_PATH.test(value)
@@ -31,17 +31,33 @@ function assertSafeSvg(buffer: Buffer) {
 export type StoredImage = { path: string; width: number | null; height: number | null; warning: string | null }
 
 export async function storeLogo(buffer: Buffer): Promise<StoredImage> {
+  return storeImage(buffer, "logos")
+}
+
+/** Photos: raster only, square-ish advice differs (they are cropped to a circle). */
+export async function storePhoto(buffer: Buffer): Promise<StoredImage> {
+  return storeImage(buffer, "photos")
+}
+
+async function storeImage(buffer: Buffer, folder: "logos" | "photos"): Promise<StoredImage> {
   if (buffer.length === 0) throw new Error("The file is empty.")
-  if (buffer.length > MAX_IMAGE_BYTES) throw new Error("Logos must be 2 MB or smaller.")
+  if (buffer.length > MAX_IMAGE_BYTES) throw new Error("Images must be 2 MB or smaller.")
   const format = sniffImage(buffer)
   if (!format) throw new Error("Unsupported image. Use PNG, JPG, WebP, GIF or SVG.")
+  if (folder === "photos" && !["png", "jpg", "webp"].includes(format)) throw new Error("Use a PNG, JPG or WebP photo.")
   if (format === "svg") assertSafeSvg(buffer)
   const size = imageSize(buffer)
   const hash = createHash("sha256").update(buffer).digest("hex").slice(0, 24)
-  const path = `logos/${hash}.${format}`
-  await mkdir(join(ASSETS_DIR, "logos"), { recursive: true })
+  const path = `${folder}/${hash}.${format}`
+  await mkdir(join(ASSETS_DIR, folder), { recursive: true })
   await writeFile(absolute(path), buffer)
-  return { path, width: size?.width ?? null, height: size?.height ?? null, warning: logoShapeWarning(size) }
+  const warning =
+    folder === "photos"
+      ? size && Math.min(size.width, size.height) < 200
+        ? `This photo is only ${size.width}×${size.height}px and will look blurry when printed.`
+        : null
+      : logoShapeWarning(size)
+  return { path, width: size?.width ?? null, height: size?.height ?? null, warning }
 }
 
 export async function readAsset(path: string): Promise<{ buffer: Buffer; mime: string } | null> {

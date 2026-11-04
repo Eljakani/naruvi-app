@@ -49,7 +49,12 @@ export type EntryInput = z.input<typeof entryInput>
 
 export const identityInput = z.object({
   fullName: z.string().trim().min(2).max(120),
-  headline: z.string().trim().max(200).default(""),
+  headlines: z.record(z.string().regex(/^[a-z]{2}$/), z.string().trim().max(160)).default({}),
+  photoPath: z
+    .string()
+    .regex(/^photos\/[a-f0-9]{24}\.(png|jpg|webp)$/)
+    .nullable()
+    .default(null),
   email: z.string().trim().email().or(z.literal("")),
   phone: z.string().trim().max(40).default(""),
   location: z.string().trim().max(120).default(""),

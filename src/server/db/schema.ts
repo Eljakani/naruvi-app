@@ -78,7 +78,10 @@ export const runStatus = pgEnum("run_status", ["queued", "running", "succeeded",
 export const profiles = pgTable("profiles", {
   id: id(),
   fullName: text().notNull(),
-  headline: text().notNull().default(""),
+  /** Short professional title per language, shown under the name: { en, fr }. */
+  headlines: jsonb().$type<Record<string, string>>().notNull().default({}),
+  /** Profile photo in the asset store (photos/<sha>.<ext>). */
+  photoPath: text(),
   email: text().notNull().default(""),
   phone: text().notNull().default(""),
   location: text().notNull().default(""),

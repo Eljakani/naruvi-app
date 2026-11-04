@@ -133,43 +133,70 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
     <>
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-xl">{profile?.fullName ?? "Your name"}</CardTitle>
-            <CardDescription className="flex flex-wrap gap-x-4 gap-y-1">
-              {profile?.email ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <MailIcon className="size-3.5" /> {profile.email}
-                </span>
-              ) : null}
-              {profile?.phone ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <PhoneIcon className="size-3.5" /> {profile.phone}
-                </span>
-              ) : null}
-              {profile?.location ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <MapPinIcon className="size-3.5" /> {profile.location}
-                </span>
-              ) : null}
-            </CardDescription>
-            <CardAction>
-              <Button size="sm" variant="outline" onClick={() => setIdentityOpen(true)}>
-                <PencilIcon /> Edit
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-center gap-2">
-            {profile?.links.map((link) => (
-              <Badge key={link.url} variant="secondary" render={<a href={link.url} target="_blank" rel="noreferrer" />}>
-                {link.label}
-              </Badge>
-            ))}
-            {profile?.availability ? <Badge variant="outline">Available {profile.availability}</Badge> : null}
-            {profile?.locked.length ? (
-              <Badge variant="outline" className="gap-1">
-                <LockIcon className="size-3" /> Contact locked for generation
-              </Badge>
-            ) : null}
+          <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <button
+              type="button"
+              onClick={() => setIdentityOpen(true)}
+              className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              aria-label="Edit photo"
+            >
+              {profile?.photoPath ? (
+                // eslint-disable-next-line @next/next/no-img-element -- local asset
+                <img src={`/api/assets/${profile.photoPath}`} alt="" className="size-full object-cover" />
+              ) : (
+                <UserRoundIcon className="size-7 text-muted-foreground" />
+              )}
+            </button>
+            <div className="grid min-w-0 flex-1 gap-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="truncate text-xl font-semibold tracking-tight">{profile?.fullName ?? "Your name"}</h2>
+                  {profile?.headlines?.en || profile?.headlines?.fr ? (
+                    <p className="text-sm text-muted-foreground">
+                      {profile.headlines.en || profile.headlines.fr}
+                      {profile.headlines.en && profile.headlines.fr ? <span className="ml-2 text-xs text-muted-foreground/70">EN · FR</span> : null}
+                    </p>
+                  ) : (
+                    <button type="button" onClick={() => setIdentityOpen(true)} className="text-sm text-amber-600 hover:underline">
+                      + Add a headline (EN / FR)
+                    </button>
+                  )}
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setIdentityOpen(true)}>
+                  <PencilIcon /> Edit
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                {profile?.email ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MailIcon className="size-3.5" /> {profile.email}
+                  </span>
+                ) : null}
+                {profile?.phone ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <PhoneIcon className="size-3.5" /> {profile.phone}
+                  </span>
+                ) : null}
+                {profile?.location ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPinIcon className="size-3.5" /> {profile.location}
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {profile?.links.map((link) => (
+                  <Badge key={link.url} variant="secondary" render={<a href={link.url} target="_blank" rel="noreferrer" />}>
+                    {link.label}
+                  </Badge>
+                ))}
+                {profile?.availability ? <Badge variant="outline">Available {profile.availability}</Badge> : null}
+                {profile?.locked.length ? (
+                  <Badge variant="outline" className="gap-1">
+                    <LockIcon className="size-3" /> Contact locked for generation
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -187,8 +214,8 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
               {stats.grounded}/{stats.bullets} approved bullets are backed by facts · {stats.facts} facts in {stats.verified} verified entries
             </p>
             {stats.attention ? (
-              <Button size="sm" variant="outline" className="w-full" onClick={() => setFilter("attention")}>
-                <AlertTriangleIcon className="text-amber-500" /> Review {stats.attention} {stats.attention === 1 ? "entry" : "entries"}
+              <Button size="sm" className="w-full" nativeButton={false} render={<Link href="/profile/review" />}>
+                <AlertTriangleIcon /> Start review · {stats.attention} {stats.attention === 1 ? "entry" : "entries"}
               </Button>
             ) : (
               <div className="flex items-center gap-1.5 text-xs text-emerald-600">

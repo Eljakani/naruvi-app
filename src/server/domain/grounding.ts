@@ -78,3 +78,21 @@ export function verifySupport(text: string, supporting: FactLike[]): Support {
     grounded: supporting.length > 0 && unsupportedNumbers.length === 0,
   }
 }
+
+export type RankedFact = { id: string; score: number; sharedNumbers: string[] }
+
+/**
+ * Rank facts by how likely they support a text: shared numbers weigh most,
+ * then vocabulary overlap. Used to pre-select suggestions in the review queue.
+ */
+export function rankFacts(text: string, facts: FactLike[]): RankedFact[] {
+  const numbers = extractNumbers(text)
+  const words = tokens(text)
+  return facts
+    .map((fact) => {
+      const sharedNumbers = extractNumbers(fact.statement).filter((n) => numbers.includes(n))
+      const score = sharedNumbers.length * 2 + overlap(words, tokens(fact.statement))
+      return { id: fact.id, score: Number(score.toFixed(3)), sharedNumbers }
+    })
+    .sort((a, b) => b.score - a.score)
+}

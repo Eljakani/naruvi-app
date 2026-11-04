@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { safeFetchBytes } from "@/server/assets/safe-fetch"
-import { MAX_IMAGE_BYTES, storeLogo } from "@/server/assets/store"
+import { MAX_IMAGE_BYTES, storeLogo, storePhoto } from "@/server/assets/store"
+import { addFactForBullet, linkBulletFacts, setBulletRole } from "@/server/profile/repository"
 import { deleteEntry, importProfileFolder, saveEntry, saveIdentity, setEntryStatus } from "@/server/profile/repository"
 import type { EntryInput, IdentityInput } from "@/server/profile/schemas"
 
@@ -12,7 +13,7 @@ export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; 
 async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
   try {
     const data = await fn()
-    revalidatePath("/profile")
+    revalidatePath("/profile", "layout")
     revalidatePath("/")
     return { ok: true, data }
   } catch (error) {
@@ -59,4 +60,27 @@ export async function logoFromUrlAction(url: string) {
     const parsed = z.string().trim().url("Enter a full image URL (https://…).").parse(url)
     return storeLogo(await safeFetchBytes(parsed, MAX_IMAGE_BYTES))
   })
+}
+
+export async function uploadPhotoAction(formData: FormData) {
+  return run(async () => {
+    const file = formData.get("file")
+    if (!(file instanceof File)) throw new Error("Choose an image file.")
+    if (file.size > MAX_IMAGE_BYTES) throw new Error("Photos must be 2 MB or smaller.")
+    return storePhoto(Buffer.from(await file.arrayBuffer()))
+  })
+}
+
+const uuid = z.string().uuid()
+
+export async function linkBulletFactsAction(phrasingId: string, factIds: string[]) {
+  return run(() => linkBulletFacts(uuid.parse(phrasingId), z.array(uuid).parse(factIds)))
+}
+
+export async function addFactForBulletAction(phrasingId: string, statement: string, alsoLink: string[] = []) {
+  return run(() => addFactForBullet(uuid.parse(phrasingId), z.string().max(600).parse(statement), z.array(uuid).parse(alsoLink)))
+}
+
+export async function setBulletRoleAction(phrasingId: string, role: "bullet" | "label") {
+  return run(() => setBulletRole(uuid.parse(phrasingId), z.enum(["bullet", "label"]).parse(role)))
 }

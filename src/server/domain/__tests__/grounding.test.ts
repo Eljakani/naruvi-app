@@ -34,3 +34,11 @@ test("an invented number is flagged even when other facts match", () => {
 test("verifySupport with no supporting facts is never grounded", () => {
   assert.equal(verifySupport("Led the security team.", []).grounded, false)
 })
+
+test("rankFacts puts number matches first, then vocabulary", async () => {
+  const { rankFacts } = await import("../grounding")
+  const ranked = rankFacts("Covered 50+ servers with Prometheus monitoring.", facts)
+  assert.equal(ranked[0].id, "f5")
+  assert.deepEqual(ranked[0].sharedNumbers, ["50"])
+  assert.equal(ranked[1].id, "f4")
+})

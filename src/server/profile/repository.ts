@@ -3,10 +3,10 @@ import { readdir, readFile } from "node:fs/promises"
 import { basename, join } from "node:path"
 import { and, asc, eq, inArray, isNull } from "drizzle-orm"
 import { imageSize } from "@/server/assets/image"
-import { storeLogo } from "@/server/assets/store"
+import { storeLogo, storePhoto } from "@/server/assets/store"
 import { db } from "@/server/db/client"
 import { entries, facts, phrasings, profiles } from "@/server/db/schema"
-import { supportFor, verifySupport } from "@/server/domain/grounding"
+import { rankFacts, supportFor, verifySupport } from "@/server/domain/grounding"
 import { matchLogo } from "./logo-match"
 import { parseIdentity, parsePool } from "./pool-parser"
 import { entryInput, identityInput, type EntryInput, type IdentityInput } from "./schemas"
@@ -218,6 +218,13 @@ export async function importProfileFolder(folder: string): Promise<ImportSummary
     }
   })
   summary.logos = await attachLogos(folder, profile.id)
+  if (!profile.photoPath) {
+    const photo = await readFile(join(folder, "..", "assets", "profile_image.png")).catch(() => null)
+    if (photo) {
+      const stored = await storePhoto(photo).catch(() => null)
+      if (stored) await db.update(profiles).set({ photoPath: stored.path }).where(eq(profiles.id, profile.id))
+    }
+  }
   return summary
 }
 
@@ -263,4 +270,70 @@ async function attachLogos(profileFolder: string, profileId: string) {
 export async function getEntry(entryId: string) {
   const all = await listEntries()
   return all.find((entry) => entry.id === entryId) ?? null
+}
+
+/* ------------------------------------------------------------------ */
+/* review queue                                                        */
+/* ------------------------------------------------------------------ */
+
+export type ReviewItem =
+  | {
+      type: "bullet"
+      id: string
+      entry: ProfileEntry
+      bullet: ProfileEntry["phrasings"][number]
+      suggestions: { id: string; score: number; sharedNumbers: string[] }[]
+    }
+  | { type: "entry"; id: string; entry: ProfileEntry; reasons: string[] }
+
+/** Everything that blocks an entry from being trusted, one item at a time. */
+export async function getReviewQueue(): Promise<ReviewItem[]> {
+  const all = (await listEntries()).filter((entry) => entry.status !== "archived")
+  const items: ReviewItem[] = []
+  for (const entry of all) {
+    const facts = entry.facts.map((fact) => ({ id: fact.id, statement: fact.statement }))
+    for (const bullet of entry.phrasings) {
+      if (bullet.role !== "bullet" || bullet.grounding.grounded) continue
+      items.push({ type: "bullet", id: `bullet:${bullet.id}`, entry, bullet, suggestions: rankFacts(bullet.text, facts).filter((item) => item.score >= 0.2).slice(0, 5) })
+    }
+    const reasons: string[] = []
+    if (entry.status === "needs_review") reasons.push("Not verified yet")
+    if (entry.facts.length === 0 && entry.kind !== "skill" && entry.kind !== "language") reasons.push("No facts")
+    if (reasons.length) items.push({ type: "entry", id: `entry:${entry.id}`, entry, reasons })
+  }
+  return items
+}
+
+async function bulletWithEntryFacts(phrasingId: string) {
+  const [bullet] = await db.select().from(phrasings).where(eq(phrasings.id, phrasingId))
+  if (!bullet) throw new Error("This bullet no longer exists.")
+  const entryFacts = await db.select().from(facts).where(eq(facts.entryId, bullet.entryId))
+  return { bullet, entryFacts }
+}
+
+/** Link facts (of the same entry only) to a bullet. Returns the new grounding. */
+export async function linkBulletFacts(phrasingId: string, factIds: string[]) {
+  const { bullet, entryFacts } = await bulletWithEntryFacts(phrasingId)
+  const allowed = entryFacts.filter((fact) => factIds.includes(fact.id))
+  if (allowed.length !== new Set(factIds).size) throw new Error("Facts must belong to the same entry.")
+  await db.update(phrasings).set({ factIds: allowed.map((fact) => fact.id) }).where(eq(phrasings.id, phrasingId))
+  return verifySupport(bullet.text, allowed)
+}
+
+/** Record a new fact on the bullet's entry and link it (plus any already linked). */
+export async function addFactForBullet(phrasingId: string, statement: string, alsoLink: string[] = []) {
+  const text = statement.trim()
+  if (text.length < 3) throw new Error("Write the fact you can prove.")
+  const { bullet, entryFacts } = await bulletWithEntryFacts(phrasingId)
+  return db.transaction(async (tx) => {
+    const [fact] = await tx.insert(facts).values({ entryId: bullet.entryId, statement: text, sortOrder: entryFacts.length }).returning()
+    const keep = entryFacts.filter((item) => alsoLink.includes(item.id))
+    const linked = [...keep, fact]
+    await tx.update(phrasings).set({ factIds: linked.map((item) => item.id) }).where(eq(phrasings.id, phrasingId))
+    return verifySupport(bullet.text, linked)
+  })
+}
+
+export async function setBulletRole(phrasingId: string, role: "bullet" | "label") {
+  await db.update(phrasings).set({ role }).where(eq(phrasings.id, phrasingId))
 }
