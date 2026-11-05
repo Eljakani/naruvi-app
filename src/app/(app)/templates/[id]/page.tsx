@@ -5,6 +5,8 @@ import { TemplateEditor } from "@/components/templates/template-editor"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PRESETS } from "@/lib/design"
 import { getTemplate } from "@/server/templates/service"
+import { getDocumentDefaults } from "@/server/settings/service"
+import { z } from "zod"
 
 export const metadata = { title: "Edit template" }
 
@@ -20,12 +22,18 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
   await connection()
   const { id } = await params
   if (id === "new") {
-    const from = (await searchParams).from
-    const preset = typeof from === "string" && PRESETS[from] ? from : "classic"
-    return <TemplateEditor initial={{ name: `My ${PRESETS[preset].name}`, basedOn: preset, tokens: PRESETS[preset].tokens }} />
+    const query = await searchParams
+    const from = query.from
+    const preset = typeof from === "string" && Object.hasOwn(PRESETS, from) ? from : "classic"
+    const defaults = await getDocumentDefaults()
+    if (query.default === "1" && !defaults.templateRef && defaults.design) {
+      return <TemplateEditor key="new:default" initial={{ name: "My default design", basedOn: "classic", tokens: defaults.design, customDefault: true }} />
+    }
+    const tokens = !defaults.templateRef && !defaults.design && defaults.template === preset ? { ...PRESETS[preset].tokens, accent: defaults.accent } : PRESETS[preset].tokens
+    return <TemplateEditor key={`new:${preset}`} initial={{ name: `My ${PRESETS[preset].name}`, basedOn: preset, tokens }} />
   }
-  if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
+  if (!z.string().uuid().safeParse(id).success) notFound()
   const template = await getTemplate(id)
   if (!template) notFound()
-  return <TemplateEditor initial={template} />
+  return <TemplateEditor key={template.id} initial={template} />
 }

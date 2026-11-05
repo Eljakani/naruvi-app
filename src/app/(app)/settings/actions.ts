@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { prepareFonts } from "@/server/documents/fonts"
-import { saveDocumentDefaults, setDefaultLanguage, testLlm } from "@/server/settings/service"
+import { saveDocumentPhotoDefault, setDefaultLanguage, testLlm } from "@/server/settings/service"
 import { saveLlmSettings, type LlmOverview } from "@/server/settings/llm"
 import { llmSettingsInput } from "@/server/settings/llm-schema"
 import { SettingsError } from "@/server/settings/errors"
@@ -12,10 +12,13 @@ type Result = { ok: true; message?: string } | { ok: false; message: string }
 
 const fail = (error: unknown): Result => ({ ok: false, message: error instanceof Error ? error.message : String(error) })
 
-export async function saveDocumentDefaultsAction(input: unknown): Promise<Result> {
+export async function saveDocumentPhotoDefaultAction(showPhoto: boolean): Promise<Result> {
+  if (typeof showPhoto !== "boolean") return { ok: false, message: "Choose whether to show a photo." }
   try {
-    await saveDocumentDefaults(input)
+    await saveDocumentPhotoDefault(showPhoto)
     revalidatePath("/settings")
+    revalidatePath("/templates")
+    revalidatePath("/templates/[id]", "page")
     return { ok: true }
   } catch (error) {
     return fail(error)

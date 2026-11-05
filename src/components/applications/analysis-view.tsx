@@ -23,7 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import type { RequirementMatch } from "@/server/analysis/match"
+import { displayFitScore, type RequirementMatch } from "@/server/analysis/match"
 import type { StoredAnalysis } from "@/server/applications/repository"
 
 type FactRow = { id: string; statement: string; entryId: string; entryTitle: string; display: Record<string, { organization?: string; role?: string }>; logoPath: string | null }
@@ -131,13 +131,15 @@ export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: 
   }, [analysis.requirements, filter])
   const cover = COVER[analysis.coverLetter.decision as keyof typeof COVER] ?? COVER.not_mentioned
   const counts = analysis.counts
+  const score = displayFitScore(analysis)
+  const reviewStatus = analysis.requirementFilter?.status
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="grid min-w-0 content-start gap-4">
         <Card>
           <CardContent className="flex flex-wrap items-center gap-5">
-            <FitRing score={analysis.fitScore} />
+            {score === null ? <p className="shrink-0 text-sm font-medium">Fit not scored</p> : <FitRing score={score} />}
             <div className="grid min-w-0 flex-1 gap-2">
               <p className="text-sm text-muted-foreground">
                 Based on <span className="font-medium text-foreground">{analysis.factCount} verified facts</span>. A requirement is only “proven” when a fact you verified shows it; soft skills are left to your judgement and not scored.
@@ -158,7 +160,10 @@ export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: 
                     <BotIcon className="size-3" /> Rules + model review ({analysis.modelReview.reviewed} items checked, {analysis.modelReview.changed} adjusted)
                   </span>
                 ) : (
-                  analysis.requirementFilter?.reviewed ? "AI-filtered posting items + rule-based evidence matching." : "Deterministic rules only — configure a language model in Settings for requirement filtering and evidence review."
+                  reviewStatus === "empty" ? "AI review skipped because no requirement candidates were extracted."
+                    : analysis.requirementFilter?.reviewed ? "AI-filtered posting items + rule-based evidence matching."
+                    : reviewStatus === "not_configured" ? "Rule-based matching. Configure an AI model in Settings to enable review."
+                    : "Rule-based matching."
                 )}{" "}
                 · analyzed {new Date(analysis.analyzedAt).toLocaleString()}
               </p>
@@ -207,7 +212,7 @@ export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: 
               ))
             ) : (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                {analysis.requirements.length ? "Nothing in this filter." : analysis.requirementFilter?.excluded.length ? "No candidate requirements remained after filtering. Inspect the excluded posting details below." : "No requirement list found in this posting. Check the job description has bullet points under headings like “Requirements”."}
+                {analysis.requirements.length ? "Nothing in this filter." : analysis.requirementFilter?.excluded.length ? "No candidate requirements remained after filtering. Inspect the excluded posting details below." : "No requirements were extracted. Check the imported job description and re-analyze."}
               </p>
             )}
             {analysis.requirementFilter?.excluded.length ? <details className="border-t pt-4 text-sm">

@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { StoredAnalysis } from "@/server/applications/repository"
+import { displayFitScore } from "@/server/analysis/match"
 import { getDashboard } from "@/server/queries/dashboard"
 
 export const metadata = { title: "Dashboard" }
@@ -163,7 +164,7 @@ async function DashboardData() {
                 </TableHeader>
                 <TableBody>
                   {data.recent.map((application) => {
-                    const score = (application.analysis as StoredAnalysis | null)?.fitScore
+                    const score = displayFitScore(application.analysis as StoredAnalysis | null)
                     return (
                       <TableRow key={application.id}>
                         <TableCell>

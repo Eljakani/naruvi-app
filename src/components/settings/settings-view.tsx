@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useState, useTransition } from "react"
 import { DownloadIcon, Loader2Icon, PaletteIcon } from "lucide-react"
 import { toast } from "sonner"
-import { downloadFontsAction, saveDocumentDefaultsAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
+import { downloadFontsAction, saveDocumentPhotoDefaultAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
 import { DecisionSettings } from "./decision-settings"
 import { ModelSettings } from "./model-settings"
 import { Badge } from "@/components/ui/badge"
@@ -28,7 +28,7 @@ const LANGS = [
 const FONT_NAMES: Record<string, string> = { SC: "Chinese (Simplified)", JP: "Japanese", KR: "Korean" }
 
 export function SettingsView({ overview, defaults: initialDefaults }: { overview: Overview; defaults: DocumentDefaults }) {
-  const [defaults, setDefaults] = useState(initialDefaults)
+  const [showPhoto, setShowPhoto] = useState(initialDefaults.showPhoto)
   const [language, setLanguage] = useState(overview.defaultLanguage)
   const [pending, startTransition] = useTransition()
   const [busy, setBusy] = useState<string | null>(null)
@@ -43,9 +43,13 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
     })
   }
 
-  const saveDefaults = (next: DocumentDefaults) => {
-    setDefaults(next)
-    run("defaults", () => saveDocumentDefaultsAction(next), "Defaults saved")
+  const savePhotoDefault = (next: boolean) => {
+    setShowPhoto(next)
+    run("defaults", async () => {
+      const result = await saveDocumentPhotoDefaultAction(next)
+      if (!result.ok) setShowPhoto(!next)
+      return result
+    }, "Defaults saved")
   }
 
   const missingFonts = overview.fonts.filter((font) => !font.downloaded)
@@ -102,7 +106,7 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
                 <FieldLabel htmlFor="show-photo">Show photo</FieldLabel>
                 <FieldDescription>Common in France, Germany and Spain; usually left out in the US, UK and Canada.</FieldDescription>
               </FieldContent>
-              <Switch id="show-photo" checked={defaults.showPhoto} disabled={pending} onCheckedChange={(value) => saveDefaults({ ...defaults, showPhoto: value })} />
+              <Switch id="show-photo" checked={showPhoto} disabled={pending} onCheckedChange={savePhotoDefault} />
             </Field>
           </FieldGroup>
         </CardContent>

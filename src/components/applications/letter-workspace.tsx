@@ -54,7 +54,7 @@ export function LetterWorkspace({
   workspace,
   jobId,
   research,
-  savedTemplates = [],
+  savedTemplates,
 }: {
   applicationId: string
   jobTitle: string
@@ -64,7 +64,7 @@ export function LetterWorkspace({
   workspace: Awaited<ReturnType<typeof getLetterWorkspace>>
   jobId: string
   research: Research | null
-  savedTemplates?: SavedDesign[]
+  savedTemplates: SavedDesign[]
 }) {
   if (!workspace?.current) {
     return (

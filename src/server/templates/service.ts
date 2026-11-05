@@ -1,10 +1,9 @@
 import "server-only"
-import { desc, eq } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 import { designTokens, PRESETS, type DesignTokens } from "@/lib/design"
 import { db } from "@/server/db/client"
-import { documents, revisions, templates, templateVersions } from "@/server/db/schema"
+import { documents, revisions, settings, templates, templateVersions } from "@/server/db/schema"
 import { cvDocument, type CvDocument } from "@/server/documents/model"
-import { renderCvPdf } from "@/server/documents/render"
 
 export type SavedTemplate = { id: string; name: string; basedOn: string; tokens: DesignTokens; updatedAt: Date }
 
@@ -21,7 +20,7 @@ export async function getTemplate(id: string) {
 
 export async function createTemplate(input: { name: string; basedOn: string; tokens: unknown; note?: string }) {
   return db.transaction(async (tx) => {
-    const [row] = await tx.insert(templates).values({ name: input.name.trim().slice(0, 80) || "My template", basedOn: PRESETS[input.basedOn] ? input.basedOn : "classic", tokens: designTokens.parse(input.tokens) }).returning()
+    const [row] = await tx.insert(templates).values({ name: input.name.trim().slice(0, 80) || "My template", basedOn: Object.hasOwn(PRESETS, input.basedOn) ? input.basedOn : "classic", tokens: designTokens.parse(input.tokens) }).returning()
     await tx.insert(templateVersions).values({ templateId: row.id, name: row.name, tokens: row.tokens, note: input.note || "created" })
     return parse(row)
   })
@@ -46,11 +45,17 @@ export type TemplateVersion = Awaited<ReturnType<typeof listTemplateVersions>>[n
 export async function restoreTemplateVersion(templateId: string, versionId: string) {
   const [version] = await db.select().from(templateVersions).where(eq(templateVersions.id, versionId))
   if (!version || version.templateId !== templateId) return null
-  return updateTemplate(templateId, { tokens: version.tokens, note: `restored ${version.createdAt.toISOString()}` })
+  return updateTemplate(templateId, { name: version.name, tokens: version.tokens, note: `restored ${version.createdAt.toISOString()}` })
 }
 
 export async function deleteTemplate(id: string) {
-  await db.delete(templates).where(eq(templates.id, id))
+  await db.transaction(async (tx) => {
+    const [row] = await tx.delete(templates).where(eq(templates.id, id)).returning()
+    if (!row) return
+    // Keep the last default look as an explicit custom design, without a dangling ID.
+    const snapshot = JSON.stringify({ template: "custom", design: row.tokens, accent: row.tokens.accent })
+    await tx.update(settings).set({ value: sql`(${settings.value} - 'templateRef') || ${snapshot}::jsonb` }).where(and(eq(settings.key, "documents"), sql`${settings.value}->>'templateRef' = ${id}`))
+  })
 }
 
 /** Built-in sample used when the person has not generated a CV yet. */
@@ -77,18 +82,24 @@ const SAMPLE: CvDocument = cvDocument.parse({
 })
 
 /** The person's most recent CV, so templates are previewed with their own content. */
-export async function previewContent(): Promise<CvDocument> {
-  const [doc] = await db.select({ revisionId: documents.currentRevisionId }).from(documents).where(eq(documents.kind, "cv")).orderBy(desc(documents.createdAt)).limit(1)
-  if (doc?.revisionId) {
-    const [rev] = await db.select({ content: revisions.content }).from(revisions).where(eq(revisions.id, doc.revisionId))
-    const parsed = cvDocument.safeParse(rev?.content)
-    if (parsed.success) return parsed.data
+export async function previewSource(): Promise<{ content: CvDocument; revision: string }> {
+  const rows = await db.select({ id: revisions.id, content: revisions.content }).from(documents)
+    .innerJoin(revisions, eq(revisions.id, documents.currentRevisionId))
+    .where(eq(documents.kind, "cv")).orderBy(desc(revisions.createdAt)).limit(10)
+  for (const row of rows) {
+    const parsed = cvDocument.safeParse(row.content)
+    if (parsed.success) return { content: parsed.data, revision: row.id }
   }
-  return SAMPLE
+  return { content: SAMPLE, revision: "sample-v1" }
+}
+
+export async function previewContent(): Promise<CvDocument> {
+  return (await previewSource()).content
 }
 
 export async function renderTemplatePreview(tokens: unknown, sample = false) {
   const design = designTokens.parse(tokens)
+  const { renderCvPdf } = await import("@/server/documents/render")
   const base = sample ? SAMPLE : await previewContent()
-  return renderCvPdf({ ...base, template: "custom", design, accent: design.accent, header: { ...base.header, showPhoto: Boolean(base.header.photoPath) } })
+  return renderCvPdf({ ...base, template: "custom", design, accent: design.accent })
 }

@@ -26,13 +26,28 @@ export type DocumentDefaults = z.infer<typeof documentDefaults>
 
 export async function getDocumentDefaults(): Promise<DocumentDefaults> {
   const row = await db.query.settings.findFirst({ where: (t, { eq }) => eq(t.key, "documents") })
-  return documentDefaults.parse(row?.value ?? {})
+  const defaults = documentDefaults.parse(row?.value ?? {})
+  if (!defaults.templateRef) return defaults
+  // Saved defaults follow the current template. Documents already generated keep snapshots.
+  const templateRef = defaults.templateRef
+  const template = await db.query.templates.findFirst({ where: (t, { eq }) => eq(t.id, templateRef) })
+  if (template) {
+    const design = designTokens.parse(template.tokens)
+    return { ...defaults, template: "custom" as const, design, accent: design.accent }
+  }
+  return { ...defaults, templateRef: undefined }
 }
 
 export async function saveDocumentDefaults(input: unknown) {
   const value = documentDefaults.parse(input)
   await db.insert(settings).values({ key: "documents", value }).onConflictDoUpdate({ target: settings.key, set: { value } })
   return value
+}
+
+/** Update this independent preference without resaving a potentially stale design. */
+export async function saveDocumentPhotoDefault(showPhoto: boolean) {
+  await db.insert(settings).values({ key: "documents", value: documentDefaults.parse({ showPhoto }) })
+    .onConflictDoUpdate({ target: settings.key, set: { value: sql`${settings.value} || ${JSON.stringify({ showPhoto })}::jsonb` } })
 }
 
 export async function setDefaultLanguage(language: string) {

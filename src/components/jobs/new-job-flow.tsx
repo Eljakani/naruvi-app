@@ -73,6 +73,12 @@ export function NewJobFlow() {
       if (!draft) return
       const result = await saveJobAction(draft)
       if (!result.ok) return void toast.error("Not saved", { description: result.error })
+      // Next.js can keep this page mounted when navigating to the saved job.
+      setDraft(null)
+      setUrl("")
+      setText("")
+      setMode("link")
+      setDescriptionView("preview")
       toast.success("Job saved")
       router.push(`/jobs/${result.data.id}`)
     })

@@ -18,6 +18,8 @@ export type Block =
 const BULLET = /^(?:[-*•·▪◦‣●○■□➤►▶✓✔–—]|\d{1,2}[.)]|[a-z][.)]|\(\d{1,2}\)|\(?[ivx]{1,4}\))\s+/i
 const ORDERED = /^(?:\d{1,2}[.)]|\(\d{1,2}\))\s+/
 const SENTENCE_END = /[.!?…:;)"”’]$/
+const QUALIFICATIONS = /^(?:(?:minimum|preferred|required|basic|desired) )?qualifications$/i
+const SECTION_BOUNDARY = /^(?:description|summary|responsibilities|requirements|benefits|how to apply|about (?:us|the company)|equal opportunity(?: employer)?|compensation|additional information)$/i
 
 export function normalizeText(raw: string): string {
   return String(raw ?? "")
@@ -80,6 +82,7 @@ export function parseJobText(raw: string): Block[] {
   const used = new Set<string>()
   let paragraph: string[] = []
   let list: { ordered: boolean; items: string[] } | null = null
+  let inQualifications = false
 
   const flushParagraph = () => {
     if (paragraph.length) blocks.push({ type: "paragraph", text: paragraph.join(" ") })
@@ -118,12 +121,26 @@ export function parseJobText(raw: string): Block[] {
       list.items[list.items.length - 1] += ` ${line}`
       continue
     }
+    const text = stripMarkdownHeading(line).replace(/:$/, "").trim()
+    const qualificationHeading = QUALIFICATIONS.test(text)
+    // Some job boards flatten qualification lists to one unmarked item per line.
+    // A prose footer or another section ends that format.
+    if (inQualifications && /[.!?]\s+["“]?[A-ZÀ-Ý][a-zà-ÿ]+\s/.test(line)) {
+      inQualifications = false
+      flushList()
+    }
     const next = lines[i + 1]
-    if (isHeading(line, next)) {
+    if (qualificationHeading || SECTION_BOUNDARY.test(text) || (!inQualifications && isHeading(line, next)) || (inQualifications && /^(?:#{1,6}\s|\*\*|__)/.test(line) && isHeading(line, next))) {
       flushParagraph()
       flushList()
-      const text = stripMarkdownHeading(line).replace(/:$/, "").trim()
       blocks.push({ type: "heading", text, id: slug(text, used) })
+      inQualifications = qualificationHeading
+      continue
+    }
+    if (inQualifications) {
+      flushParagraph()
+      list ??= { ordered: false, items: [] }
+      list.items.push(line)
       continue
     }
     flushList()

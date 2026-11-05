@@ -26,7 +26,7 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
   const application = await getApplication(id)
   if (!application) notFound()
   const language = typeof query.lang === "string" && /^[a-z]{2}$/.test(query.lang) ? query.lang : application.language
-  const workspace = await getLetterWorkspace(id, language)
+  const [workspace, templates] = await Promise.all([getLetterWorkspace(id, language), listTemplates()])
   return (
     <LetterWorkspace
       key={workspace?.current?.id ?? "empty"}
@@ -38,7 +38,7 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
       jobId={application.job.id}
       research={(application.job.company?.research ?? null) as unknown as Research | null}
       workspace={workspace}
-      savedTemplates={(await listTemplates()).map((template) => ({ id: template.id, name: template.name, tokens: template.tokens }))}
+      savedTemplates={templates.map(({ id, name, tokens }) => ({ id, name, tokens }))}
     />
   )
 }

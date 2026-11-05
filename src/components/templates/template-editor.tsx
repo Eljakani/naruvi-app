@@ -2,9 +2,10 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useRef, useState, useTransition } from "react"
-import { ArrowLeftIcon, CopyIcon, HistoryIcon, RotateCcwIcon, SaveIcon, SparklesIcon, StarIcon, Trash2Icon } from "lucide-react"
+import { startTransition, useEffect, useId, useRef, useState, useTransition } from "react"
+import { ArrowLeftIcon, CopyIcon, EllipsisIcon, EyeIcon, HistoryIcon, RotateCcwIcon, SaveIcon, SparklesIcon, StarIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
+import type { AgentResult } from "@/server/templates/design-agent"
 import { aiDesignAction, deleteTemplateAction, restoreTemplateVersionAction, saveTemplateAction, setDefaultDesignAction, templateVersionsAction } from "@/app/(app)/templates/actions"
 import { PdfThumb } from "@/components/templates/pdf-thumb"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -13,6 +14,8 @@ import type { TemplateVersion } from "@/server/templates/service"
 import { AiSteps, useStep } from "@/components/ai-progress"
 import { PdfPreview } from "@/components/documents/pdf-preview"
 import { Button } from "@/components/ui/button"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -20,14 +23,15 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { FONTS, PRESETS, type DesignTokens } from "@/lib/design"
+import { designTokens, FONTS, PRESETS, type DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
+import { mergeDesignChanges } from "@/lib/template-edit"
 
 const ACCENTS = ["#2563eb", "#0f766e", "#4338ca", "#7c3aed", "#be123c", "#c2410c", "#1e3a5f", "#111827"]
 const IDEAS = ["Make it fit on one page", "More elegant and minimal", "Use a dark green accent", "Bigger name, centred header", "Two columns with skills on the side"]
-const DESIGN_STEPS = ["Reading your request", "Adjusting the design", "Rendering the preview"]
+const DESIGN_STEPS = ["Planning the change", "Rendering your CV", "Measuring pages and readability", "Fixing what didn’t pass", "Final check against your request"]
 
-type Initial = { id?: string; name: string; basedOn: string; tokens: DesignTokens }
+type Initial = { id?: string; name: string; basedOn: string; tokens: DesignTokens; customDefault?: boolean }
 
 /** Keys the AI just changed glow briefly, so you can see what moved. */
 const Flash = ({ on, children }: { on: boolean; children: React.ReactNode }) => <div className={cn("-mx-2 rounded-lg px-2 py-1 transition-colors duration-700", on ? "bg-primary/10" : "bg-transparent")}>{children}</div>
@@ -60,13 +64,14 @@ function Range({ label, value, min, max, step, unit = "", onChange }: { label: s
 }
 
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (value: boolean) => void }) {
+  const id = useId()
   return (
     <Field orientation="horizontal">
       <FieldContent>
-        <FieldLabel>{label}</FieldLabel>
+        <FieldLabel id={id}>{label}</FieldLabel>
         {hint ? <FieldDescription>{hint}</FieldDescription> : null}
       </FieldContent>
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <Switch aria-labelledby={id} checked={checked} onCheckedChange={onChange} />
     </Field>
   )
 }
@@ -74,174 +79,305 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
 /** Visual template editor: controls, AI prompt, live preview with your own CV. */
 export function TemplateEditor({ initial }: { initial: Initial }) {
   const router = useRouter()
+  const [baseline] = useState({ name: initial.name, tokens: initial.tokens })
   const [name, setName] = useState(initial.name)
   const [tokens, setTokens] = useState(initial.tokens)
-  const [saved, setSaved] = useState(JSON.stringify({ name: initial.name, tokens: initial.tokens }))
+  const [saved, setSaved] = useState(baseline)
+  const [draftReady, setDraftReady] = useState(false)
   const [prompt, setPrompt] = useState("")
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [rendering, setRendering] = useState(false)
+  const [preview, setPreview] = useState<{ url: string; pages: number; key: string; attempt: number }>()
+  const [previewError, setPreviewError] = useState<{ key: string; attempt: number }>()
+  const [attempt, setAttempt] = useState(0)
+  const [fitGoal, setFitGoal] = useState(false)
+  const [agentLog, setAgentLog] = useState<AgentResult | null>(null)
+  const [mobilePreview, setMobilePreview] = useState(false)
   const [asking, startAsking] = useTransition()
   const [saving, startSaving] = useTransition()
   const step = useStep(asking, DESIGN_STEPS.length)
   const [flash, setFlash] = useState<Set<string>>(new Set())
   const [panel, setPanel] = useState("design")
   const [versions, setVersions] = useState<TemplateVersion[] | null>(null)
+  const [historyError, setHistoryError] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [lastPrompt, setLastPrompt] = useState("")
-  const glow = (...keys: (keyof DesignTokens)[]) => keys.some((key) => flash.has(key))
+  const [confirmation, setConfirmation] = useState<"delete" | TemplateVersion | null>(null)
+  const promptLabel = useId()
+  const fontLabel = useId()
+  const headingFontLabel = useId()
   const previous = useRef<string | null>(null)
-  const dirty = JSON.stringify({ name, tokens }) !== saved
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const active = useRef(false)
+  const glow = (...keys: (keyof DesignTokens)[]) => keys.some((key) => flash.has(key))
+  const draftKey = `naruvi:template-draft:v1:${initial.id ?? `new:${initial.customDefault ? "default" : initial.basedOn}`}`
+  const savedKey = JSON.stringify(saved)
+  const dirty = JSON.stringify({ name, tokens }) !== savedKey
+  const tokenKey = JSON.stringify(tokens)
+  const failed = previewError?.key === tokenKey && previewError.attempt === attempt
+  const rendering = !failed && (preview?.key !== tokenKey || preview.attempt !== attempt)
+  const busy = asking || saving || !draftReady
   const set = <K extends keyof DesignTokens>(key: K, value: DesignTokens[K]) => setTokens((current) => ({ ...current, [key]: value }))
 
-  // Debounced live preview: a fresh PDF of your latest CV in this design.
   useEffect(() => {
+    let draft: { name: string; tokens: DesignTokens; note: string } | undefined
+    try {
+      const stored = JSON.parse(localStorage.getItem(draftKey) ?? "null")
+      if (stored?.base === JSON.stringify(baseline) && typeof stored.name === "string") {
+        const parsed = designTokens.safeParse(stored.tokens)
+        if (parsed.success) draft = { name: stored.name.slice(0, 80), tokens: parsed.data, note: typeof stored.note === "string" ? stored.note.slice(0, 500) : "" }
+      }
+    } catch { /* Storage can be unavailable in private browsing. */ }
+    startTransition(() => {
+      if (draft) {
+        setName(draft.name)
+        setTokens(draft.tokens)
+        setLastPrompt(draft.note)
+      }
+      setDraftReady(true)
+    })
+  }, [baseline, draftKey])
+
+  useEffect(() => {
+    if (!draftReady) return
+    const persist = () => {
+      if (dirty) localStorage.setItem(draftKey, JSON.stringify({ base: savedKey, name, tokens, note: lastPrompt }))
+      else localStorage.removeItem(draftKey)
+    }
+    try { persist() } catch { /* Warn on unload if persistence fails. */ }
+    if (!dirty) return
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      try { persist() } catch { event.preventDefault(); event.returnValue = "" }
+    }
+    window.addEventListener("beforeunload", beforeUnload)
+    return () => window.removeEventListener("beforeunload", beforeUnload)
+  }, [draftReady, dirty, draftKey, savedKey, name, tokens, lastPrompt])
+
+  useEffect(() => {
+    active.current = true
+    return () => {
+      active.current = false
+      if (previous.current) URL.revokeObjectURL(previous.current)
+      previous.current = null
+      clearTimeout(flashTimer.current)
+    }
+  }, [])
+
+  // A superseded render can never replace the current preview.
+  useEffect(() => {
+    if (!draftReady) return
     const controller = new AbortController()
+    let cancelled = false
     const timer = setTimeout(async () => {
-      setRendering(true)
+      const timeout = setTimeout(() => controller.abort(), 30_000)
       try {
-        const response = await fetch("/api/templates/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tokens }), signal: controller.signal })
-        if (!response.ok) return
-        const url = URL.createObjectURL(await response.blob())
+        const response = await fetch("/api/templates/preview", { method: "POST", headers: { "content-type": "application/json" }, body: `{"tokens":${tokenKey}}`, signal: controller.signal })
+        if (!response.ok || !response.headers.get("content-type")?.startsWith("application/pdf")) throw new Error("Preview request failed")
+        const blob = await response.blob()
+        if (cancelled) return
+        const url = URL.createObjectURL(blob)
         if (previous.current) URL.revokeObjectURL(previous.current)
         previous.current = url
-        setPreviewUrl(url)
+        setPreview({ url, key: tokenKey, pages: Number(response.headers.get("x-pages")), attempt })
+        setPreviewError(undefined)
       } catch {
-        // superseded by a newer change
+        if (!cancelled) setPreviewError({ key: tokenKey, attempt })
       } finally {
-        if (!controller.signal.aborted) setRendering(false)
+        clearTimeout(timeout)
       }
     }, 350)
     return () => {
+      cancelled = true
       clearTimeout(timer)
       controller.abort()
     }
-  }, [tokens])
+  }, [tokenKey, attempt, draftReady])
 
-  const ask = (text = prompt) =>
+  const ask = (text = prompt) => {
+    if (busy || text.trim().length < 3) return
     startAsking(async () => {
-      const result = await aiDesignAction({ tokens, prompt: text })
-      if (!result.ok) return void toast.error(result.message)
-      const changed = Object.keys(result.data.tokens).filter((key) => JSON.stringify(result.data.tokens[key as keyof DesignTokens]) !== JSON.stringify(tokens[key as keyof DesignTokens]))
-      setTokens(result.data.tokens)
-      setLastPrompt(text)
-      setPrompt("")
-      setFlash(new Set(changed))
-      setTimeout(() => setFlash(new Set()), 1600)
-      toast.success(result.data.summary, { description: changed.length ? `${changed.length} setting${changed.length === 1 ? "" : "s"} changed. Not saved yet.` : undefined })
+      try {
+        const result = await aiDesignAction({ tokens, prompt: text })
+        if (!active.current) return
+        if (!result.ok) return void toast.error(result.message)
+        const changes = Object.fromEntries(Object.entries(result.data.tokens).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(tokens[key as keyof DesignTokens]))) as Partial<DesignTokens>
+        const changed = Object.keys(changes)
+        setTokens((current) => mergeDesignChanges(tokens, current, changes))
+        if (changed.length) setLastPrompt(text)
+        setPrompt("")
+        setFitGoal(false)
+        setAgentLog(result.data)
+        setFlash(new Set(changed))
+        clearTimeout(flashTimer.current)
+        flashTimer.current = setTimeout(() => setFlash(new Set()), 1600)
+        const rounds = result.data.attempts.length
+        if (result.data.satisfied) toast.success(result.data.summary, { description: `Checked in ${rounds} round${rounds === 1 ? "" : "s"}. Not saved yet.` })
+        else toast.warning("Closest result applied", { description: result.data.verdict })
+      } catch {
+        if (active.current) toast.error("Couldn’t apply the design request. Try again.")
+      }
     })
+  }
 
   const save = (asCopy = false) =>
     startSaving(async () => {
-      const result = await saveTemplateAction({ id: asCopy ? undefined : initial.id, name: asCopy ? `${name} (copy)` : name, basedOn: initial.basedOn, tokens, note: lastPrompt ? `AI: ${lastPrompt}`.slice(0, 200) : undefined })
-      setLastPrompt("")
-      setVersions(null)
-      if (!result.ok) return void toast.error(result.message)
-      setSaved(JSON.stringify({ name, tokens }))
-      toast.success(asCopy ? "Saved as a new template" : "Template saved", { description: "Pick it in any CV or letter, under Look." })
-      if (!initial.id || asCopy) router.replace(`/templates/${result.data.id}`)
-      else router.refresh()
+      try {
+        const cleanName = name.trim()
+        const result = await saveTemplateAction({ id: asCopy ? undefined : initial.id, name: asCopy && cleanName ? `${cleanName.slice(0, 73)} (copy)` : cleanName, basedOn: initial.basedOn, tokens, note: lastPrompt ? `AI: ${lastPrompt}`.slice(0, 200) : undefined })
+        if (!active.current) return
+        if (!result.ok) return void toast.error(result.message)
+        setLastPrompt("")
+        setVersions(null)
+        setName(cleanName)
+        setSaved({ name: cleanName, tokens })
+        toast.success(asCopy ? "Saved as a new template" : "Template saved", { description: "Pick it in any CV or letter, under Look." })
+        if (!initial.id || asCopy) router.replace(`/templates/${result.data.id}`)
+      } catch {
+        if (active.current) toast.error("Couldn’t save the template. Your edits are still here.")
+      }
     })
 
   const remove = () =>
     startSaving(async () => {
       if (!initial.id) return
-      const result = await deleteTemplateAction(initial.id)
-      if (!result.ok) return void toast.error(result.message)
-      toast.success("Template deleted")
-      router.push("/templates")
+      try {
+        const result = await deleteTemplateAction(initial.id)
+        if (!result.ok) return void toast.error(result.message)
+        try { localStorage.removeItem(draftKey) } catch { /* Nothing to clear. */ }
+        setConfirmation(null)
+        toast.success("Template deleted")
+        router.replace("/templates")
+      } catch {
+        toast.error("Couldn’t delete the template. Try again.")
+      }
     })
 
   const makeDefault = () =>
     startSaving(async () => {
-      const presetTokens = PRESETS[initial.basedOn]?.tokens
-      const untouchedPreset = !initial.id && presetTokens && JSON.stringify({ ...tokens, accent: presetTokens.accent }) === JSON.stringify(presetTokens)
-      const result = await setDefaultDesignAction({ templateRef: initial.id && !dirty ? initial.id : undefined, preset: untouchedPreset ? initial.basedOn : undefined, tokens })
-      if (!result.ok) return void toast.error(result.message)
-      toast.success("Set as your default design", { description: "New CVs and letters will start with it. Existing ones keep their look." })
+      try {
+        const presetTokens = PRESETS[initial.basedOn]?.tokens
+        const untouchedPreset = !initial.id && !initial.customDefault && presetTokens && JSON.stringify({ ...tokens, accent: presetTokens.accent }) === JSON.stringify(presetTokens)
+        const matchesSavedDesign = JSON.stringify(tokens) === JSON.stringify(saved.tokens)
+        const result = await setDefaultDesignAction({ templateRef: initial.id && matchesSavedDesign ? initial.id : undefined, preset: untouchedPreset ? initial.basedOn : undefined, tokens })
+        if (!result.ok) return void toast.error(result.message)
+        toast.success("Set as your default design", { description: "New CVs and letters will start with it. Existing ones keep their look." })
+      } catch {
+        toast.error("Couldn’t update the default design. Try again.")
+      }
     })
 
-  const openHistory = async () => {
-    setPanel("history")
-    if (!initial.id || versions) return
-    const result = await templateVersionsAction(initial.id)
-    if (result.ok) setVersions(result.data)
+  const loadHistory = async () => {
+    if (!initial.id || historyLoading) return
+    setHistoryLoading(true)
+    setHistoryError(false)
+    try {
+      const result = await templateVersionsAction(initial.id)
+      if (result.ok) setVersions(result.data)
+      else setHistoryError(true)
+    } catch {
+      setHistoryError(true)
+    } finally {
+      setHistoryLoading(false)
+    }
   }
   const restore = (version: TemplateVersion) =>
     startSaving(async () => {
       if (!initial.id) return
-      const result = await restoreTemplateVersionAction(initial.id, version.id)
-      if (!result.ok) return void toast.error(result.message)
-      setTokens(result.data)
-      setSaved(JSON.stringify({ name, tokens: result.data }))
-      setVersions(null)
-      setPanel("design")
-      toast.success("Version restored", { description: "Saved as the latest version; nothing was lost." })
+      try {
+        const result = await restoreTemplateVersionAction(initial.id, version.id)
+        if (!result.ok) return void toast.error(result.message)
+        setName(result.data.name)
+        setTokens(result.data.tokens)
+        setSaved(result.data)
+        setLastPrompt("")
+        setFitGoal(false)
+        setVersions(null)
+        setConfirmation(null)
+        setPanel("design")
+        toast.success("Version restored", { description: "The name and design were saved as a new version." })
+      } catch {
+        toast.error("Couldn’t restore the version. Try again.")
+      }
     })
 
   const fontOptions = Object.entries(FONTS).map(([value, font]) => ({ value, label: font.name }))
 
   return (
-    <div className="-mx-4 -mt-4 flex h-[calc(100svh-3.5rem)] flex-col md:-mx-6 md:-mt-6">
-      <div className="flex flex-wrap items-center gap-3 border-b bg-background px-4 py-2.5 md:px-6">
-        <Button variant="ghost" size="icon-sm" aria-label="Back to templates" nativeButton={false} render={<Link href="/templates" />}>
-          <ArrowLeftIcon />
-        </Button>
-        <Input value={name} onChange={(event) => setName(event.target.value)} aria-label="Template name" className="h-8 w-64 font-medium" />
-        {dirty ? <span className="cb-fade flex items-center gap-1.5 text-xs text-muted-foreground"><span className="size-1.5 rounded-full bg-primary" /> Unsaved changes</span> : null}
-        <span className="hidden text-xs text-muted-foreground xl:inline">Based on {PRESETS[initial.basedOn]?.name ?? "Classic"}</span>
-        <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="ghost" onClick={makeDefault} disabled={saving}>
-            <StarIcon /> Use as default
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setTokens(PRESETS[initial.basedOn]?.tokens ?? PRESETS.classic.tokens)} disabled={saving}>
-            <RotateCcwIcon /> Reset
-          </Button>
-          {initial.id ? (
-            <>
-              <Button size="sm" variant="ghost" onClick={remove} disabled={saving} aria-label="Delete template">
-                <Trash2Icon />
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => save(true)} disabled={saving}>
-                <CopyIcon /> Save as copy
-              </Button>
-            </>
-          ) : null}
-          <Button size="sm" onClick={() => save()} disabled={saving || (!dirty && Boolean(initial.id))}>
+    <div className="-mx-4 -mt-4 flex h-[calc(100svh-3.5rem)] min-w-0 flex-col md:-mx-6 md:-mt-6">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-background px-4 py-2.5 md:px-6">
+        <div className="flex min-w-0 basis-full items-center gap-2 sm:flex-1 sm:basis-auto">
+          <Button variant="ghost" size="icon-sm" className="shrink-0" aria-label="Back to templates" nativeButton={false} render={<Link href="/templates" />}><ArrowLeftIcon /></Button>
+          <Input value={name} maxLength={80} disabled={saving || !draftReady} onChange={(event) => setName(event.target.value)} aria-label="Template name" className="h-9 min-w-0 flex-1 font-medium sm:max-w-64" />
+          <span className="hidden text-xs text-muted-foreground xl:inline">{initial.customDefault ? "Custom default" : `Based on ${PRESETS[initial.basedOn]?.name ?? "Classic"}`}</span>
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:ml-auto">
+          <Button size="sm" variant="outline" className="h-10 lg:hidden" onClick={() => setMobilePreview((value) => !value)} aria-pressed={mobilePreview}><EyeIcon /> Preview</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button size="icon-sm" variant="outline" className="size-10 lg:size-8" aria-label="Template actions" disabled={busy} />}><EllipsisIcon /></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={makeDefault}><StarIcon /> Use as default</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTokens(PRESETS[initial.basedOn]?.tokens ?? PRESETS.classic.tokens)}><RotateCcwIcon /> Reset to preset</DropdownMenuItem>
+              {dirty ? <DropdownMenuItem onClick={() => { setName(saved.name); setTokens(saved.tokens); setLastPrompt(""); setFitGoal(false) }}>Discard unsaved edits</DropdownMenuItem> : null}
+              {initial.id ? <>
+                <DropdownMenuItem onClick={() => save(true)}><CopyIcon /> Save as copy</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={() => setConfirmation("delete")}><Trash2Icon /> Delete template</DropdownMenuItem>
+              </> : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="sm" className="h-10 lg:h-8" onClick={() => save()} disabled={busy || (!dirty && Boolean(initial.id))}>
             <SaveIcon /> {initial.id ? (dirty ? "Save changes" : "Saved") : "Save template"}
           </Button>
         </div>
+        {dirty ? <p className="basis-full text-xs text-muted-foreground" role="status">Unsaved changes</p> : null}
       </div>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[400px_minmax(0,1fr)]">
-        <Tabs value={panel} onValueChange={(value) => (value === "history" ? void openHistory() : setPanel(value))} className="flex min-h-0 flex-col gap-0 border-r bg-background">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
+        <Tabs value={panel} onValueChange={(value) => { setPanel(value); if (value === "history" && !versions) void loadHistory() }} className={cn("min-h-0 min-w-0 flex-col gap-0 bg-background lg:flex lg:border-r", mobilePreview ? "hidden" : "flex")}>
           <TabsList variant="line" className="w-full justify-start gap-1 border-b px-3">
             <TabsTrigger value="design">Design</TabsTrigger>
-            <TabsTrigger value="history" disabled={!initial.id} className="gap-1.5">
-              <HistoryIcon className="size-3.5" /> History
-            </TabsTrigger>
+            <TabsTrigger value="history" disabled={!initial.id} className="gap-1.5"><HistoryIcon className="size-3.5" /> History</TabsTrigger>
           </TabsList>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
             <TabsContent value="design" className="grid gap-4 p-4">
               <div className="grid gap-2 rounded-xl border bg-muted/30 p-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
+                <div id={promptLabel} className="flex items-center gap-2 text-sm font-medium">
                   <SparklesIcon className={cn("size-4", asking && "cb-breathe")} /> Describe what you want
                 </div>
-                <Textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && prompt.trim()) ask() }} placeholder="e.g. Make it look more premium, with a navy accent and a bit more space" className="min-h-16 bg-background" disabled={asking} />
+                <Textarea aria-labelledby={promptLabel} maxLength={500} value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && prompt.trim()) ask() }} placeholder="e.g. Make it look more premium, with a navy accent and a bit more space" className="min-h-16 bg-background text-base sm:text-sm" disabled={busy} />
                 {asking ? (
                   <AiSteps steps={DESIGN_STEPS} step={step} />
                 ) : (
                   <div className="cb-stagger flex flex-wrap items-center gap-1.5">
                     {IDEAS.map((idea) => (
-                      <Button key={idea} size="xs" variant="outline" onClick={() => ask(idea)} className="bg-background text-muted-foreground">
+                      <Button key={idea} size="xs" variant="outline" onClick={() => ask(idea)} disabled={busy} className="bg-background text-muted-foreground">
                         {idea}
                       </Button>
                     ))}
-                    <Button size="sm" className="ml-auto" onClick={() => ask()} disabled={!prompt.trim()}>
+                    <Button size="sm" className="ml-auto" onClick={() => ask()} disabled={busy || prompt.trim().length < 3}>
                       <SparklesIcon /> Apply
                     </Button>
                   </div>
                 )}
+                {agentLog && !asking ? (
+                  <details className="cb-fade text-xs" open={!agentLog.satisfied}>
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                      {agentLog.satisfied ? "✓ Verified" : "⚠ Partly done"} in {agentLog.attempts.length} round{agentLog.attempts.length === 1 ? "" : "s"} · {agentLog.verdict}
+                    </summary>
+                    <ol className="mt-2 grid gap-1.5">
+                      {agentLog.attempts.map((attempt) => (
+                        <li key={attempt.round} className="grid gap-0.5 rounded-md bg-background px-2 py-1.5">
+                          <span>
+                            <span className="font-medium">Round {attempt.round}</span> · {attempt.summary || "adjusted the design"} · {attempt.pages} page{attempt.pages === 1 ? "" : "s"}
+                          </span>
+                          {attempt.failures.length ? <span className="text-muted-foreground">Still to fix: {attempt.failures.join("; ")}</span> : <span className="text-muted-foreground">All checks passed</span>}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                ) : null}
+                {fitGoal ? <p role="status" className="text-xs text-muted-foreground">{failed ? "Couldn’t verify page fit. Retry the preview." : rendering ? "Checking page count…" : preview?.pages === 1 ? "Verified: the preview fits on one page." : `The preview still needs ${preview?.pages || "multiple"} pages. No content was removed.`}</p> : null}
               </div>
 
+              <fieldset disabled={saving || !draftReady} className="contents">
               <Accordion multiple defaultValue={["type", "colour", "layout"]} className="grid">
                 <AccordionItem value="type">
                   <AccordionTrigger>Typography</AccordionTrigger>
@@ -250,16 +386,16 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                       <Flash on={glow("font", "headingFont")}>
                         <div className="grid grid-cols-2 gap-3">
                           <Field>
-                            <FieldLabel>Text font</FieldLabel>
+                            <FieldLabel id={fontLabel}>Text font</FieldLabel>
                             <Select items={fontOptions} value={tokens.font} onValueChange={(value) => value && set("font", value as DesignTokens["font"])}>
-                              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                              <SelectTrigger aria-labelledby={fontLabel} className="w-full min-w-0"><SelectValue /></SelectTrigger>
                               <SelectContent>{fontOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
                             </Select>
                           </Field>
                           <Field>
-                            <FieldLabel>Heading font</FieldLabel>
+                            <FieldLabel id={headingFontLabel}>Heading font</FieldLabel>
                             <Select items={[{ value: "same", label: "Same as text" }, ...fontOptions]} value={tokens.headingFont} onValueChange={(value) => value && set("headingFont", value)}>
-                              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                              <SelectTrigger aria-labelledby={headingFontLabel} className="w-full min-w-0"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="same">Same as text</SelectItem>
                                 {fontOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
@@ -358,23 +494,29 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
+              </fieldset>
             </TabsContent>
 
             <TabsContent value="history" className="grid gap-2 p-4">
-              <p className="text-xs text-muted-foreground">Every save is kept. Restoring makes a new version, so nothing is ever lost.</p>
-              {!versions ? (
-                <div className="grid gap-2">{[0, 1, 2].map((i) => <div key={i} className="h-20 animate-pulse rounded-lg bg-muted" />)}</div>
+              <p className="text-xs text-muted-foreground">Showing up to 50 recent versions. Restoring a name and design creates a new version.</p>
+              {historyError ? (
+                <div role="status" className="flex flex-wrap items-center gap-2 text-sm">Couldn’t load history. <Button size="sm" variant="outline" onClick={() => void loadHistory()}>Retry</Button></div>
+              ) : !versions ? (
+                <p role="status" className="text-sm text-muted-foreground">Loading versions…</p>
+              ) : versions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No saved versions yet.</p>
               ) : (
                 <ol className="cb-stagger grid gap-2">
                   {versions.map((version, index) => (
                     <li key={version.id} className="flex items-center gap-3 rounded-lg border p-2">
                       <PdfThumb tokens={version.tokens} className="w-14 shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{index === 0 ? "Current" : version.createdAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</div>
+                        <div className="truncate text-sm font-medium">{version.name}</div>
+                        <div className="text-xs text-muted-foreground">{index === 0 ? "Latest save" : new Date(version.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</div>
                         <div className="truncate text-xs text-muted-foreground">{version.note.startsWith("restored") ? "Restored an earlier version" : version.note === "created" ? "Created" : version.note === "saved" ? "Saved" : version.note}</div>
                       </div>
                       {index > 0 ? (
-                        <Button size="xs" variant="outline" onClick={() => restore(version)} disabled={saving}>
+                        <Button size="xs" variant="outline" onClick={() => dirty ? setConfirmation(version) : restore(version)} disabled={busy}>
                           Restore
                         </Button>
                       ) : null}
@@ -385,11 +527,27 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
             </TabsContent>
           </div>
         </Tabs>
-        <div className="hidden min-h-0 flex-col gap-2 p-4 lg:flex">
-          <p className="text-xs text-muted-foreground">Preview with your latest CV. {rendering ? "Updating…" : ""}</p>
-          {previewUrl ? <PdfPreview url={previewUrl} busy={rendering} className="cb-enter flex-1" /> : <div className="flex-1 animate-pulse rounded-xl bg-muted" />}
+        <div className={cn("min-h-0 min-w-0 flex-col gap-2 p-3 sm:p-4 lg:flex", mobilePreview ? "flex" : "hidden")}>
+          <p className="text-xs text-muted-foreground" role="status">Preview with your latest CV. {rendering ? "Updating…" : ""}</p>
+          {failed ? <div role="status" className="flex flex-wrap items-center gap-2 text-sm">
+            <p>{preview ? "Couldn’t update the preview. Showing the previous design." : "Couldn’t render the preview."}</p>
+            <Button size="sm" variant="outline" onClick={() => setAttempt((value) => value + 1)}>Retry preview</Button>
+          </div> : null}
+          {preview ? <PdfPreview url={preview.url} busy={rendering} onRetry={failed || rendering ? undefined : () => setAttempt((value) => value + 1)} className="flex-1" /> : !failed ? <div className="flex-1 animate-pulse rounded-xl bg-muted" /> : null}
         </div>
       </div>
+      <AlertDialog open={confirmation !== null} onOpenChange={(open) => { if (!open && !saving) setConfirmation(null) }}>
+        <AlertDialogContent className="max-w-[calc(100%-2rem)]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmation === "delete" ? "Delete template?" : "Restore this version?"}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmation === "delete" ? `“${saved.name}” and its version history will be permanently deleted. Existing documents keep their design.` : "This replaces your unsaved edits with the selected version’s name and design."}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={saving} variant={confirmation === "delete" ? "destructive" : "default"} onClick={() => confirmation === "delete" ? remove() : confirmation && restore(confirmation)}>{confirmation === "delete" ? "Delete template" : "Restore version"}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

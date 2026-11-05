@@ -155,12 +155,19 @@ const VALUE: Record<Exclude<MatchStatus, "judgement">, number> = { met: 1, parti
 
 export type Analysis = {
   version: 1
-  fitScore: number
+  fitScore: number | null
   counts: Record<MatchStatus, number>
   requirements: RequirementMatch[]
   keywords: { key: string; count: number; inProfile: boolean }[]
   recommendedEntries: { entryId: string; title: string; kind: string; requirements: number }[]
   mustGaps: string[]
+}
+
+/** Older analyses stored zero even when no requirements could be scored. */
+export function displayFitScore(analysis: Pick<Analysis, "fitScore" | "counts"> | null | undefined) {
+  if (!analysis) return null
+  const { met, partial, gap } = analysis.counts
+  return met + partial + gap > 0 ? analysis.fitScore : null
 }
 
 /** Score, keyword coverage and which entries a CV for this job should lead with. */
@@ -194,7 +201,7 @@ export function summarize(matches: RequirementMatch[], facts: ProfileFact[], job
 
   return {
     version: 1,
-    fitScore: weight ? Math.round((sum / weight) * 100) : 0,
+    fitScore: weight ? Math.round((sum / weight) * 100) : null,
     counts,
     requirements: matches,
     keywords,

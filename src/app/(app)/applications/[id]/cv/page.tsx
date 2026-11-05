@@ -5,6 +5,7 @@ import { CvWorkspace } from "@/components/applications/cv-workspace"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getApplication } from "@/server/applications/repository"
 import { getCvWorkspace } from "@/server/documents/service"
+import { listTemplates } from "@/server/templates/service"
 
 export const metadata = { title: "CV" }
 
@@ -24,7 +25,7 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
   const application = await getApplication(id)
   if (!application) notFound()
   const language = typeof query.lang === "string" && /^[a-z]{2}$/.test(query.lang) ? query.lang : application.language
-  const workspace = await getCvWorkspace(id, language)
+  const [workspace, templates] = await Promise.all([getCvWorkspace(id, language), listTemplates()])
   return (
     <CvWorkspace
       key={workspace?.current?.id ?? "empty"}
@@ -33,6 +34,7 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
       company={application.job.company?.name ?? ""}
       language={language}
       workspace={workspace}
+      savedTemplates={templates.map(({ id, name, tokens }) => ({ id, name, tokens }))}
     />
   )
 }

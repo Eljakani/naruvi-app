@@ -83,6 +83,36 @@ test("cover letter decision", () => {
   assert.equal(coverLetterDecision("Apply with your resume.").decision, "not_mentioned")
 })
 
+test("reads the Apple posting's plain qualification lines without taking its prose footer", () => {
+  const minimum = [
+    "Strong analytical mindset with excellent attention to detail",
+    "Solid planning and project management skills",
+    "Ability to work with editorial style guides and content management systems",
+    "A genuine interest in apps, games, and digital trends",
+    "Currently enrolled in a Master’s degree program in Business, Marketing, Digital Strategy, or Project Management",
+    "Eligibility to work in Paris for the 6 month internship",
+  ]
+  const preferred = [
+    "Curiosity and eagerness to learn, with a proactive attitude",
+    "Ability to balance multiple projects in a fast-moving environment",
+    "Strong interpersonal skills and good at managing relationships",
+  ]
+  const posting = [
+    "Description", "You will help curate editorial content.",
+    "Minimum Qualifications", ...minimum,
+    "Preferred Qualifications", ...preferred,
+    "At Apple, we're not all the same. And that's our greatest strength. We work with applicants to make reasonable accommodations.",
+  ].join("\n")
+  const requirements = extractRequirements(posting)
+  assert.deepEqual(requirements.filter((r) => r.kind === "must").map((r) => r.text), minimum)
+  assert.deepEqual(requirements.filter((r) => r.kind === "nice").map((r) => r.text), preferred)
+  assert.equal(requirements.length, 9)
+})
+
+test("an analysis with nothing to score leaves the fit score empty", () => {
+  assert.equal(analyze([], [], "").fitScore, null)
+})
+
 test("coursework satisfies knowledge requirements but not hands-on ones", () => {
   const school = indexFacts([fact("s1", "Courses cover incident response and compliance.", "Télécom Paris", { entryKind: "education" })])
   assert.equal(matchRequirement(req("Participate in Incident Response and Compliance activities"), school).status, "partial")

@@ -34,7 +34,7 @@ function GenerateForm({ applicationId, language, label }: { applicationId: strin
   )
 }
 
-export function CvWorkspace({ applicationId, jobTitle, company, language, workspace, savedTemplates = [] }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Awaited<ReturnType<typeof getCvWorkspace>>; savedTemplates?: SavedDesign[] }) {
+export function CvWorkspace({ applicationId, jobTitle, company, language, workspace, savedTemplates }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Awaited<ReturnType<typeof getCvWorkspace>>; savedTemplates: SavedDesign[] }) {
   if (!workspace?.current) {
     return (
       <div className="mx-auto grid w-full max-w-2xl gap-4 pt-6">

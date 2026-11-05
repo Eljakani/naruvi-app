@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { STATUS_LABEL } from "@/lib/stages"
 import { listApplications, type StoredAnalysis } from "@/server/applications/repository"
+import { displayFitScore } from "@/server/analysis/match"
 import { stageSince } from "@/server/tracking/service"
 
 export const metadata = { title: "Applications" }
@@ -82,7 +83,7 @@ async function List({ searchParams }: { searchParams: Promise<Record<string, str
           company: application.job.company?.name ?? "",
           logoPath: application.job.company?.logoPath ?? null,
           status: application.status,
-          fit: (application.analysis as StoredAnalysis | null)?.fitScore ?? null,
+          fit: displayFitScore(application.analysis as StoredAnalysis | null),
           since: (since.get(application.id) ?? application.createdAt).toISOString(),
         }))}
       />
@@ -120,7 +121,7 @@ async function List({ searchParams }: { searchParams: Promise<Record<string, str
                 </TableCell>
                 <TableCell className="hidden text-muted-foreground md:table-cell">{analysis ? `${analysis.counts.met} proven · ${analysis.counts.gap} not in profile` : "—"}</TableCell>
                 <TableCell className="text-right">
-                  <FitRing score={analysis?.fitScore} className="ml-auto" />
+                  <FitRing score={displayFitScore(analysis)} className="ml-auto" />
                 </TableCell>
                 <TableCell className="hidden text-right text-muted-foreground sm:table-cell">{application.updatedAt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</TableCell>
                 <TableCell>
