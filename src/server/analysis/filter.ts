@@ -1,5 +1,6 @@
 import { z } from "zod"
 import type { CompletionInput } from "@/server/llm/transport"
+import { choice, decideInChunks, type Decide } from "@/server/decisions/jev"
 import { SettingsError } from "@/server/settings/errors"
 import type { ExcludedRequirement, Requirement, RequirementExtraction } from "./requirements"
 
@@ -34,10 +35,52 @@ Classify ONLY the items array, not additional lines from postingContext. Return 
 Use only the supplied item IDs. Do not invent, rewrite, merge or split requirements. Provide one short classification reason for each item. When ambiguous, keep the item as its original requirement kind. Reply {"classifications":[{"id":"r1","category":"must","reason":"Candidate qualification."}]}.`
 
 /** Classifies all candidates, including potential gaps, without receiving any profile data. */
-export async function filterRequirements(extraction: RequirementExtraction, jobText: string, complete?: Complete): Promise<{ requirements: Requirement[]; summary: RequirementFilterSummary }> {
+const CATEGORY_CRITERIA = {
+  must: "A required qualification of the candidate (skill, experience, degree, language, certification)",
+  nice: "An optional qualification: a plus, bonus, preferred",
+  responsibility: "An actual duty of the advertised role on the job",
+  recruitment_process: "A step the APPLICANT goes through: HR or recruiter call, interview stages, discussing motivation, technical test, meeting the hiring manager. Job titles of the people running it are not requirements.",
+  benefits: "What the employer offers: salary, perks, leave, equipment, remote allowance",
+  company_information: "Background about the company, its product, team or culture",
+  application_instructions: "How or when to apply, documents to send, deadlines",
+  other: "Anything else that is not about the candidate or the role's duties",
+}
+
+/** Decision-model path (Jev): one calibrated choice per item; low-confidence exclusions keep the item. */
+async function filterWithDecisions(extraction: RequirementExtraction, jobText: string, decide: Decide) {
+  const items = extraction.candidates.slice(0, MAX_REVIEW)
+  const questions = Object.fromEntries(items.map((item) => [item.id, choice({ task: "What this job-posting item is", item: item.text.slice(0, 1200), section: item.section || null, originalKind: item.kind }, CATEGORY_CRITERIA)]))
+  return decideInChunks(decide, { posting: jobText.slice(0, 20_000) }, questions, 60)
+}
+
+export async function filterRequirements(extraction: RequirementExtraction, jobText: string, complete?: Complete, decide?: Decide): Promise<{ requirements: Requirement[]; summary: RequirementFilterSummary }> {
   const kept = new Map(extraction.requirements.map((requirement) => [requirement.id, requirement]))
   const excluded = new Map(extraction.excluded.map((item) => [item.requirement.id, item]))
   const summary: RequirementFilterSummary = { status: extraction.candidates.length ? "not_configured" : "empty", inputCount: extraction.candidates.length, reviewed: 0, excluded: [] }
+  if (decide && extraction.candidates.length) {
+    try {
+      const result = await filterWithDecisions(extraction, jobText, decide)
+      summary.model = result.model
+      for (const requirement of extraction.candidates) {
+        const answer = result.answers[requirement.id]
+        if (answer?.type !== "choice") continue
+        summary.reviewed += 1
+        const category = answer.choice as keyof typeof CATEGORY_CRITERIA
+        if (category === "must" || category === "nice" || category === "responsibility") {
+          kept.set(requirement.id, { ...requirement, kind: category })
+          excluded.delete(requirement.id)
+        } else if (answer.confidence >= 0.6) {
+          kept.delete(requirement.id)
+          excluded.set(requirement.id, { requirement, category, source: "model", reason: `${CATEGORY_CRITERIA[category].split(":")[0]} (confidence ${Math.round(answer.confidence * 100)}%)` })
+        }
+      }
+      summary.status = summary.reviewed === extraction.candidates.length ? "applied" : summary.reviewed ? "partial" : "failed"
+      summary.excluded = extraction.candidates.flatMap((item) => excluded.has(item.id) ? [excluded.get(item.id)!] : [])
+      return { requirements: extraction.candidates.flatMap((item) => kept.has(item.id) ? [kept.get(item.id)!] : []), summary }
+    } catch (error) {
+      summary.message = error instanceof Error ? `${error.message} Falling back.` : "Decision model failed. Falling back."
+    }
+  }
   if (complete && extraction.candidates.length) {
     const reviewed = new Set<string>()
     let failed = false

@@ -64,6 +64,13 @@
       "when": 1793840043201,
       "tag": "0008_application_events",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793882671011,
+      "tag": "0009_job_insights",
+      "breakpoints": true
     }
   ]
 }

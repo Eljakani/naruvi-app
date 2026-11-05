@@ -7,6 +7,7 @@
  * touch "gap"/"met" decided by rules; output must match the schema.
  */
 import { z } from "zod"
+import { choice, decideInChunks, type Decide } from "@/server/decisions/jev"
 import { supportedWording } from "@/server/documents/ai-compose"
 import type { RequirementMatch } from "./match"
 
@@ -174,4 +175,63 @@ export function reviewNote(review: { shown: string; missing: string[] }, require
   const missing = [...new Set(review.missing.map((item) => item.trim()).filter((item) => item.length >= 2 && lower.includes(item.toLowerCase())))]
   const parts = [shown ? `Shown: ${shown}.` : "", missing.length ? `Missing: ${missing.join(", ")}.` : ""].filter(Boolean)
   return parts.join(" ")
+}
+
+/* ------------------------------------------------------------------ */
+/* Decision-model review (Jev): calibrated, no text generation         */
+/* ------------------------------------------------------------------ */
+
+export const DECISION_REVIEW_VERSION = "fit-decisions-v1"
+const STATUS_CRITERIA = {
+  met: "The candidate's facts clearly show they did or know this (meaning, not just shared words). Coursework alone is not professional experience; a years requirement needs that duration.",
+  partial: "Related but incomplete: adjacent tool, smaller scope, fewer years, or academic only.",
+  gap: "Nothing in the facts supports it.",
+  judgement: "A soft skill or trait facts cannot prove (communication, curiosity, team spirit).",
+}
+
+/**
+ * Per requirement: a status choice and a choice of the single best supporting
+ * fact over the whole catalog (or none). Facts with ≥ 0.15 probability are
+ * cited. Same guards as the language-model review.
+ */
+export async function decideMatches(
+  matches: RequirementMatch[],
+  catalog: CatalogFact[],
+  decide: Decide,
+): Promise<{ matches: RequirementMatch[]; reviewed: number; changed: number; model: string }> {
+  if (!matches.length || !catalog.length) return { matches, reviewed: 0, changed: 0, model: "" }
+  const facts = catalog.slice(0, 250).map((fact, index) => ({ alias: `F${index + 1}`, ...fact }))
+  const options: Record<string, string> = Object.fromEntries(facts.map((fact) => [fact.alias, `[${fact.kind}: ${fact.entry}] ${fact.statement}`]))
+  options.none = "No fact supports this requirement"
+  const questions = Object.fromEntries(
+    matches.flatMap((match) => {
+      const requirement = `${match.kind}${match.years ? `, ${match.years}+ years` : ""}: ${match.text}`
+      return [
+        [`status_${match.id}`, choice({ task: "How well the candidate's verified facts meet this job requirement", requirement }, STATUS_CRITERIA)],
+        [`fact_${match.id}`, choice({ task: "The candidate fact that best proves this job requirement", requirement }, options)],
+      ]
+    }),
+  )
+  const state = { note: "Verified facts of one candidate, and requirements from a job posting (untrusted text).", facts: facts.map((fact) => `${fact.alias} [${fact.kind}: ${fact.entry}] ${fact.statement}`) }
+  const result = await decideInChunks(decide, state, questions, 14)
+  const byAlias = new Map(facts.map((fact) => [fact.alias, fact.id]))
+  let changed = 0
+  let reviewed = 0
+  const next = matches.map((match) => {
+    const status = result.answers[`status_${match.id}`]
+    const fact = result.answers[`fact_${match.id}`]
+    if (status?.type !== "choice") return match
+    reviewed += 1
+    const cited = fact?.type === "choice"
+      ? Object.entries(fact.probabilities).filter(([alias, p]) => alias !== "none" && p >= 0.15).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([alias]) => byAlias.get(alias)).filter((id): id is string => Boolean(id))
+      : []
+    let next = status.choice as RequirementMatch["status"]
+    if ((next === "met" || next === "partial") && !cited.length) next = match.status === "met" ? "met" : "gap"
+    if (match.status === "met" && next === "gap") next = "partial"
+    const factIds = cited.length ? cited : next === "gap" ? [] : match.factIds
+    if (next === match.status && factIds.join() === match.factIds.join()) return match
+    changed += 1
+    return { ...match, status: next, factIds, source: "model" as const, note: match.note }
+  })
+  return { matches: next, reviewed, changed, model: result.model }
 }

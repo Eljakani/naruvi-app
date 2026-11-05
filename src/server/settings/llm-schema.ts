@@ -3,6 +3,7 @@ import { encryptSecret } from "./encryption"
 import { SettingsError } from "./errors"
 
 export const LLM_SETTINGS_KEY = "language-model"
+export const DECISION_SETTINGS_KEY = "decision-model"
 const baseUrl = z.string().trim().url("Enter a valid API base URL.").max(2000).refine((value) => {
   try {
     const url = new URL(value)
@@ -42,5 +43,5 @@ export function prepareLlmSettings(input: unknown, previous: StoredLlmSettings |
 
 /** Credentials, including ciphertext, do not belong in portable user-data exports. */
 export function exportableSettings<T extends { key: string }>(rows: T[]): T[] {
-  return rows.filter((row) => row.key !== LLM_SETTINGS_KEY)
+  return rows.filter((row) => row.key !== LLM_SETTINGS_KEY && row.key !== DECISION_SETTINGS_KEY)
 }

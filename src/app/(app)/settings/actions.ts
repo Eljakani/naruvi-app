@@ -6,6 +6,7 @@ import { saveDocumentDefaults, setDefaultLanguage, testLlm } from "@/server/sett
 import { saveLlmSettings, type LlmOverview } from "@/server/settings/llm"
 import { llmSettingsInput } from "@/server/settings/llm-schema"
 import { SettingsError } from "@/server/settings/errors"
+import { saveDecisionSettings, testDecisionModel, type DecisionOverview } from "@/server/settings/decisions"
 
 type Result = { ok: true; message?: string } | { ok: false; message: string }
 
@@ -57,4 +58,20 @@ export async function downloadFontsAction(): Promise<Result> {
   } catch (error) {
     return fail(error)
   }
+}
+
+export async function saveDecisionSettingsAction(input: unknown): Promise<{ ok: true; overview: DecisionOverview } | { ok: false; message: string }> {
+  try {
+    const overview = await saveDecisionSettings(input)
+    revalidatePath("/settings")
+    return { ok: true, overview }
+  } catch (error) {
+    if (error instanceof SettingsError) return { ok: false, message: error.message }
+    if (error instanceof Error && error.name === "ZodError") return { ok: false, message: "Check the model id and key." }
+    return { ok: false, message: "Could not save the decision model settings." }
+  }
+}
+
+export async function testDecisionModelAction(): Promise<Result> {
+  return testDecisionModel()
 }

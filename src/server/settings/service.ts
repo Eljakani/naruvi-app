@@ -1,4 +1,5 @@
 import "server-only"
+import { getDecisionOverview } from "./decisions"
 import { existsSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { count, sql } from "drizzle-orm"
@@ -54,12 +55,14 @@ export async function getSystemOverview() {
     return { code, downloaded: existsSync(path), bytes: existsSync(path) ? statSync(path).size : 0 }
   })
   const llm = await getLlmOverview()
+  const decisions = await getDecisionOverview()
   return {
     counts: { profiles: p.n, entries: e.n, facts: f.n, phrasings: ph.n, jobs: j.n, applications: a.n, revisions: r.n },
     database: `PostgreSQL ${version[0]?.v ?? "?"}`,
     assetsDir: ASSETS_DIR,
     defaultLanguage: profile?.defaultLanguage ?? "en",
     llm,
+    decisions,
     fonts,
     appVersion: process.env.npm_package_version ?? "0.1.0",
   }

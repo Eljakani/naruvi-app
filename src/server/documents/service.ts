@@ -1,5 +1,8 @@
 import "server-only"
 import { advanceAutomatically } from "@/server/tracking/service"
+import { decisionClient } from "@/server/settings/decisions"
+import { tracedDecide } from "@/server/runs/decisions"
+import { verifyCvRewrites, verifyLetterRewrites } from "./verify-docs"
 import { and, desc, eq } from "drizzle-orm"
 import { db } from "@/server/db/client"
 import { documents, revisions, type QualitySummary } from "@/server/db/schema"
@@ -107,6 +110,13 @@ export async function generateCv(applicationId: string, language?: string) {
         .step("AI order sections & headline", () => polishCv(content, { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }, completionForRun(run, "CV ordering", POLISH_PROMPT_VERSION)), (value) => `${value.reordered} list(s) reordered · headline ${value.headline ? "tightened" : "kept"}`)
         .catch(() => null) // ordering is polish, never a blocker
       if (polished) content = polished.doc
+      const decisions = await decisionClient().catch(() => null)
+      if (decisions) {
+        const checked = await run
+          .step("verify rewrites (decision model)", () => verifyCvRewrites(content, entries, tracedDecide(run, decisions.decide, decisions.model)), (value) => `${value.checked} rewritten bullet(s) checked · ${value.reverted} reverted to approved wording`)
+          .catch(() => null)
+        if (checked) content = checked.doc
+      }
     }
     const document = await documentFor(application.id, lang)
     const design = await designFor(document.id)
@@ -176,6 +186,13 @@ export async function generateLetter(applicationId: string, language?: string) {
         title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText,
         url: application.job.sourceUrl ?? "",
       }, researchSources(application.job.company?.research), completionForRun(run, "cover-letter drafting", DOCUMENT_PROMPT_VERSION)), (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} passages tailored${value.aiAssistance?.reason ? ` · ${value.aiAssistance.reason}` : ""}`)
+      const decisions = await decisionClient().catch(() => null)
+      if (decisions) {
+        const checked = await run
+          .step("verify rewrites (decision model)", () => verifyLetterRewrites(content, entries, researchSources(application.job.company?.research), tracedDecide(run, decisions.decide, decisions.model)), (value) => `${value.checked} passage(s) checked · ${value.reverted} reverted`)
+          .catch(() => null)
+        if (checked) content = checked.doc
+      }
     }
     const design = await designFor(document.id)
     content.template = design.template

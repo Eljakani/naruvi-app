@@ -4,6 +4,8 @@ import { Suspense } from "react"
 import { connection } from "next/server"
 import { AlertTriangleIcon, ArrowLeftIcon, BriefcaseBusinessIcon, CalendarIcon, ExternalLinkIcon, GlobeIcon, MapPinIcon, ScanSearchIcon, WalletIcon } from "lucide-react"
 import { JobDescription } from "@/components/jobs/job-description"
+import { JobInsights } from "@/components/jobs/job-insights"
+import type { JobInsights as Insights } from "@/server/jobs/enrich"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -93,6 +95,8 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
           ))}
         </div>
       ) : null}
+
+      <JobInsights jobId={job.id} insights={(job.insights ?? null) as unknown as Insights | null} />
 
       <Card>
         <CardHeader>

@@ -308,3 +308,17 @@ Every workflow has a deterministic baseline and an optional AI pass. The model p
 | Profile bullets (`profile/ai-bullets.ts`) | Drafts bullets in each language from an entry's facts | Must cite facts; no numbers or skills beyond them; never saved without the user |
 
 Each AI request is a traced step with model, prompt version and token counts (see Runs).
+
+## 18. Decisions vs writing (TypeSafe Jev)
+
+Classification and verification are decisions, not text. When a TypeSafe Jev key is configured (Settings → Decision model, or `TYPESAFE_API_KEY`), they run on Jev, a "System One" model that returns typed, calibrated answers (choice / score / yes-no probabilities) in one parallel request, and never generates text. The language model is then used only for writing.
+
+| Work | With Jev | Without Jev |
+| --- | --- | --- |
+| Requirement filtering | One choice per posting item; exclusions need ≥ 60% confidence | Language model, else rules |
+| Fit matching | Per requirement: status choice + best-fact choice over the whole catalog (facts ≥ 15% probability are cited) | Language model review, else rules |
+| Job enrichment (`jobs/enrich.ts`) | Seniority, work mode, contract, visa, and required / nice / mentioned for each detected skill | Language model, else rules |
+| Verification (`decisions/verify.ts`) | Every AI-rewritten CV bullet, letter passage and suggested bullet is checked against its evidence; unsupported ones revert | Word-level grounding checks only |
+| Writing (CV, letter, summary, angles, bullets) | Language model | Language model |
+
+Client: `src/server/decisions/jev.ts` (POST `https://api.typesafe.ai/v1/systemone`, retries 429/529, never surfaces provider bodies). Each request is traced as a step with its token count.

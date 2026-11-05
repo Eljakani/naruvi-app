@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { previewJob, saveJob } from "@/server/jobs/ingest"
+import { refreshJobInsights } from "@/server/jobs/insights"
 import type { JobDraft } from "@/server/jobs/schema"
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }
@@ -24,6 +25,7 @@ export async function previewJobAction(raw: { url?: string; text?: string }): Pr
 export async function saveJobAction(draft: JobDraft): Promise<ActionResult<{ id: string }>> {
   try {
     const job = await saveJob(draft)
+    await refreshJobInsights(job.id)
     revalidatePath("/jobs")
     revalidatePath("/")
     return { ok: true, data: { id: job.id } }
@@ -31,4 +33,11 @@ export async function saveJobAction(draft: JobDraft): Promise<ActionResult<{ id:
     if (error instanceof z.ZodError) return { ok: false, error: error.issues.map((issue) => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; ") }
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }
+}
+
+export async function refreshJobInsightsAction(jobId: string): Promise<ActionResult<null>> {
+  if (!z.string().uuid().safeParse(jobId).success) return { ok: false, error: "Invalid job." }
+  const insights = await refreshJobInsights(jobId)
+  revalidatePath(`/jobs/${jobId}`)
+  return insights ? { ok: true, data: null } : { ok: false, error: "Couldn’t analyze this posting. See Runs for details." }
 }

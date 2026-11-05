@@ -221,6 +221,8 @@ export const jobs = pgTable(
     rawText: text().notNull(),
     parseConfidence: real().notNull().default(0),
     parseWarnings: text().array().notNull().default(sql`'{}'::text[]`),
+    /** Structured enrichment computed at import (see src/server/jobs/enrich.ts). */
+    insights: jsonb().$type<Record<string, unknown>>(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex().on(t.canonicalUrl), index().on(t.companyId)],

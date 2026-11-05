@@ -11,6 +11,9 @@ import { BULLETS_PROMPT_VERSION, suggestBullets, type BulletSuggestion } from "@
 import { completionForRun } from "@/server/llm/client"
 import { startRun } from "@/server/runs/tracer"
 import { getLlmOverview } from "@/server/settings/llm"
+import { decisionClient } from "@/server/settings/decisions"
+import { SUPPORT_THRESHOLD, verifyClaims } from "@/server/decisions/verify"
+import { tracedDecide } from "@/server/runs/decisions"
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string }
 
@@ -106,6 +109,14 @@ export async function suggestBulletsAction(input: unknown): Promise<{ ok: true; 
   const run = await startRun("profile.bullets", { facts: parsed.data.facts.length })
   try {
     const result = await run.step("AI suggest bullets", () => suggestBullets(parsed.data, completionForRun(run, "bullet suggestions", BULLETS_PROMPT_VERSION)), (value) => `${value.bullets.length} grounded suggestion(s)`)
+    const decisions = await decisionClient().catch(() => null)
+    if (decisions && result.bullets.length) {
+      const facts = new Map(parsed.data.facts.map((fact) => [fact.key, fact.statement]))
+      const scores = await run
+        .step("verify suggestions (decision model)", () => verifyClaims(result.bullets.map((bullet, index) => ({ id: String(index), text: bullet.text, evidence: bullet.factKeys.map((key) => facts.get(key) ?? "") })), tracedDecide(run, decisions.decide, decisions.model)), (value) => `${[...value.values()].filter((p) => p < SUPPORT_THRESHOLD).length} rejected`)
+        .catch(() => null)
+      if (scores) result.bullets = result.bullets.filter((_, index) => (scores.get(String(index)) ?? 1) >= SUPPORT_THRESHOLD)
+    }
     await run.finish("succeeded", { suggestions: result.bullets.length })
     return { ok: true, ...result }
   } catch (error) {

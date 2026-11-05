@@ -8,6 +8,8 @@ const schema = z.object({
   LLM_API_KEY: z.string().default(""),
   LLM_MODEL: z.string().default("deepseek-chat"),
   SETTINGS_ENCRYPTION_KEY: z.string().default(""),
+  TYPESAFE_API_KEY: z.string().default(""),
+  TYPESAFE_MODEL: z.string().default("jev-latest"),
 })
 
 export const env = schema.parse(process.env)

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { DownloadIcon, Loader2Icon } from "lucide-react"
 import { toast } from "sonner"
 import { downloadFontsAction, saveDocumentDefaultsAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
+import { DecisionSettings } from "./decision-settings"
 import { ModelSettings } from "./model-settings"
 import { DesignPicker } from "@/components/applications/design-picker"
 import { Badge } from "@/components/ui/badge"
@@ -106,6 +107,7 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
       </Card>
 
       <ModelSettings initial={overview.llm} />
+      <DecisionSettings initial={overview.decisions} />
 
       <Card>
         <CardHeader>

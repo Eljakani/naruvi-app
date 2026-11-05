@@ -23,7 +23,8 @@
     "test:settings": "node --conditions=react-server --import tsx scripts/test-model-settings.mts",
     "evals": "tsx --test \"evals/**/*.test.ts\"",
     "ai:try": "tsx --conditions=react-server scripts/try-ai-steps.mts",
-    "ai:try:analysis": "tsx --conditions=react-server scripts/try-ai-analysis.mts"
+    "ai:try:analysis": "tsx --conditions=react-server scripts/try-ai-analysis.mts",
+    "jobs:enrich": "tsx --conditions=react-server scripts/enrich-jobs.mts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.85",
