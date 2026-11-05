@@ -133,6 +133,24 @@
   transform-origin: var(--transform-origin);
   transition-timing-function: var(--ease-out);
 }
+/* Exits snap faster than entrances: the system responding, not the user deciding. */
+[data-slot$="-content"][data-closed],
+[data-slot="dialog-overlay"][data-closed],
+[data-slot="alert-dialog-overlay"][data-closed] {
+  animation-duration: 100ms;
+}
+/* Modals: centred (no origin change), 200ms entrance with a strong ease-out. */
+[data-slot="dialog-content"][data-open],
+[data-slot="alert-dialog-content"][data-open] {
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-out);
+}
+/* Small popovers/menus: 150ms in. */
+[data-slot="popover-content"][data-open],
+[data-slot="dropdown-menu-content"][data-open],
+[data-slot="select-content"][data-open] {
+  animation-duration: 150ms;
+}
 [data-slot="tooltip-content"][data-instant] {
   transition-duration: 0ms;
   animation-duration: 0ms;
@@ -152,16 +170,15 @@
 .cb-stagger > *:nth-child(n+5) { animation-delay: 160ms; }
 /* Page entrance: header first, then content, a few px of rise. Short so navigation stays snappy. */
 @keyframes cb-rise {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(3px); }
 }
 @keyframes cb-fade-in {
   from { opacity: 0; }
 }
-.cb-page > * { animation: cb-rise 220ms var(--ease-out) both; }
-.cb-page > *:nth-child(2) { animation-delay: 40ms; }
-.cb-page > *:nth-child(n+3) { animation-delay: 80ms; }
+.cb-page > * { animation: cb-rise 180ms var(--ease-out) both; }
+.cb-page > *:nth-child(n+2) { animation-delay: 30ms; }
 /* Content that streams in after a skeleton fades rather than popping. */
-.cb-page [data-slot="card"] { animation: cb-fade-in 200ms var(--ease-out) both; }
+
 .cb-fade { animation: cb-fade-in 160ms var(--ease-out) both; }
 /* Skeletons pulse a little faster: loading feels quicker. */
 [data-slot="skeleton"] { animation-duration: 1.4s; }
@@ -190,7 +207,7 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
   *, *::before, *::after {
     transition-property: opacity, color, background-color, border-color !important;
   }
-  .cb-enter, .cb-stagger > *, .cb-page > *, .cb-page [data-slot="card"] { animation-name: cb-fade-in; }
+  .cb-enter, .cb-stagger > *, .cb-page > * { animation-name: cb-fade-in; }
   a[data-slot="card"]:hover, a:hover > [data-slot="card"] { transform: none; }
   [data-slot="button"]:active { transform: none !important; }
   .cb-working-bar > div { animation: none; width: 100%; opacity: 0.5; }
