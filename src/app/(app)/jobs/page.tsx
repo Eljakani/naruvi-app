@@ -80,7 +80,7 @@ async function JobList() {
               <Badge variant="secondary">{BOARD_LABEL[job.board] ?? job.board}</Badge>
               <span className="w-20 text-right text-xs text-muted-foreground">{job.createdAt.toLocaleDateString()}</span>
             </div>
-            <ChevronRightIcon className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            <ChevronRightIcon className="size-4 text-muted-foreground" />
           </Card>
         </Link>
       ))}

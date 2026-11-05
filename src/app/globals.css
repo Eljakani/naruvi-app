@@ -182,17 +182,6 @@
 .cb-fade { animation: cb-fade-in 160ms var(--ease-out) both; }
 /* Skeletons pulse a little faster: loading feels quicker. */
 [data-slot="skeleton"] { animation-duration: 1.4s; }
-/* Clickable cards lift a touch, only where real hover exists. */
-@media (hover: hover) and (pointer: fine) {
-  a[data-slot="card"], a > [data-slot="card"], [data-slot="card"]:has(> a:only-child) {
-    transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
-  }
-  a[data-slot="card"]:hover, a:hover > [data-slot="card"] {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px -6px rgb(0 0 0 / 0.12);
-  }
-}
-
 /* Working states. */
 @keyframes cb-slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
 @keyframes cb-pop { from { opacity: 0; transform: scale(0.6); filter: blur(2px); } }
@@ -208,7 +197,6 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
     transition-property: opacity, color, background-color, border-color !important;
   }
   .cb-enter, .cb-stagger > *, .cb-page > * { animation-name: cb-fade-in; }
-  a[data-slot="card"]:hover, a:hover > [data-slot="card"] { transform: none; }
   [data-slot="button"]:active { transform: none !important; }
   .cb-working-bar > div { animation: none; width: 100%; opacity: 0.5; }
   svg.animate-spin { animation-duration: 1.5s, 0ms; }

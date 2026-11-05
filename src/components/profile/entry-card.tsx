@@ -58,7 +58,7 @@ export function EntryCard({ entry, attention }: { entry: ProfileEntry; attention
         </div>
       </div>
       {attention ? <span className="size-2 shrink-0 rounded-full bg-amber-500" aria-label="Needs review" /> : null}
-      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
     </Card>
     </Link>
   )

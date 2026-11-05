@@ -70,7 +70,7 @@ async function List() {
               {score !== null ? (
                 <span className={cn("w-12 text-right text-lg font-semibold tabular-nums", score >= 75 ? "text-emerald-600" : score >= 50 ? "text-amber-600" : "text-rose-600")}>{score}</span>
               ) : null}
-              <ChevronRightIcon className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              <ChevronRightIcon className="size-4 text-muted-foreground" />
             </Card>
           </Link>
         )
