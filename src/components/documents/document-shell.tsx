@@ -7,6 +7,9 @@ import {
   AlertTriangleIcon,
   ArrowLeftIcon,
   CheckCircle2Icon,
+  CheckIcon,
+  ChevronDownIcon,
+  LanguagesIcon,
   DownloadIcon,
   Loader2Icon,
   SparklesIcon,
@@ -16,6 +19,7 @@ import {
 } from "lucide-react"
 import { ApplicationNav } from "@/components/applications/application-nav"
 import { PdfPreview } from "@/components/documents/pdf-preview"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAiToast } from "@/components/ai-progress"
 import { WorkingBar } from "@/components/working-bar"
 import { Badge } from "@/components/ui/badge"
@@ -119,25 +123,12 @@ export function DocumentShell({
         <div className="ml-2">
           <ApplicationNav applicationId={applicationId} current={kind} language={language} />
         </div>
-        <nav className="flex rounded-lg bg-muted p-0.5" aria-label="Language">
-          {LANGS.map((item) => (
-            <Link
-              key={item.code}
-              href={`${base}/${kind}?lang=${item.code}`}
-              title={item.name}
-              aria-current={item.code === language ? "page" : undefined}
-              className={cn("rounded-md px-2 py-1 text-xs font-medium", item.code === language ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <LanguageMenu current={language} hrefFor={(code) => `${base}/${kind}?lang=${code}`} />
         <div className="ml-auto flex items-center gap-2">
-          <button type="button" onClick={() => setTab("checks")} className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted", quality.ready ? "border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-400" : "border-amber-200 text-amber-700 dark:border-amber-900 dark:text-amber-400")}>
-            {quality.ready ? <CheckCircle2Icon className="size-3.5" /> : <AlertTriangleIcon className="size-3.5" />}
-            {quality.ready ? "Ready" : `${issues} to review`}
-            <span className="tabular-nums opacity-70">{quality.score}</span>
-          </button>
+          <Button size="sm" variant="ghost" onClick={() => setTab("checks")} title={`Quality score ${quality.score}/100`}>
+            {quality.ready ? <CheckCircle2Icon /> : <AlertTriangleIcon />}
+            {quality.ready ? "Ready to send" : `${issues} thing${issues === 1 ? "" : "s"} to fix`}
+          </Button>
           {regenerate}
           <Button size="sm" nativeButton={false} render={<a href={downloadHref} />}>
             <DownloadIcon /> Download PDF
@@ -150,13 +141,13 @@ export function DocumentShell({
         <Tabs value={tab} onValueChange={setTab} className="relative flex min-h-0 min-w-0 flex-col gap-0 border-r bg-background">
           <WorkingBar active={pending} />
           <TabsList variant="line" className="w-full justify-start gap-1 border-b px-3">
-            <TabsTrigger value="content">Content</TabsTrigger>
-            <TabsTrigger value="design">Design</TabsTrigger>
+            <TabsTrigger value="content">Edit</TabsTrigger>
+            <TabsTrigger value="design">Look</TabsTrigger>
             <TabsTrigger value="checks" className="gap-1.5">
               Checks
-              {issues ? <span className={cn("rounded-full px-1.5 text-[10px] tabular-nums", quality.checks.some((c) => c.status === "fail") ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400" : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400")}>{issues}</span> : null}
+              {issues ? <Badge variant={quality.checks.some((c) => c.status === "fail") ? "destructive" : "secondary"} className="h-4 px-1.5 text-[10px] tabular-nums">{issues}</Badge> : null}
             </TabsTrigger>
-            <TabsTrigger value="versions">Versions</TabsTrigger>
+            <TabsTrigger value="versions">History</TabsTrigger>
           </TabsList>
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <TabsContent value="content" className="p-4">
@@ -172,10 +163,10 @@ export function DocumentShell({
               {versions}
             </TabsContent>
           </div>
-          <div className={cn("flex items-center gap-2 border-t px-4 py-2.5 transition-colors", dirty ? "bg-amber-50 dark:bg-amber-950/30" : "bg-background")}>
+          <div className={cn("flex items-center gap-2 border-t px-4 py-2.5 transition-colors", dirty ? "bg-muted" : "bg-background")}>
             {dirty ? (
               <>
-                <span className="text-xs text-amber-800 dark:text-amber-300">Unsaved changes — the preview shows the saved version.</span>
+                <span className="text-xs text-muted-foreground">Unsaved changes. The preview updates when you save.</span>
                 <div className="ml-auto flex gap-1.5">
                   <Button size="sm" variant="ghost" onClick={onDiscard} disabled={pending}>
                     Discard
@@ -187,7 +178,7 @@ export function DocumentShell({
               </>
             ) : (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                {pending ? <Loader2Icon className="size-3 animate-spin" /> : <CheckCircle2Icon className="size-3 text-emerald-600" />}
+                {pending ? <Loader2Icon className="size-3 animate-spin" /> : <CheckCircle2Icon className="size-3" />}
                 <span key={pending ? "saving" : "saved"} className="cb-fade">{pending ? "Saving…" : "All changes saved"}</span>
               </span>
             )}
@@ -266,5 +257,28 @@ export function VersionsPanel({ revisions, currentId, pending, onRestore }: { re
         })}
       </ol>
     </div>
+  )
+}
+
+/** Document language as a small menu instead of four cryptic codes. */
+function LanguageMenu({ current, hrefFor }: { current: string; hrefFor: (code: string) => string }) {
+  const active = LANGS.find((item) => item.code === current)
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button size="sm" variant="outline" aria-label="Document language" />}>
+        <LanguagesIcon /> {active?.name ?? current.toUpperCase()} <ChevronDownIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-44">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Write this document in</DropdownMenuLabel>
+          {LANGS.map((item) => (
+            <DropdownMenuItem key={item.code} render={<Link href={hrefFor(item.code)} />}>
+              {item.name}
+              {item.code === current ? <CheckIcon className="ml-auto" /> : null}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
