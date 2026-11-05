@@ -42,6 +42,28 @@ export const designTokens = z.object({
   orgItalic: z.boolean().default(true),
   showLogos: z.boolean().default(true),
   photoShape: z.enum(["circle", "rounded", "square"]).default("circle"),
+  // Page
+  pageSize: z.enum(["A4", "LETTER"]).default("A4"),
+  textAlign: z.enum(["left", "justify"]).default("left"),
+  pageNumbers: z.boolean().default(false),
+  // Header
+  nameCase: z.enum(["none", "upper"]).default("none"),
+  nameSpacing: z.number().min(0).max(4).default(0),
+  photoSize: z.number().min(36).max(90).default(56),
+  photoPosition: z.enum(["left", "right"]).default("left"),
+  contactSeparator: z.enum(["space", "dot", "pipe"]).default("space"),
+  contactLayout: z.enum(["inline", "stacked"]).default("inline"),
+  linkStyle: z.enum(["url", "label"]).default("url"),
+  accentLinks: z.boolean().default(false),
+  // Sections
+  headingSize: z.number().min(0.85).max(1.6).default(1.1),
+  itemSpacing: z.number().min(0.4).max(2).default(1),
+  bulletSpacing: z.number().min(0).max(4).default(1.5),
+  skillsStyle: z.enum(["inline", "tags", "list"]).default("inline"),
+  // Side column
+  sidebarSide: z.enum(["left", "right"]).default("left"),
+  sidebarWidth: z.number().min(24).max(40).default(31),
+  sidebarTint: z.boolean().default(false),
 })
 export type DesignTokens = z.infer<typeof designTokens>
 
@@ -56,6 +78,8 @@ export const PRESETS: Record<string, { name: string; hint: string; tokens: Desig
   compact: { name: "Compact", hint: "Fits a lot on one page", tokens: { ...base, font: "roboto", size: 8.8, lineHeight: 1.28, margin: 26, spacing: 0.75, nameSize: 17 } },
   executive: { name: "Executive", hint: "Garamond, centred header, refined", tokens: { ...base, font: "garamond", size: 10.6, nameSize: 26, headerAlign: "center", headingStyle: "underline-accent", accent: "#1e3a5f", accentHeadings: true, showLogos: false } },
   sidebar: { name: "Sidebar", hint: "Skills and languages in a side column", tokens: { ...base, font: "plex", layout: "sidebar", accentName: true, accentHeadings: true, headingStyle: "plain", headingCase: "upper", accent: "#0f766e" } },
+  tech: { name: "Tech", hint: "Side column on the right, skills as tags", tokens: { ...base, font: "plex", layout: "sidebar", sidebarSide: "right", sidebarTint: true, skillsStyle: "tags", accent: "#2563eb", accentName: true, accentHeadings: true, accentLinks: true, headingStyle: "bar", headingCase: "none", linkStyle: "label", contactSeparator: "dot", orgItalic: false } },
+  elegant: { name: "Elegant", hint: "Spaced capitals, justified text, quiet accents", tokens: { ...base, font: "merriweather", headingFont: "same", size: 9.4, nameCase: "upper", nameSpacing: 2.5, nameSize: 22, headerAlign: "center", contactSeparator: "pipe", headingStyle: "underline-accent", accent: "#7c2d12", accentHeadings: true, accentLinks: true, textAlign: "justify", showLogos: false, lineHeight: 1.45 } },
   bold: { name: "Bold", hint: "Coloured header band, strong headings", tokens: { ...base, font: "inter", headerBand: true, headingStyle: "filled", accent: "#4338ca", accentHeadings: true, nameSize: 24, orgItalic: false } },
 }
 export type PresetId = keyof typeof PRESETS

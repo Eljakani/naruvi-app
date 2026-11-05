@@ -502,6 +502,57 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
+                <AccordionItem value="header">
+                  <AccordionTrigger>Name, photo &amp; contact</AccordionTrigger>
+                  <AccordionContent>
+                    <FieldGroup className="gap-4 pt-1">
+                      <Flash on={glow("nameCase")}><Field><FieldLabel>Name style</FieldLabel><Choice label="Name case" value={tokens.nameCase} onChange={(value) => set("nameCase", value)} options={[{ value: "none", label: "Normal" }, { value: "upper", label: "UPPERCASE" }]} /></Field></Flash>
+                      <Flash on={glow("nameSpacing")}><Range label="Name letter spacing" value={tokens.nameSpacing} min={0} max={4} step={0.1} unit=" pt" onChange={(value) => set("nameSpacing", value)} /></Flash>
+                      <Flash on={glow("photoPosition")}><Field><FieldLabel>Photo position</FieldLabel><Choice label="Photo position" value={tokens.photoPosition} onChange={(value) => set("photoPosition", value)} options={[{ value: "left", label: "Left" }, { value: "right", label: "Right" }]} /></Field></Flash>
+                      <Flash on={glow("photoSize")}><Range label="Photo size" value={tokens.photoSize} min={36} max={90} step={1} unit=" pt" onChange={(value) => set("photoSize", value)} /></Flash>
+                      <Flash on={glow("contactLayout")}><Field><FieldLabel>Contact details</FieldLabel><Choice label="Contact layout" value={tokens.contactLayout} onChange={(value) => set("contactLayout", value)} options={[{ value: "inline", label: "On one line" }, { value: "stacked", label: "One per line" }]} /></Field></Flash>
+                      {tokens.contactLayout === "inline" ? <Flash on={glow("contactSeparator")}><Field><FieldLabel>Separator</FieldLabel><Choice label="Contact separator" value={tokens.contactSeparator} onChange={(value) => set("contactSeparator", value)} options={[{ value: "space", label: "Space" }, { value: "dot", label: "·" }, { value: "pipe", label: "|" }]} /></Field></Flash> : null}
+                      <Flash on={glow("linkStyle")}><Field><FieldLabel>Links show</FieldLabel><Choice label="Link style" value={tokens.linkStyle} onChange={(value) => set("linkStyle", value)} options={[{ value: "url", label: "The address" }, { value: "label", label: "The name (LinkedIn…)" }]} /></Field></Flash>
+                      <Flash on={glow("accentLinks")}><Toggle label="Links in accent" checked={tokens.accentLinks} onChange={(value) => set("accentLinks", value)} /></Flash>
+                    </FieldGroup>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="sections">
+                  <AccordionTrigger>Spacing &amp; skills</AccordionTrigger>
+                  <AccordionContent>
+                    <FieldGroup className="gap-4 pt-1">
+                      <Flash on={glow("headingSize")}><Range label="Heading size" value={tokens.headingSize} min={0.85} max={1.6} step={0.05} unit="×" onChange={(value) => set("headingSize", value)} /></Flash>
+                      <Flash on={glow("itemSpacing")}><Range label="Space between entries" value={tokens.itemSpacing} min={0.4} max={2} step={0.05} unit="×" onChange={(value) => set("itemSpacing", value)} /></Flash>
+                      <Flash on={glow("bulletSpacing")}><Range label="Space between bullets" value={tokens.bulletSpacing} min={0} max={4} step={0.25} unit=" pt" onChange={(value) => set("bulletSpacing", value)} /></Flash>
+                      <Flash on={glow("textAlign")}><Field><FieldLabel>Text alignment</FieldLabel><Choice label="Text alignment" value={tokens.textAlign} onChange={(value) => set("textAlign", value)} options={[{ value: "left", label: "Left" }, { value: "justify", label: "Justified" }]} /></Field></Flash>
+                      <Flash on={glow("skillsStyle")}><Field><FieldLabel>Skills look like</FieldLabel><Choice label="Skills style" value={tokens.skillsStyle} onChange={(value) => set("skillsStyle", value)} options={[{ value: "inline", label: "A · B · C" }, { value: "tags", label: "Tags" }, { value: "list", label: "A list" }]} /></Field></Flash>
+                    </FieldGroup>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {tokens.layout === "sidebar" ? (
+                  <AccordionItem value="sidebar">
+                    <AccordionTrigger>Side column</AccordionTrigger>
+                    <AccordionContent>
+                      <FieldGroup className="gap-4 pt-1">
+                        <Flash on={glow("sidebarSide")}><Field><FieldLabel>Side</FieldLabel><Choice label="Side column position" value={tokens.sidebarSide} onChange={(value) => set("sidebarSide", value)} options={[{ value: "left", label: "Left" }, { value: "right", label: "Right" }]} /></Field></Flash>
+                        <Flash on={glow("sidebarWidth")}><Range label="Width" value={tokens.sidebarWidth} min={24} max={40} step={1} unit="%" onChange={(value) => set("sidebarWidth", value)} /></Flash>
+                        <Flash on={glow("sidebarTint")}><Toggle label="Tinted background" hint="A light wash of the accent colour" checked={tokens.sidebarTint} onChange={(value) => set("sidebarTint", value)} /></Flash>
+                      </FieldGroup>
+                    </AccordionContent>
+                  </AccordionItem>
+                ) : null}
+
+                <AccordionItem value="page">
+                  <AccordionTrigger>Page</AccordionTrigger>
+                  <AccordionContent>
+                    <FieldGroup className="gap-4 pt-1">
+                      <Flash on={glow("pageSize")}><Field><FieldLabel>Paper size</FieldLabel><Choice label="Paper size" value={tokens.pageSize} onChange={(value) => set("pageSize", value)} options={[{ value: "A4", label: "A4 (most countries)" }, { value: "LETTER", label: "US Letter" }]} /></Field></Flash>
+                      <Flash on={glow("pageNumbers")}><Toggle label="Page numbers" hint="Only shown when the document has more than one page" checked={tokens.pageNumbers} onChange={(value) => set("pageNumbers", value)} /></Flash>
+                    </FieldGroup>
+                  </AccordionContent>
+                </AccordionItem>
               </Accordion>
               </fieldset>
             </TabsContent>

@@ -59,16 +59,29 @@ function makeStyles(t: Tokens, fontFamily: string[], headingFamily: string[], rt
   const band = t.headerBand
   return StyleSheet.create({
     page: { paddingTop: band ? 0 : t.margin * 0.9, paddingBottom: t.margin * 0.9, paddingHorizontal: t.margin, fontFamily, fontSize: t.size, color: t.ink, lineHeight: t.lineHeight, textAlign: align },
-    header: { flexDirection: t.headerAlign === "center" ? "column" : row, alignItems: "center", marginBottom: gap(12), ...(band ? { backgroundColor: tint(t.accent, 0.9), marginHorizontal: -t.margin, paddingHorizontal: t.margin, paddingTop: t.margin * 0.8, paddingBottom: gap(14) } : {}) },
+    header: { flexDirection: t.headerAlign === "center" ? "column" : (t.photoPosition === "right") !== rtl ? "row-reverse" : "row", alignItems: "center", marginBottom: gap(12), ...(band ? { backgroundColor: tint(t.accent, 0.9), marginHorizontal: -t.margin, paddingHorizontal: t.margin, paddingTop: t.margin * 0.8, paddingBottom: gap(14) } : {}) },
     headerText: t.headerAlign === "center" ? { width: "100%", alignItems: "center" } : { flex: 1, alignItems: rtl ? "flex-end" : "flex-start" },
-    photo: { width: 56, height: 56, borderRadius: t.photoShape === "circle" ? 28 : t.photoShape === "rounded" ? 10 : 0, objectFit: "cover", ...(t.headerAlign === "center" ? { marginBottom: 8 } : { marginRight: rtl ? 0 : 12, marginLeft: rtl ? 12 : 0 }) },
-    name: { fontFamily: headingFamily, fontWeight: 700, fontSize: t.nameSize, lineHeight: 1.15, color: t.accentName ? t.accent : t.ink, textAlign: t.headerAlign === "center" ? "center" : align },
+    photo: { width: t.photoSize, height: t.photoSize, borderRadius: t.photoShape === "circle" ? t.photoSize / 2 : t.photoShape === "rounded" ? t.photoSize / 5 : 0, objectFit: "cover", ...(t.headerAlign === "center" ? { marginBottom: 8 } : (t.photoPosition === "right") !== rtl ? { marginLeft: 12 } : { marginRight: 12 }) },
+    name: { fontFamily: headingFamily, fontWeight: 700, fontSize: t.nameSize, lineHeight: 1.15, color: t.accentName ? t.accent : t.ink, textAlign: t.headerAlign === "center" ? "center" : align, textTransform: t.nameCase === "upper" ? "uppercase" : "none", letterSpacing: t.nameSpacing },
     headline: { fontSize: t.size + 1.4, color: MUTED, marginTop: 3, lineHeight: 1.2, textAlign: t.headerAlign === "center" ? "center" : align },
-    contact: { flexDirection: row, flexWrap: "wrap", marginTop: 5, fontSize: t.size - 1, color: MUTED, justifyContent: t.headerAlign === "center" ? "center" : "flex-start" },
+    contact: { flexDirection: t.contactLayout === "stacked" ? "column" : row, flexWrap: "wrap", marginTop: 5, fontSize: t.size - 1, color: MUTED, justifyContent: t.headerAlign === "center" ? "center" : "flex-start" },
     contactItem: t.headerAlign === "center" ? { marginHorizontal: 5 } : { marginRight: rtl ? 0 : 10, marginLeft: rtl ? 10 : 0 },
-    summary: { marginBottom: gap(4), color: t.ink, lineHeight: t.lineHeight + 0.05 },
-    columns: { flexDirection: row },
-    side: { width: "31%", paddingRight: rtl ? 0 : 14, paddingLeft: rtl ? 14 : 0, borderRightWidth: rtl ? 0 : 0.6, borderLeftWidth: rtl ? 0.6 : 0, borderColor: RULE, marginRight: rtl ? 0 : 14, marginLeft: rtl ? 14 : 0 },
+    summary: { marginBottom: gap(4), color: t.ink, lineHeight: t.lineHeight + 0.05, textAlign: t.textAlign === "justify" && !rtl ? "justify" : align },
+    separator: { color: RULE, marginRight: rtl ? 0 : 10, marginLeft: rtl ? 10 : 0 },
+    link: { color: t.accentLinks ? t.accent : MUTED, textDecoration: "none" },
+    pageNumber: { position: "absolute", bottom: t.margin * 0.4, left: 0, right: 0, textAlign: "center", fontSize: t.size - 1.5, color: MUTED },
+    tags: { flexDirection: row, flexWrap: "wrap", marginTop: 1.5 },
+    tag: { fontSize: t.size - 1, borderWidth: 0.6, borderColor: tint(t.accent, 0.55), color: t.ink, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1, marginRight: 3, marginBottom: 3 },
+    columns: { flexDirection: (t.sidebarSide === "left") !== rtl ? "row" : "row-reverse" },
+    side: (() => {
+      const onLeft = (t.sidebarSide === "left") !== rtl
+      return {
+        width: `${t.sidebarWidth}%`,
+        ...(t.sidebarTint ? { backgroundColor: tint(t.accent, 0.93), padding: 10, borderRadius: 4 } : onLeft ? { paddingRight: 14, borderRightWidth: 0.6 } : { paddingLeft: 14, borderLeftWidth: 0.6 }),
+        borderColor: RULE,
+        ...(onLeft ? { marginRight: 14 } : { marginLeft: 14 }),
+      }
+    })(),
     main: { flex: 1 },
     section: { marginTop: gap(9) },
     sectionHead: {
@@ -80,8 +93,8 @@ function makeStyles(t: Tokens, fontFamily: string[], headingFamily: string[], rt
       ...(filled ? { backgroundColor: tint(t.accent, 0.88), borderRadius: 2 } : {}),
     },
     bar: { width: 3, height: t.size + 1.5, backgroundColor: t.accent, marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0, borderRadius: 1 },
-    sectionTitle: { fontFamily: headingFamily, fontWeight: 700, fontSize: t.size + 1, letterSpacing: t.headingCase === "upper" ? 0.8 : 0.1, textTransform: t.headingCase === "upper" ? "uppercase" : "none", color: headingColor },
-    item: { marginBottom: gap(6) },
+    sectionTitle: { fontFamily: headingFamily, fontWeight: 700, fontSize: t.size * t.headingSize, letterSpacing: t.headingCase === "upper" ? 0.8 : 0.1, textTransform: t.headingCase === "upper" ? "uppercase" : "none", color: headingColor },
+    item: { marginBottom: gap(6) * t.itemSpacing },
     itemRow: { flexDirection: row, alignItems: "flex-start" },
     logo: { width: 18, height: 18, marginRight: rtl ? 0 : 7, marginLeft: rtl ? 7 : 0, marginTop: 1, objectFit: "contain" },
     itemBody: { flex: 1 },
@@ -91,9 +104,9 @@ function makeStyles(t: Tokens, fontFamily: string[], headingFamily: string[], rt
     itemMeta: { fontSize: t.size - 1, color: MUTED },
     org: { fontSize: t.size - 0.6, color: MUTED, ...(t.orgItalic ? { fontStyle: "italic" as const } : {}) },
     bullets: { marginTop: 2 },
-    bullet: { flexDirection: row, marginTop: 1.5 },
+    bullet: { flexDirection: row, marginTop: t.bulletSpacing },
     dot: { width: t.bullet === "none" ? 0 : 9, color: t.accentBullets ? t.accent : MUTED, textAlign: align },
-    bulletText: { flex: 1 },
+    bulletText: { flex: 1, textAlign: t.textAlign === "justify" && !rtl ? "justify" : align },
     group: { flexDirection: row, marginBottom: 2.5 },
     groupStacked: { marginBottom: gap(4) },
     groupLabel: { fontWeight: 700, width: 120 },
@@ -148,11 +161,19 @@ function Section({ section, logos, s, t, stacked = false }: { section: CvSection
       <Text style={s.sectionTitle}>{section.title}</Text>
     </View>
   )
+  const values = (group: CvSection["groups"][number], color?: string) =>
+    t.skillsStyle === "tags" ? (
+      <View style={s.tags}>{group.values.map((value) => <Text key={value} style={s.tag}>{value}</Text>)}</View>
+    ) : t.skillsStyle === "list" ? (
+      <View>{group.values.map((value) => <Text key={value} style={color ? { color } : undefined}>{BULLETS[t.bullet === "none" ? "dot" : t.bullet]} {value}</Text>)}</View>
+    ) : (
+      <Text style={color ? { color } : undefined}>{group.values.join(" · ")}</Text>
+    )
   const renderGroup = (group: CvSection["groups"][number], index: number) =>
-        stacked ? (
+        stacked || t.skillsStyle !== "inline" ? (
           <View key={index} style={s.groupStacked} wrap={false}>
             {group.label ? <Text style={{ fontWeight: 700 }}>{group.label}</Text> : null}
-            <Text style={{ color: MUTED }}>{group.values.join(" · ")}</Text>
+            {values(group, MUTED)}
           </View>
         ) : (
           <View key={index} style={s.group} wrap={false}>
@@ -191,7 +212,8 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
   const scripts = detectScripts(documentText(doc), doc.language)
   const fonts = await prepareFonts(t.font as BaseFont, scripts, doc.language)
   const heading = t.headingFont !== "same" && t.headingFont !== t.font ? await prepareFonts(t.headingFont as BaseFont, scripts, doc.language) : fonts
-  const s = makeStyles(t, fonts.stack, heading.stack, isRtl(scripts) && RTL_LANGUAGES.includes(doc.language))
+  const rtl = isRtl(scripts) && RTL_LANGUAGES.includes(doc.language)
+  const s = makeStyles(t, fonts.stack, heading.stack, rtl)
   const logos = new Map<string, string | null>()
   if (t.showLogos) {
     for (const section of doc.sections) {
@@ -207,7 +229,8 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
 
   const buffer = await renderToBuffer(
     <Document title={`${doc.header.name} — CV`} author={doc.header.name} language={doc.language} creator="Naruvi" producer="Naruvi">
-      <Page size="A4" style={s.page}>
+      <Page size={t.pageSize} style={s.page}>
+        {t.pageNumbers ? <Text style={s.pageNumber} fixed render={({ pageNumber, totalPages }) => (totalPages > 1 ? `${pageNumber} / ${totalPages}` : "")} /> : null}
         <View style={s.header}>
           {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
           {photo ? <Image src={photo} style={s.photo} /> : null}
@@ -215,15 +238,18 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
             <Text style={s.name}>{doc.header.name}</Text>
             {doc.header.headline ? <Text style={s.headline}>{doc.header.headline}</Text> : null}
             <View style={s.contact}>
-              {contact.map((value) => (
-                <Text key={value} style={s.contactItem}>
-                  {value}
-                </Text>
-              ))}
-              {doc.header.links.map((link) => (
-                <Link key={link.url} src={link.url} style={[s.contactItem, { color: MUTED, textDecoration: "none" }]}>
-                  {link.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-                </Link>
+              {[
+                ...contact.map((value) => <Text key={value}>{value}</Text>),
+                ...doc.header.links.map((link) => (
+                  <Link key={link.url} src={link.url} style={s.link}>
+                    {t.linkStyle === "label" && link.label ? link.label : link.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                  </Link>
+                )),
+              ].map((node, index) => (
+                <View key={index} style={{ flexDirection: rtl ? "row-reverse" : "row" }}>
+                  {index > 0 && t.contactLayout === "inline" && t.contactSeparator !== "space" ? <Text style={s.separator}>{t.contactSeparator === "dot" ? "·" : "|"}</Text> : null}
+                  <View style={t.contactLayout === "inline" ? s.contactItem : undefined}>{node}</View>
+                </View>
               ))}
             </View>
           </View>
