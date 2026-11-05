@@ -374,3 +374,24 @@ export const settings = pgTable("settings", {
   value: jsonb().$type<unknown>().notNull(),
   updatedAt: updatedAt(),
 })
+
+/* ------------------------------------------------------------------ */
+/* application_events: every status change, manual or automatic        */
+/* ------------------------------------------------------------------ */
+
+export const applicationEvents = pgTable(
+  "application_events",
+  {
+    id: id(),
+    applicationId: uuid()
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    fromStatus: applicationStatus(),
+    toStatus: applicationStatus().notNull(),
+    /** "user" for board moves, "system" for analysis/generation. */
+    actor: text().notNull().default("user"),
+    note: text().notNull().default(""),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.applicationId, t.createdAt)],
+)

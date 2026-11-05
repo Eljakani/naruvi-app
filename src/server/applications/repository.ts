@@ -1,4 +1,5 @@
 import "server-only"
+import { advanceAutomatically } from "@/server/tracking/service"
 import { and, desc, eq, inArray } from "drizzle-orm"
 import { db } from "@/server/db/client"
 import { applications, entries, facts, jobs } from "@/server/db/schema"
@@ -73,12 +74,12 @@ export async function analyzeJob(jobId: string) {
       selectedFactIds: selected,
       coverLetter: coverLetter.decision as "required" | "optional" | "not_requested" | "not_mentioned",
       language: job.language,
-      status: "analyzed" as const,
     }
     const [existing] = await db.select().from(applications).where(and(eq(applications.profileId, profile.id), eq(applications.jobId, job.id))).limit(1)
     const [application] = existing
       ? await db.update(applications).set(values).where(eq(applications.id, existing.id)).returning()
-      : await db.insert(applications).values({ ...values, profileId: profile.id, jobId: job.id }).returning()
+      : await db.insert(applications).values({ ...values, status: "analyzed", profileId: profile.id, jobId: job.id }).returning()
+    if (existing) await advanceAutomatically(existing.id, "analyzed")
     await run.finish("succeeded", { applicationId: application.id, fitScore: result.fitScore })
     return application
   } catch (error) {

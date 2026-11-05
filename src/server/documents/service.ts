@@ -1,7 +1,8 @@
 import "server-only"
+import { advanceAutomatically } from "@/server/tracking/service"
 import { and, desc, eq } from "drizzle-orm"
 import { db } from "@/server/db/client"
-import { applications, documents, revisions, type QualitySummary } from "@/server/db/schema"
+import { documents, revisions, type QualitySummary } from "@/server/db/schema"
 import { getApplication } from "@/server/applications/repository"
 import { getProfile, listEntries } from "@/server/profile/repository"
 import { getDocumentDefaults } from "@/server/settings/service"
@@ -100,7 +101,7 @@ export async function generateCv(applicationId: string, language?: string) {
     content.accent = design.accent
     content.header.showPhoto = design.showPhoto && Boolean(content.header.photoPath)
     const { revision, quality } = await run.step("render & quality gate", () => addRevision(document.id, content, "generate", application.analysis?.requirements ?? [], run.id), (value) => `${value.revision.pages} page(s) · score ${value.quality.score}${value.quality.ready ? " · ready" : ""}`)
-    await db.update(applications).set({ status: quality.ready ? "ready" : "generated" }).where(eq(applications.id, application.id))
+    await advanceAutomatically(application.id, quality.ready ? "ready" : "generated")
     await run.finish("succeeded", { documentId: document.id, revisionId: revision.id, score: quality.score })
     return { documentId: document.id, revisionId: revision.id }
   } catch (error) {
@@ -120,7 +121,7 @@ export async function saveCvEdit(documentId: string, input: unknown) {
   }
   const application = await getApplication(doc.applicationId)
   const result = await addRevision(documentId, content, "manual", application?.analysis?.requirements ?? [])
-  if (doc.kind === "cv") await db.update(applications).set({ status: result.quality.ready ? "ready" : "generated" }).where(eq(applications.id, doc.applicationId))
+  if (doc.kind === "cv") await advanceAutomatically(doc.applicationId, result.quality.ready ? "ready" : "generated")
   return { revisionId: result.revision.id, quality: result.quality }
 }
 

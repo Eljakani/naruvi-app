@@ -6,6 +6,10 @@ import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react"
 import { AnalysisView } from "@/components/applications/analysis-view"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
 import { EntryLogo } from "@/components/profile/entry-logo"
+import { StatusControl } from "@/components/tracking/status-control"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { STATUS_LABEL } from "@/lib/stages"
+import { listEvents } from "@/server/tracking/service"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getApplication } from "@/server/applications/repository"
@@ -25,7 +29,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
   await connection()
   const { id } = await params
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
-  const application = await getApplication(id)
+  const [application, events] = await Promise.all([getApplication(id), listEvents(id)])
   if (!application) notFound()
   const { job } = application
   return (
@@ -45,9 +49,33 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
             </Link>
           </p>
         </div>
+        <StatusControl id={application.id} status={application.status} />
         <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />
       </div>
       {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
+      {events.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="grid gap-2">
+              {events.map((event) => (
+                <li key={event.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span>
+                    {event.fromStatus ? `${STATUS_LABEL[event.fromStatus]} → ` : ""}
+                    {STATUS_LABEL[event.toStatus]}
+                    {event.actor === "system" ? <span className="text-muted-foreground"> · automatic</span> : null}
+                  </span>
+                  <time className="text-muted-foreground" dateTime={event.createdAt.toISOString()}>
+                    {event.createdAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                  </time>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   )
 }
