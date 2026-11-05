@@ -3,7 +3,8 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { startTransition, useEffect, useId, useRef, useState, useTransition } from "react"
-import { ArrowLeftIcon, CopyIcon, EllipsisIcon, EyeIcon, HistoryIcon, RotateCcwIcon, SaveIcon, SparklesIcon, StarIcon, Trash2Icon } from "lucide-react"
+import { ArrowLeftIcon, BanIcon, CheckCircle2Icon, CircleDashedIcon, CopyIcon, EllipsisIcon, EyeIcon, FileTextIcon, HistoryIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, SparklesIcon, StarIcon, Trash2Icon, XIcon } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import type { AgentResult } from "@/server/templates/design-agent"
 import { aiDesignAction, deleteTemplateAction, restoreTemplateVersionAction, saveTemplateAction, setDefaultDesignAction, templateVersionsAction } from "@/app/(app)/templates/actions"
@@ -32,6 +33,32 @@ const IDEAS = ["Make it fit on one page", "More elegant and minimal", "Use a dar
 const DESIGN_STEPS = ["Planning the change", "Rendering your CV", "Measuring pages and readability", "Fixing what didn’t pass", "Final check against your request"]
 
 type Initial = { id?: string; name: string; basedOn: string; tokens: DesignTokens; customDefault?: boolean }
+
+/** One line: what happened, with an icon. Rejections say why in a sentence and change nothing. */
+function AgentStatus({ result, onDismiss }: { result: AgentResult; onDismiss: () => void }) {
+  const applied = result.outcome === "applied"
+  const Icon = applied ? CheckCircle2Icon : result.outcome === "unchanged" ? CircleDashedIcon : BanIcon
+  return (
+    <div role="status" className="cb-step flex items-start gap-2 rounded-lg bg-background px-2.5 py-2 text-xs">
+      <Icon key={result.outcome} className={cn("cb-pop mt-px size-4 shrink-0", applied ? "text-primary" : "text-muted-foreground")} />
+      <div className="grid min-w-0 flex-1 gap-1">
+        <span className="font-medium">{applied ? result.summary : result.outcome === "unchanged" ? "Already looks like that" : "Can’t do that one"}</span>
+        {applied ? (
+          <span className="flex flex-wrap gap-1 text-muted-foreground">
+            <Badge variant="secondary" className="gap-1"><ShieldCheckIcon className="size-3" /> Verified</Badge>
+            <Badge variant="secondary" className="gap-1"><FileTextIcon className="size-3" /> {result.pages} page{result.pages === 1 ? "" : "s"}</Badge>
+            <Badge variant="secondary">{result.changed.length} setting{result.changed.length === 1 ? "" : "s"}</Badge>
+          </span>
+        ) : result.reason ? (
+          <span className="text-muted-foreground">{result.reason} Nothing was changed.</span>
+        ) : null}
+      </div>
+      <button type="button" onClick={onDismiss} aria-label="Dismiss" className="rounded p-0.5 text-muted-foreground hover:text-foreground">
+        <XIcon className="size-3.5" />
+      </button>
+    </div>
+  )
+}
 
 /** Keys the AI just changed glow briefly, so you can see what moved. */
 const Flash = ({ on, children }: { on: boolean; children: React.ReactNode }) => <div className={cn("-mx-2 rounded-lg px-2 py-1 transition-colors duration-700", on ? "bg-primary/10" : "bg-transparent")}>{children}</div>
@@ -198,19 +225,17 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
         const result = await aiDesignAction({ tokens, prompt: text })
         if (!active.current) return
         if (!result.ok) return void toast.error(result.message)
-        const changes = Object.fromEntries(Object.entries(result.data.tokens).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(tokens[key as keyof DesignTokens]))) as Partial<DesignTokens>
-        const changed = Object.keys(changes)
-        setTokens((current) => mergeDesignChanges(tokens, current, changes))
-        if (changed.length) setLastPrompt(text)
-        setPrompt("")
-        setFitGoal(false)
         setAgentLog(result.data)
-        setFlash(new Set(changed))
+        setFitGoal(false)
+        // Only a fully verified design is applied; a rejected request leaves the design untouched.
+        if (result.data.outcome !== "applied") return
+        const changes = Object.fromEntries(result.data.changed.map((key) => [key, result.data.tokens[key as keyof DesignTokens]])) as Partial<DesignTokens>
+        setTokens((current) => mergeDesignChanges(tokens, current, changes))
+        setLastPrompt(text)
+        setPrompt("")
+        setFlash(new Set(result.data.changed))
         clearTimeout(flashTimer.current)
         flashTimer.current = setTimeout(() => setFlash(new Set()), 1600)
-        const rounds = result.data.attempts.length
-        if (result.data.satisfied) toast.success(result.data.summary, { description: `Checked in ${rounds} round${rounds === 1 ? "" : "s"}. Not saved yet.` })
-        else toast.warning("Closest result applied", { description: result.data.verdict })
       } catch {
         if (active.current) toast.error("Couldn’t apply the design request. Try again.")
       }
@@ -357,23 +382,7 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                     </Button>
                   </div>
                 )}
-                {agentLog && !asking ? (
-                  <details className="cb-fade text-xs" open={!agentLog.satisfied}>
-                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                      {agentLog.satisfied ? "✓ Verified" : "⚠ Partly done"} in {agentLog.attempts.length} round{agentLog.attempts.length === 1 ? "" : "s"} · {agentLog.verdict}
-                    </summary>
-                    <ol className="mt-2 grid gap-1.5">
-                      {agentLog.attempts.map((attempt) => (
-                        <li key={attempt.round} className="grid gap-0.5 rounded-md bg-background px-2 py-1.5">
-                          <span>
-                            <span className="font-medium">Round {attempt.round}</span> · {attempt.summary || "adjusted the design"} · {attempt.pages} page{attempt.pages === 1 ? "" : "s"}
-                          </span>
-                          {attempt.failures.length ? <span className="text-muted-foreground">Still to fix: {attempt.failures.join("; ")}</span> : <span className="text-muted-foreground">All checks passed</span>}
-                        </li>
-                      ))}
-                    </ol>
-                  </details>
-                ) : null}
+                {agentLog && !asking ? <AgentStatus result={agentLog} onDismiss={() => setAgentLog(null)} /> : null}
                 {fitGoal ? <p role="status" className="text-xs text-muted-foreground">{failed ? "Couldn’t verify page fit. Retry the preview." : rendering ? "Checking page count…" : preview?.pages === 1 ? "Verified: the preview fits on one page." : `The preview still needs ${preview?.pages || "multiple"} pages. No content was removed.`}</p> : null}
               </div>
 

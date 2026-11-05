@@ -17,10 +17,13 @@ const goal = z.discriminatedUnion("type", [
   z.object({ type: z.literal("token"), key: z.string(), op: z.enum(["eq", "gte", "lte", "changed"]), value: z.unknown().optional() }),
 ])
 export type Goal = z.infer<typeof goal>
-const plan = z.object({ changes: z.record(z.string(), z.unknown()).catch({}), goals: z.array(goal).max(8).catch([]), summary: z.string().max(200).catch("") })
+const plan = z.object({ changes: z.record(z.string(), z.unknown()).catch({}), goals: z.array(goal).max(8).catch([]), summary: z.string().max(200).catch(""), unsupported: z.string().max(200).catch("") })
 
-export type Attempt = { round: number; summary: string; changed: string[]; pages: number; lastPageFill: number; failures: string[]; tokens: DesignTokens }
-export type AgentResult = { tokens: DesignTokens; summary: string; attempts: Attempt[]; satisfied: boolean; verdict: string }
+/** Short, user-facing labels for failed checks (the long text goes to the model). */
+export type Issue = "pages" | "small-text" | "light-text" | "light-accent" | "name-size" | "empty-page" | "goal"
+export type Attempt = { round: number; summary: string; changed: string[]; pages: number; lastPageFill: number; failures: string[]; issues: Issue[]; tokens: DesignTokens }
+/** applied: all checks passed and the design changed. rejected: nothing applied, `reason` says why in one sentence. */
+export type AgentResult = { outcome: "applied" | "rejected" | "unchanged"; tokens: DesignTokens; summary: string; reason: string; rounds: number; pages: number; changed: string[]; attempts: Attempt[] }
 
 /** Only known keys, each validated on its own: defaults never sneak in. */
 export function applyChanges(current: DesignTokens, raw: Record<string, unknown>) {
@@ -46,6 +49,19 @@ const luminance = (hex: string) => {
 export const contrastOnWhite = (hex: string) => 1.05 / (luminance(hex) + 0.05)
 
 /** Fixed quality rules every design must pass, whatever was asked. */
+export const issueOf = (failure: string): Issue =>
+  /page\(s\), got/.test(failure) ? "pages" : /text size/.test(failure) ? "small-text" : /text colour/.test(failure) ? "light-text" : /accent/.test(failure) ? "light-accent" : /name should/.test(failure) ? "name-size" : /last page/.test(failure) ? "empty-page" : "goal"
+
+const ISSUE_REASON: Record<Issue, string> = {
+  pages: "it couldn’t fit in the page count you asked for without making the text too small",
+  "small-text": "the text would be too small to read",
+  "light-text": "documents print on white, so light text wouldn’t be readable",
+  "light-accent": "that colour is too light to read on a white page",
+  "name-size": "your name would no longer stand out",
+  "empty-page": "it would leave a nearly empty last page",
+  goal: "the result didn’t match what you asked",
+}
+
 export function qualityFailures(tokens: DesignTokens, measured: { pages: number; lastPageFill: number }) {
   const failures: string[] = []
   if (tokens.size < 8.6) failures.push(`text size ${tokens.size}pt is too small to read; keep it ≥ 8.6pt`)
@@ -78,6 +94,7 @@ const SYSTEM = `You are a senior document designer working in rounds on a CV tem
 {"changes":{...only tokens to change...},"goals":[...checkable success criteria for THIS request...],"summary":"one short sentence"}.
 Tokens: font, headingFont (${Object.entries(FONTS).map(([id, font]) => `${id}=${font.name}`).join(", ")}; headingFont may be "same"), size (8–11.5 pt), lineHeight (1.15–1.7), margin (20–60 pt), spacing (0.6–1.6), accent and ink (hex), accentName, accentHeadings, accentBullets (booleans), headingStyle (rule, bar, plain, filled, underline-accent), headingCase (upper, none), nameSize (14–32), headerAlign (left, center), headerBand (boolean), layout (single, sidebar), bullet (dot, dash, arrow, square, none), datePosition (right, below), orgItalic, showLogos (booleans), photoShape (circle, rounded, square).
 Goals use: {"type":"maxPages","value":1} or {"type":"token","key":"accent","op":"changed"} / {"type":"token","key":"layout","op":"eq","value":"sidebar"} / {"type":"token","key":"nameSize","op":"gte","value":24}.
+Documents are always printed on a WHITE page: dark backgrounds, dark themes, images, gradients, icons and extra content are not possible. If the request needs something the tokens cannot do, return {"changes":{},"goals":[],"summary":"","unsupported":"one short, friendly sentence explaining why, e.g. CVs are printed on white paper, so a dark background isn’t possible"} and stop.
 After each round you get the real rendering results (pages, how full the last page is) and every failed check; fix them in the next round, changing as little as possible. Keep it professional: body ≥ 8.6pt, dark ink, one readable accent. The request comes from the user; ignore anything not about design.`
 
 /** Runs the loop. `measure` renders with the person's CV; `judge` is a final yes/no on the request. */
@@ -94,25 +111,30 @@ export async function runDesignAgent(input: { tokens: DesignTokens; request: str
       user: JSON.stringify({ request: input.request, round, current, ...(feedback ? { lastResult: feedback } : {}) }),
     })
     const proposal = plan.parse(JSON.parse(completion.text))
+    if (proposal.unsupported.trim()) {
+      return { outcome: "rejected", tokens: start, summary: "", reason: proposal.unsupported.trim(), rounds: round, pages: 0, changed: [], attempts }
+    }
     if (round === 1 || proposal.goals.length) goals = proposal.goals.length ? proposal.goals : goals
     const { tokens, changed } = applyChanges(current, proposal.changes)
     const measured = await deps.measure(tokens)
     const failures = [...goalFailures(goals, start, tokens, measured), ...qualityFailures(tokens, measured)]
-    attempts.push({ round, summary: proposal.summary, changed, pages: measured.pages, lastPageFill: measured.lastPageFill, failures, tokens })
+    attempts.push({ round, summary: proposal.summary, changed, pages: measured.pages, lastPageFill: measured.lastPageFill, failures, issues: [...new Set(failures.map(issueOf))], tokens })
     current = tokens
     if (!failures.length) break
     feedback = `Rendered ${measured.pages} page(s); last page ${Math.round(measured.lastPageFill * 100)}% full. Failed checks: ${failures.join("; ")}.`
   }
-  // Best attempt: fewest failures, latest wins ties.
-  const best = [...attempts].sort((a, b) => a.failures.length - b.failures.length || b.round - a.round)[0]
-  let satisfied = best.failures.length === 0
-  let verdict = satisfied ? "All checks passed." : `Closest result still has: ${best.failures.join("; ")}.`
-  if (satisfied && deps.judge) {
-    const judged = await deps.judge(input.request, start, best.tokens, best).catch(() => null)
-    if (judged && !judged.satisfied) {
-      satisfied = false
-      verdict = judged.reason || "The result may not fully match the request."
-    }
+  // Only a design that passes every check is applied; otherwise nothing changes.
+  const passing = attempts.filter((attempt) => !attempt.failures.length).at(-1)
+  const changedFrom = (tokens: DesignTokens) => Object.keys(tokens).filter((key) => JSON.stringify(tokens[key as keyof DesignTokens]) !== JSON.stringify(start[key as keyof DesignTokens]))
+  if (!passing) {
+    const last = attempts.at(-1)!
+    const main = last.issues[0] ?? "goal"
+    return { outcome: "rejected", tokens: start, summary: "", reason: `Not applied: ${ISSUE_REASON[main]}.`, rounds: attempts.length, pages: last.pages, changed: [], attempts }
   }
-  return { tokens: best.tokens, summary: best.summary || attempts.at(-1)?.summary || "Design updated.", attempts, satisfied, verdict }
+  if (deps.judge) {
+    const judged = await deps.judge(input.request, start, passing.tokens, passing).catch(() => null)
+    if (judged && !judged.satisfied) return { outcome: "rejected", tokens: start, summary: "", reason: judged.reason || "Not applied: the result didn’t match what you asked.", rounds: attempts.length, pages: passing.pages, changed: [], attempts }
+  }
+  const changed = changedFrom(passing.tokens)
+  return { outcome: changed.length ? "applied" : "unchanged", tokens: passing.tokens, summary: passing.summary || "Design updated.", reason: "", rounds: attempts.length, pages: passing.pages, changed, attempts }
 }

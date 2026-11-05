@@ -63,7 +63,7 @@ export async function aiDesignAction(input: { tokens: DesignTokens; prompt: stri
         return z.object({ satisfied: z.boolean(), reason: z.string().catch("") }).parse(JSON.parse(judged.text))
       },
     })
-    await run.finish("succeeded", { rounds: result.attempts.length, satisfied: result.satisfied })
+    await run.finish("succeeded", { rounds: result.rounds, outcome: result.outcome, reason: result.reason })
     return { ok: true, data: result }
   } catch (error) {
     await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))

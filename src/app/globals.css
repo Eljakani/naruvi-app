@@ -207,6 +207,9 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
 .cb-step { animation: cb-rise 220ms var(--ease-out) both; }
 .cb-dot { transition: background-color 300ms var(--ease-out), transform 300ms var(--ease-out); }
 
+/* Status icon pops in (scale from 0.6 + fade, never from 0). */
+.cb-pop { animation: cb-pop 260ms var(--ease-out) both; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition-property: opacity, color, background-color, border-color !important;
@@ -217,6 +220,7 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
   .cb-shimmer { animation: none; color: var(--foreground); background: none; }
   .cb-breathe { animation: none; }
   .cb-step { animation-name: cb-fade-in; }
+  .cb-pop { animation-name: cb-fade-in; }
   svg.animate-spin { animation-duration: 1.5s, 0ms; }
 }
 
