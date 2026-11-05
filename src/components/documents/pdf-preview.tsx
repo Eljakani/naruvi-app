@@ -24,7 +24,7 @@ const ZOOMS = [0.5, 0.65, 0.8, 1, 1.25, 1.5]
  * In-app PDF reader: white pages on a soft desk, same look in every browser.
  * Renders each page to a canvas at device pixel ratio for crisp text.
  */
-export function PdfPreview({ url, pageBudget, className }: { url: string; pageBudget?: number; className?: string }) {
+export function PdfPreview({ url, pageBudget, className, busy = false }: { url: string; pageBudget?: number; className?: string; busy?: boolean }) {
   const viewport = useRef<HTMLDivElement>(null)
   const pagesRef = useRef<HTMLDivElement>(null)
   const [pageCount, setPageCount] = useState(0)
@@ -143,12 +143,20 @@ export function PdfPreview({ url, pageBudget, className }: { url: string; pageBu
       </div>
       <div ref={viewport} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-auto">
         {state === "loading" ? (
-          <div className="absolute inset-0 z-10 grid place-items-center bg-muted/40">
+          <div className="cb-fade absolute inset-0 z-10 grid place-items-center bg-muted/40">
             <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : null}
         {state === "error" ? <p className="p-6 text-center text-sm text-muted-foreground">Couldn’t display this PDF. Use “Open in new tab”.</p> : null}
-        <div ref={pagesRef} className="flex flex-col items-center gap-6 px-6 py-6" />
+        <div
+          ref={pagesRef}
+          aria-busy={busy || state === "loading"}
+          className={cn(
+            "flex flex-col items-center gap-6 px-6 py-6 transition-[opacity,filter,transform] duration-300 ease-(--ease-out)",
+            state !== "ready" && "translate-y-1 opacity-0",
+            busy && "opacity-60 blur-[1.5px]",
+          )}
+        />
       </div>
     </div>
   )

@@ -6,6 +6,8 @@ import { toast } from "sonner"
 import { researchCompanyAction } from "@/app/(app)/applications/[id]/research/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { WorkingBar } from "@/components/working-bar"
+import { cn } from "@/lib/utils"
 import { promptsFor, type CompanyResearch as Research } from "@/server/research/brief"
 
 function SourceLink({ source }: { source: string }) {
@@ -60,7 +62,8 @@ export function CompanyResearch({
 
   if (!research) {
     return (
-      <div className="grid gap-2 rounded-lg border border-dashed p-3">
+      <div className="relative grid gap-2 overflow-hidden rounded-lg border border-dashed p-3">
+        <WorkingBar active={pending} />
         <p className="text-xs text-muted-foreground">
           Read {company}’s own website (about, mission, values) and this posting to find specific, sourced reasons to mention. Nothing is invented and nothing leaves your machine except the page requests.
         </p>
@@ -119,7 +122,7 @@ export function CompanyResearch({
   }
 
   return (
-    <div className="grid gap-3">
+    <div className={cn("grid gap-3 transition-opacity duration-200", pending && "opacity-60")} aria-busy={pending}>
       {research.notes?.map((note) => (
         <p key={note} className="rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           {note}

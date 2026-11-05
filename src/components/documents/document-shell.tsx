@@ -16,6 +16,7 @@ import {
   XCircleIcon,
 } from "lucide-react"
 import { PdfPreview } from "@/components/documents/pdf-preview"
+import { WorkingBar } from "@/components/working-bar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
@@ -158,7 +159,8 @@ export function DocumentShell({
 
       {/* body */}
       <div className="grid min-h-0 flex-1 lg:grid-cols-[440px_minmax(0,1fr)]">
-        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 min-w-0 flex-col gap-0 border-r bg-background">
+        <Tabs value={tab} onValueChange={setTab} className="relative flex min-h-0 min-w-0 flex-col gap-0 border-r bg-background">
+          <WorkingBar active={pending} />
           <TabsList variant="line" className="w-full justify-start gap-1 border-b px-3">
             <TabsTrigger value="content">Content</TabsTrigger>
             <TabsTrigger value="design">Design</TabsTrigger>
@@ -198,13 +200,13 @@ export function DocumentShell({
             ) : (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 {pending ? <Loader2Icon className="size-3 animate-spin" /> : <CheckCircle2Icon className="size-3 text-emerald-600" />}
-                {pending ? "Saving…" : "All changes saved"}
+                <span key={pending ? "saving" : "saved"} className="cb-fade">{pending ? "Saving…" : "All changes saved"}</span>
               </span>
             )}
           </div>
         </Tabs>
         <div className="hidden min-h-0 p-4 lg:flex">
-          <PdfPreview key={previewUrl} url={previewUrl} pageBudget={pageBudget} className="flex-1" />
+          <PdfPreview key={previewUrl} url={previewUrl} pageBudget={pageBudget} busy={pending} className="flex-1" />
         </div>
       </div>
     </div>
