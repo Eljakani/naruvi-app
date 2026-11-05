@@ -136,8 +136,8 @@ export function CompanyResearch({
         </div>
       ))}
       {research.mission.slice(0, showAll ? 3 : 1).map((item) => (
-        <div key={item.text} className="grid gap-0.5 rounded-md border-l-2 border-foreground/20 pl-3">
-          <p className="text-sm leading-6 italic">“{item.text}”</p>
+        <div key={item.text} className="grid gap-1">
+          <blockquote className="border-l-2 pl-6 italic">{item.text}</blockquote>
           <SourceLink source={item.source} />
         </div>
       ))}
