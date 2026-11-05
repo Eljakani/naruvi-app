@@ -5,6 +5,7 @@ import { connection } from "next/server"
 import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react"
 import { AnalysisView } from "@/components/applications/analysis-view"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
+import { ApplicationNav } from "@/components/applications/application-nav"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { StatusControl } from "@/components/tracking/status-control"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -52,6 +53,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
         <StatusControl id={application.id} status={application.status} />
         <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />
       </div>
+      <ApplicationNav applicationId={application.id} current="analysis" language={application.language} />
       {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
       {events.length ? (
         <Card>

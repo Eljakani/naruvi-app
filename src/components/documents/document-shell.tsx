@@ -8,13 +8,12 @@ import {
   ArrowLeftIcon,
   CheckCircle2Icon,
   DownloadIcon,
-  FileTextIcon,
   Loader2Icon,
-  MailIcon,
   RefreshCwIcon,
   RotateCcwIcon,
   XCircleIcon,
 } from "lucide-react"
+import { ApplicationNav } from "@/components/applications/application-nav"
 import { PdfPreview } from "@/components/documents/pdf-preview"
 import { WorkingBar } from "@/components/working-bar"
 import { Badge } from "@/components/ui/badge"
@@ -114,23 +113,9 @@ export function DocumentShell({
           <div className="truncate text-sm font-semibold">{jobTitle}</div>
           <div className="truncate text-xs text-muted-foreground">{company}</div>
         </div>
-        <nav className="ml-2 flex rounded-lg bg-muted p-0.5" aria-label="Document">
-          {(
-            [
-              ["cv", "CV", FileTextIcon],
-              ["letter", "Cover letter", MailIcon],
-            ] as const
-          ).map(([id, label, Icon]) => (
-            <Link
-              key={id}
-              href={`${base}/${id}?lang=${language}`}
-              aria-current={kind === id ? "page" : undefined}
-              className={cn("flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors", kind === id ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}
-            >
-              <Icon className="size-3.5" /> {label}
-            </Link>
-          ))}
-        </nav>
+        <div className="ml-2">
+          <ApplicationNav applicationId={applicationId} current={kind} language={language} />
+        </div>
         <nav className="flex rounded-lg bg-muted p-0.5" aria-label="Language">
           {LANGS.map((item) => (
             <Link

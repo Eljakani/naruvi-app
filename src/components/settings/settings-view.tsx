@@ -51,8 +51,8 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
   const missingFonts = overview.fonts.filter((font) => !font.downloaded)
 
   return (
-    <div className="grid max-w-3xl gap-6">
-      <Card>
+    <div className="grid items-start gap-6 xl:grid-cols-2">
+      <Card className="xl:col-span-2">
         <CardHeader>
           <CardTitle>Documents</CardTitle>
           <CardDescription>Defaults for new CVs and cover letters. You can still change each document; regenerating keeps its design.</CardDescription>
@@ -92,7 +92,9 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
                 <FieldTitle>Template and accent</FieldTitle>
                 <FieldDescription>Used the first time a CV or letter is generated.</FieldDescription>
               </FieldContent>
-              <DesignPicker template={defaults.template} accent={defaults.accent} onChange={(change) => saveDefaults({ ...defaults, ...change })} disabled={pending} />
+              <div className="max-w-2xl">
+                <DesignPicker template={defaults.template} accent={defaults.accent} onChange={(change) => saveDefaults({ ...defaults, ...change })} disabled={pending} />
+              </div>
             </Field>
             <FieldSeparator />
             <Field orientation="horizontal">

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { STATUS_LABEL } from "@/lib/stages"
 import { listApplications, type StoredAnalysis } from "@/server/applications/repository"
 import { stageSince } from "@/server/tracking/service"
@@ -88,32 +88,48 @@ async function List({ searchParams }: { searchParams: Promise<Record<string, str
     )
   }
   return (
-    <div className="grid gap-3">
-      {applications.map((application) => {
-        const analysis = application.analysis as StoredAnalysis | null
-        const score = analysis?.fitScore ?? null
-        return (
-          <Link key={application.id} href={`/applications/${application.id}`} className="group block rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-            <Card className="flex flex-row items-center gap-4 px-5 py-4 transition-colors group-hover:bg-muted/40">
-              <EntryLogo path={application.job.company?.logoPath} name={application.job.company?.name ?? "?"} size={44} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{application.job.title}</div>
-                <div className="truncate text-sm text-muted-foreground">{application.job.company?.name}</div>
-              </div>
-              {analysis ? (
-                <span className="hidden text-xs text-muted-foreground sm:inline">
-                  {analysis.counts.met} proven · {analysis.counts.gap} not in profile
-                </span>
-              ) : null}
-              <Badge variant="secondary">{STATUS_LABEL[application.status]}</Badge>
-              {score !== null ? (
-                <span className={cn("w-12 text-right text-lg font-semibold tabular-nums", score >= 75 ? "text-emerald-600" : score >= 50 ? "text-amber-600" : "text-rose-600")}>{score}</span>
-              ) : null}
-              <ChevronRightIcon className="size-4 text-muted-foreground" />
-            </Card>
-          </Link>
-        )
-      })}
-    </div>
+    <Card className="py-0">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="pl-4">Role</TableHead>
+            <TableHead>Stage</TableHead>
+            <TableHead className="hidden md:table-cell">Evidence</TableHead>
+            <TableHead className="text-right">Fit</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Updated</TableHead>
+            <TableHead className="w-10" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {applications.map((application) => {
+            const analysis = application.analysis as StoredAnalysis | null
+            return (
+              <TableRow key={application.id}>
+                <TableCell className="pl-4">
+                  <Link href={`/applications/${application.id}`} className="flex min-w-0 items-center gap-3">
+                    <EntryLogo path={application.job.company?.logoPath} name={application.job.company?.name ?? "?"} size={32} />
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{application.job.title}</div>
+                      <div className="truncate text-xs text-muted-foreground">{application.job.company?.name}</div>
+                    </div>
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={application.status === "ready" ? "default" : "secondary"}>{STATUS_LABEL[application.status]}</Badge>
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground md:table-cell">{analysis ? `${analysis.counts.met} proven · ${analysis.counts.gap} not in profile` : "—"}</TableCell>
+                <TableCell className="text-right font-medium tabular-nums">{analysis?.fitScore ?? "—"}</TableCell>
+                <TableCell className="hidden text-right text-muted-foreground sm:table-cell">{application.updatedAt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</TableCell>
+                <TableCell>
+                  <Button size="icon-sm" variant="ghost" aria-label="Open" nativeButton={false} render={<Link href={`/applications/${application.id}`} />}>
+                    <ChevronRightIcon />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+    </Card>
   )
 }
