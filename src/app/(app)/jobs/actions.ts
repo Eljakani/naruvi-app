@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { previewJob, saveJob } from "@/server/jobs/ingest"
 import { refreshJobInsights } from "@/server/jobs/insights"
+import { scheduleResearch } from "@/server/research/auto"
 import type { JobDraft } from "@/server/jobs/schema"
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }
@@ -26,6 +27,7 @@ export async function saveJobAction(draft: JobDraft): Promise<ActionResult<{ id:
   try {
     const job = await saveJob(draft)
     await refreshJobInsights(job.id)
+    scheduleResearch(job.id)
     revalidatePath("/jobs")
     revalidatePath("/")
     return { ok: true, data: { id: job.id } }

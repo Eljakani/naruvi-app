@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { scheduleResearch } from "@/server/research/auto"
 import { Suspense } from "react"
 import { connection } from "next/server"
 import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react"
@@ -33,6 +34,9 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
   const [application, events] = await Promise.all([getApplication(id), listEvents(id)])
   if (!application) notFound()
   const { job } = application
+  // No research yet: start it in the background; the card fills in when it lands.
+  const researching = Boolean(job.company) && !job.company?.research
+  if (researching) scheduleResearch(job.id)
   return (
     <div className="grid gap-4">
       <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href="/applications" />}>
@@ -54,7 +58,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
         <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />
       </div>
       <ApplicationNav applicationId={application.id} current="analysis" language={application.language} />
-      {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
+      {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
       {events.length ? (
         <Card>
           <CardHeader>

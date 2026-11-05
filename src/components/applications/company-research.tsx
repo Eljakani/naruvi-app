@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { useEffect, useState, useTransition } from "react"
 import { BuildingIcon, ExternalLinkIcon, Loader2Icon, MessageCircleQuestionIcon, PlusIcon, RefreshCwIcon, SearchIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 import { researchCompanyAction } from "@/app/(app)/applications/[id]/research/actions"
@@ -39,6 +40,7 @@ export function CompanyResearch({
   initial,
   mode = "card",
   onInsert,
+  researching = false,
 }: {
   applicationId: string
   jobId: string
@@ -47,8 +49,35 @@ export function CompanyResearch({
   initial: Research | null
   mode?: "card" | "helper"
   onInsert?: (text: string) => void
+  /** Research was started automatically in the background. */
+  researching?: boolean
 }) {
   const [research, setResearch] = useState<Research | null>(initial)
+  const router = useRouter()
+  const [waiting, setWaiting] = useState(researching && !initial)
+  const backgroundStep = useStep(waiting, AI_STEPS.research.length)
+  // Background research: refresh until it lands (or give up after ~90 s and offer the button).
+  useEffect(() => {
+    if (!waiting) return
+    let tries = 0
+    const timer = setInterval(() => {
+      tries += 1
+      if (tries > 22) {
+        setWaiting(false)
+        return
+      }
+      router.refresh()
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [waiting, router])
+  const [lastInitial, setLastInitial] = useState(initial)
+  if (initial !== lastInitial) {
+    setLastInitial(initial)
+    if (initial) {
+      setResearch(initial)
+      setWaiting(false)
+    }
+  }
   const [pending, startTransition] = useTransition()
   const researchStep = useStep(pending, AI_STEPS.research.length)
   const [showAll, setShowAll] = useState(false)
@@ -67,10 +96,10 @@ export function CompanyResearch({
       <div className="relative grid gap-2 overflow-hidden rounded-lg border border-dashed p-3">
         <WorkingBar active={pending} />
         <p className="text-xs text-muted-foreground">
-          Read {company}’s own website (about, mission, values) and this posting to find specific, sourced reasons to mention. Nothing is invented and nothing leaves your machine except the page requests.
+          {waiting ? `Reading ${company}’s own website in the background. This fills in by itself in a moment.` : `Read ${company}’s own website (about, mission, values) and this posting to find specific, sourced reasons to mention. Nothing is invented and nothing leaves your machine except the page requests.`}
         </p>
-        {pending ? (
-          <AiSteps steps={AI_STEPS.research} step={researchStep} />
+        {pending || waiting ? (
+          <AiSteps steps={AI_STEPS.research} step={pending ? researchStep : backgroundStep} />
         ) : (
           <Button size="sm" variant="outline" className="w-fit" onClick={() => run(false)}>
             <SearchIcon /> Research {company}

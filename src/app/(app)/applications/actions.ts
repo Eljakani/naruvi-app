@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { z } from "zod"
 import { analyzeJob } from "@/server/applications/repository"
+import { scheduleResearch } from "@/server/research/auto"
 import { moveApplication } from "@/server/tracking/service"
 
 /** Form action: analyze a job against the profile, then open the application. */
 export async function analyzeJobAction(formData: FormData) {
   const jobId = z.string().uuid().parse(formData.get("jobId"))
   const application = await analyzeJob(jobId)
+  scheduleResearch(jobId)
   revalidatePath("/applications")
   revalidatePath(`/jobs/${jobId}`)
   revalidatePath("/")

@@ -121,7 +121,7 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
 
 type Filter = "all" | "attention" | "proven"
 
-export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: StoredAnalysis; facts: FactRow[]; cvHref: string; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null } }) {
+export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: StoredAnalysis; facts: FactRow[]; cvHref: string; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null; researching?: boolean } }) {
   const [filter, setFilter] = useState<Filter>("all")
   const groups = useMemo(() => {
     const visible = analysis.requirements.filter((match) =>
