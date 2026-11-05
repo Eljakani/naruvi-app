@@ -142,16 +142,13 @@ function Item({ item, logo, s, t, narrow = false }: { item: CvItem; logo: string
 function Section({ section, logos, s, t, stacked = false }: { section: CvSection; logos: Map<string, string | null>; s: Styles; t: Tokens; stacked?: boolean }) {
   const items = section.items.filter((item) => item.included)
   if (!items.length && !section.groups.length) return null
-  return (
-    <View style={s.section}>
-      <View style={s.sectionHead} minPresenceAhead={40}>
-        {t.headingStyle === "bar" ? <View style={s.bar} /> : null}
-        <Text style={s.sectionTitle}>{section.title}</Text>
-      </View>
-      {items.map((item) => (
-        <Item key={item.entryId} item={item} logo={stacked ? null : logos.get(item.entryId) ?? null} s={s} t={t} narrow={stacked} />
-      ))}
-      {section.groups.map((group, index) =>
+  const head = (
+    <View style={s.sectionHead}>
+      {t.headingStyle === "bar" ? <View style={s.bar} /> : null}
+      <Text style={s.sectionTitle}>{section.title}</Text>
+    </View>
+  )
+  const renderGroup = (group: CvSection["groups"][number], index: number) =>
         stacked ? (
           <View key={index} style={s.groupStacked} wrap={false}>
             {group.label ? <Text style={{ fontWeight: 700 }}>{group.label}</Text> : null}
@@ -162,8 +159,26 @@ function Section({ section, logos, s, t, stacked = false }: { section: CvSection
             {group.label ? <Text style={s.groupLabel}>{group.label}</Text> : null}
             <Text style={s.groupValues}>{group.values.join(" · ")}</Text>
           </View>
-        ),
+        )
+  const [first, ...rest] = items
+  return (
+    <View style={s.section}>
+      {/* A heading never sits alone at the bottom of a page: it travels with its first entry. */}
+      {first ? (
+        <View wrap={false}>
+          {head}
+          <Item item={first} logo={stacked ? null : logos.get(first.entryId) ?? null} s={s} t={t} narrow={stacked} />
+        </View>
+      ) : (
+        <View wrap={false}>
+          {head}
+          {section.groups[0] ? renderGroup(section.groups[0], 0) : null}
+        </View>
       )}
+      {rest.map((item) => (
+        <Item key={item.entryId} item={item} logo={stacked ? null : logos.get(item.entryId) ?? null} s={s} t={t} narrow={stacked} />
+      ))}
+      {(first ? section.groups : section.groups.slice(1)).map(renderGroup)}
     </View>
   )
 }

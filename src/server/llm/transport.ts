@@ -27,9 +27,9 @@ export async function requestCompletion(config: ModelConfiguration, input: Compl
   })
   try {
     const schemaInstructions = jsonMode && input.schema ? `\nReturn JSON matching this exact schema (including enum values):\n${JSON.stringify(await zodSchema(input.schema).jsonSchema)}` : ""
-    const result = await generateText({
+    const ask = (prompt: string) => generateText({
       model: provider.chatModel(config.model),
-      system: input.system + schemaInstructions, prompt: input.user, temperature: 0,
+      system: input.system + schemaInstructions, prompt, temperature: 0,
       maxOutputTokens: input.maxTokens ?? 2000,
       maxRetries: 1, abortSignal: AbortSignal.timeout(timeoutMs),
       // DeepSeek currently enables high thinking by default. For bounded JSON
@@ -39,15 +39,40 @@ export async function requestCompletion(config: ModelConfiguration, input: Compl
       output: jsonMode ? Output.json() : Output.text(),
       include: { requestBody: false, responseBody: false },
     })
-    metrics = { model: config.model, inputTokens: result.usage.inputTokens ?? null, outputTokens: result.usage.outputTokens ?? null, attempts, finishReason: result.finishReason }
+    // One repair round: models occasionally return JSON that is almost right
+    // (a missing field, a wrong enum). Tell them exactly what was wrong.
+    let result!: Awaited<ReturnType<typeof ask>>
+    let parsed: ReturnType<z.ZodType["safeParse"]> | null = null
+    let usedIn = 0
+    let usedOut = 0
+    let prompt = input.user
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        result = await ask(prompt)
+      } catch (error) {
+        // Truncated output is a budget problem, not a format one: don't retry it.
+        const truncated = NoObjectGeneratedError.isInstance(error) && error.finishReason === "length"
+        if (attempt === 0 && jsonMode && !truncated && (NoObjectGeneratedError.isInstance(error) || NoOutputGeneratedError.isInstance(error))) {
+          prompt = `${input.user}\n\nYour previous answer was not valid JSON. Return valid JSON only.`
+          continue
+        }
+        throw error
+      }
+      usedIn += result.usage.inputTokens ?? 0
+      usedOut += result.usage.outputTokens ?? 0
+      parsed = jsonMode && input.schema ? input.schema.safeParse(result.output) : null
+      if (!parsed || parsed.success || result.finishReason === "length" || attempt === 1) break
+      const problem = parsed.error.issues.slice(0, 6).map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`).join("; ")
+      prompt = `${input.user}\n\nYour previous answer did not match the schema (${problem}). Return the corrected JSON only.`
+    }
+    metrics = { model: config.model, inputTokens: usedIn || null, outputTokens: usedOut || null, attempts, finishReason: result.finishReason }
     if (result.finishReason === "length") throw new SettingsError("The AI response reached its output limit before completing the document. Try again or use a model with a larger output budget.")
-    const parsed = jsonMode && input.schema ? input.schema.safeParse(result.output) : null
     if (parsed && !parsed.success) throw new SettingsError("The model returned JSON that did not match this workflow's schema. The standard draft was kept; try again or check the model in Settings.")
     const text = jsonMode ? JSON.stringify(parsed?.success ? parsed.data : result.output) : result.text
     if (!text) throw new SettingsError("The model returned no usable output. Check the model in Settings.")
     return {
       text, model: config.model,
-      inputTokens: result.usage.inputTokens ?? null, outputTokens: result.usage.outputTokens ?? null,
+      inputTokens: usedIn || null, outputTokens: usedOut || null,
       requestId: result.response.id, finishReason: result.finishReason, attempts,
     }
   } catch (error) {

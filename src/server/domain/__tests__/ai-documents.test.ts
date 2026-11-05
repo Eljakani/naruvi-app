@@ -62,12 +62,16 @@ test("CV rejects invented metrics and model-supplied citations or identities", a
   assert.ok(bullets.every((bullet) => !bullet.factIds.includes("invented")))
 })
 
-test("CV refuses a selection that loses previously shown must-have evidence", async () => {
+test("CV puts back must-have evidence the AI dropped, keeping the rest of its work", async () => {
   const base = cv()
   const reply = { language: "en", items: [{ id: "E1", bullets: [{ id: "B2", text: "Cut stock losses by 20% through weekly audits." }] }] }
   const next = await enrichCv(base, [shop], analysis, job, mock(reply))
-  assert.equal(next.aiAssistance?.status, "fallback")
-  assert.deepEqual(next.sections, base.sections)
+  const shownBefore = new Set(base.sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included).flatMap((b) => b.factIds))))
+  const shownAfter = new Set(next.sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included).flatMap((b) => b.factIds))))
+  for (const requirement of analysis.requirements.filter((r) => r.kind === "must" && r.factIds.some((id) => shownBefore.has(id)))) {
+    assert.ok(requirement.factIds.some((id) => shownAfter.has(id)), "must-have evidence still shown")
+  }
+  assert.notEqual(next.aiAssistance?.status, "fallback")
 })
 
 test("invalid schema, wrong language, unknown ids, and provider failure keep the grounded baseline", async () => {

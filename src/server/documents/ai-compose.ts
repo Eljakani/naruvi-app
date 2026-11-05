@@ -107,8 +107,15 @@ export async function enrichCv(base: CvDocument, entries: ComposeEntry[], analys
     // AI may not discard evidence that the baseline already showed for a must-have.
     const shown = (doc: CvDocument) => new Set(doc.sections.filter((s) => s.included).flatMap((s) => s.items.filter((i) => i.included).flatMap((i) => i.bullets.filter((b) => b.included).flatMap((b) => b.factIds))))
     const before = shown(base), after = shown(next)
-    const lostEvidence = analysis?.requirements.some((requirement) => requirement.kind === "must" && ["met", "partial"].includes(requirement.status) && requirement.factIds.some((id) => before.has(id)) && !requirement.factIds.some((id) => after.has(id)))
-    if (lostEvidence) return fallback(base, "AI omitted previously shown evidence for a must-have requirement. The original CV was kept.", response)
+    // AI may not discard evidence a must-have relied on: put those lines back instead of dropping all its work.
+    const lost = (analysis?.requirements ?? []).filter((requirement) => requirement.kind === "must" && ["met", "partial"].includes(requirement.status) && requirement.factIds.some((id) => before.has(id)) && !requirement.factIds.some((id) => after.has(id)))
+    for (const requirement of lost) {
+      const original = base.sections.flatMap((section) => section.items.flatMap((item) => item.bullets.filter((bullet) => bullet.included && bullet.factIds.some((id) => requirement.factIds.includes(id))).map((bullet) => ({ item, bullet }))))[0]
+      const target = original && next.sections.flatMap((section) => section.items).find((item) => item.entryId === original.item.entryId)?.bullets.find((bullet) => bullet.id === original.bullet.id)
+      if (target) target.included = true
+    }
+    const stillLost = (analysis?.requirements ?? []).some((requirement) => requirement.kind === "must" && ["met", "partial"].includes(requirement.status) && requirement.factIds.some((id) => before.has(id)) && !requirement.factIds.some((id) => shown(next).has(id)))
+    if (stillLost) return fallback(base, "AI omitted previously shown evidence for a must-have requirement. The original CV was kept.", response)
     if (!selections) return fallback(base, "The model did not select valid offered bullet identifiers. The original CV was kept.", response)
     if (!changes) return { ...next, aiAssistance: { ...metadata(response.model, 0), status: "unchanged" } }
     next.aiAssistance = { ...metadata(response.model, changes), inputTokens: response.inputTokens, outputTokens: response.outputTokens }

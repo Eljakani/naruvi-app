@@ -95,3 +95,18 @@ test("DeepSeek JSON workflows disable default thinking but future workflows can 
     await requestCompletion({ ...config, baseUrl: "https://api.deepseek.com/v1" }, { ...input, reasoning }, { fetcher })
   }
 })
+
+test("a schema mismatch gets one repair round naming the problem", async () => {
+  const prompts: string[] = []
+  const answers = ['{"status":"maybe"}', '{"status":"met"}']
+  const fetcher: typeof fetch = async (_url, init) => {
+    const body = JSON.parse(String(init?.body))
+    prompts.push(body.messages.at(-1).content)
+    return Response.json({ choices: [{ message: { content: answers[prompts.length - 1] }, finish_reason: "stop" }], usage: { prompt_tokens: 10, completion_tokens: 5 } })
+  }
+  const result = await requestCompletion(config, { ...input, schema: z.object({ status: z.enum(["met", "gap"]) }) }, { fetcher })
+  assert.equal(JSON.parse(result.text).status, "met")
+  assert.equal(prompts.length, 2)
+  assert.match(prompts[1], /did not match the schema \(status:/)
+  assert.equal(result.inputTokens, 20, "usage is summed across attempts")
+})
