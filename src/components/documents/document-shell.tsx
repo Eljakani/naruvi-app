@@ -9,12 +9,14 @@ import {
   CheckCircle2Icon,
   DownloadIcon,
   Loader2Icon,
+  SparklesIcon,
   RefreshCwIcon,
   RotateCcwIcon,
   XCircleIcon,
 } from "lucide-react"
 import { ApplicationNav } from "@/components/applications/application-nav"
 import { PdfPreview } from "@/components/documents/pdf-preview"
+import { useAiToast } from "@/components/ai-progress"
 import { WorkingBar } from "@/components/working-bar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,11 +35,12 @@ const LANGS = [
   { code: "de", label: "DE", name: "Deutsch" },
 ]
 
-export function RegenerateButton({ label = "Regenerate" }: { label?: string }) {
+export function RegenerateButton({ label = "Regenerate", steps, variant = "outline", size = "sm", icon }: { label?: string; steps: readonly string[]; variant?: "outline" | "default"; size?: "sm" | "default"; icon?: React.ReactNode }) {
   const { pending } = useFormStatus()
+  useAiToast(pending, steps)
   return (
-    <Button type="submit" size="sm" variant="outline" disabled={pending}>
-      {pending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} {pending ? "Working…" : label}
+    <Button type="submit" size={size} variant={variant} disabled={pending}>
+      {pending ? <SparklesIcon className="cb-breathe" /> : (icon ?? <RefreshCwIcon />)} <span className={pending ? "cb-shimmer" : undefined}>{pending ? "Working" : label}</span>
     </Button>
   )
 }

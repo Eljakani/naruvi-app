@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { generateCvAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { DesignPicker } from "@/components/applications/design-picker"
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
+import { AI_STEPS } from "@/components/ai-progress"
 import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -25,7 +26,7 @@ function GenerateForm({ applicationId, language, label }: { applicationId: strin
     <form action={generateCvAction}>
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="language" value={language} />
-      <RegenerateButton label={label} />
+      <RegenerateButton label={label} steps={AI_STEPS.cv} />
     </form>
   )
 }
@@ -49,9 +50,7 @@ export function CvWorkspace({ applicationId, jobTitle, company, language, worksp
             <form action={generateCvAction}>
               <input type="hidden" name="applicationId" value={applicationId} />
               <input type="hidden" name="language" value={language} />
-              <Button type="submit">
-                <SparklesIcon /> Generate CV
-              </Button>
+              <RegenerateButton label="Generate CV" steps={AI_STEPS.cv} variant="default" size="default" icon={<SparklesIcon />} />
             </form>
           </EmptyContent>
         </Empty>

@@ -1,15 +1,17 @@
 "use client"
 
 import { useFormStatus } from "react-dom"
-import { Loader2Icon, ScanSearchIcon } from "lucide-react"
+import { ScanSearchIcon, SparklesIcon } from "lucide-react"
+import { AI_STEPS, useAiToast } from "@/components/ai-progress"
 import { analyzeJobAction } from "@/app/(app)/applications/actions"
 import { Button } from "@/components/ui/button"
 
 function Submit({ label, variant }: { label: string; variant: "default" | "outline" }) {
   const { pending } = useFormStatus()
+  useAiToast(pending, AI_STEPS.analyze)
   return (
     <Button type="submit" variant={variant} disabled={pending}>
-      {pending ? <Loader2Icon className="animate-spin" /> : <ScanSearchIcon />} {pending ? "Analyzing…" : label}
+      {pending ? <SparklesIcon className="cb-breathe" /> : <ScanSearchIcon />} <span className={pending ? "cb-shimmer" : undefined}>{pending ? "Analyzing" : label}</span>
     </Button>
   )
 }

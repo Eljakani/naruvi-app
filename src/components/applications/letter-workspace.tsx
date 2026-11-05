@@ -10,6 +10,7 @@ import { CompanyResearch } from "@/components/applications/company-research"
 import { DesignPicker } from "@/components/applications/design-picker"
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import type { CompanyResearch as Research } from "@/server/research/brief"
+import { AI_STEPS } from "@/components/ai-progress"
 import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -39,7 +40,7 @@ function GenerateForm({ applicationId, language, label }: { applicationId: strin
     <form action={generateLetterAction}>
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="language" value={language} />
-      <RegenerateButton label={label} />
+      <RegenerateButton label={label} steps={AI_STEPS.letter} />
     </form>
   )
 }
@@ -83,9 +84,7 @@ export function LetterWorkspace({
             <form action={generateLetterAction}>
               <input type="hidden" name="applicationId" value={applicationId} />
               <input type="hidden" name="language" value={language} />
-              <Button type="submit">
-                <PenLineIcon /> Draft cover letter
-              </Button>
+              <RegenerateButton label="Draft cover letter" steps={AI_STEPS.letter} variant="default" size="default" icon={<PenLineIcon />} />
             </form>
           </EmptyContent>
         </Empty>

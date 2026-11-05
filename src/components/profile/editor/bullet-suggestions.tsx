@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { Loader2Icon, PlusIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 import { suggestBulletsAction } from "@/app/(app)/profile/actions"
+import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { BulletSuggestion } from "@/server/profile/ai-bullets"
@@ -12,6 +13,7 @@ import type { BulletSuggestion } from "@/server/profile/ai-bullets"
 export function BulletSuggestions({ input, onAdd }: { input: { kind: string; role: string; organization: string; facts: { key: string; statement: string }[]; existing: string[]; languages: string[] }; onAdd: (suggestion: BulletSuggestion) => void }) {
   const [pending, startTransition] = useTransition()
   const [suggestions, setSuggestions] = useState<BulletSuggestion[] | null>(null)
+  const step = useStep(pending, AI_STEPS.bullets.length)
 
   const ask = () =>
     startTransition(async () => {
@@ -29,7 +31,8 @@ export function BulletSuggestions({ input, onAdd }: { input: { kind: string; rol
           {pending ? <Loader2Icon className="animate-spin" /> : <SparklesIcon />} {suggestions ? "Suggest again" : "Suggest bullets"}
         </Button>
       </div>
-      {suggestions?.length ? (
+      {pending ? <AiSteps steps={AI_STEPS.bullets} step={step} /> : null}
+      {!pending && suggestions?.length ? (
         <ul className="grid gap-1.5">
           {suggestions.map((suggestion) => (
             <li key={`${suggestion.language}:${suggestion.text}`} className="flex items-start gap-2 text-sm">

@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { previewJobAction, saveJobAction } from "@/app/(app)/jobs/actions"
+import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
 import { JobDescription } from "@/components/jobs/job-description"
 import { LogoField } from "@/components/profile/editor/logo-field"
 import { Badge } from "@/components/ui/badge"
@@ -23,7 +24,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -57,6 +57,7 @@ export function NewJobFlow() {
   const [text, setText] = useState("")
   const [draft, setDraft] = useState<Draft | null>(null)
   const [reading, startReading] = useTransition()
+  const importStep = useStep(reading, AI_STEPS.importJob.length)
   const [saving, startSaving] = useTransition()
   const [descriptionView, setDescriptionView] = useState<"preview" | "edit">("preview")
 
@@ -131,8 +132,7 @@ export function NewJobFlow() {
           </CardContent>
           {reading ? (
             <CardFooter className="grid gap-2 border-t">
-              <Progress value={null} className="h-1" />
-              <p className="text-xs text-muted-foreground">Reading the posting, resolving the company website, looking for a square logo…</p>
+              <AiSteps steps={AI_STEPS.importJob} step={importStep} />
             </CardFooter>
           ) : null}
         </Card>

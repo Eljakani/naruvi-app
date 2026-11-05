@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { BuildingIcon, ExternalLinkIcon, Loader2Icon, MessageCircleQuestionIcon, PlusIcon, RefreshCwIcon, SearchIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 import { researchCompanyAction } from "@/app/(app)/applications/[id]/research/actions"
+import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { WorkingBar } from "@/components/working-bar"
@@ -49,6 +50,7 @@ export function CompanyResearch({
 }) {
   const [research, setResearch] = useState<Research | null>(initial)
   const [pending, startTransition] = useTransition()
+  const researchStep = useStep(pending, AI_STEPS.research.length)
   const [showAll, setShowAll] = useState(false)
 
   const run = (force: boolean) =>
@@ -67,9 +69,13 @@ export function CompanyResearch({
         <p className="text-xs text-muted-foreground">
           Read {company}’s own website (about, mission, values) and this posting to find specific, sourced reasons to mention. Nothing is invented and nothing leaves your machine except the page requests.
         </p>
-        <Button size="sm" variant="outline" className="w-fit" onClick={() => run(false)} disabled={pending}>
-          {pending ? <Loader2Icon className="animate-spin" /> : <SearchIcon />} {pending ? `Reading ${company}…` : `Research ${company}`}
-        </Button>
+        {pending ? (
+          <AiSteps steps={AI_STEPS.research} step={researchStep} />
+        ) : (
+          <Button size="sm" variant="outline" className="w-fit" onClick={() => run(false)}>
+            <SearchIcon /> Research {company}
+          </Button>
+        )}
       </div>
     )
   }
@@ -144,6 +150,7 @@ export function CompanyResearch({
 
   return (
     <div className={cn("grid gap-3 transition-opacity duration-200", pending && "opacity-60")} aria-busy={pending}>
+      {pending ? <AiSteps steps={AI_STEPS.research} step={researchStep} className="opacity-100" /> : null}
       {research.notes?.map((note) => (
         <p key={note} className="rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           {note}
