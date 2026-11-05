@@ -1,5 +1,6 @@
 import "server-only"
-import { Document, Font, Image, Link, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer"
+import { Circle, Document, Font, Image, Line, Link, Page, Path, Polyline, Rect, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer"
+import { PDF_ICONS, type PdfIcon } from "./pdf-icons"
 import sharp from "sharp"
 import { detectScripts, isRtl, type Script } from "@/lib/scripts"
 import { readAsset } from "@/server/assets/store"
@@ -116,6 +117,26 @@ function makeStyles(t: Tokens, fontFamily: string[], headingFamily: string[], rt
 
 type Styles = ReturnType<typeof makeStyles>
 
+/** A Lucide icon as PDF vector strokes (no fonts or images needed). */
+function Icon({ name, size, color }: { name: PdfIcon; size: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      {PDF_ICONS[name].map(([tag, raw], index) => {
+        const a = raw as Record<string, string>
+        const stroke = { stroke: color, strokeWidth: 2, fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const }
+        if (tag === "path") return <Path key={index} d={a.d} {...stroke} />
+        if (tag === "rect") return <Rect key={index} x={a.x} y={a.y} width={a.width} height={a.height} rx={a.rx} {...stroke} />
+        if (tag === "circle") return <Circle key={index} cx={a.cx} cy={a.cy} r={a.r} {...stroke} />
+        if (tag === "line") return <Line key={index} x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} {...stroke} />
+        if (tag === "polyline") return <Polyline key={index} points={a.points} {...stroke} />
+        return null
+      })}
+    </Svg>
+  )
+}
+
+const SECTION_ICON: Record<string, PdfIcon> = { experience: "experience", education: "education", project: "project", certification: "certification", skills: "skills", languages: "languages", achievement: "achievement" }
+
 function Item({ item, logo, s, t, narrow = false }: { item: CvItem; logo: string | null; s: Styles; t: Tokens; narrow?: boolean }) {
   const bullets = item.bullets.filter((bullet) => bullet.included)
   // In a narrow column there is no room beside the title: dates go underneath.
@@ -158,6 +179,11 @@ function Section({ section, logos, s, t, stacked = false }: { section: CvSection
   const head = (
     <View style={s.sectionHead}>
       {t.headingStyle === "bar" ? <View style={s.bar} /> : null}
+      {t.sectionIcons && SECTION_ICON[section.kind] ? (
+        <View style={{ marginRight: 5, marginLeft: 0 }}>
+          <Icon name={SECTION_ICON[section.kind]} size={t.size * t.headingSize} color={t.accentHeadings ? t.accent : t.ink} />
+        </View>
+      ) : null}
       <Text style={s.sectionTitle}>{section.title}</Text>
     </View>
   )
@@ -222,7 +248,7 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
     }
   }
   const photo = doc.header.showPhoto ? await pngData(doc.header.photoPath, 56, t.photoShape !== "square") : null
-  const contact = [doc.header.email, doc.header.phone, doc.header.location].filter(Boolean)
+  const contactFields = ([[doc.header.email, "mail"], [doc.header.phone, "phone"], [doc.header.location, "location"]] as const).filter(([value]) => value).map(([value, icon]) => ({ value, icon: icon as PdfIcon }))
   const visible = doc.sections.filter((section) => section.included)
   const side = t.layout === "sidebar" ? visible.filter((section) => SIDE_KINDS.has(section.kind)) : []
   const main = visible.filter((section) => !side.includes(section))
@@ -239,11 +265,19 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
             {doc.header.headline ? <Text style={s.headline}>{doc.header.headline}</Text> : null}
             <View style={s.contact}>
               {[
-                ...contact.map((value) => <Text key={value}>{value}</Text>),
+                ...contactFields.map(({ value, icon }) => (
+                  <View key={value} style={{ flexDirection: rtl ? "row-reverse" : "row", alignItems: "center" }}>
+                    {t.contactIcons ? <View style={{ marginRight: rtl ? 0 : 3, marginLeft: rtl ? 3 : 0 }}><Icon name={icon} size={t.size - 1} color={t.accentLinks ? t.accent : MUTED} /></View> : null}
+                    <Text>{value}</Text>
+                  </View>
+                )),
                 ...doc.header.links.map((link) => (
-                  <Link key={link.url} src={link.url} style={s.link}>
-                    {t.linkStyle === "label" && link.label ? link.label : link.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-                  </Link>
+                  <View key={link.url} style={{ flexDirection: rtl ? "row-reverse" : "row", alignItems: "center" }}>
+                    {t.contactIcons ? <View style={{ marginRight: rtl ? 0 : 3, marginLeft: rtl ? 3 : 0 }}><Icon name={/github|gitlab|linkedin|twitter|x\.com/i.test(link.url) ? "link" : "globe"} size={t.size - 1} color={t.accentLinks ? t.accent : MUTED} /></View> : null}
+                    <Link src={link.url} style={s.link}>
+                      {t.linkStyle === "label" && link.label ? link.label : link.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                    </Link>
+                  </View>
                 )),
               ].map((node, index) => (
                 <View key={index} style={{ flexDirection: rtl ? "row-reverse" : "row" }}>

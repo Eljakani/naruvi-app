@@ -481,6 +481,7 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                   <AccordionContent>
                     <FieldGroup className="gap-3 pt-1">
                       <Flash on={glow("headingStyle")}><Choice label="Heading style" value={tokens.headingStyle} onChange={(value) => set("headingStyle", value)} options={[{ value: "rule", label: "Line" }, { value: "underline-accent", label: "Accent line" }, { value: "bar", label: "Side bar" }, { value: "filled", label: "Filled" }, { value: "plain", label: "Plain" }]} /></Flash>
+                      <Flash on={glow("sectionIcons")}><Toggle label="Icons on section headings" hint="Experience, education, skills…" checked={tokens.sectionIcons} onChange={(value) => set("sectionIcons", value)} /></Flash>
                       <Flash on={glow("headingCase")}><Choice label="Heading case" value={tokens.headingCase} onChange={(value) => set("headingCase", value)} options={[{ value: "upper", label: "UPPERCASE" }, { value: "none", label: "Normal" }]} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
@@ -525,6 +526,7 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                       {tokens.contactLayout === "inline" ? <Flash on={glow("contactSeparator")}><Field><FieldLabel>Separator</FieldLabel><Choice label="Contact separator" value={tokens.contactSeparator} onChange={(value) => set("contactSeparator", value)} options={[{ value: "space", label: "Space" }, { value: "dot", label: "·" }, { value: "pipe", label: "|" }]} /></Field></Flash> : null}
                       <Flash on={glow("linkStyle")}><Field><FieldLabel>Links show</FieldLabel><Choice label="Link style" value={tokens.linkStyle} onChange={(value) => set("linkStyle", value)} options={[{ value: "url", label: "The address" }, { value: "label", label: "The name (LinkedIn…)" }]} /></Field></Flash>
                       <Flash on={glow("accentLinks")}><Toggle label="Links in accent" checked={tokens.accentLinks} onChange={(value) => set("accentLinks", value)} /></Flash>
+                      <Flash on={glow("contactIcons")}><Toggle label="Icons next to contact details" hint="Email, phone, city and links" checked={tokens.contactIcons} onChange={(value) => set("contactIcons", value)} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>

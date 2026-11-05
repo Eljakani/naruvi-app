@@ -55,6 +55,8 @@ export const designTokens = z.object({
   contactLayout: z.enum(["inline", "stacked"]).default("inline"),
   linkStyle: z.enum(["url", "label"]).default("url"),
   accentLinks: z.boolean().default(false),
+  contactIcons: z.boolean().default(false),
+  sectionIcons: z.boolean().default(false),
   // Sections
   headingSize: z.number().min(0.85).max(1.6).default(1.1),
   itemSpacing: z.number().min(0.4).max(2).default(1),
