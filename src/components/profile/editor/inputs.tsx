@@ -56,7 +56,7 @@ export function LineList({
     <div className="grid gap-1.5">
       {items.map((item, index) => (
         <div key={item.key} className="group flex items-start gap-2" onMouseEnter={() => onHover?.(item.key)} onMouseLeave={() => onHover?.(null)}>
-          {numbered ? <span className="mt-2 w-5 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{index + 1}</span> : <span className="mt-3.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />}
+          {numbered ? <span className="mt-2 w-5 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{index + 1}</span> : <span className="mt-4 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />}
           <div className="min-w-0 flex-1">
             <GrowText
               ref={(node) => {

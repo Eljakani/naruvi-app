@@ -50,6 +50,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Field as UiField, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field"
 import { cn } from "@/lib/utils"
 import { verifySupport } from "@/server/domain/grounding"
 import type { ProfileEntry } from "@/server/profile/repository"
@@ -84,6 +85,7 @@ const SECTIONS = [
   { id: "display", label: "How it appears" },
   { id: "facts", label: "What you did" },
   { id: "bullets", label: "CV lines" },
+  { id: "skills", label: "Skills & keywords" },
   { id: "guardrails", label: "Never say" },
 ] as const
 
@@ -125,7 +127,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
     { label: "Named", done: Boolean(draft.display.en.role || draft.display.fr.role || draft.title.trim()), section: "basics" },
     { label: "English title & dates", done: Boolean(draft.display.en.role), section: "display" },
     { label: "French title & dates", done: Boolean(draft.display.fr.role), section: "display" },
-    { label: draft.kind === "skill" ? "Skills listed" : "At least one fact", done: draft.kind === "skill" ? draft.skills.length > 0 : facts.length > 0, section: draft.kind === "skill" ? "guardrails" : "facts" },
+    { label: draft.kind === "skill" ? "Skills listed" : "At least one fact", done: draft.kind === "skill" ? draft.skills.length > 0 : facts.length > 0, section: draft.kind === "skill" ? "skills" : "facts" },
     { label: ungrounded.length ? `${ungrounded.length} CV line${ungrounded.length === 1 ? "" : "s"} without a fact` : "Every CV line has a fact", done: ungrounded.length === 0, section: "bullets" },
     { label: "Checked by you", done: draft.status === "verified", section: "basics" },
   ]
@@ -404,35 +406,43 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
           </Section>
 
           {/* 5. guardrails */}
-          <Section id="guardrails" n={5} title="Never say" description="Things a CV or letter must not claim about this, even if it sounds close.">
-            <div className="grid gap-2">
-              <Label>Never claim</Label>
-              <StringLineList values={draft.doNotClaim} onChange={(doNotClaim) => patch({ doNotClaim })} placeholder="e.g. Do not claim ownership of all cloud security." addLabel="Add rule" />
-            </div>
-            <label className="flex items-start justify-between gap-4 rounded-lg border p-3">
-              <span className="grid gap-0.5">
-                <span className="flex items-center gap-1.5 text-sm font-medium">
-                  <LockIcon className="size-3.5" /> Under NDA
-                </span>
-                <span className="text-xs text-muted-foreground">Generated text stays high-level: no clients, datasets, internal architecture or confidential metrics.</span>
-              </span>
-              <Switch checked={draft.confidential} onCheckedChange={(value) => patch({ confidential: value })} />
-            </label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>Tags</Label>
-                <ChipInput values={draft.tags} onChange={(tags) => patch({ tags })} placeholder="customer service, scheduling…" />
-                <p className="text-xs text-muted-foreground">Matched against job requirements.</p>
-              </div>
-              <div className="grid gap-2">
-                <Label>Skills proven here</Label>
-                <ChipInput values={draft.skills} onChange={(skills) => patch({ skills })} placeholder="Terraform, Go…" />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Evidence</Label>
-              <StringLineList values={draft.evidence} onChange={(evidence) => patch({ evidence })} placeholder="Link, document or reference" addLabel="Add evidence" />
-            </div>
+          <Section id="skills" n={5} title="Skills & keywords" description="Helps match this entry to the right jobs.">
+            <FieldGroup>
+              <UiField>
+                <FieldLabel>Skills used here</FieldLabel>
+                <ChipInput values={draft.skills} onChange={(skills) => patch({ skills })} placeholder="Type a skill, press Enter" />
+                <FieldDescription>Tools and abilities this entry proves, e.g. Terraform, triage, negotiation.</FieldDescription>
+              </UiField>
+              <UiField>
+                <FieldLabel>Keywords</FieldLabel>
+                <ChipInput values={draft.tags} onChange={(tags) => patch({ tags })} placeholder="Type a keyword, press Enter" />
+                <FieldDescription>Topics and fields it relates to, e.g. fintech, appsec. Used only for matching, never printed.</FieldDescription>
+              </UiField>
+              <UiField>
+                <FieldLabel>Proof</FieldLabel>
+                <StringLineList values={draft.evidence} onChange={(evidence) => patch({ evidence })} placeholder="https://… or the name of a document" addLabel="Add a link or document" />
+                <FieldDescription>Optional. Links or documents that back this up, for your own reference.</FieldDescription>
+              </UiField>
+            </FieldGroup>
+          </Section>
+
+          <Section id="guardrails" n={6} title="Never say" description="Limits for CVs and letters about this entry.">
+            <FieldGroup>
+              <UiField>
+                <FieldLabel>Things not to claim</FieldLabel>
+                <StringLineList values={draft.doNotClaim} onChange={(doNotClaim) => patch({ doNotClaim })} placeholder="e.g. Don’t present this freelance work as a permanent job." addLabel="Add a rule" />
+              </UiField>
+              <FieldSeparator />
+              <UiField orientation="horizontal">
+                <FieldContent>
+                  <FieldLabel htmlFor="entry-nda" className="flex items-center gap-1.5">
+                    <LockIcon className="size-3.5" /> Under NDA
+                  </FieldLabel>
+                  <FieldDescription>Keep it high-level: no client names, internal systems or confidential numbers.</FieldDescription>
+                </FieldContent>
+                <Switch id="entry-nda" checked={draft.confidential} onCheckedChange={(value) => patch({ confidential: value })} />
+              </UiField>
+            </FieldGroup>
           </Section>
         </div>
 
