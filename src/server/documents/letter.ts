@@ -194,7 +194,7 @@ export function checkLetter(doc: LetterDocument, pages: number | null) {
   const checks: LetterCheck[] = []
   const add = (id: string, status: LetterCheck["status"], label: string, detail: string) => checks.push({ id, status, label, detail })
   const paragraphs = doc.paragraphs.filter((p) => p.included)
-  const pending = paragraphs.filter((p) => p.kind !== "highlights" && isPlaceholder(p.text))
+  const pending = paragraphs.filter((p) => p.kind !== "highlights" && (isPlaceholder(p.text) || (p.kind === "motivation" && !p.text.trim())))
   add("placeholders", pending.length ? "fail" : "pass", "Written in your own words", pending.length ? "Replace the bracketed instruction (why this company) with your own sentences." : "No placeholders left.")
   const text = letterText(doc)
   const named = (value: string) => !value || text.toLowerCase().includes(value.toLowerCase())

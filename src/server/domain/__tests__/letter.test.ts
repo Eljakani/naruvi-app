@@ -67,3 +67,9 @@ test("two pages and ungrounded highlights are errors", () => {
   assert.equal(report.checks.find((c) => c.id === "evidence")?.status, "fail")
   assert.equal(report.checks.find((c) => c.id === "pages")?.status, "fail")
 })
+
+test("an emptied motivation paragraph also blocks ready", () => {
+  const letter = composeLetter(profile, [shop], analysis, job, { language: "en" })
+  letter.paragraphs[2] = { ...letter.paragraphs[2], text: "  " }
+  assert.equal(checkLetter(letter, 1).checks.find((c) => c.id === "placeholders")?.status, "fail")
+})

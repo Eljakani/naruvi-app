@@ -2,29 +2,13 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState, useTransition } from "react"
-import { useFormStatus } from "react-dom"
-import {
-  AlertTriangleIcon,
-  ArrowDownIcon,
-  ArrowLeftIcon,
-  ArrowUpIcon,
-  CheckCircle2Icon,
-  DownloadIcon,
-  FileTextIcon,
-  HistoryIcon,
-  Loader2Icon,
-  RefreshCwIcon,
-  RotateCcwIcon,
-  SparklesIcon,
-  XCircleIcon,
-} from "lucide-react"
+import { useCallback, useState, useTransition } from "react"
+import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, ChevronRightIcon, ExternalLinkIcon, FileTextIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
-import { DesignPicker } from "@/components/applications/design-picker"
 import { generateCvAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
-import { Badge } from "@/components/ui/badge"
+import { DesignPicker } from "@/components/applications/design-picker"
+import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Switch } from "@/components/ui/switch"
@@ -34,92 +18,53 @@ import type { getCvWorkspace } from "@/server/documents/service"
 
 type Workspace = NonNullable<Awaited<ReturnType<typeof getCvWorkspace>>>
 
-const LANGS = [
-  { code: "en", label: "English" },
-  { code: "fr", label: "Français" },
-]
-
-function GenerateButton({ label, variant = "default" }: { label: string; variant?: "default" | "outline" }) {
-  const { pending } = useFormStatus()
-  return (
-    <Button type="submit" variant={variant} disabled={pending}>
-      {pending ? <Loader2Icon className="animate-spin" /> : variant === "outline" ? <RefreshCwIcon /> : <SparklesIcon />} {pending ? "Generating…" : label}
-    </Button>
-  )
-}
-
-function GenerateForm({ applicationId, language, label, variant }: { applicationId: string; language: string; label: string; variant?: "default" | "outline" }) {
+function GenerateForm({ applicationId, language, label }: { applicationId: string; language: string; label: string }) {
   return (
     <form action={generateCvAction}>
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="language" value={language} />
-      <GenerateButton label={label} variant={variant} />
+      <RegenerateButton label={label} />
     </form>
   )
 }
 
-const ORIGIN: Record<string, string> = { generate: "Generated", manual: "Edited", restore: "Restored", enhance: "Enhanced", fix: "Fixed", repair: "Repaired", translate: "Translated" }
-
 export function CvWorkspace({ applicationId, jobTitle, company, language, workspace }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Awaited<ReturnType<typeof getCvWorkspace>> }) {
-  const header = (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/applications/${applicationId}`} />}>
-        <ArrowLeftIcon /> Analysis
-      </Button>
-      <div className="min-w-0 flex-1">
-        <h1 className="truncate text-lg font-semibold tracking-tight">CV · {jobTitle}</h1>
-        <p className="text-xs text-muted-foreground">
-          {company} ·{" "}
-          <Link href={`/applications/${applicationId}/letter?lang=${language}`} className="hover:underline">
-            cover letter
-          </Link>
-        </p>
-      </div>
-      <div className="flex rounded-md border p-0.5">
-        {LANGS.map((item) => (
-          <Link
-            key={item.code}
-            href={`/applications/${applicationId}/cv?lang=${item.code}`}
-            className={cn("rounded px-2.5 py-1 text-xs", item.code === language ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </div>
-    </div>
-  )
-
   if (!workspace?.current) {
     return (
-      <div className="grid gap-4">
-        {header}
+      <div className="mx-auto grid w-full max-w-2xl gap-4 pt-6">
+        <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href={`/applications/${applicationId}`} />}>
+          <ArrowLeftIcon /> {jobTitle} · {company}
+        </Button>
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <FileTextIcon />
             </EmptyMedia>
-            <EmptyTitle>No {LANGS.find((l) => l.code === language)?.label ?? language.toUpperCase()} CV yet</EmptyTitle>
-            <EmptyDescription>
-              CareerBuddy picks your verified entries and approved bullets that best match this job. It writes no new claims: every line comes from your profile.
-            </EmptyDescription>
+            <EmptyTitle>Generate your {language.toUpperCase()} CV</EmptyTitle>
+            <EmptyDescription>CareerBuddy picks the verified entries and approved bullets that best match this job. It writes no new claims: every line comes from your profile.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <GenerateForm applicationId={applicationId} language={language} label="Generate CV" />
+            <form action={generateCvAction}>
+              <input type="hidden" name="applicationId" value={applicationId} />
+              <input type="hidden" name="language" value={language} />
+              <Button type="submit">
+                <SparklesIcon /> Generate CV
+              </Button>
+            </form>
           </EmptyContent>
         </Empty>
       </div>
     )
   }
-  return <Editor header={header} applicationId={applicationId} language={language} workspace={workspace} />
+  return <Editor applicationId={applicationId} jobTitle={jobTitle} company={company} language={language} workspace={workspace} />
 }
 
-function Editor({ header, applicationId, language, workspace }: { header: React.ReactNode; applicationId: string; language: string; workspace: Workspace }) {
+function Editor({ applicationId, jobTitle, company, language, workspace }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Workspace }) {
   const router = useRouter()
   const current = workspace.current!
   const [draft, setDraft] = useState<CvDocument>(current.content)
   const [pending, startTransition] = useTransition()
   const dirty = JSON.stringify(draft) !== JSON.stringify(current.content)
-  const quality = current.quality
 
   const update = (fn: (doc: CvDocument) => void) =>
     setDraft((previous) => {
@@ -128,27 +73,16 @@ function Editor({ header, applicationId, language, workspace }: { header: React.
       return next
     })
 
-  const save = () =>
-    startTransition(async () => {
-      const result = await saveCvEditAction(applicationId, workspace.document.id, draft)
-      if (!result.ok) return void toast.error("Not saved", { description: result.error })
-      toast.success(`Saved · ${result.data.pages} page${result.data.pages === 1 ? "" : "s"} · quality ${result.data.score}`, { description: result.data.ready ? "Ready to send." : "See the quality checks for what to fix." })
-      router.refresh()
-    })
-
-  /** Design changes save immediately so the preview updates. */
-  const applyDesign = (change: { template?: "classic" | "modern" | "serif"; accent?: string; showPhoto?: boolean }) => {
-    const next = structuredClone(draft)
-    if (change.template) next.template = change.template
-    if (change.accent) next.accent = change.accent
-    if (change.showPhoto !== undefined) next.header.showPhoto = change.showPhoto
-    setDraft(next)
-    startTransition(async () => {
-      const result = await saveCvEditAction(applicationId, workspace.document.id, next)
-      if (!result.ok) return void toast.error("Not saved", { description: result.error })
-      router.refresh()
-    })
-  }
+  const persist = useCallback(
+    (content: CvDocument, message?: string) =>
+      startTransition(async () => {
+        const result = await saveCvEditAction(applicationId, workspace.document.id, content)
+        if (!result.ok) return void toast.error("Not saved", { description: result.error })
+        if (message) toast.success(message, { description: `${result.data.pages} page${result.data.pages === 1 ? "" : "s"} · quality ${result.data.score}${result.data.ready ? " · ready" : ""}` })
+        router.refresh()
+      }),
+    [applicationId, router, workspace.document.id],
+  )
 
   const restore = (revisionId: string) =>
     startTransition(async () => {
@@ -158,179 +92,151 @@ function Editor({ header, applicationId, language, workspace }: { header: React.
       router.refresh()
     })
 
+  const applyDesign = (change: { template?: "classic" | "modern" | "serif"; accent?: string; showPhoto?: boolean }) => {
+    const next = structuredClone(draft)
+    if (change.template) next.template = change.template
+    if (change.accent) next.accent = change.accent
+    if (change.showPhoto !== undefined) next.header.showPhoto = change.showPhoto
+    setDraft(next)
+    persist(next)
+  }
+
   return (
-    <div className="grid gap-4">
-      {header}
-      <div className="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
-        <div className="grid content-start gap-4">
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  {quality.ready ? <CheckCircle2Icon className="size-4 text-emerald-600" /> : <AlertTriangleIcon className="size-4 text-amber-500" />}
-                  {quality.ready ? "Ready to send" : "Needs a pass"}
-                </span>
-                <Badge variant={quality.ready ? "default" : "secondary"} className="tabular-nums">
-                  {quality.score}/100
-                </Badge>
-              </CardTitle>
-              <CardDescription>
-                {current.pages} page{current.pages === 1 ? "" : "s"} · checks run on the saved version
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="grid gap-1.5">
-                {quality.checks.map((check) => (
-                  <li key={check.id} className="flex items-start gap-2 text-xs">
-                    {check.status === "pass" ? <CheckCircle2Icon className="mt-px size-3.5 shrink-0 text-emerald-600" /> : check.status === "warn" ? <AlertTriangleIcon className="mt-px size-3.5 shrink-0 text-amber-500" /> : <XCircleIcon className="mt-px size-3.5 shrink-0 text-rose-600" />}
-                    <span>
-                      <span className="font-medium">{check.label}</span>
-                      <span className="text-muted-foreground"> — {check.detail}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+    <DocumentShell
+      applicationId={applicationId}
+      jobTitle={jobTitle}
+      company={company}
+      kind="cv"
+      language={language}
+      quality={current.quality as unknown as Quality}
+      regenerate={<GenerateForm applicationId={applicationId} language={language} label="Regenerate" />}
+      downloadHref={`/api/revisions/${current.id}/pdf?download=1`}
+      previewUrl={`/api/revisions/${current.id}/pdf`}
+      pageBudget={2}
+      dirty={dirty}
+      pending={pending}
+      onSave={() => persist(draft, "Saved")}
+      onDiscard={() => setDraft(current.content)}
+      design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} onChange={applyDesign} photo={{ available: Boolean(draft.header.photoPath), shown: draft.header.showPhoto }} disabled={pending} />}
+      versions={<VersionsPanel revisions={workspace.history} currentId={current.id} pending={pending} onRestore={restore} />}
+      content={<CvContent draft={draft} update={update} language={language} />}
+    />
+  )
+}
 
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="text-sm">Design</CardTitle>
-              <CardDescription>All templates are single-column with real text, so applicant-tracking systems read them.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DesignPicker template={draft.template} accent={draft.accent} onChange={applyDesign} photo={{ available: Boolean(draft.header.photoPath), shown: draft.header.showPhoto }} disabled={pending} />
-            </CardContent>
-          </Card>
+function Mover({ onUp, onDown, upDisabled, downDisabled, label }: { onUp: () => void; onDown: () => void; upDisabled: boolean; downDisabled: boolean; label: string }) {
+  return (
+    <span className="flex shrink-0 opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100">
+      <button type="button" aria-label={`Move ${label} up`} disabled={upDisabled} onClick={onUp} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30">
+        <ArrowUpIcon className="size-3.5" />
+      </button>
+      <button type="button" aria-label={`Move ${label} down`} disabled={downDisabled} onClick={onDown} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30">
+        <ArrowDownIcon className="size-3.5" />
+      </button>
+    </span>
+  )
+}
 
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="text-sm">Content</CardTitle>
-              <CardDescription>Switch entries and bullets on or off. Extra approved bullets are listed, off, ready to swap in.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              {draft.sections.map((section, s) => (
-                <div key={section.id} className="grid gap-2">
-                  <label className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{section.title}</span>
-                    <Switch size="sm" checked={section.included} onCheckedChange={(value) => update((doc) => void (doc.sections[s].included = value))} aria-label={`Include ${section.title}`} />
-                  </label>
-                  {section.included
-                    ? section.items.map((item, i) => (
-                        <div key={item.entryId} className={cn("grid gap-1.5 rounded-lg border p-2.5", !item.included && "opacity-55")}>
-                          <label className="flex items-center gap-2">
-                            <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                              {item.title}
-                              {item.organization ? <span className="font-normal text-muted-foreground"> · {item.organization}</span> : null}
-                            </span>
-                            <Switch size="sm" checked={item.included} onCheckedChange={(value) => update((doc) => void (doc.sections[s].items[i].included = value))} aria-label={`Include ${item.title}`} />
-                          </label>
-                          {item.included && item.bullets.length ? (
-                            <ul className="grid gap-1">
-                              {item.bullets.map((bullet, b) => (
-                                <li key={bullet.id} className="group flex items-start gap-2">
-                                  <Checkbox className="mt-0.5" checked={bullet.included} onCheckedChange={(value) => update((doc) => void (doc.sections[s].items[i].bullets[b].included = Boolean(value)))} aria-label="Include bullet" />
-                                  <span className={cn("min-w-0 flex-1 text-xs leading-5", !bullet.included && "text-muted-foreground line-through decoration-muted-foreground/40")}>{bullet.text}</span>
-                                  <span className="flex opacity-0 transition-opacity group-hover:opacity-100">
-                                    <button type="button" aria-label="Move up" disabled={b === 0} className="rounded p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30" onClick={() => update((doc) => {
-                                      const list = doc.sections[s].items[i].bullets
-                                      ;[list[b - 1], list[b]] = [list[b], list[b - 1]]
-                                    })}>
-                                      <ArrowUpIcon className="size-3" />
-                                    </button>
-                                    <button type="button" aria-label="Move down" disabled={b === item.bullets.length - 1} className="rounded p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30" onClick={() => update((doc) => {
-                                      const list = doc.sections[s].items[i].bullets
-                                      ;[list[b + 1], list[b]] = [list[b], list[b + 1]]
-                                    })}>
-                                      <ArrowDownIcon className="size-3" />
-                                    </button>
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : null}
-                        </div>
-                      ))
-                    : null}
-                </div>
-              ))}
-              {draft.missingTranslations.length ? (
-                <p className="rounded-md bg-muted/60 p-2 text-xs text-muted-foreground">
-                  Left out (no {language.toUpperCase()} wording yet):{" "}
-                  {draft.missingTranslations.map((m, index) => (
-                    <span key={m.entryId}>
-                      {index ? ", " : ""}
-                      <Link href={`/profile/${m.entryId}#bullets`} className="underline underline-offset-2">
-                        {m.title}
-                      </Link>
-                    </span>
-                  ))}
-                  .
-                </p>
-              ) : null}
-            </CardContent>
-          </Card>
+function swap<T>(list: T[], a: number, b: number) {
+  ;[list[a], list[b]] = [list[b], list[a]]
+}
 
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <HistoryIcon className="size-4" /> Versions
-              </CardTitle>
-              <CardDescription>Every save is a new version; nothing is overwritten.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="grid gap-1">
-                {workspace.history.map((revision) => {
-                  const isCurrent = revision.id === current.id
-                  return (
-                    <li key={revision.id} className={cn("flex items-center gap-2 rounded-md px-2 py-1.5 text-xs", isCurrent && "bg-muted")}>
-                      <span className="font-medium">{ORIGIN[revision.origin] ?? revision.origin}</span>
-                      <span className="text-muted-foreground">{new Date(revision.createdAt).toLocaleString()}</span>
-                      <span className="ml-auto text-muted-foreground tabular-nums">
-                        {revision.pages}p · {revision.quality?.score ?? "—"}
-                      </span>
-                      {isCurrent ? (
-                        <Badge variant="secondary" className="text-[10px]">
-                          current
-                        </Badge>
-                      ) : (
-                        <Button size="xs" variant="ghost" onClick={() => restore(revision.id)} disabled={pending}>
-                          <RotateCcwIcon /> Restore
-                        </Button>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid min-w-0 content-start gap-3 xl:sticky xl:top-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {dirty ? (
-              <>
-                <span className="text-xs text-amber-600">Unsaved changes — the preview shows the saved version.</span>
-                <Button size="sm" variant="ghost" onClick={() => setDraft(current.content)} disabled={pending}>
-                  Discard
-                </Button>
-                <Button size="sm" onClick={save} disabled={pending}>
-                  {pending ? <Loader2Icon className="animate-spin" /> : null} Save & check
-                </Button>
-              </>
-            ) : (
-              <span className="text-xs text-muted-foreground">Saved</span>
-            )}
-            <div className="ml-auto flex gap-2">
-              <GenerateForm applicationId={applicationId} language={language} label="Regenerate" variant="outline" />
-              <Button size="sm" variant="outline" nativeButton={false} render={<a href={`/api/revisions/${current.id}/pdf?download=1`} />}>
-                <DownloadIcon /> PDF
-              </Button>
-            </div>
+function CvContent({ draft, update, language }: { draft: CvDocument; update: (fn: (doc: CvDocument) => void) => void; language: string }) {
+  const [open, setOpen] = useState<Record<string, boolean>>(() => Object.fromEntries(draft.sections.flatMap((s) => s.items.slice(0, 2).map((i) => [i.entryId, true]))))
+  return (
+    <div className="grid min-w-0 grid-cols-1 gap-6">
+      <p className="text-xs text-muted-foreground">Choose what goes on this CV. Extra approved bullets are listed, unchecked, ready to swap in. Wording itself is edited in your profile so every claim stays verified.</p>
+      {draft.sections.map((section, s) => (
+        <section key={section.id} className="grid min-w-0 grid-cols-1 gap-2">
+          <div className="flex items-center justify-between">
+            <h3 className={cn("text-xs font-semibold tracking-wide uppercase", section.included ? "text-foreground" : "text-muted-foreground line-through")}>{section.title}</h3>
+            <Switch size="sm" checked={section.included} onCheckedChange={(value) => update((doc) => void (doc.sections[s].included = value))} aria-label={`Show ${section.title}`} />
           </div>
-          <iframe key={current.id} src={`/api/revisions/${current.id}/pdf#view=FitH`} title="CV preview" className="h-[calc(100svh-9rem)] min-h-[640px] w-full rounded-xl border bg-white" />
-        </div>
-      </div>
+          {section.included && section.items.length ? (
+            <div className="grid min-w-0 grid-cols-1 gap-2">
+              {section.items.map((item, i) => {
+                const included = item.bullets.filter((b) => b.included).length
+                const expanded = open[item.entryId] ?? false
+                return (
+                  <div key={item.entryId} className={cn("rounded-lg border bg-card transition-opacity", !item.included && "opacity-60")}>
+                    <div className="group/row flex items-center gap-2 px-2.5 py-2">
+                      <button type="button" onClick={() => setOpen({ ...open, [item.entryId]: !expanded })} aria-expanded={expanded} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                        <ChevronRightIcon className={cn("size-4 shrink-0 text-muted-foreground transition-transform", expanded && "rotate-90")} />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">{item.title}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {[item.organization, item.dates].filter(Boolean).join(" · ")}
+                            {item.bullets.length ? ` · ${included} of ${item.bullets.length} bullets` : ""}
+                          </span>
+                        </span>
+                      </button>
+                      <Mover
+                        label={item.title}
+                        upDisabled={i === 0}
+                        downDisabled={i === section.items.length - 1}
+                        onUp={() => update((doc) => swap(doc.sections[s].items, i, i - 1))}
+                        onDown={() => update((doc) => swap(doc.sections[s].items, i, i + 1))}
+                      />
+                      <Switch size="sm" checked={item.included} onCheckedChange={(value) => update((doc) => void (doc.sections[s].items[i].included = value))} aria-label={`Show ${item.title}`} />
+                    </div>
+                    {expanded && item.included && item.bullets.length ? (
+                      <ul className="grid min-w-0 grid-cols-1 gap-0.5 border-t px-1.5 py-1.5">
+                        {item.bullets.map((bullet, b) => (
+                          <li key={bullet.id} className="group/row flex items-start gap-1 rounded-md hover:bg-muted/60">
+                            <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 px-1.5 py-1.5">
+                              <Checkbox className="mt-0.5" checked={bullet.included} onCheckedChange={(value) => update((doc) => void (doc.sections[s].items[i].bullets[b].included = Boolean(value)))} />
+                              <span className={cn("text-[13px] leading-5 [overflow-wrap:anywhere]", !bullet.included && "text-muted-foreground")}>{bullet.text}</span>
+                            </label>
+                            <Mover
+                              label="bullet"
+                              upDisabled={b === 0}
+                              downDisabled={b === item.bullets.length - 1}
+                              onUp={() => update((doc) => swap(doc.sections[s].items[i].bullets, b, b - 1))}
+                              onDown={() => update((doc) => swap(doc.sections[s].items[i].bullets, b, b + 1))}
+                            />
+                          </li>
+                        ))}
+                        <li className="px-2 pt-1 pb-0.5">
+                          <Link href={`/profile/${item.entryId}#bullets`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                            Edit wording in profile <ExternalLinkIcon className="size-3" />
+                          </Link>
+                        </li>
+                      </ul>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+          ) : null}
+          {section.included && section.groups.length ? (
+            <div className="grid gap-1 rounded-lg border bg-card px-3 py-2 text-xs">
+              {section.groups.map((group, g) => (
+                <p key={g} className="[overflow-wrap:anywhere]">
+                  {group.label ? <span className="font-medium">{group.label}: </span> : null}
+                  <span className="text-muted-foreground">{group.values.join(" · ")}</span>
+                </p>
+              ))}
+              <Link href="/profile" className="mt-1 inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                Edit in profile <ExternalLinkIcon className="size-3" />
+              </Link>
+            </div>
+          ) : null}
+        </section>
+      ))}
+      {draft.missingTranslations.length ? (
+        <p className="rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
+          Left out — no {language.toUpperCase()} wording yet:{" "}
+          {draft.missingTranslations.map((m, index) => (
+            <span key={m.entryId}>
+              {index ? ", " : ""}
+              <Link href={`/profile/${m.entryId}#bullets`} className="font-medium text-foreground underline underline-offset-2">
+                {m.title}
+              </Link>
+            </span>
+          ))}
+          .
+        </p>
+      ) : null}
     </div>
   )
 }
