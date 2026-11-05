@@ -7,6 +7,7 @@
  * touch "gap"/"met" decided by rules; output must match the schema.
  */
 import { z } from "zod"
+import { supportedWording } from "@/server/documents/ai-compose"
 import type { RequirementMatch } from "./match"
 
 export const PROMPT_VERSION = "refine-v1"
@@ -82,7 +83,7 @@ export async function refineMatches(
 /* Full semantic review: every requirement against the whole profile   */
 /* ------------------------------------------------------------------ */
 
-export const REVIEW_PROMPT_VERSION = "fit-review-v2"
+export const REVIEW_PROMPT_VERSION = "fit-review-v3"
 const BATCH = 12
 const CATALOG_LIMIT = 260
 
@@ -92,7 +93,8 @@ const fullReply = z.object({
       id: z.string(),
       status: z.enum(["met", "partial", "gap", "judgement"]),
       facts: z.array(z.string()).max(4).default([]),
-      note: z.string().max(240).default(""),
+      shown: z.string().max(200).default(""),
+      missing: z.array(z.string().max(60)).max(6).default([]),
     }),
   ),
 })
@@ -105,8 +107,10 @@ For EACH requirement id decide, using the whole fact catalog (ids F1…):
 - "gap": nothing in the facts supports it. Do not stretch.
 - "judgement": soft skills or traits facts cannot prove (communication, curiosity, team spirit).
 Coursework or a degree is not hands-on professional experience. A years requirement is met only if the facts show that duration.
-Cite at most 4 fact ids per requirement (the strongest ones). The note is one short sentence a candidate can act on, e.g. "Shown at Oracle via Go cleanup automation" or "No evidence of Kubernetes in production".
-Reply {"reviews":[{"id":"r3","status":"partial","facts":["F2"],"note":"…"}]} with one review per requirement id.`
+Cite at most 4 fact ids per requirement (the strongest ones).
+"shown": one short phrase of what the CITED facts prove, using only words from those facts (e.g. "Go cleanup automation on OCI"). Never name a tool, cloud or skill the cited facts don't contain. "" when nothing is shown.
+"missing": the specific items from the requirement that no fact supports, copied from the requirement text (e.g. ["Databricks", "Redis"]).
+Reply {"reviews":[{"id":"r3","status":"partial","facts":["F2"],"shown":"…","missing":["…"]}]} with one review per requirement id.`
 
 export type CatalogFact = { id: string; statement: string; entry: string; kind: string }
 
@@ -151,9 +155,23 @@ export async function reviewAllMatches(
     if ((status === "met" || status === "partial") && !factIds.length) status = match.status === "met" ? "met" : "gap"
     if (match.status === "met" && status === "gap") status = "partial"
     const finalFacts = factIds.length ? factIds : status === "gap" ? [] : match.factIds
-    if (status === match.status && finalFacts.join() === match.factIds.join() && !review.note) return match
+    const note = reviewNote(review, match.text, factIds.map((id) => catalog.find((fact) => fact.id === id)?.statement ?? ""))
+    if (status === match.status && finalFacts.join() === match.factIds.join() && !note) return match
     if (status !== match.status || finalFacts.join() !== match.factIds.join()) changed += 1
-    return { ...match, status, factIds: finalFacts, note: review.note || match.note, source: "model" as const }
+    return { ...match, status, factIds: finalFacts, note: note || match.note, source: "model" as const }
   })
   return { matches: next, reviewed: reviews.size, changed, failedBatches }
+}
+
+/**
+ * The note shown to the candidate. "Shown" must use only skills/numbers from
+ * the cited facts (otherwise it is dropped); "missing" items must come from
+ * the requirement text.
+ */
+export function reviewNote(review: { shown: string; missing: string[] }, requirement: string, citedStatements: string[]) {
+  const shown = review.shown.trim() && citedStatements.length && supportedWording(review.shown, citedStatements) ? review.shown.trim() : ""
+  const lower = requirement.toLowerCase()
+  const missing = [...new Set(review.missing.map((item) => item.trim()).filter((item) => item.length >= 2 && lower.includes(item.toLowerCase())))]
+  const parts = [shown ? `Shown: ${shown}.` : "", missing.length ? `Missing: ${missing.join(", ")}.` : ""].filter(Boolean)
+  return parts.join(" ")
 }
