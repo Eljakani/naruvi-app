@@ -77,3 +77,12 @@ test("follow-ups see the earlier requests", async () => {
   assert.equal(sent.earlierRequests[0].request, "make my photo bigger")
   assert.deepEqual(sent.earlierRequests[0].changes.photoSize, { from: 56, to: 68 })
 })
+
+test("every built-in design passes the balance rules", () => {
+  for (const [id, preset] of Object.entries(PRESETS)) assert.deepEqual(qualityFailures(preset.tokens, { pages: 1, lastPageFill: 0.8 }), [], id)
+})
+
+test("giant section headings are rejected as unbalanced", () => {
+  const failures = qualityFailures({ ...base, headingSize: 1.6, headingCase: "upper" }, { pages: 1, lastPageFill: 0.8 })
+  assert.ok(failures.some((failure) => /overpower/.test(failure)))
+})

@@ -55,7 +55,7 @@ export async function aiDesignAction(input: { tokens: DesignTokens; prompt: stri
       judge: async (request, before, after, measured) => {
         const changes = Object.fromEntries(Object.entries(after).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(before[key as keyof DesignTokens])))
         if (decisions) {
-          const answer = await tracedDecide(run, decisions.decide, decisions.model)({ request, designChanges: changes, rendered: measured }, { satisfied: { type: "noul", instructions: "These design changes, as rendered, do what the user asked" } })
+          const answer = await tracedDecide(run, decisions.decide, decisions.model)({ request, designChanges: changes, rendered: measured }, { satisfied: { type: "noul", instructions: "These design changes do what the user asked, in proportion, and the CV still looks balanced and professional. 'Header' means the top area with the name, photo and contact details, not the section headings." } })
           const value = answer.answers.satisfied
           const p = value?.type === "noul" ? value.noul : 1
           return { satisfied: p >= 0.5, reason: p >= 0.5 ? "" : "A final check suggests this doesn’t fully match your request. Try rephrasing it." }
