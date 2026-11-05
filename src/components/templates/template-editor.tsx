@@ -338,20 +338,35 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
 
   return (
     <div className="-mx-4 -mt-4 flex h-[calc(100svh-3.5rem)] min-w-0 flex-col md:-mx-6 md:-mt-6">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-background px-4 py-2.5 md:px-6">
-        <div className="flex min-w-0 basis-full items-center gap-2 sm:flex-1 sm:basis-auto">
-          <Button variant="ghost" size="icon-sm" className="shrink-0" aria-label="Back to templates" nativeButton={false} render={<Link href="/templates" />}><ArrowLeftIcon /></Button>
-          <Input value={name} maxLength={80} disabled={saving || !draftReady} onChange={(event) => setName(event.target.value)} aria-label="Template name" className="h-9 min-w-0 flex-1 font-medium sm:max-w-64" />
-          <span className="hidden text-xs text-muted-foreground xl:inline">{initial.customDefault ? "Custom default" : `Based on ${PRESETS[initial.basedOn]?.name ?? "Classic"}`}</span>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background px-4 py-2 md:px-6">
+        <Button variant="ghost" size="icon-sm" className="shrink-0" aria-label="Back to templates" nativeButton={false} render={<Link href="/templates" />}><ArrowLeftIcon /></Button>
+        <div className="grid min-w-0 flex-1 gap-0.5">
+          {/* The name reads as a title and becomes a field on hover/focus. */}
+          <Input value={name} maxLength={80} disabled={saving || !draftReady} onChange={(event) => setName(event.target.value)} aria-label="Template name" className="h-7 max-w-80 border-transparent bg-transparent px-1.5 text-base font-semibold shadow-none hover:border-input focus-visible:border-ring dark:bg-transparent" />
+          <div className="flex min-w-0 items-center gap-2 px-1.5 text-xs text-muted-foreground">
+            <span className="truncate">{initial.customDefault ? "Custom default" : `Based on ${PRESETS[initial.basedOn]?.name ?? "Classic"}`}</span>
+            <span aria-hidden>·</span>
+            <span role="status" key={dirty ? "dirty" : initial.id ? "saved" : "new"} className="cb-fade flex shrink-0 items-center gap-1.5">
+              {dirty ? <><span className="size-1.5 rounded-full bg-primary" /> Unsaved changes</> : initial.id ? <><CheckCircle2Icon className="size-3" /> Saved</> : "Not saved yet"}
+            </span>
+          </div>
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:ml-auto">
-          <Button size="sm" variant="outline" className="h-10 lg:hidden" onClick={() => setMobilePreview((value) => !value)} aria-pressed={mobilePreview}><EyeIcon /> Preview</Button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button size="sm" variant="outline" className="lg:hidden" onClick={() => setMobilePreview((value) => !value)} aria-pressed={mobilePreview}><EyeIcon /> Preview</Button>
+          {dirty && initial.id ? (
+            <Button size="sm" variant="ghost" className="cb-fade hidden sm:inline-flex" onClick={() => { setName(saved.name); setTokens(saved.tokens); setLastPrompt(""); setFitGoal(false) }} disabled={busy}>
+              Discard
+            </Button>
+          ) : null}
+          <Button size="sm" variant="ghost" className="hidden sm:inline-flex" onClick={makeDefault} disabled={busy}>
+            <StarIcon /> Use as default
+          </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button size="icon-sm" variant="outline" className="size-10 lg:size-8" aria-label="Template actions" disabled={busy} />}><EllipsisIcon /></DropdownMenuTrigger>
+            <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label="More template actions" disabled={busy} />}><EllipsisIcon /></DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={makeDefault}><StarIcon /> Use as default</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTokens(PRESETS[initial.basedOn]?.tokens ?? PRESETS.classic.tokens)}><RotateCcwIcon /> Reset to preset</DropdownMenuItem>
-              {dirty ? <DropdownMenuItem onClick={() => { setName(saved.name); setTokens(saved.tokens); setLastPrompt(""); setFitGoal(false) }}>Discard unsaved edits</DropdownMenuItem> : null}
+              <DropdownMenuItem className="sm:hidden" onClick={makeDefault}><StarIcon /> Use as default</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTokens(PRESETS[initial.basedOn]?.tokens ?? PRESETS.classic.tokens)}><RotateCcwIcon /> Reset to {PRESETS[initial.basedOn]?.name ?? "preset"}</DropdownMenuItem>
+              {dirty ? <DropdownMenuItem className="sm:hidden" onClick={() => { setName(saved.name); setTokens(saved.tokens); setLastPrompt(""); setFitGoal(false) }}>Discard unsaved edits</DropdownMenuItem> : null}
               {initial.id ? <>
                 <DropdownMenuItem onClick={() => save(true)}><CopyIcon /> Save as copy</DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -359,11 +374,10 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
               </> : null}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" className="h-10 lg:h-8" onClick={() => save()} disabled={busy || (!dirty && Boolean(initial.id))}>
-            <SaveIcon /> {initial.id ? (dirty ? "Save changes" : "Saved") : "Save template"}
+          <Button size="sm" onClick={() => save()} disabled={busy || (!dirty && Boolean(initial.id))}>
+            <SaveIcon /> {initial.id ? "Save" : "Save template"}
           </Button>
         </div>
-        {dirty ? <p className="basis-full text-xs text-muted-foreground" role="status">Unsaved changes</p> : null}
       </div>
 
       <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
