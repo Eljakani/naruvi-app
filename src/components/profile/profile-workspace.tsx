@@ -18,28 +18,35 @@ import {
 import { EntryCard } from "@/components/profile/entry-card"
 import Link from "next/link"
 import { IdentityDialog } from "@/components/profile/identity-dialog"
-import { KIND_LABELS } from "@/components/profile/labels"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { profiles } from "@/server/db/schema"
 import type { ProfileEntry } from "@/server/profile/repository"
 
 type Profile = typeof profiles.$inferSelect
 
-const FILTERS = ["all", "attention", "experience", "project", "skill", "education", "certification", "other"] as const
-type Filter = (typeof FILTERS)[number]
+/** Sections in the order a CV reads. */
+const SECTIONS = [
+  { kind: "experience", title: "Experience", empty: "Jobs, internships, freelance work, volunteering." },
+  { kind: "education", title: "Education", empty: "Degrees, schools, bootcamps." },
+  { kind: "project", title: "Projects", empty: "Things you built or led, at work or on your own." },
+  { kind: "certification", title: "Certifications", empty: "Licences and certificates." },
+  { kind: "skill", title: "Skills", empty: "Groups of skills, e.g. “Cloud” or “Customer service”." },
+  { kind: "language", title: "Languages", empty: "Languages you speak and your level." },
+  { kind: "achievement", title: "Achievements", empty: "Awards, competitions, publications." },
+  { kind: "other", title: "Other", empty: "Anything else worth knowing." },
+] as const
 
 export function needsAttention(entry: ProfileEntry) {
   return entry.status !== "verified" || entry.phrasings.some((phrasing) => !phrasing.grounding.grounded) || entry.facts.length === 0
 }
 
 export function ProfileWorkspace({ profile, entries }: { profile: Profile | null; entries: ProfileEntry[] }) {
-  const [filter, setFilter] = useState<Filter>("all")
+  const [reviewOnly, setReviewOnly] = useState(false)
   const [query, setQuery] = useState("")
     const [identityOpen, setIdentityOpen] = useState(false)
 
@@ -56,22 +63,11 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
     }
   }, [active])
 
-  const counts = useMemo(() => {
-    const map: Record<string, number> = { all: active.length, attention: stats.attention }
-    for (const entry of active) {
-      const key = ["experience", "project", "skill", "education", "certification"].includes(entry.kind) ? entry.kind : "other"
-      map[key] = (map[key] ?? 0) + 1
-    }
-    return map
-  }, [active, stats.attention])
-
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
     return entries.filter((entry) => {
-      if (filter === "attention" && !needsAttention(entry)) return false
-      if (filter === "other" && ["experience", "project", "skill", "education", "certification"].includes(entry.kind)) return false
-      if (!["all", "attention", "other"].includes(filter) && entry.kind !== filter) return false
-      if (filter !== "attention" && entry.status === "archived" && filter === "all" && !q) return false
+      if (entry.status === "archived" && !q) return false
+      if (reviewOnly && !needsAttention(entry)) return false
       if (!q) return true
       const haystack = [
         entry.title,
@@ -85,7 +81,8 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
         .toLowerCase()
       return haystack.includes(q)
     })
-  }, [entries, filter, query])
+  }, [entries, reviewOnly, query])
+  const filtering = reviewOnly || Boolean(query.trim())
 
   if (!profile && entries.length === 0) {
     return (
@@ -113,7 +110,6 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
     )
   }
 
-  const groundedPct = stats.bullets ? Math.round((stats.grounded / stats.bullets) * 100) : 100
 
   return (
     <>
@@ -188,69 +184,97 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
 
         <Card>
           <CardHeader>
-            <CardDescription>Grounding</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">{groundedPct}%</CardTitle>
+            <CardDescription>Your profile</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {active.length - stats.attention} of {active.length} ready
+            </CardTitle>
             <CardAction>
               <ShieldCheckIcon className="size-4 text-muted-foreground" />
             </CardAction>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Progress value={groundedPct} />
-            <p className="text-xs text-muted-foreground">
-              {stats.grounded}/{stats.bullets} approved bullets are backed by facts · {stats.facts} facts in {stats.verified} verified entries
-            </p>
+            <Progress value={active.length ? ((active.length - stats.attention) / active.length) * 100 : 0} />
             {stats.attention ? (
-              <Button size="sm" className="w-full" nativeButton={false} render={<Link href="/profile/review" />}>
-                <AlertTriangleIcon /> Start review · {stats.attention} {stats.attention === 1 ? "entry" : "entries"}
-              </Button>
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {stats.attention} {stats.attention === 1 ? "entry needs" : "entries need"} a quick look before CVs can use {stats.attention === 1 ? "it" : "them"}.
+                </p>
+                <Button size="sm" className="w-full" nativeButton={false} render={<Link href="/profile/review" />}>
+                  <AlertTriangleIcon /> Review {stats.attention} {stats.attention === 1 ? "entry" : "entries"}
+                </Button>
+              </>
             ) : (
-              <div className="flex items-center gap-1.5 text-xs text-emerald-600">
-                <BadgeCheckIcon className="size-3.5" /> Everything is verified and grounded.
-              </div>
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <BadgeCheckIcon className="size-4 text-primary" /> Everything is checked. Every CV line is backed by your own facts.
+              </p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)}>
-          <TabsList className="h-auto flex-wrap">
-            {FILTERS.map((key) => (
-              <TabsTrigger key={key} value={key} className="gap-1.5">
-                {key === "attention" ? <AlertTriangleIcon className="size-3.5 text-amber-500" /> : null}
-                {key === "all" ? "All" : key === "attention" ? "Needs review" : KIND_LABELS[key]}
-                <span className="text-xs text-muted-foreground tabular-nums">{counts[key] ?? 0}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <div className="flex items-center gap-2">
-          <div className="relative w-full lg:w-64">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search facts, tools, bullets…" className="pl-8" />
-          </div>
-          <Button variant="outline" nativeButton={false} render={<Link href="/profile/import" />}>
-            <SparklesIcon /> From CV
-          </Button>
-          <Button nativeButton={false} render={<Link href="/profile/new" />}>
-            <PlusIcon /> Add entry
-          </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-56 flex-1">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your profile…" className="pl-8" />
         </div>
+        {stats.attention ? (
+          <Button variant={reviewOnly ? "secondary" : "ghost"} onClick={() => setReviewOnly(!reviewOnly)} aria-pressed={reviewOnly}>
+            <AlertTriangleIcon /> Needs a look · {stats.attention}
+          </Button>
+        ) : null}
+        <Button variant="outline" nativeButton={false} render={<Link href="/profile/import" />}>
+          <SparklesIcon /> Add from CV
+        </Button>
+        <Button nativeButton={false} render={<Link href="/profile/new" />}>
+          <PlusIcon /> Add entry
+        </Button>
       </div>
 
-      {visible.length ? (
-        <div className="grid gap-3">
-          {visible.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} attention={needsAttention(entry)} />
-          ))}
-        </div>
+      {filtering ? (
+        visible.length ? (
+          <div className="grid gap-2">
+            {visible.map((entry) => (
+              <EntryCard key={entry.id} entry={entry} attention={needsAttention(entry)} />
+            ))}
+          </div>
+        ) : (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyTitle>Nothing matches</EmptyTitle>
+              <EmptyDescription>Try another word, or clear the filter.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )
       ) : (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyTitle>No entries match</EmptyTitle>
-            <EmptyDescription>Try another filter or search term.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <div className="grid gap-8">
+          {SECTIONS.map((section) => {
+            const items = visible.filter((entry) => (section.kind === "other" ? !SECTIONS.some((s) => s.kind !== "other" && s.kind === entry.kind) : entry.kind === section.kind))
+            if (!items.length && (section.kind === "achievement" || section.kind === "other")) return null
+            return (
+              <section key={section.kind} className="grid gap-2" aria-labelledby={`section-${section.kind}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <h2 id={`section-${section.kind}`} className="text-sm font-semibold">
+                    {section.title} <span className="font-normal text-muted-foreground tabular-nums">{items.length || ""}</span>
+                  </h2>
+                  <Button size="sm" variant="ghost" nativeButton={false} render={<Link href={`/profile/new?kind=${section.kind}`} />}>
+                    <PlusIcon /> Add
+                  </Button>
+                </div>
+                {items.length ? (
+                  <div className="grid gap-2">
+                    {items.map((entry) => (
+                      <EntryCard key={entry.id} entry={entry} attention={needsAttention(entry)} />
+                    ))}
+                  </div>
+                ) : (
+                  <Link href={`/profile/new?kind=${section.kind}`} className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/40">
+                    {section.empty}
+                  </Link>
+                )}
+              </section>
+            )
+          })}
+        </div>
       )}
       <IdentityDialog open={identityOpen} onOpenChange={setIdentityOpen} profile={profile} />
     </>

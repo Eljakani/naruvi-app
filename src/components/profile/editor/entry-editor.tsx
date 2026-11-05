@@ -82,14 +82,14 @@ const LOGO_KINDS = new Set<Draft["kind"]>(["experience", "education", "project",
 const SECTIONS = [
   { id: "basics", label: "Basics" },
   { id: "display", label: "How it appears" },
-  { id: "facts", label: "Facts" },
-  { id: "bullets", label: "Bullets" },
-  { id: "guardrails", label: "Guardrails" },
+  { id: "facts", label: "What you did" },
+  { id: "bullets", label: "CV lines" },
+  { id: "guardrails", label: "Never say" },
 ] as const
 
-export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
+export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null; initialKind?: Draft["kind"] }) {
   const router = useRouter()
-  const [initial] = useState(() => toDraft(entry))
+  const [initial] = useState(() => ({ ...toDraft(entry), ...(entry || !initialKind ? {} : { kind: initialKind }) }))
   const [draft, setDraft] = useState<Draft>(initial)
   const [lang, setLang] = useState<Lang>("en")
   const [previewLang, setPreviewLang] = useState<Lang>("en")
@@ -123,11 +123,11 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
   const ungrounded = claimBullets.filter((bullet) => !grounding[bullet.key]?.grounded)
   const readiness = [
     { label: "Named", done: Boolean(draft.display.en.role || draft.display.fr.role || draft.title.trim()), section: "basics" },
-    { label: "English display", done: Boolean(draft.display.en.role), section: "display" },
-    { label: "French display", done: Boolean(draft.display.fr.role), section: "display" },
+    { label: "English title & dates", done: Boolean(draft.display.en.role), section: "display" },
+    { label: "French title & dates", done: Boolean(draft.display.fr.role), section: "display" },
     { label: draft.kind === "skill" ? "Skills listed" : "At least one fact", done: draft.kind === "skill" ? draft.skills.length > 0 : facts.length > 0, section: draft.kind === "skill" ? "guardrails" : "facts" },
-    { label: ungrounded.length ? `${ungrounded.length} bullet${ungrounded.length === 1 ? "" : "s"} not backed` : "Every bullet backed by facts", done: ungrounded.length === 0, section: "bullets" },
-    { label: "Marked verified", done: draft.status === "verified", section: "basics" },
+    { label: ungrounded.length ? `${ungrounded.length} CV line${ungrounded.length === 1 ? "" : "s"} without a fact` : "Every CV line has a fact", done: ungrounded.length === 0, section: "bullets" },
+    { label: "Checked by you", done: draft.status === "verified", section: "basics" },
   ]
   const ready = readiness.filter((item) => item.done).length
 
@@ -138,7 +138,7 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
         const result = await saveEntryAction(toInput(draft), entry?.id)
         if (!result.ok) return void toast.error("Could not save", { description: result.error })
         toast.success(entry ? "Saved" : "Entry created", {
-          description: ungrounded.length ? `${ungrounded.length} bullet(s) still need a supporting fact.` : "Every bullet is backed by a fact.",
+          description: ungrounded.length ? `${ungrounded.length} CV line(s) still need a fact behind them.` : "Every CV line is backed by a fact.",
         })
         if (then) router.push(then)
         else if (!entry && result.data) router.replace(`/profile/${result.data}`)
@@ -232,7 +232,7 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
         <div className="grid min-w-0 gap-6">
           {/* 1. basics */}
           <EntryAssist draft={draft} patch={patch} />
-          <Section id="basics" n={1} title="What is it?" description="Pick the type first; the fields below adapt to it.">
+          <Section id="basics" n={1} title="What is it?" description="The fields below adapt to the type.">
             <ToggleGroup value={[draft.kind]} onValueChange={(value) => value[0] && patch({ kind: value[0] as Draft["kind"] })} variant="outline" className="flex w-full flex-wrap justify-start" spacing={2} aria-label="Entry type">
               {entryKinds.map((kind) => {
                 const Icon = KIND_ICONS[kind]
@@ -261,7 +261,7 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
             id="display"
             n={2}
             title="How it appears on a CV"
-            description="Written once per language. Dates and names are copied as-is."
+            description="Title, place and dates, in each language you apply in."
             action={
               <ToggleGroup value={[lang]} onValueChange={(value) => value[0] && setLang(value[0] as Lang)} variant="outline" size="sm" aria-label="Language">
                 {LANGS.map((code) => (
@@ -287,7 +287,7 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
           </Section>
 
           {/* 3. facts */}
-          <Section id="facts" n={3} title="Facts — what you can prove" description="One truth per line. These are the only statements generated text may rely on, and the only source of numbers.">
+          <Section id="facts" n={3} title="What you did" description="One fact per line, in plain words, with numbers when you have them. CVs and letters can only say what is written here.">
             <LineList
               numbered
               items={draft.facts.map((fact) => ({ key: fact.key, text: fact.statement }))}
@@ -320,8 +320,8 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
           <Section
             id="bullets"
             n={4}
-            title="Bullets — approved wording"
-            description="What may appear on a CV, side by side in both languages. Each bullet links to the facts that prove it."
+            title="CV lines"
+            description="The polished sentences a CV may use, in each language. Each one points to the facts that back it up. Let AI draft them from your facts."
             action={
               <Button variant="outline" size="sm" onClick={addGroup}>
                 <PlusIcon /> Group
@@ -404,7 +404,7 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
           </Section>
 
           {/* 5. guardrails */}
-          <Section id="guardrails" n={5} title="Guardrails" description="Hard limits sent with every generation request.">
+          <Section id="guardrails" n={5} title="Never say" description="Things a CV or letter must not claim about this, even if it sounds close.">
             <div className="grid gap-2">
               <Label>Never claim</Label>
               <StringLineList values={draft.doNotClaim} onChange={(doNotClaim) => patch({ doNotClaim })} placeholder="e.g. Do not claim ownership of all cloud security." addLabel="Add rule" />
@@ -441,12 +441,12 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
           <Card size="sm">
             <CardHeader>
               <CardTitle className="flex items-center justify-between text-sm">
-                Readiness
+                Ready for CVs
                 <Badge variant={ready === readiness.length ? "default" : "secondary"} className="tabular-nums">
                   {ready}/{readiness.length}
                 </Badge>
               </CardTitle>
-              <CardDescription>Verified entries with backed bullets are used for generation.</CardDescription>
+              <CardDescription>CVs and letters use this entry once every step is done.</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="grid gap-0.5">

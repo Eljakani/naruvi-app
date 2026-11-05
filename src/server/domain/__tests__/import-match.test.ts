@@ -1,8 +1,8 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { matchEntry, sameFact } from "../../profile/import-match"
+import { matchEntry, sameFact, type ExistingEntry } from "../../profile/import-match"
 
-const existing = [
+const existing: ExistingEntry[] = [
   { id: "e1", kind: "experience", title: "Oracle R&D", status: "verified", display: { en: { role: "Cloud Engineer", organization: "Oracle" } }, facts: ["Wrote Go cleanup scripts for OCI."], skills: ["Go", "OCI"] },
   { id: "e2", kind: "education", title: "ENSA Marrakech — Engineering degree", status: "verified", display: { fr: { role: "Diplôme d'ingénieur", organization: "ENSA Marrakech" } }, facts: [], skills: [] },
 ]

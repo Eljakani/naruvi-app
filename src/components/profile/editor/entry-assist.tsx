@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { describeEntryAction, translateEntryAction } from "@/app/(app)/profile/actions"
 import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { type Draft, type Lang, LANGS, newKey } from "./draft"
 
@@ -19,6 +19,8 @@ const NAME: Record<Lang, string> = { en: "English", fr: "French" }
  */
 export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Partial<Draft>) => void }) {
   const [words, setWords] = useState("")
+  // New or empty entries start open; filled ones keep the editor uncluttered.
+  const [open, setOpen] = useState(() => draft.facts.length === 0)
   const [describing, startDescribing] = useTransition()
   const [translating, startTranslating] = useTransition()
   const describeStep = useStep(describing, AI_STEPS.describe.length)
@@ -70,6 +72,23 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
       toast.success(`${NAME[to]} version added`, { description: `${result.data.bullets.length} bullet${result.data.bullets.length === 1 ? "" : "s"} translated with the same facts linked.` })
     })
 
+  if (!open) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border px-4 py-3">
+        <SparklesIcon className="size-4 text-muted-foreground" />
+        <span className="flex-1 text-sm text-muted-foreground">Add more in your own words, or translate this entry.</span>
+        {from && to ? (
+          <Button size="sm" variant="ghost" onClick={translate} disabled={translating}>
+            <LanguagesIcon className={translating ? "cb-breathe" : undefined} /> {translating ? AI_STEPS.translate[translateStep] : `Add ${NAME[to]} version`}
+          </Button>
+        ) : null}
+        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          <SparklesIcon /> Describe with AI
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -77,6 +96,13 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
           <SparklesIcon className="size-4" /> Fill it with AI
         </CardTitle>
         <CardDescription>Describe it in your own words, the way you’d tell a friend. AI fills the role, dates and skills and turns it into facts. It only uses what you write.</CardDescription>
+        {draft.facts.length ? (
+          <CardAction>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              Close
+            </Button>
+          </CardAction>
+        ) : null}
       </CardHeader>
       <CardContent className="grid gap-3">
         <Textarea value={words} onChange={(event) => setWords(event.target.value)} placeholder="e.g. From 2021 to 2024 I ran the night shift at a 40-bed hospital ward in Lyon, trained 6 new nurses and set up the medication double-check that cut errors in half…" className="min-h-24" disabled={describing} />
