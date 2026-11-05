@@ -6,7 +6,7 @@ import { designTokens, PRESETS, type DesignTokens } from "@/lib/design"
 import { completionForRun } from "@/server/llm/client"
 import { tracedDecide } from "@/server/runs/decisions"
 import { decisionClient } from "@/server/settings/decisions"
-import { DESIGN_AGENT_VERSION, runDesignAgent, type AgentResult } from "@/server/templates/design-agent"
+import { DESIGN_AGENT_VERSION, runDesignAgent, type AgentResult, type DesignTurn } from "@/server/templates/design-agent"
 import { layoutMetrics } from "@/server/templates/layout-metrics"
 import { getDocumentDefaults, saveDocumentDefaults } from "@/server/settings/service"
 import { startRun } from "@/server/runs/tracer"
@@ -40,15 +40,16 @@ export async function deleteTemplateAction(id: string): Promise<Result<null>> {
 }
 
 /** Design requests run as an agent loop: propose, render your CV, measure, check, revise. */
-export async function aiDesignAction(input: { tokens: DesignTokens; prompt: string }): Promise<Result<AgentResult>> {
-  const parsed = z.object({ tokens: designTokens, prompt: z.string().trim().min(3, "Describe the change you want.").max(500) }).safeParse(input)
+export async function aiDesignAction(input: { tokens: DesignTokens; prompt: string; history?: DesignTurn[] }): Promise<Result<AgentResult>> {
+  const turn = z.object({ request: z.string().max(500), outcome: z.string().max(20), summary: z.string().max(300), changes: z.record(z.string(), z.unknown()) })
+  const parsed = z.object({ tokens: designTokens, prompt: z.string().trim().min(1, "Describe the change you want.").max(500), history: z.array(turn).max(10).optional() }).safeParse(input)
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid request." }
   if (!(await getLlmOverview().catch(() => null))?.configured) return { ok: false, message: "No language model configured. Add one in Settings." }
   const run = await startRun("template.design", { prompt: parsed.data.prompt.slice(0, 120) })
   try {
     const complete = completionForRun(run, "design round", DESIGN_AGENT_VERSION)
     const decisions = await decisionClient().catch(() => null)
-    const result = await runDesignAgent({ tokens: parsed.data.tokens, request: parsed.data.prompt }, {
+    const result = await runDesignAgent({ tokens: parsed.data.tokens, request: parsed.data.prompt, history: parsed.data.history }, {
       complete,
       measure: (tokens) => run.step("render & measure", async () => layoutMetrics((await renderTemplatePreview(tokens)).buffer), (value) => `${value.pages} page(s) · last page ${Math.round(value.lastPageFill * 100)}% full`),
       judge: async (request, before, after, measured) => {

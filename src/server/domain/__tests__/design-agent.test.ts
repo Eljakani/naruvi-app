@@ -65,3 +65,15 @@ test("requests the tokens can't express are declined up front", async () => {
   assert.equal(result.outcome, "rejected")
   assert.match(result.reason, /printed on white/)
 })
+
+test("follow-ups see the earlier requests", async () => {
+  let seen = ""
+  await runDesignAgent({ tokens: base, request: "more", history: [{ request: "make my photo bigger", outcome: "applied", summary: "Bigger photo", changes: { photoSize: { from: 56, to: 68 } } }] }, {
+    complete: async (input) => { seen = input.user; return reply({ changes: { photoSize: 80 }, goals: [], summary: "Even bigger photo" }) },
+    measure: async () => ({ pages: 1, lastPageFill: 0.8 }),
+  })
+  const sent = JSON.parse(seen)
+  assert.equal(sent.request, "more")
+  assert.equal(sent.earlierRequests[0].request, "make my photo bigger")
+  assert.deepEqual(sent.earlierRequests[0].changes.photoSize, { from: 56, to: 68 })
+})

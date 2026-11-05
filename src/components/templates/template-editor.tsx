@@ -7,7 +7,7 @@ import { ArrowLeftIcon, BanIcon, CheckCircle2Icon, CircleDashedIcon, CopyIcon, E
 import { Badge } from "@/components/ui/badge"
 import { designIdeas } from "@/lib/design-ideas"
 import { toast } from "sonner"
-import type { AgentResult } from "@/server/templates/design-agent"
+import type { AgentResult, DesignTurn } from "@/server/templates/design-agent"
 import { aiDesignAction, deleteTemplateAction, restoreTemplateVersionAction, saveTemplateAction, setDefaultDesignAction, templateVersionsAction } from "@/app/(app)/templates/actions"
 import { PdfThumb } from "@/components/templates/pdf-thumb"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -119,6 +119,8 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
   const [agentLog, setAgentLog] = useState<AgentResult | null>(null)
   // Bumped after every request so suggestions rotate.
   const [ideaSeed, setIdeaSeed] = useState(0)
+  // What was asked so far in this session, so follow-ups like "more" or "undo that" make sense.
+  const [history, setHistory] = useState<DesignTurn[]>([])
   const [mobilePreview, setMobilePreview] = useState(false)
   const [asking, startAsking] = useTransition()
   const [saving, startSaving] = useTransition()
@@ -221,14 +223,20 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
   }, [tokenKey, attempt, draftReady])
 
   const ask = (text = prompt) => {
-    if (busy || text.trim().length < 3) return
+    if (busy || text.trim().length < (history.length ? 1 : 3)) return
     startAsking(async () => {
       try {
-        const result = await aiDesignAction({ tokens, prompt: text })
+        const result = await aiDesignAction({ tokens, prompt: text, history })
         if (!active.current) return
         if (!result.ok) return void toast.error(result.message)
         setAgentLog(result.data)
         setIdeaSeed((value) => value + 1)
+        setHistory((turns) => [...turns, {
+          request: text,
+          outcome: result.data.outcome,
+          summary: result.data.summary || result.data.reason,
+          changes: Object.fromEntries(result.data.changed.map((key) => [key, { from: tokens[key as keyof DesignTokens], to: result.data.tokens[key as keyof DesignTokens] }])),
+        }].slice(-8))
         setFitGoal(false)
         // Only a fully verified design is applied; a rejected request leaves the design untouched.
         if (result.data.outcome !== "applied") return
@@ -380,7 +388,7 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                         {idea}
                       </Button>
                     ))}
-                    <Button size="sm" className="ml-auto" onClick={() => ask()} disabled={busy || prompt.trim().length < 3}>
+                    <Button size="sm" className="ml-auto" onClick={() => ask()} disabled={busy || prompt.trim().length < (history.length ? 1 : 3)}>
                       <SparklesIcon /> Apply
                     </Button>
                   </div>
