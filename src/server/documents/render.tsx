@@ -154,7 +154,7 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
   const contact = [doc.header.email, doc.header.phone, doc.header.location].filter(Boolean)
 
   const buffer = await renderToBuffer(
-    <Document title={`${doc.header.name} — CV`} author={doc.header.name} language={doc.language} creator="CareerBuddy" producer="CareerBuddy">
+    <Document title={`${doc.header.name} — CV`} author={doc.header.name} language={doc.language} creator="Naruvi" producer="Naruvi">
       <Page size="A4" style={s.page}>
         <View style={s.header}>
           {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
@@ -210,7 +210,7 @@ export async function renderLetterPdf(doc: LetterDocument): Promise<RenderResult
   const contact = [doc.header.email, doc.header.phone, doc.header.location, ...doc.header.links.map((link) => link.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))].filter(Boolean)
   const highlights = doc.highlights.filter((h) => h.included)
   const buffer = await renderToBuffer(
-    <Document title={`${doc.header.name} — ${doc.subject}`} author={doc.header.name} language={doc.language} creator="CareerBuddy" producer="CareerBuddy">
+    <Document title={`${doc.header.name} — ${doc.subject}`} author={doc.header.name} language={doc.language} creator="Naruvi" producer="Naruvi">
       <Page size="A4" style={s.page}>
         <Text style={s.name}>{doc.header.name}</Text>
         <View style={s.contact}>

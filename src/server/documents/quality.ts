@@ -5,6 +5,7 @@
  */
 import type { QualitySummary } from "@/server/db/schema"
 import type { CvDocument } from "./model"
+import { aiReviewCheck } from "./ai-metadata"
 
 export type Check = { id: string; status: "pass" | "warn" | "fail"; label: string; detail: string }
 export type QualityReport = QualitySummary & { ready: boolean; checks: Check[] }
@@ -13,6 +14,8 @@ type Req = { kind: string; status: string; text: string; factIds: string[] }
 
 export function checkQuality(doc: CvDocument, pages: number | null, requirements: Req[] = []): QualityReport {
   const checks: Check[] = []
+  const aiCheck = aiReviewCheck(doc.aiAssistance)
+  if (aiCheck) checks.push(aiCheck)
   const add = (id: string, status: Check["status"], label: string, detail: string) => checks.push({ id, status, label, detail })
   const sections = doc.sections.filter((section) => section.included)
   const items = sections.flatMap((section) => section.items.filter((item) => item.included))

@@ -4,7 +4,7 @@ Date: 2026-11-05 · Status: accepted
 
 ## Context
 
-CareerBuddy is open source and must work for anyone after `docker compose up`,
+Naruvi is open source and must work for anyone after `docker compose up`,
 in any field and language, with or without an LLM key. The predecessor (CV
 Studio) generated LaTeX with an LLM and compiled it in a TeX Live container.
 

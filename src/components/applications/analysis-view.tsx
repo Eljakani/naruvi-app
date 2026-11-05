@@ -158,10 +158,15 @@ export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: 
                     <BotIcon className="size-3" /> Rules + model review ({analysis.modelReview.reviewed} items checked, {analysis.modelReview.changed} adjusted)
                   </span>
                 ) : (
-                  "Deterministic rules only — add an LLM key to get a second opinion on uncertain items."
+                  analysis.requirementFilter?.reviewed ? "AI-filtered posting items + rule-based evidence matching." : "Deterministic rules only — configure a language model in Settings for requirement filtering and evidence review."
                 )}{" "}
                 · analyzed {new Date(analysis.analyzedAt).toLocaleString()}
               </p>
+              {analysis.requirementFilter ? <p className="text-xs text-muted-foreground">
+                {analysis.requirementFilter.reviewed ? `AI classified ${analysis.requirementFilter.reviewed} posting items before matching. ` : ""}
+                {analysis.requirementFilter.excluded.length} non-requirement item(s) excluded from the fit score and skill gaps.
+                {analysis.requirementFilter.status === "failed" || analysis.requirementFilter.status === "partial" ? ` ${analysis.requirementFilter.message ?? "AI filtering was incomplete; remaining items use rule-based extraction."}` : ""}
+              </p> : null}
             </div>
           </CardContent>
         </Card>
@@ -202,9 +207,19 @@ export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: 
               ))
             ) : (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                {analysis.requirements.length ? "Nothing in this filter." : "No requirement list found in this posting. Check the job description has bullet points under headings like “Requirements”."}
+                {analysis.requirements.length ? "Nothing in this filter." : analysis.requirementFilter?.excluded.length ? "No candidate requirements remained after filtering. Inspect the excluded posting details below." : "No requirement list found in this posting. Check the job description has bullet points under headings like “Requirements”."}
               </p>
             )}
+            {analysis.requirementFilter?.excluded.length ? <details className="border-t pt-4 text-sm">
+              <summary className="cursor-pointer font-medium">Excluded posting details ({analysis.requirementFilter.excluded.length})</summary>
+              <p className="mt-2 text-xs text-muted-foreground">Interview steps, benefits and company information are kept here for transparency. They are not treated as missing skills.</p>
+              <ul className="mt-3 divide-y">
+                {analysis.requirementFilter.excluded.map((item) => <li key={item.requirement.id} className="grid gap-1.5 py-3">
+                  <p className="text-[13px] leading-6 [overflow-wrap:anywhere]">{item.requirement.text}</p>
+                  <p className="text-xs text-muted-foreground">{item.source === "model" ? "AI" : "Rules"} · {item.category.replaceAll("_", " ")} · {item.reason}</p>
+                </li>)}
+              </ul>
+            </details> : null}
           </CardContent>
         </Card>
       </div>

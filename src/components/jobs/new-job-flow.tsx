@@ -87,7 +87,7 @@ export function NewJobFlow() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">Add a job</CardTitle>
-            <CardDescription>Paste the link to the posting. CareerBuddy reads it, finds the real company website and logo, and lets you check everything before saving.</CardDescription>
+            <CardDescription>Paste the link to the posting. Naruvi reads it, finds the real company website and logo, and lets you check everything before saving.</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs value={mode} onValueChange={(value) => setMode(value as "link" | "text")}>

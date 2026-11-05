@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { CompanyResearch } from "@/components/applications/company-research"
 import { DesignPicker } from "@/components/applications/design-picker"
+import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import type { CompanyResearch as Research } from "@/server/research/brief"
 import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { Badge } from "@/components/ui/badge"
@@ -75,7 +76,7 @@ export function LetterWorkspace({
             </EmptyMedia>
             <EmptyTitle>Draft a {language.toUpperCase()} cover letter</EmptyTitle>
             <EmptyDescription>
-              {decision ? `${DECISION[decision.decision] ?? ""} ` : ""}The draft uses your proven, approved bullets as evidence and standard wording for the rest. The one part only you can write — why this company — is left for you.
+              {decision ? `${DECISION[decision.decision] ?? ""} ` : ""}The draft uses your verified evidence. With a configured model, AI tailors the opening, highlights and company motivation from the posting and available research. Review and personalize the draft before sending.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -110,10 +111,11 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
     })
 
   const persist = useCallback(
-    (content: LetterDocument, message?: string) =>
+    (content: LetterDocument, message?: string, onSaved?: () => void) =>
       startTransition(async () => {
         const result = await saveCvEditAction(applicationId, workspace.document.id, content)
         if (!result.ok) return void toast.error("Not saved", { description: result.error })
+        onSaved?.()
         if (message) toast.success(message, { description: result.data.ready ? "Ready to send." : `Quality ${result.data.score} — see Checks for what’s left.` })
         router.refresh()
       }),
@@ -140,6 +142,16 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
 
   const content = (
     <div className="grid min-w-0 grid-cols-1 gap-5">
+      <AiReviewPanel assistance={draft.aiAssistance} pending={pending}
+        changes={[
+          ...draft.paragraphs.filter((paragraph) => paragraph.originalText).map((paragraph) => ({ label: paragraph.kind, original: paragraph.originalText!, text: paragraph.text, sources: paragraph.sourceUrls })),
+          ...draft.highlights.filter((highlight) => highlight.originalText).map((highlight) => ({ label: highlight.organization, original: highlight.originalText!, text: highlight.text })),
+        ]}
+        onApprove={() => {
+          const next = structuredClone(draft)
+          if (next.aiAssistance) next.aiAssistance.reviewed = true
+          persist(next, "AI draft reviewed", () => setDraft(next))
+        }} />
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
         <span>Edit in reading order. Highlights come from your fact-backed bullets.</span>
         <span className={cn("shrink-0 tabular-nums", total > 450 && "text-amber-600")}>{total} words</span>
@@ -158,7 +170,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
               {draft.highlights.length ? (
                 <ul className="grid min-w-0 grid-cols-1 gap-0.5 rounded-lg border p-1.5">
                   {draft.highlights.map((highlight, h) => (
-                    <li key={highlight.id} className="group/row flex items-start gap-1 rounded-md hover:bg-muted/60">
+                    <li key={highlight.id} className="group/row flex flex-wrap items-start gap-1 rounded-md hover:bg-muted/60">
                       <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 px-1.5 py-1.5">
                         <Checkbox className="mt-0.5" checked={highlight.included} onCheckedChange={(value) => update((doc) => void (doc.highlights[h].included = Boolean(value)))} />
                         <span className={cn("text-[13px] leading-5 [overflow-wrap:anywhere]", !highlight.included && "text-muted-foreground")}>
@@ -173,6 +185,10 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
                           <ArrowDownIcon className="size-3.5" />
                         </button>
                       </span>
+                      {highlight.originalText ? <Textarea aria-label={`AI highlight ${h + 1}`} value={highlight.text} maxLength={600} rows={2} onChange={(event) => update((doc) => {
+                        doc.highlights[h].text = event.target.value
+                        if (doc.aiAssistance) doc.aiAssistance.reviewed = false
+                      })} className="mb-2 w-full text-xs" /> : null}
                     </li>
                   ))}
                 </ul>

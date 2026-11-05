@@ -7,11 +7,13 @@ import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, ChevronRightIcon, ExternalLi
 import { toast } from "sonner"
 import { generateCvAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { DesignPicker } from "@/components/applications/design-picker"
+import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import type { CvDocument } from "@/server/documents/model"
 import type { getCvWorkspace } from "@/server/documents/service"
@@ -41,7 +43,7 @@ export function CvWorkspace({ applicationId, jobTitle, company, language, worksp
               <FileTextIcon />
             </EmptyMedia>
             <EmptyTitle>Generate your {language.toUpperCase()} CV</EmptyTitle>
-            <EmptyDescription>CareerBuddy picks the verified entries and approved bullets that best match this job. It writes no new claims: every line comes from your profile.</EmptyDescription>
+            <EmptyDescription>Naruvi assembles your verified profile evidence for this job. If a model is configured, AI tailors the bullet selection and wording. Review its changes before sending.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <form action={generateCvAction}>
@@ -74,10 +76,11 @@ function Editor({ applicationId, jobTitle, company, language, workspace }: { app
     })
 
   const persist = useCallback(
-    (content: CvDocument, message?: string) =>
+    (content: CvDocument, message?: string, onSaved?: () => void) =>
       startTransition(async () => {
         const result = await saveCvEditAction(applicationId, workspace.document.id, content)
         if (!result.ok) return void toast.error("Not saved", { description: result.error })
+        onSaved?.()
         if (message) toast.success(message, { description: `${result.data.pages} page${result.data.pages === 1 ? "" : "s"} · quality ${result.data.score}${result.data.ready ? " · ready" : ""}` })
         router.refresh()
       }),
@@ -119,7 +122,16 @@ function Editor({ applicationId, jobTitle, company, language, workspace }: { app
       onDiscard={() => setDraft(current.content)}
       design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} onChange={applyDesign} photo={{ available: Boolean(draft.header.photoPath), shown: draft.header.showPhoto }} disabled={pending} />}
       versions={<VersionsPanel revisions={workspace.history} currentId={current.id} pending={pending} onRestore={restore} />}
-      content={<CvContent draft={draft} update={update} language={language} />}
+      content={<div className="grid gap-5">
+        <AiReviewPanel assistance={draft.aiAssistance} pending={pending}
+          changes={draft.sections.flatMap((section) => section.items.flatMap((item) => item.bullets.filter((bullet) => bullet.originalText).map((bullet) => ({ label: `${item.title} · ${item.organization}`, original: bullet.originalText!, text: bullet.text }))))}
+          onApprove={() => {
+            const next = structuredClone(draft)
+            if (next.aiAssistance) next.aiAssistance.reviewed = true
+            persist(next, "AI draft reviewed", () => setDraft(next))
+          }} />
+        <CvContent draft={draft} update={update} language={language} />
+      </div>}
     />
   )
 }
@@ -145,7 +157,7 @@ function CvContent({ draft, update, language }: { draft: CvDocument; update: (fn
   const [open, setOpen] = useState<Record<string, boolean>>(() => Object.fromEntries(draft.sections.flatMap((s) => s.items.slice(0, 2).map((i) => [i.entryId, true]))))
   return (
     <div className="grid min-w-0 grid-cols-1 gap-6">
-      <p className="text-xs text-muted-foreground">Choose what goes on this CV. Extra approved bullets are listed, unchecked, ready to swap in. Wording itself is edited in your profile so every claim stays verified.</p>
+      <p className="text-xs text-muted-foreground">Choose what goes on this CV. Extra approved bullets are listed, unchecked, ready to swap in. AI wording can be edited here or restored to the original; profile wording stays unchanged.</p>
       {draft.sections.map((section, s) => (
         <section key={section.id} className="grid min-w-0 grid-cols-1 gap-2">
           <div className="flex items-center justify-between">
@@ -182,7 +194,7 @@ function CvContent({ draft, update, language }: { draft: CvDocument; update: (fn
                     {expanded && item.included && item.bullets.length ? (
                       <ul className="grid min-w-0 grid-cols-1 gap-0.5 border-t px-1.5 py-1.5">
                         {item.bullets.map((bullet, b) => (
-                          <li key={bullet.id} className="group/row flex items-start gap-1 rounded-md hover:bg-muted/60">
+                          <li key={bullet.id} className="group/row flex flex-wrap items-start gap-1 rounded-md hover:bg-muted/60">
                             <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 px-1.5 py-1.5">
                               <Checkbox className="mt-0.5" checked={bullet.included} onCheckedChange={(value) => update((doc) => void (doc.sections[s].items[i].bullets[b].included = Boolean(value)))} />
                               <span className={cn("text-[13px] leading-5 [overflow-wrap:anywhere]", !bullet.included && "text-muted-foreground")}>{bullet.text}</span>
@@ -194,6 +206,18 @@ function CvContent({ draft, update, language }: { draft: CvDocument; update: (fn
                               onUp={() => update((doc) => swap(doc.sections[s].items[i].bullets, b, b - 1))}
                               onDown={() => update((doc) => swap(doc.sections[s].items[i].bullets, b, b + 1))}
                             />
+                            {bullet.originalText ? <div className="grid w-full gap-2 px-2 pb-2">
+                              <Textarea aria-label={`AI wording: ${item.title}, bullet ${b + 1}`} value={bullet.text} maxLength={600} rows={2} onChange={(event) => update((doc) => {
+                                doc.sections[s].items[i].bullets[b].text = event.target.value
+                                if (doc.aiAssistance) doc.aiAssistance.reviewed = false
+                              })} className="text-xs" />
+                              <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => update((doc) => {
+                                const target = doc.sections[s].items[i].bullets[b]
+                                target.text = target.originalText!
+                                target.source = target.phrasingId ? "phrasing" : "fact"
+                                delete target.originalText
+                              })}>Use original wording</Button>
+                            </div> : null}
                           </li>
                         ))}
                         <li className="px-2 pt-1 pb-0.5">

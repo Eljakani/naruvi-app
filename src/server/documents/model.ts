@@ -3,12 +3,14 @@
  * immutable revisions. Every bullet keeps the ids that ground it.
  */
 import { z } from "zod"
+import { aiAssistance } from "./ai-metadata"
 
 export const cvBullet = z.object({
   id: z.string(),
   text: z.string().min(1).max(600),
-  /** "phrasing" = user-approved wording; "fact" = a verified fact used as-is. */
-  source: z.enum(["phrasing", "fact"]),
+  /** "model" is a reviewable rewrite; original wording and fact IDs remain attached. */
+  source: z.enum(["phrasing", "fact", "model"]),
+  originalText: z.string().max(600).optional(),
   phrasingId: z.string().nullable().default(null),
   factIds: z.array(z.string()).default([]),
   included: z.boolean().default(true),
@@ -43,6 +45,7 @@ export const cvSection = z.object({
 })
 
 export const cvDocument = z.object({
+  aiAssistance: aiAssistance.optional(),
   version: z.literal(1),
   language: z.string().regex(/^[a-z]{2}$/),
   template: z.enum(templateIds).default("classic"),

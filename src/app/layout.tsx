@@ -8,7 +8,8 @@ const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: { default: "CareerBuddy", template: "%s · CareerBuddy" },
+  applicationName: "Naruvi",
+  title: { default: "Naruvi", template: "%s · Naruvi" },
   description: "Truthful, tailored, verified job applications — locally.",
 }
 

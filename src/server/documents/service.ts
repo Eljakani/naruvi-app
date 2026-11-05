@@ -7,10 +7,13 @@ import { getApplication } from "@/server/applications/repository"
 import { getProfile, listEntries } from "@/server/profile/repository"
 import { getDocumentDefaults } from "@/server/settings/service"
 import { startRun } from "@/server/runs/tracer"
+import { getLlmOverview } from "@/server/settings/llm"
+import { completionForRun } from "@/server/llm/client"
+import { DOCUMENT_PROMPT_VERSION, enrichCv, enrichLetter, researchSources } from "./ai-compose"
 import { composeCv } from "./compose"
 import { cvDocument, type CvDocument } from "./model"
 import { checkQuality, type QualityReport } from "./quality"
-import { checkLetter, composeLetter, letterDocument, type LetterDocument } from "./letter"
+import { checkLetter, composeLetter, isPlaceholder, letterDocument, type LetterDocument } from "./letter"
 import { renderCvPdf, renderLetterPdf } from "./render"
 
 type Kind = "cv" | "cover_letter"
@@ -40,13 +43,13 @@ async function evaluate(content: CvDocument | LetterDocument, requirements: Para
   const quality = isLetter ? checkLetter(content as LetterDocument, rendered.pages) : checkQuality(content as CvDocument, rendered.pages, requirements)
   if (rendered.missingScripts.length) {
     // Text in a script whose font could not be loaded would print as empty boxes.
-    quality.checks.push({ id: "fonts", status: "fail", label: "Fonts for every script", detail: `No font available for ${rendered.missingScripts.join(", ")} text. Connect to the internet once so CareerBuddy can download it.` })
+    quality.checks.push({ id: "fonts", status: "fail", label: "Fonts for every script", detail: `No font available for ${rendered.missingScripts.join(", ")} text. Connect to the internet once so Naruvi can download it.` })
     quality.errors += 1
     quality.score = Math.max(0, quality.score - 20)
     quality.ready = false
   }
   const cited = isLetter
-    ? [...new Set((content as LetterDocument).highlights.filter((h) => h.included).flatMap((h) => h.factIds))]
+    ? [...new Set([...(content as LetterDocument).highlights.filter((h) => h.included).flatMap((h) => h.factIds), ...(content as LetterDocument).paragraphs.filter((p) => p.included).flatMap((p) => p.factIds ?? [])])]
     : [...new Set((content as CvDocument).sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included).flatMap((b) => b.factIds))))]
   return { pages: rendered.pages, quality, cited }
 }
@@ -84,7 +87,7 @@ export async function generateCv(applicationId: string, language?: string) {
   const run = await startRun("cv.generate", { applicationId, language: lang }, applicationId)
   try {
     const entries = await run.step("load profile", () => listEntries(), (value) => `${value.length} entries`)
-    const content = await run.step(
+    let content = await run.step(
       "compose (grounded)",
       async () =>
         composeCv(
@@ -95,6 +98,12 @@ export async function generateCv(applicationId: string, language?: string) {
         ),
       (value) => `${value.sections.length} sections · ${value.sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included))).length} bullets`,
     )
+    const model = await run.step("Check AI configuration", () => getLlmOverview(), (value) => value.configured ? `${value.model} configured` : "AI skipped: no usable model key or local model is configured.").catch(() => null)
+    if (model?.configured) {
+      content = await run.step("AI tailor CV", () => enrichCv(content, entries, application.analysis, {
+        title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText,
+      }, completionForRun(run, "CV tailoring", DOCUMENT_PROMPT_VERSION)), (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} entries tailored${value.aiAssistance?.reason ? ` · ${value.aiAssistance.reason}` : ""}`)
+    }
     const document = await documentFor(application.id, lang)
     const design = await designFor(document.id)
     content.template = design.template
@@ -135,7 +144,7 @@ export async function generateLetter(applicationId: string, language?: string) {
   const run = await startRun("letter.generate", { applicationId, language: lang }, applicationId)
   try {
     const entries = await listEntries()
-    const content = await run.step(
+    let content = await run.step(
       "compose letter (grounded)",
       async () =>
         composeLetter(
@@ -148,6 +157,22 @@ export async function generateLetter(applicationId: string, language?: string) {
       (value) => `${value.highlights.filter((h) => h.included).length} highlights`,
     )
     const document = await documentFor(application.id, lang, "cover_letter")
+    // Keep personal motivation that the user already wrote or reviewed.
+    if (document.currentRevisionId) {
+      const [previous] = await db.select({ content: revisions.content }).from(revisions).where(eq(revisions.id, document.currentRevisionId))
+      const parsed = letterDocument.safeParse(previous?.content)
+      const motivation = parsed.success ? parsed.data.paragraphs.find((paragraph) => paragraph.kind === "motivation") : undefined
+      if (motivation?.text.trim() && !motivation.placeholder && !isPlaceholder(motivation.text) && (!motivation.originalText || (parsed.success && parsed.data.aiAssistance?.reviewed))) {
+        content.paragraphs = content.paragraphs.map((paragraph) => paragraph.kind === "motivation" ? { ...motivation, originalText: undefined } : paragraph)
+      }
+    }
+    const model = await run.step("Check AI configuration", () => getLlmOverview(), (value) => value.configured ? `${value.model} configured` : "AI skipped: no usable model key or local model is configured.").catch(() => null)
+    if (model?.configured) {
+      content = await run.step("AI draft letter", () => enrichLetter(content, entries, {
+        title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText,
+        url: application.job.sourceUrl ?? "",
+      }, researchSources(application.job.company?.research), completionForRun(run, "cover-letter drafting", DOCUMENT_PROMPT_VERSION)), (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} passages tailored${value.aiAssistance?.reason ? ` · ${value.aiAssistance.reason}` : ""}`)
+    }
     const design = await designFor(document.id)
     content.template = design.template
     content.accent = design.accent

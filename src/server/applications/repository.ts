@@ -5,9 +5,10 @@ import { db } from "@/server/db/client"
 import { applications, entries, facts, jobs } from "@/server/db/schema"
 import { candidateFacts, indexFacts, matchRequirement, summarize, type Analysis, type ProfileFact } from "@/server/analysis/match"
 import { PROMPT_VERSION, refineMatches } from "@/server/analysis/refine"
-import { llmConfigured } from "@/lib/env"
-import { completeJson } from "@/server/llm/client"
-import { coverLetterDecision, extractRequirements } from "@/server/analysis/requirements"
+import { getLlmOverview } from "@/server/settings/llm"
+import { completionForRun } from "@/server/llm/client"
+import { coverLetterDecision, extractRequirementCandidates } from "@/server/analysis/requirements"
+import { FILTER_PROMPT_VERSION, filterRequirements, type RequirementFilterSummary } from "@/server/analysis/filter"
 import { getProfile } from "@/server/profile/repository"
 import { startRun } from "@/server/runs/tracer"
 
@@ -30,7 +31,7 @@ export async function loadProfileFacts(profileId: string): Promise<ProfileFact[]
   })
 }
 
-export type StoredAnalysis = Analysis & { coverLetter: { decision: string; evidence: string }; analyzedAt: string; factCount: number; runId: string; modelReview: { reviewed: number; changed: number; model?: string } | null }
+export type StoredAnalysis = Analysis & { coverLetter: { decision: string; evidence: string }; analyzedAt: string; factCount: number; runId: string; requirementFilter?: RequirementFilterSummary; modelReview: { reviewed: number; changed: number; model?: string } | null }
 
 /** Create (or reuse) the application for a job and (re)run the analysis. */
 export async function analyzeJob(jobId: string) {
@@ -40,34 +41,38 @@ export async function analyzeJob(jobId: string) {
   if (!job) throw new Error("Job not found.")
   const run = await startRun("application.analyze", { jobId })
   try {
-    const requirements = await run.step("extract requirements", async () => extractRequirements(job.rawText), (value) => `${value.length} requirements`)
+    const extraction = await run.step("extract requirement candidates", async () => extractRequirementCandidates(job.rawText), (value) => `${value.candidates.length} posting items · ${value.requirements.length} rule-based requirements`)
+    const modelConfiguration = await run.step("Check AI configuration", () => getLlmOverview(), (value) => value.configured ? `${value.model} configured` : "AI filtering unavailable; rule-based extraction will be used.").catch(() => null)
+    const filtered = await run.step("filter posting details", () => filterRequirements(extraction, job.rawText, modelConfiguration?.configured ? completionForRun(run, "requirement filtering", FILTER_PROMPT_VERSION) : undefined), (value) => `${value.summary.reviewed} items reviewed · ${value.requirements.length} requirements kept · ${value.summary.excluded.length} posting details excluded · ${value.summary.status}`)
+    const requirements = filtered.requirements
     const profileFacts = await run.step("load verified facts", () => loadProfileFacts(profile.id), (value) => `${value.length} facts`)
     if (!profileFacts.length) throw new Error("No verified facts yet. Verify at least a few profile entries first.")
     const indexed = indexFacts(profileFacts)
     let matches = await run.step("match evidence (rules)", async () => requirements.map((requirement) => matchRequirement(requirement, indexed)), (value) => `${value.filter((m) => m.status === "met").length} met · ${value.filter((m) => m.status === "partial").length} partial · ${value.filter((m) => m.status === "gap").length} gap`)
     let modelReview: { reviewed: number; changed: number; model?: string } | null = null
-    if (llmConfigured) {
+    if (modelConfiguration?.configured) {
       const candidates = Object.fromEntries(matches.map((match) => [match.id, candidateFacts(match, indexed)]))
       let model = ""
       const reviewed = await run
         .step(
           `model review (${PROMPT_VERSION})`,
           () => refineMatches(matches, candidates, async (input) => {
-            const completion = await completeJson(input)
+            const completion = await completionForRun(run, "fit review", PROMPT_VERSION)(input)
             model = completion.model
             return completion
           }),
           (value) => `reviewed ${value.reviewed} · changed ${value.changed}`,
         )
         .catch(() => null) // the model is an optional improvement, never a blocker
-      if (reviewed) {
+      if (reviewed && reviewed.reviewed > 0) {
         matches = reviewed.matches
         modelReview = { reviewed: reviewed.reviewed, changed: reviewed.changed, model }
       }
     }
-    const result = summarize(matches, profileFacts, job.rawText)
+    // Excluded process/benefit text must not reappear as missing skills in keyword coverage.
+    const result = summarize(matches, profileFacts, requirements.map((requirement) => requirement.text).join("\n"))
     const coverLetter = coverLetterDecision(job.rawText)
-    const stored: StoredAnalysis = { ...result, coverLetter, analyzedAt: new Date().toISOString(), factCount: profileFacts.length, runId: run.id, modelReview }
+    const stored: StoredAnalysis = { ...result, coverLetter, analyzedAt: new Date().toISOString(), factCount: profileFacts.length, runId: run.id, requirementFilter: filtered.summary, modelReview }
     const selected = [...new Set(result.requirements.filter((item) => item.status === "met" || item.status === "partial").flatMap((item) => item.factIds))]
     const values = {
       analysis: stored as unknown as Record<string, unknown>,

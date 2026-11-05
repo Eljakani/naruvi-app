@@ -10,10 +10,14 @@
  *    quality gate refuses "ready" until every placeholder is replaced.
  */
 import { z } from "zod"
+import { aiAssistance, aiReviewCheck } from "./ai-metadata"
 import { templateIds } from "./model"
 import type { ComposeAnalysis, ComposeEntry, ComposeProfile } from "./compose"
 
 export const letterParagraph = z.object({
+  originalText: z.string().max(3000).optional(),
+  factIds: z.array(z.string()).optional(),
+  sourceUrls: z.array(z.string()).optional(),
   id: z.string(),
   kind: z.enum(["opening", "highlights", "motivation", "closing", "custom"]),
   text: z.string().max(3000).default(""),
@@ -23,6 +27,7 @@ export const letterParagraph = z.object({
 })
 
 export const letterHighlight = z.object({
+  originalText: z.string().max(600).optional(),
   id: z.string(),
   text: z.string().max(600),
   organization: z.string().default(""),
@@ -31,6 +36,7 @@ export const letterHighlight = z.object({
 })
 
 export const letterDocument = z.object({
+  aiAssistance: aiAssistance.optional(),
   version: z.literal(1),
   kind: z.literal("cover_letter"),
   language: z.string().regex(/^[a-z]{2}$/),
@@ -192,6 +198,8 @@ export type LetterCheck = { id: string; status: "pass" | "warn" | "fail"; label:
 /** Deterministic quality gate for a cover letter. Ready = no errors and score ≥ 80. */
 export function checkLetter(doc: LetterDocument, pages: number | null) {
   const checks: LetterCheck[] = []
+  const aiCheck = aiReviewCheck(doc.aiAssistance)
+  if (aiCheck) checks.push(aiCheck)
   const add = (id: string, status: LetterCheck["status"], label: string, detail: string) => checks.push({ id, status, label, detail })
   const paragraphs = doc.paragraphs.filter((p) => p.included)
   const pending = paragraphs.filter((p) => p.kind !== "highlights" && (isPlaceholder(p.text) || (p.kind === "motivation" && !p.text.trim())))

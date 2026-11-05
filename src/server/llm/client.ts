@@ -1,33 +1,20 @@
 import "server-only"
-import { env, llmConfigured } from "@/lib/env"
+import { getLlmConfiguration } from "@/server/settings/llm"
+import { requestCompletion, type CompletionInput, type Completion } from "./transport"
+import type { startRun } from "@/server/runs/tracer"
 
-export type Completion = { text: string; inputTokens: number | null; outputTokens: number | null; model: string }
-export type Complete = (input: { system: string; user: string; maxTokens?: number }) => Promise<Completion>
+export type { Completion } from "./transport"
+export type Complete = (input: CompletionInput) => Promise<Completion>
 
-/** Any OpenAI-compatible chat endpoint (DeepSeek, OpenAI, Ollama, …), JSON mode. */
-export const completeJson: Complete = async ({ system, user, maxTokens = 2000 }) => {
-  if (!llmConfigured) throw new Error("No language model configured (set LLM_API_KEY in .env.local).")
-  const response = await fetch(`${env.LLM_BASE_URL.replace(/\/$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...(env.LLM_API_KEY ? { authorization: `Bearer ${env.LLM_API_KEY}` } : {}) },
-    body: JSON.stringify({
-      model: env.LLM_MODEL,
-      temperature: 0,
-      max_tokens: maxTokens,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-    signal: AbortSignal.timeout(90_000),
-  })
-  if (!response.ok) throw new Error(`Model call failed (${response.status}): ${(await response.text()).slice(0, 200)}`)
-  const data = (await response.json()) as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number }; model?: string }
-  return {
-    text: data.choices?.[0]?.message?.content ?? "",
-    inputTokens: data.usage?.prompt_tokens ?? null,
-    outputTokens: data.usage?.completion_tokens ?? null,
-    model: data.model ?? env.LLM_MODEL,
-  }
+/** Any OpenAI-compatible endpoint, using the current saved settings. */
+export const completeJson: Complete = async (input) => requestCompletion(await getLlmConfiguration(), input)
+
+/** A request gets its own running/succeeded/failed trace, even if its caller falls back. */
+export function completionForRun(run: Awaited<ReturnType<typeof startRun>>, task: string, promptVersion: string): Complete {
+  return (input) => run.step(
+    `AI request · ${task}`,
+    () => completeJson(input),
+    (value) => `${value.model} · ${value.inputTokens ?? "?"} input / ${value.outputTokens ?? "?"} output tokens · ${value.attempts ?? 1} attempt(s) · ${value.finishReason ?? "completed"}`,
+    (value) => ({ model: value.model, promptVersion, inputTokens: value.inputTokens, outputTokens: value.outputTokens }),
+  )
 }

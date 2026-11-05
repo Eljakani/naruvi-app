@@ -19,6 +19,9 @@ export type CompanyResearch = {
   prompts: string[]
   starters: string[]
   notes: string[]
+  /** AI-written, source-cited angles; absent when no model is configured. */
+  angles?: { text: string; sources: string[] }[]
+  anglesModel?: string
 }
 
 const POSTING = "job posting"

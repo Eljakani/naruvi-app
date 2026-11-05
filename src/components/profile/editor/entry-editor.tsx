@@ -27,6 +27,7 @@ import { toast } from "sonner"
 import { deleteEntryAction, saveEntryAction } from "@/app/(app)/profile/actions"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { LogoField } from "@/components/profile/editor/logo-field"
+import { BulletSuggestions } from "@/components/profile/editor/bullet-suggestions"
 import { ChipInput, FactPicker, GrowText, LineList, StringLineList } from "@/components/profile/editor/inputs"
 import { type Draft, type DraftBullet, type Lang, LANGS, newKey, pairRows, toDraft, toInput } from "@/components/profile/editor/draft"
 import { KIND_SINGULAR, STATUS_LABELS } from "@/components/profile/labels"
@@ -325,6 +326,19 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
               </Button>
             }
           >
+            <BulletSuggestions
+              input={{
+                kind: draft.kind,
+                role: draft.display.en.role || draft.display.fr.role || draft.title,
+                organization: draft.display.en.organization || draft.display.fr.organization,
+                facts: draft.facts.filter((fact) => fact.statement.trim()).map((fact) => ({ key: fact.key, statement: fact.statement })),
+                existing: draft.bullets.map((bullet) => bullet.text).filter(Boolean),
+                languages: [...LANGS],
+              }}
+              onAdd={(suggestion) =>
+                patch({ bullets: [...draft.bullets, { key: newKey(), group: groups[0] ?? "Suggested", role: "bullet", language: suggestion.language as Lang, text: suggestion.text, factKeys: suggestion.factKeys }] })
+              }
+            />
             {groups.length === 0 ? (
               <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-8 text-center">
                 <p className="text-sm font-medium">No bullets yet</p>

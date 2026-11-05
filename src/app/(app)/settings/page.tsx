@@ -10,7 +10,7 @@ export const metadata = { title: "Settings" }
 export default function SettingsPage() {
   return (
     <>
-      <PageHeader title="Settings" description="Your model, document defaults, fonts and data. Everything stays on this machine." />
+      <PageHeader title="Settings" description="Your model, document defaults, fonts and data. AI assistance sends relevant job text, verified facts and available company research to your configured provider." />
       <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
         <Loader />
       </Suspense>

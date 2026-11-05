@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { BuildingIcon, ExternalLinkIcon, Loader2Icon, MessageCircleQuestionIcon, PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react"
+import { BuildingIcon, ExternalLinkIcon, Loader2Icon, MessageCircleQuestionIcon, PlusIcon, RefreshCwIcon, SearchIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 import { researchCompanyAction } from "@/app/(app)/applications/[id]/research/actions"
 import { Badge } from "@/components/ui/badge"
@@ -86,6 +86,27 @@ export function CompanyResearch({
             {pending ? <Loader2Icon className="size-3 animate-spin" /> : <RefreshCwIcon className="size-3" />}
           </button>
         </div>
+        {research.angles?.length ? (
+          <div className="grid gap-1.5">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <SparklesIcon className="size-3" /> Specific angles from their own words
+            </span>
+            <ul className="grid gap-1">
+              {research.angles.map((angle) => (
+                <li key={angle.text} className="flex items-start gap-2 text-xs leading-5">
+                  <span className="min-w-0 flex-1">
+                    {angle.text} {angle.sources[0] ? <SourceLink source={angle.sources[0]} /> : null}
+                  </span>
+                  {onInsert ? (
+                    <Button size="icon-xs" variant="ghost" aria-label="Insert into the letter" onClick={() => onInsert(angle.text)}>
+                      <PlusIcon />
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <ul className="grid gap-1.5">
           {prompts.map((prompt) => (
             <li key={prompt} className="text-xs leading-5 text-muted-foreground">
@@ -128,6 +149,25 @@ export function CompanyResearch({
           {note}
         </p>
       ))}
+      {research.angles?.length ? (
+        <div className="grid gap-2">
+          <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <SparklesIcon className="size-3" /> Angles worth mentioning
+          </span>
+          <ul className="grid gap-2">
+            {research.angles.map((angle) => (
+              <li key={angle.text} className="grid gap-0.5">
+                <p className="text-sm leading-6">{angle.text}</p>
+                <div className="flex flex-wrap gap-2">
+                  {angle.sources.map((source) => (
+                    <SourceLink key={source} source={source} />
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {empty && !research.notes?.length ? <p className="text-xs text-muted-foreground">No quotable information found on {research.website || "the company site"}. Check the website on the job page.</p> : null}
       {research.about.slice(0, showAll ? 3 : 1).map((item) => (
         <div key={item.text} className="grid gap-0.5">

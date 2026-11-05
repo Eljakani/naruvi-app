@@ -1,6 +1,6 @@
-# CareerBuddy — Architecture
+# Naruvi — Architecture
 
-CareerBuddy turns a job posting into a truthful, tailored, verified application
+Naruvi turns a job posting into a truthful, tailored, verified application
 (CV + optional cover letter), running locally with `docker compose up`.
 
 It is the clean-room successor of the "CV Studio" DSH plugin. The lessons from
@@ -8,7 +8,7 @@ that plugin are baked into the design from day one instead of patched in.
 
 ## 1. Principles
 
-0. **For anyone, in any field.** CareerBuddy is open-source software for every
+0. **For anyone, in any field.** Naruvi is open-source software for every
    job seeker — nurses, buyers, teachers, engineers, drivers — not a tool tuned
    to one profile. No logic may assume a field, a language pair or a CV
    template. Field knowledge lives in data (skill vocabulary packs) and is
@@ -141,6 +141,8 @@ docs/                  architecture and decisions (ADRs)
 ```
 link ─▶ ATS APIs (Greenhouse, Lever, Ashby, SmartRecruiters, LinkedIn guest) + public page
      ─▶ parse each (vendored parser, zod-validated) ─▶ pick best (pure `select.ts`)
+     ─▶ if incomplete/blocked: render once in headless Chromium, wait for job data,
+        parse the rendered DOM, keep the better result (`url-source.ts`)
      ─▶ company site: structured data, links, recruiter e-mail domain, text; weak
         candidates verified by fetching the homepage; job-board hosts never accepted
      ─▶ logo: posting header logo, then site icons (touch icon, JSON-LD, header img,
@@ -150,13 +152,18 @@ link ─▶ ATS APIs (Greenhouse, Lever, Ashby, SmartRecruiters, LinkedIn guest)
 ```
 
 - All network access goes through `safeFetch` (public addresses only, re-checked on every redirect, size-capped, timed out).
+- The browser reader (`browser.ts`) uses temporary Playwright contexts. All page, script, API, and frame requests are fulfilled through `safeFetch`; service workers, WebSockets, downloads, non-GET requests, and heavy image/media/font resources are blocked. Rendering is limited to 25 seconds after launch, 100 requests, 3 MB per response/DOM, 24 MB of accepted response bodies, and two active browsers per process. Delayed job data is polled for up to eight seconds. It does not use the user's browser session or solve login/CAPTCHA walls.
+- `npm run browser:install` installs Chromium locally; Docker includes Chromium and its system libraries. `npm run test:browser` checks delayed JavaScript/JSON extraction and private-address/write-request blocking in real Chromium using a fixture transport.
 - Every preview is traced (`runs` / `run_steps`): source used, confidence, site decision, logo source.
 - Golden evals: `evals/jobs/fixtures/*` hold captured raw responses; `npm run evals` checks company, role, language, location, description length and website offline. Capture new ones with `npm run jobs:capture -- <name> <url>` and review the expected values by hand.
 
 ## 10. Fit analysis (implemented in `src/server/analysis/`)
 
 ```
-job text ─▶ requirements (sections: must / responsibilities / nice; years)
+job text ─▶ posting-item candidates (sections: must / responsibilities / nice; years)
+         ─▶ AI requirement filter (posting only, no candidate profile): retain
+            qualifications/duties; exclude hiring steps, benefits, application
+            instructions and company background; rules-only fallback
          ─▶ skills: vocabulary packs (tech, business, care, education, trades,
             languages…) + term detection for unknown tools/acronyms
 verified facts only ─▶ match each requirement:
@@ -165,7 +172,7 @@ verified facts only ─▶ match each requirement:
    partly    some skills, entry tags only, coursework, or related skills
    not in profile   nothing backs it → listed under "Don't claim these"
    your call        soft skills / unprovable context → shown, never scored
-─▶ optional model review (only if LLM_API_KEY): uncertain items only, candidate
+─▶ optional model evidence review (configured model in Settings): uncertain items only, candidate
    facts by alias, invented ids dropped, "proven" requires a surviving fact
 ─▶ fit score (must 1 · responsibilities 0.6 · nice 0.4), entries to lead with,
    key skills ✓/✗, cover-letter decision; stored on the application, traced.
@@ -174,6 +181,20 @@ verified facts only ─▶ match each requirement:
 Extending to a new field: add a pack to `src/server/analysis/keywords.ts`
 (canonical key → EN/FR patterns) and, if useful, `RELATED` links. Tests in
 `src/server/domain/__tests__/analysis.test.ts` include non-tech cases.
+
+`filter.ts` reviews up to 120 posting items in batches of 24 before any matching
+or scoring. Decisions use original IDs and exact category enums. Positive
+classifications retain the original text/keywords/years and can correct the
+requirement kind; negative classifications are stored with category, source and
+reason. Unknown IDs and conflicting duplicate decisions are ignored; missing,
+failed or unreviewed decisions keep the baseline extraction. The AI can recover
+genuine duties from an overly broad section heuristic. Obvious French interview
+labels and skipped sections are handled offline too, and fallback never
+reintroduces explicitly excluded process/benefit lines. Keyword coverage uses
+only retained requirements. Stored analyses optionally include `requirementFilter`
+metadata, rendered as an inspectable excluded-details list. The shared AI SDK
+runtime includes the caller's generated JSON Schema in its system instructions
+as well as validating the returned JSON locally.
 
 ## 11. CV generation (implemented in `src/server/documents/`, see ADR 0001)
 
@@ -213,3 +234,77 @@ retried. Extraction is deterministic (meta, JSON-LD Organization, mission and
 "About" section (recruiting sentences excluded). Facts are cached on the
 company for 7 days; prompts and sentence starters are generated per document
 language at display time and are questions for the candidate — never prose.
+
+## 14. Model credentials (`src/server/settings/llm.ts`)
+
+Model credentials are managed in Settings. `src/server/settings/llm.ts` returns a
+redacted status DTO for the UI and reads the latest configuration for each model
+call. The `language-model` settings row stores AES-256-GCM ciphertext with a fresh
+nonce and endpoint-bound authentication data. `SETTINGS_ENCRYPTION_KEY` stays in
+the server environment; decryption happens only before use. Credential settings
+are excluded from JSON exports. API errors expose status codes, not provider
+response bodies. Existing environment configuration is used only until settings
+are first saved. `npm run settings:key` initializes the environment encryption
+secret without printing or replacing it.
+
+## 15. AI-assisted document composition (`src/server/documents/ai-compose.ts`)
+
+The deterministic composers create the baseline first. If a model is configured,
+one bounded model call per document proposes CV bullet selection/rewrites or letter
+paragraphs and highlight rewrites. CV E/B aliases map only to offered, verified
+entries/bullets, and original fact IDs are retained. Local checks reject additions
+of numbers, years and recognized skills; CV selection cannot drop previously shown
+must-have evidence. Letter F/S/J/H aliases resolve to verified facts, cached
+company sources, posting text and approved highlights. Contact fields never enter
+the prompt. Model-supplied document identity, styling and arbitrary fact IDs are
+never applied. Invalid output/provider failures fall back to the baseline.
+
+Rewrites store original text; letter paragraphs store fact/source citations.
+`aiAssistance` metadata stores model, prompt version, change count and review
+state. Both quality gates require human review of AI drafts because syntactic
+grounding cannot verify semantic entailment or personal motivation. Review is
+saved as another immutable revision. Existing manually written/reviewed motivation
+is preserved on redraft. AI use/fallback is traced as a generation run step. Old
+revisions remain compatible through optional JSON fields; no SQL migration is
+required.
+
+## 16. Shared AI runtime and request traces
+
+`src/server/llm/transport.ts` uses Vercel AI SDK `generateText` with `Output.json`
+and `@ai-sdk/openai-compatible`. Compatible endpoints receive JSON mode rather
+than assuming strict JSON Schema support; each workflow's Zod schema is still
+enforced before its output is used. Retry budget is one transient retry under an
+overall abort timeout. Redirects are refused so credentials do not follow a
+different endpoint. Provider/SDK errors are converted into safe user-facing
+messages; provider bodies and request prompts are never copied into traces.
+
+`completionForRun` wraps each model call in an individual step. The tracer writes
+`running` before execution, then updates the existing step to `succeeded` or
+`failed`; model, prompt version, input/output tokens and latency use the existing
+`run_steps` columns. The Runs page reads only operational metadata and provides a
+manual refresh. The document's outer AI step records a distinct fallback reason,
+so a successful HTTP response rejected by grounding checks is distinguishable
+from an API/network failure. No SQL migration or hosted Vercel service is needed.
+
+DeepSeek endpoints receive an explicit thinking toggle: bounded JSON editing
+defaults to disabled thinking; `CompletionInput.reasoning` can opt future tasks
+into low/high reasoning. A sanitized `AiRequestError` carries only operational
+metrics, so incomplete-JSON/output-limit failures still record model, actual
+attempts and available token counts in `run_steps` without storing the raw SDK
+error or its response body.
+
+## 17. AI at every step
+
+Every workflow has a deterministic baseline and an optional AI pass. The model proposes; local checks decide what is kept. With no model configured, the baseline runs alone.
+
+| Step | AI pass | What is checked locally |
+| --- | --- | --- |
+| Job import (`jobs/ai-extract.ts`) | Reads role, company, location, contract, salary and language when the rules are unsure | Each value must occur verbatim in the posting; structured board data wins |
+| Requirement filtering (`analysis/filter.ts`) | Separates qualifications and duties from hiring-process, benefits and company text | Only supplied item ids; unreviewed items keep the rule result |
+| Fit matching (`analysis/refine.ts`) | Second opinion on uncertain matches | Only verified facts can be cited |
+| CV tailoring (`documents/ai-compose.ts`) | Picks and tightens bullets for the job | No new numbers or skills; must-have evidence can't be dropped |
+| Cover letter (`documents/ai-compose.ts`) | Drafts opening, motivation and closing | Every paragraph cites facts and sources |
+| Company research (`research/ai-angles.ts`) | Turns the company's own pages into specific, cited angles | Every angle cites sources; no numbers its sources don't state |
+| Profile bullets (`profile/ai-bullets.ts`) | Drafts bullets in each language from an entry's facts | Must cite facts; no numbers or skills beyond them; never saved without the user |
+
+Each AI request is a traced step with model, prompt version and token counts (see Runs).

@@ -3,7 +3,10 @@ import { existsSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { count, sql } from "drizzle-orm"
 import { z } from "zod"
-import { env, llmConfigured } from "@/lib/env"
+import { getLlmConfiguration, getLlmOverview } from "./llm"
+import { SettingsError } from "./errors"
+import { exportableSettings } from "./llm-schema"
+import { requestCompletion } from "@/server/llm/transport"
 import { ASSETS_DIR } from "@/server/assets/store"
 import { db } from "@/server/db/client"
 import { applications, entries, facts, jobs, phrasings, profiles, revisions, settings } from "@/server/db/schema"
@@ -50,18 +53,13 @@ export async function getSystemOverview() {
     const path = join(ASSETS_DIR, "fonts", `NotoSans${code}-Regular.otf`)
     return { code, downloaded: existsSync(path), bytes: existsSync(path) ? statSync(path).size : 0 }
   })
-  let llmHost = ""
-  try {
-    llmHost = new URL(env.LLM_BASE_URL).host
-  } catch {
-    llmHost = env.LLM_BASE_URL
-  }
+  const llm = await getLlmOverview()
   return {
     counts: { profiles: p.n, entries: e.n, facts: f.n, phrasings: ph.n, jobs: j.n, applications: a.n, revisions: r.n },
     database: `PostgreSQL ${version[0]?.v ?? "?"}`,
     assetsDir: ASSETS_DIR,
     defaultLanguage: profile?.defaultLanguage ?? "en",
-    llm: { configured: llmConfigured, host: llmHost, model: env.LLM_MODEL, hasKey: env.LLM_API_KEY.length > 0 },
+    llm,
     fonts,
     appVersion: process.env.npm_package_version ?? "0.1.0",
   }
@@ -69,19 +67,13 @@ export async function getSystemOverview() {
 
 /** Cheapest possible round trip to check the model endpoint and key. */
 export async function testLlm() {
-  if (!llmConfigured) return { ok: false, message: "No model configured. Set LLM_API_KEY (and LLM_BASE_URL / LLM_MODEL) in .env.local, then restart." }
   const started = Date.now()
   try {
-    const response = await fetch(`${env.LLM_BASE_URL.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...(env.LLM_API_KEY ? { authorization: `Bearer ${env.LLM_API_KEY}` } : {}) },
-      body: JSON.stringify({ model: env.LLM_MODEL, max_tokens: 1, messages: [{ role: "user", content: "ping" }] }),
-      signal: AbortSignal.timeout(20_000),
-    })
-    if (!response.ok) return { ok: false, message: `The endpoint answered ${response.status}: ${(await response.text()).slice(0, 160)}` }
-    return { ok: true, message: `Connected to ${env.LLM_MODEL} in ${Date.now() - started} ms.` }
+    const config = await getLlmConfiguration()
+    await requestCompletion(config, { system: "Reply briefly.", user: "ping", maxTokens: 1 }, { timeoutMs: 20_000, jsonMode: false })
+    return { ok: true, message: `Connected to ${config.model} in ${Date.now() - started} ms.` }
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : String(error) }
+    return { ok: false, message: error instanceof SettingsError ? error.message : "Could not test the model connection. Check Settings and try again." }
   }
 }
 
@@ -100,7 +92,7 @@ export async function exportAll() {
     db.query.settings.findMany(),
   ])
   return {
-    format: "careerbuddy-export",
+    format: "naruvi-export",
     version: 1,
     exportedAt: new Date().toISOString(),
     note: "Images (logos, photos) live in the asset store and are referenced by path.",
@@ -113,6 +105,6 @@ export async function exportAll() {
     applications: applicationRows,
     documents: documentRows,
     revisions: revisionRows,
-    settings: settingRows,
+    settings: exportableSettings(settingRows),
   }
 }

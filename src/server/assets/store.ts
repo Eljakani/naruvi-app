@@ -5,7 +5,9 @@ import { join, resolve, sep } from "node:path"
 import { IMAGE_MIME, type ImageFormat, imageSize, logoShapeWarning, sniffImage } from "./image"
 
 /** Local, content-addressed asset store (a Docker volume in compose). */
-export const ASSETS_DIR = resolve(process.env.ASSETS_DIR || "data/assets")
+// Runtime volume, never a source dependency. Tracing this dynamic path can make
+// Turbopack watch the project root, including its own generated files and logs.
+export const ASSETS_DIR = resolve(/* turbopackIgnore: true */ process.env.ASSETS_DIR || "data/assets")
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 const ASSET_PATH = /^(logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg|ico)|photos\/[a-f0-9]{24}\.(png|jpg|webp))$/
 
@@ -49,8 +51,8 @@ async function storeImage(buffer: Buffer, folder: "logos" | "photos"): Promise<S
   const size = imageSize(buffer)
   const hash = createHash("sha256").update(buffer).digest("hex").slice(0, 24)
   const path = `${folder}/${hash}.${format}`
-  await mkdir(join(ASSETS_DIR, folder), { recursive: true })
-  await writeFile(absolute(path), buffer)
+  await mkdir(/* turbopackIgnore: true */ join(ASSETS_DIR, folder), { recursive: true })
+  await writeFile(/* turbopackIgnore: true */ absolute(path), buffer)
   const warning =
     folder === "photos"
       ? size && Math.min(size.width, size.height) < 200
@@ -62,7 +64,7 @@ async function storeImage(buffer: Buffer, folder: "logos" | "photos"): Promise<S
 
 export async function readAsset(path: string): Promise<{ buffer: Buffer; mime: string } | null> {
   try {
-    const buffer = await readFile(absolute(path))
+    const buffer = await readFile(/* turbopackIgnore: true */ absolute(path))
     const format = path.split(".").pop() as ImageFormat
     return { buffer, mime: IMAGE_MIME[format] }
   } catch {

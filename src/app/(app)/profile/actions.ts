@@ -7,6 +7,10 @@ import { MAX_IMAGE_BYTES, storeLogo, storePhoto } from "@/server/assets/store"
 import { addFactForBullet, linkBulletFacts, setBulletRole } from "@/server/profile/repository"
 import { deleteEntry, importProfileFolder, saveEntry, saveIdentity, setEntryStatus } from "@/server/profile/repository"
 import type { EntryInput, IdentityInput } from "@/server/profile/schemas"
+import { BULLETS_PROMPT_VERSION, suggestBullets, type BulletSuggestion } from "@/server/profile/ai-bullets"
+import { completionForRun } from "@/server/llm/client"
+import { startRun } from "@/server/runs/tracer"
+import { getLlmOverview } from "@/server/settings/llm"
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string }
 
@@ -83,4 +87,29 @@ export async function addFactForBulletAction(phrasingId: string, statement: stri
 
 export async function setBulletRoleAction(phrasingId: string, role: "bullet" | "label") {
   return run(() => setBulletRole(uuid.parse(phrasingId), z.enum(["bullet", "label"]).parse(role)))
+}
+
+const suggestInput = z.object({
+  kind: z.string().max(40),
+  role: z.string().max(200),
+  organization: z.string().max(200),
+  facts: z.array(z.object({ key: z.string().max(64), statement: z.string().max(600) })).max(60),
+  existing: z.array(z.string().max(600)).max(80),
+  languages: z.array(z.string().regex(/^[a-z]{2}$/)).min(1).max(4),
+})
+
+/** AI bullet drafts from the entry's facts. Nothing is saved: the user picks what to add. */
+export async function suggestBulletsAction(input: unknown): Promise<{ ok: true; bullets: BulletSuggestion[]; model: string } | { ok: false; message: string }> {
+  const parsed = suggestInput.safeParse(input)
+  if (!parsed.success) return { ok: false, message: "Invalid entry." }
+  if (!(await getLlmOverview().catch(() => null))?.configured) return { ok: false, message: "No language model configured. Add one in Settings." }
+  const run = await startRun("profile.bullets", { facts: parsed.data.facts.length })
+  try {
+    const result = await run.step("AI suggest bullets", () => suggestBullets(parsed.data, completionForRun(run, "bullet suggestions", BULLETS_PROMPT_VERSION)), (value) => `${value.bullets.length} grounded suggestion(s)`)
+    await run.finish("succeeded", { suggestions: result.bullets.length })
+    return { ok: true, ...result }
+  } catch (error) {
+    await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
+    return { ok: false, message: error instanceof Error ? error.message : "AI suggestion failed." }
+  }
 }

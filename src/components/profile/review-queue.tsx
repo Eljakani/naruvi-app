@@ -309,7 +309,7 @@ function EntryReview({ item, onDone }: { item: Extract<ReviewItem, { type: "entr
         </div>
         <div>
           <CardTitle className="text-sm">Is everything here true and current?</CardTitle>
-          <CardDescription>Verified entries are the only ones CareerBuddy uses to write CVs.</CardDescription>
+          <CardDescription>Verified entries are the only ones Naruvi uses to write CVs.</CardDescription>
         </div>
         {entry.facts.length ? (
           <ul className="grid gap-1.5">

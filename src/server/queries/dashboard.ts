@@ -1,7 +1,7 @@
 import "server-only"
 import { count, desc, eq, sql } from "drizzle-orm"
 import { connection } from "next/server"
-import { llmConfigured, env } from "@/lib/env"
+import { getLlmOverview } from "@/server/settings/llm"
 import { db } from "@/server/db/client"
 import { listApplications } from "@/server/applications/repository"
 import { applications, entries, facts, jobs, profiles, runs } from "@/server/db/schema"
@@ -15,6 +15,7 @@ export async function getDashboard() {
     db.select({ n: count() }).from(profiles),
     db.select().from(runs).orderBy(desc(runs.createdAt)).limit(6),
   ])
+  const llm = await getLlmOverview()
   const recent = (await listApplications()).slice(0, 6)
   const dbVersion = await db.execute<{ v: string }>(sql`select current_setting('server_version') as v`)
   const statusCounts = Object.fromEntries(byStatus.map((row) => [row.status, row.n])) as Record<string, number>
@@ -28,7 +29,7 @@ export async function getDashboard() {
     recent,
     health: {
       db: `PostgreSQL ${dbVersion[0]?.v ?? "?"}`,
-      llm: llmConfigured ? `${env.LLM_MODEL} @ ${new URL(env.LLM_BASE_URL).host}` : null,
+      llm: llm.configured ? `${llm.model} @ ${new URL(llm.baseUrl).host}` : null,
     },
   }
 }

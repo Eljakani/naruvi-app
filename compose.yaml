@@ -1,18 +1,18 @@
-name: careerbuddy
+name: naruvi
 
 services:
   db:
     image: pgvector/pgvector:pg17
     environment:
-      POSTGRES_USER: careerbuddy
-      POSTGRES_PASSWORD: careerbuddy
-      POSTGRES_DB: careerbuddy
+      POSTGRES_USER: ${POSTGRES_USER:-naruvi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-naruvi}
+      POSTGRES_DB: ${POSTGRES_DB:-naruvi}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U careerbuddy -d careerbuddy"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 3s
       timeout: 3s
       retries: 20
@@ -21,9 +21,10 @@ services:
     build: { context: ., target: deps }
     command: ["npx", "drizzle-kit", "migrate"]
     environment: &app-env
-      DATABASE_URL: postgres://careerbuddy:careerbuddy@db:5432/careerbuddy
+      DATABASE_URL: postgres://${POSTGRES_USER:-naruvi}:${POSTGRES_PASSWORD:-naruvi}@db:5432/${POSTGRES_DB:-naruvi}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
       ASSETS_DIR: /app/data/assets
     depends_on:

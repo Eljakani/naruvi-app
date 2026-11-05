@@ -11,7 +11,7 @@ export function PageBreadcrumb() {
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbPage>{item?.title ?? "CareerBuddy"}</BreadcrumbPage>
+          <BreadcrumbPage>{item?.title ?? "Naruvi"}</BreadcrumbPage>
         </BreadcrumbItem>
       </BreadcrumbList>
     </Breadcrumb>

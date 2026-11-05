@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import * as React from "react"
 import { Suspense } from "react"
-import { SparklesIcon } from "lucide-react"
+import { NaruviMark } from "@/components/naruvi-mark"
 import { navItems } from "@/components/nav"
 import { NavUser } from "@/components/nav-user"
 import {
@@ -29,12 +29,12 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/" />}>
+            <SidebarMenuButton size="lg" render={<Link href="/" aria-label="Naruvi home" />}>
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <SparklesIcon className="size-4" />
+                <NaruviMark className="size-5" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">CareerBuddy</span>
+                <span className="truncate font-semibold">Naruvi</span>
                 <span className="truncate text-xs text-muted-foreground">Local workspace</span>
               </div>
             </SidebarMenuButton>

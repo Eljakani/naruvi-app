@@ -24,7 +24,7 @@ function faces(pkg: string, subset: string, opts: { bold?: boolean; italic?: boo
   const list: Face[] = [{ src: file(pkg, `${pkg}-${subset}-400-normal.woff`), fontWeight: 400 }]
   if (opts.bold !== false) list.push({ src: file(pkg, `${pkg}-${subset}-700-normal.woff`), fontWeight: 700 })
   if (opts.italic) list.push({ src: file(pkg, `${pkg}-${subset}-400-italic.woff`), fontWeight: 400, fontStyle: "italic" })
-  return list.filter((face) => existsSync(face.src))
+  return list.filter((face) => existsSync(/* turbopackIgnore: true */ face.src))
 }
 
 /** Template base fonts (Latin) */
@@ -81,12 +81,12 @@ function register(family: string, list: Face[]) {
 }
 
 async function download(url: string, path: string) {
-  if (existsSync(path)) return true
+  if (existsSync(/* turbopackIgnore: true */ path)) return true
   try {
     const response = await safeFetch(url, { maxBytes: 20 * 1024 * 1024, accept: "font/otf,application/octet-stream,*/*", timeoutMs: 120_000 })
     if (response.status >= 400 || response.buffer.length < 500_000) return false
-    await mkdir(join(ASSETS_DIR, "fonts"), { recursive: true })
-    await writeFile(path, response.buffer)
+    await mkdir(/* turbopackIgnore: true */ join(ASSETS_DIR, "fonts"), { recursive: true })
+    await writeFile(/* turbopackIgnore: true */ path, response.buffer)
     return true
   } catch {
     return false // offline: the quality gate reports the missing script

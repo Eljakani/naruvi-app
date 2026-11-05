@@ -18,13 +18,13 @@ export async function assertPublicUrl(url: URL) {
   if (!addresses.length || addresses.some((item) => privateAddress(item.address))) throw new Error("That address is local or private and is not allowed.")
 }
 
-export type FetchResult = { buffer: Buffer; contentType: string; finalUrl: string; status: number }
+export type FetchResult = { buffer: Buffer; contentType: string; finalUrl: string; status: number; headers?: Record<string, string> }
 
 /**
  * Fetch a public http(s) URL. Every redirect hop is re-checked against private
  * ranges, the body is size-capped while streaming, and the request times out.
  */
-export async function safeFetch(rawUrl: string, { maxBytes, accept, timeoutMs = 15_000 }: { maxBytes: number; accept: string; timeoutMs?: number }): Promise<FetchResult> {
+export async function safeFetch(rawUrl: string, { maxBytes, accept, timeoutMs = 15_000, origin }: { maxBytes: number; accept: string; timeoutMs?: number; origin?: string }): Promise<FetchResult> {
   let url = new URL(rawUrl)
   for (let hop = 0; hop < 6; hop += 1) {
     await assertPublicUrl(url)
@@ -32,8 +32,9 @@ export async function safeFetch(rawUrl: string, { maxBytes, accept, timeoutMs = 
       redirect: "manual",
       headers: {
         accept,
+        ...(origin ? { origin } : {}),
         "accept-language": "en-US,en;q=0.9,fr;q=0.8",
-        "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36 CareerBuddy/0.1",
+        "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36 Naruvi/0.1",
       },
       signal: AbortSignal.timeout(timeoutMs),
     })
@@ -56,7 +57,10 @@ export async function safeFetch(rawUrl: string, { maxBytes, accept, timeoutMs = 
       }
       chunks.push(value)
     }
-    return { buffer: Buffer.concat(chunks), contentType: response.headers.get("content-type") ?? "", finalUrl: url.toString(), status: response.status }
+    // Preserve CORS for browser-fetched scripts and APIs. Do not forward encoding
+    // or length headers: fetch has already decompressed the response body.
+    const headers = Object.fromEntries([...response.headers].filter(([name]) => name.startsWith("access-control-")))
+    return { buffer: Buffer.concat(chunks), contentType: response.headers.get("content-type") ?? "", finalUrl: url.toString(), status: response.status, headers }
   }
   throw new Error("Too many redirects.")
 }

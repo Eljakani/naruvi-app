@@ -10,7 +10,7 @@ export const metadata = { title: "Profile" }
 export default function ProfilePage() {
   return (
     <>
-      <PageHeader title="Profile" description="Verified facts are the only material CareerBuddy may use. Every bullet must point back to one." />
+      <PageHeader title="Profile" description="Verified facts are the only material Naruvi may use. Every bullet must point back to one." />
       <Suspense fallback={<ProfileSkeleton />}>
         <ProfileData />
       </Suspense>

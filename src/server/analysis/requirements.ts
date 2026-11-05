@@ -29,32 +29,67 @@ function years(text: string): number | null {
   return match ? Number(match[1]) : null
 }
 
-export function extractRequirements(rawText: string): Requirement[] {
+export type ExclusionCategory = "recruitment_process" | "benefits" | "company_information" | "application_instructions" | "other"
+export type ExcludedRequirement = { requirement: Requirement; category: ExclusionCategory; reason: string; source: "rules" | "model" }
+export type RequirementExtraction = { candidates: Requirement[]; requirements: Requirement[]; excluded: ExcludedRequirement[] }
+
+function excludedSection(heading: string): ExclusionCategory | null {
+  if (/(?:recruitment|hiring|interview) (?:process|steps|stages|experience)|how (?:we|to) (?:hire|apply)|(?:processus|process|étapes?|déroulement).*(?:recrutement|entretien|candidature)|^(?:interviews?|entretiens?)$/i.test(heading)) return "recruitment_process"
+  if (/^(?:benefits?|perks|avantages|salary|rémunération|what we offer|ce que nous (?:offrons|proposons))/i.test(heading)) return "benefits"
+  if (/^(?:about (?:us|the company)|à propos|who we are|our company|qui sommes-nous)/i.test(heading)) return "company_information"
+  if (/^(?:how to apply|apply now|comment postuler|pour postuler|modalités de candidature)/i.test(heading)) return "application_instructions"
+  return SKIP.test(heading) ? "other" : null
+}
+
+/** Strong labels describe a step the applicant goes through, not a skill they need. */
+export function isRecruitmentStep(text: string): boolean {
+  return /^(?:[ée]change(?:s)?\s+(?:rh|op[ée]rationnel(?:le)?|technique)|entretien\s+(?:rh|technique|op[ée]rationnel|t[ée]l[ée]phonique)|(?:hr|technical|final|recruiter)\s+(?:interview|screening)|interview\s+(?:stage|step))\s*[:–—-]/i.test(text.trim())
+}
+
+const EXCLUDED_REASONS: Record<ExclusionCategory, string> = {
+  recruitment_process: "Describes the hiring or interview process, not a candidate requirement.",
+  benefits: "Describes compensation or benefits offered by the employer.",
+  company_information: "Describes the company rather than a candidate qualification or duty.",
+  application_instructions: "Explains how to apply rather than what the candidate needs to demonstrate.",
+  other: "Outside a recognized requirements or responsibilities section.",
+}
+
+/** Keep all source candidates for AI classification, with a conservative rules-only baseline. */
+export function extractRequirementCandidates(rawText: string): RequirementExtraction {
   const blocks = parseJobText(rawText)
-  const out: Requirement[] = []
+  const candidates: Requirement[] = []
+  const preferred: Requirement[] = []
+  const fallback: Requirement[] = []
+  const excluded: ExcludedRequirement[] = []
   let heading = ""
   let kind: RequirementKind | null = null
+  let sectionExclusion: ExclusionCategory | null = null
   for (const block of blocks) {
     if (block.type === "heading") {
       heading = block.text
-      kind = classify(block.text)
+      kind = classify(heading)
+      sectionExclusion = excludedSection(heading)
       continue
     }
-    if (block.type !== "list" || !kind) continue
+    if (block.type !== "list") continue
     for (const item of block.items) {
-      // An item can itself say "(nice to have)" / "is a plus".
-      const itemKind: RequirementKind = kind !== "responsibility" && /\b(a plus|un plus|bonus|nice to have|preferred|idéalement|appréci)/i.test(item) ? "nice" : kind
-      out.push({ id: `r${out.length + 1}`, text: item, kind: itemKind, section: heading, keywords: keywordsIn(item), terms: termsIn(item), years: years(item) })
+      const itemKind: RequirementKind = kind !== "responsibility" && /\b(a plus|un plus|bonus|nice to have|preferred|idéalement|appréci)/i.test(item) ? "nice" : kind ?? "must"
+      const requirement: Requirement = { id: `r${candidates.length + 1}`, text: item, kind: itemKind, section: heading, keywords: keywordsIn(item), terms: termsIn(item), years: years(item) }
+      candidates.push(requirement)
+      const category = isRecruitmentStep(item) ? "recruitment_process" : sectionExclusion
+      if (category) excluded.push({ requirement, category, source: "rules", reason: EXCLUDED_REASONS[category] })
+      else if (kind) preferred.push(requirement)
+      else fallback.push(requirement)
     }
   }
-  // No usable headings: treat every bullet as a requirement rather than nothing.
-  if (!out.length) {
-    for (const block of blocks) {
-      if (block.type !== "list") continue
-      for (const item of block.items) out.push({ id: `r${out.length + 1}`, text: item, kind: "must", section: "", keywords: keywordsIn(item), terms: termsIn(item), years: years(item) })
-    }
-  }
-  return out
+  // Never reintroduce explicitly excluded benefits/interview steps through fallback.
+  const requirements = preferred.length ? preferred : fallback
+  if (preferred.length) for (const requirement of fallback) excluded.push({ requirement, category: "other", source: "rules", reason: EXCLUDED_REASONS.other })
+  return { candidates, requirements, excluded }
+}
+
+export function extractRequirements(rawText: string): Requirement[] {
+  return extractRequirementCandidates(rawText).requirements
 }
 
 export type CoverLetterDecision = "required" | "optional" | "not_requested" | "not_mentioned"

@@ -8,6 +8,9 @@ import { startRun } from "@/server/runs/tracer"
 import { buildBrief, type CompanyResearch } from "./brief"
 import { extractPage, type PageFacts } from "./extract"
 import { robotsAllows } from "./robots"
+import { ANGLES_PROMPT_VERSION, companyAngles } from "./ai-angles"
+import { completionForRun } from "@/server/llm/client"
+import { getLlmOverview } from "@/server/settings/llm"
 
 const MAX_PAGES = 6
 const CACHE_DAYS = 7
@@ -100,6 +103,15 @@ export async function researchForJob(jobId: string, options: { force?: boolean; 
       if (site.blockedStatus) notes.push(`${company.name}’s website blocked automated reading (HTTP ${site.blockedStatus}). The brief uses the job posting only — have a look at their site yourself.`)
     }
     const brief = buildBrief({ company: company.name, website: company.website ?? "", pages, jobText: job.rawText, language: options.language ?? job.language, notes })
+    if ((await getLlmOverview().catch(() => null))?.configured) {
+      const ai = await run
+        .step("AI company angles", () => companyAngles({ company: company.name, language: options.language ?? job.language, pages, jobText: job.rawText, jobUrl: job.sourceUrl ?? "" }, completionForRun(run, "company angles", ANGLES_PROMPT_VERSION)), (value) => `${value.angles.length} cited angle(s)`)
+        .catch(() => null)
+      if (ai?.angles.length) {
+        brief.angles = ai.angles
+        brief.anglesModel = ai.model
+      }
+    }
     await db.update(companies).set({ research: brief as unknown as Record<string, unknown>, researchedAt: new Date() }).where(eq(companies.id, company.id))
     await run.finish("succeeded", { pages: pages.length, mission: brief.mission.length, values: brief.values.length })
     return brief

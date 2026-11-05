@@ -7,12 +7,16 @@ import { MAX_IMAGE_BYTES, storeLogo } from "@/server/assets/store"
 import { db } from "@/server/db/client"
 import { companies, jobs } from "@/server/db/schema"
 import { siteLogoCandidates } from "./logo-candidates"
-import { jobDraft, parsedJob, type JobDraft, type ParsedJob } from "./schema"
+import { jobDraft, parsedJob, type JobDraft } from "./schema"
 import { isJobHost, postingLogoCandidates, resolveCompanySite } from "./vendor/company-resolver"
-import { pickBest, parseSource } from "./select"
+import { parseFromUrl } from "./url-source"
+import { renderJobPage } from "./browser"
 import { extractFromText } from "./text-extract"
-import { apiCandidates, parseJobDocument, parseJobUrl } from "./vendor/job-parser"
+import { parseJobDocument, parseJobUrl } from "./vendor/job-parser"
 import { startRun } from "@/server/runs/tracer"
+import { completionForRun } from "@/server/llm/client"
+import { getLlmOverview } from "@/server/settings/llm"
+import { extractJobFields, JOB_FIELDS_PROMPT_VERSION } from "./ai-extract"
 
 export function slugify(value: string) {
   return (
@@ -24,39 +28,6 @@ export function slugify(value: string) {
       .replace(/^-+|-+$/g, "")
       .slice(0, 80) || "company"
   )
-}
-
-type Fetched = { html: string; finalUrl: string }
-
-/** Fetch every structured source we know for the link, keep the best parse. */
-async function parseFromUrl(input: string): Promise<{ job: ParsedJob; page: Fetched | null; errors: string[] }> {
-  const info = parseJobUrl(input)
-  const candidates = [...apiCandidates(input), { url: info.canonical || input, kind: "page" }].filter(
-    (candidate, index, all) => candidate.url && all.findIndex((item) => item.url === candidate.url) === index,
-  )
-  let best: ParsedJob | null = null
-  let page: Fetched | null = null
-  const errors: string[] = []
-  for (const candidate of candidates) {
-    try {
-      const fetched = await safeFetchText(candidate.url)
-      if (fetched.status >= 400) throw new Error(`${new URL(candidate.url).host} answered ${fetched.status}`)
-      const job = parseSource(candidate.kind, fetched.text, fetched.contentType, input, fetched.finalUrl)
-      if (candidate.kind === "page") page = { html: fetched.text, finalUrl: fetched.finalUrl }
-      best = pickBest(best ? [best, job] : [job]) ?? job
-      if (best.role && best.company && best.description.length > 300 && page) break
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error))
-    }
-  }
-  if (!best) throw new Error(`Could not read this posting (${errors.at(-1) ?? "no data"}). Paste the job text instead.`)
-  // The ATS API answered first: still read the public page once — it usually
-  // shows the employer logo and links to the company site.
-  if (!page && info.board !== "linkedin") {
-    const fetched = await safeFetchText(info.canonical || input).catch(() => null)
-    if (fetched && fetched.status < 400 && !/json/i.test(fetched.contentType)) page = { html: fetched.text, finalUrl: fetched.finalUrl }
-  }
-  return { job: best, page, errors }
 }
 
 async function fetchHtml(url: string) {
@@ -111,7 +82,7 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
   const run = await startRun("job.preview", { url, textLength: pasted.length })
   try {
     const { job, page, errors } = url
-      ? await run.step("fetch & parse", () => parseFromUrl(url), (value) => `${value.job.source} · confidence ${value.job.confidence}${value.errors.length ? ` · ${value.errors.length} source(s) failed` : ""}`)
+      ? await run.step("fetch & parse", () => parseFromUrl(url, { fetchText: safeFetchText, renderPage: renderJobPage }), (value) => `${value.job.source} · confidence ${value.job.confidence}${value.errors.length ? ` · ${value.errors.length} source(s) failed` : ""}`)
       : await run.step("parse text", async () => ({ job: parsedJob.parse(parseJobDocument({ text: pasted })), page: null, errors: [] as string[] }), (value) => `confidence ${value.job.confidence}`)
 
     // Prefer the pasted text when the page only gave a teaser.
@@ -137,6 +108,30 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
     job.warnings = job.warnings.filter(
       (warning) => !(job.role && /role title was not detected/i.test(warning)) && !(job.company && /company was not detected/i.test(warning)),
     )
+    // AI pass: fills or corrects key fields when the rules were unsure. Values not
+    // found verbatim in the posting are discarded, so the model cannot invent them.
+    const needsAi = !url || job.confidence < 0.9 || !job.role || !job.company || !job.location
+    const ai = needsAi && description.length >= 200 && (await getLlmOverview().catch(() => null))?.configured
+      ? await run.step("AI read key fields", () => extractJobFields(description, completionForRun(run, "job fields", JOB_FIELDS_PROMPT_VERSION)), (value) => `${Object.keys(value.fields).length - 1} grounded field(s) · ${value.model}`).catch(() => null)
+      : null
+    if (ai) {
+      const fill = (key: "role" | "company" | "location", hint: string) => {
+        const value = ai.fields[key]
+        if (!value) return
+        // Structured board data (high confidence URL parse) wins over the model.
+        if (job[key] && url && job.confidence >= 0.9) return
+        if (job[key] !== value) hints[hint] = "AI (found in posting)"
+        job[key] = value
+      }
+      fill("role", "title")
+      fill("company", "company")
+      fill("location", "location")
+      if (!job.remote && ai.fields.remote) job.remote = ai.fields.remote
+      if (!job.employmentType && ai.fields.employmentType) job.employmentType = ai.fields.employmentType
+      if (!job.salary && ai.fields.salary) job.salary = ai.fields.salary
+      if (!url && ai.fields.language) job.language = ai.fields.language
+      job.warnings = job.warnings.filter((warning) => !(job.role && /role title was not detected/i.test(warning)) && !(job.company && /company was not detected/i.test(warning)))
+    }
     const known = job.company ? await db.query.companies.findFirst({ where: eq(companies.slug, slugify(job.company)) }) : undefined
 
     const site = known?.website

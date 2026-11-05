@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { DownloadIcon, Loader2Icon, PlugZapIcon } from "lucide-react"
+import { DownloadIcon, Loader2Icon } from "lucide-react"
 import { toast } from "sonner"
-import { downloadFontsAction, saveDocumentDefaultsAction, setDefaultLanguageAction, testLlmAction } from "@/app/(app)/settings/actions"
+import { downloadFontsAction, saveDocumentDefaultsAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
+import { ModelSettings } from "./model-settings"
 import { DesignPicker } from "@/components/applications/design-picker"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -104,43 +105,7 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Language model</CardTitle>
-          <CardDescription>Optional. CareerBuddy works fully without one; a model only adds a second opinion on uncertain analysis items.</CardDescription>
-          <CardAction>
-            <Badge variant={overview.llm.configured ? "default" : "secondary"}>{overview.llm.configured ? "Connected" : "Off"}</Badge>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="text-muted-foreground">Endpoint</TableCell>
-                  <TableCell className="text-right font-mono">{overview.llm.host}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="text-muted-foreground">Model</TableCell>
-                  <TableCell className="text-right font-mono">{overview.llm.model}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="text-muted-foreground">API key</TableCell>
-                  <TableCell className="text-right">{overview.llm.hasKey ? "Set" : "Not set"}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-            <FieldDescription>
-              {overview.llm.configured
-                ? "Read from .env.local when the app starts. The key is never stored or shown."
-                : "To turn it on, set LLM_BASE_URL, LLM_API_KEY and LLM_MODEL in .env.local (any OpenAI-compatible API) and restart."}
-            </FieldDescription>
-            <Button variant="outline" className="w-fit" disabled={pending || !overview.llm.configured} onClick={() => run("llm", testLlmAction)}>
-              {busy === "llm" ? <Loader2Icon className="animate-spin" /> : <PlugZapIcon />} Test connection
-            </Button>
-          </FieldGroup>
-        </CardContent>
-      </Card>
+      <ModelSettings initial={overview.llm} />
 
       <Card>
         <CardHeader>

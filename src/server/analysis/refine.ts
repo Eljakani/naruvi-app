@@ -35,7 +35,7 @@ export type Candidate = { id: string; statement: string; entry: string; kind: st
 export async function refineMatches(
   matches: RequirementMatch[],
   candidates: Record<string, Candidate[]>,
-  complete: (input: { system: string; user: string }) => Promise<{ text: string }>,
+  complete: (input: { system: string; user: string; schema?: z.ZodType }) => Promise<{ text: string }>,
   limit = 15,
 ): Promise<{ matches: RequirementMatch[]; reviewed: number; changed: number }> {
   const targets = matches.filter((match) => (match.status === "partial" || match.status === "judgement") && (candidates[match.id]?.length ?? 0) > 0).slice(0, limit)
@@ -56,7 +56,7 @@ export async function refineMatches(
 
   let parsed: z.infer<typeof reply>
   try {
-    const { text } = await complete({ system: SYSTEM, user })
+    const { text } = await complete({ system: SYSTEM, user, schema: reply })
     parsed = reply.parse(JSON.parse(text))
   } catch {
     return { matches, reviewed: 0, changed: 0 }
