@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { startTransition, useEffect, useId, useRef, useState, useTransition } from "react"
 import { ArrowLeftIcon, BanIcon, CheckCircle2Icon, CircleDashedIcon, CopyIcon, EllipsisIcon, EyeIcon, FileTextIcon, HistoryIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, SparklesIcon, StarIcon, Trash2Icon, XIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { designIdeas } from "@/lib/design-ideas"
 import { toast } from "sonner"
 import type { AgentResult } from "@/server/templates/design-agent"
 import { aiDesignAction, deleteTemplateAction, restoreTemplateVersionAction, saveTemplateAction, setDefaultDesignAction, templateVersionsAction } from "@/app/(app)/templates/actions"
@@ -29,7 +30,6 @@ import { cn } from "@/lib/utils"
 import { mergeDesignChanges } from "@/lib/template-edit"
 
 const ACCENTS = ["#2563eb", "#0f766e", "#4338ca", "#7c3aed", "#be123c", "#c2410c", "#1e3a5f", "#111827"]
-const IDEAS = ["Make it fit on one page", "More elegant and minimal", "Use a dark green accent", "Bigger name, centred header", "Two columns with skills on the side"]
 const DESIGN_STEPS = ["Planning the change", "Rendering your CV", "Measuring pages and readability", "Fixing what didn’t pass", "Final check against your request"]
 
 type Initial = { id?: string; name: string; basedOn: string; tokens: DesignTokens; customDefault?: boolean }
@@ -117,6 +117,8 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
   const [attempt, setAttempt] = useState(0)
   const [fitGoal, setFitGoal] = useState(false)
   const [agentLog, setAgentLog] = useState<AgentResult | null>(null)
+  // Bumped after every request so suggestions rotate.
+  const [ideaSeed, setIdeaSeed] = useState(0)
   const [mobilePreview, setMobilePreview] = useState(false)
   const [asking, startAsking] = useTransition()
   const [saving, startSaving] = useTransition()
@@ -226,6 +228,7 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
         if (!active.current) return
         if (!result.ok) return void toast.error(result.message)
         setAgentLog(result.data)
+        setIdeaSeed((value) => value + 1)
         setFitGoal(false)
         // Only a fully verified design is applied; a rejected request leaves the design untouched.
         if (result.data.outcome !== "applied") return
@@ -371,8 +374,8 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                 {asking ? (
                   <AiSteps steps={DESIGN_STEPS} step={step} />
                 ) : (
-                  <div className="cb-stagger flex flex-wrap items-center gap-1.5">
-                    {IDEAS.map((idea) => (
+                  <div key={ideaSeed} className="cb-stagger flex flex-wrap items-center gap-1.5">
+                    {designIdeas(tokens, { pages: preview?.pages, seed: ideaSeed, exclude: lastPrompt ? [lastPrompt] : [] }).map((idea) => (
                       <Button key={idea} size="xs" variant="outline" onClick={() => ask(idea)} disabled={busy} className="bg-background text-muted-foreground">
                         {idea}
                       </Button>
