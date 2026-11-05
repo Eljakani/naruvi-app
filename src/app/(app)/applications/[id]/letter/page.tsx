@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import { startDesign } from "@/server/templates/service"
 import { listTemplates } from "@/server/templates/service"
 import { Suspense } from "react"
 import { connection } from "next/server"
@@ -38,6 +39,7 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
       jobId={application.job.id}
       research={(application.job.company?.research ?? null) as unknown as Research | null}
       workspace={workspace}
+      startDesign={await startDesign()}
       savedTemplates={templates.map(({ id, name, tokens }) => ({ id, name, tokens }))}
     />
   )

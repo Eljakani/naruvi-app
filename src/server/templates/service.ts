@@ -103,3 +103,16 @@ export async function renderTemplatePreview(tokens: unknown, sample = false) {
   const base = sample ? SAMPLE : await previewContent()
   return renderCvPdf({ ...base, template: "custom", design, accent: design.accent })
 }
+
+/** The design a new document will start with (Settings → default), for previews. */
+export async function startDesign(): Promise<{ tokens: DesignTokens; name: string }> {
+  const { getDocumentDefaults } = await import("@/server/settings/service")
+  const defaults = await getDocumentDefaults()
+  if (defaults.templateRef) {
+    const saved = await getTemplate(defaults.templateRef).catch(() => null)
+    if (saved) return { tokens: saved.tokens, name: saved.name }
+  }
+  if (defaults.design) return { tokens: defaults.design, name: "Your default" }
+  const preset = PRESETS[defaults.template] ?? PRESETS.classic
+  return { tokens: { ...preset.tokens, accent: defaults.accent ?? preset.tokens.accent }, name: preset.name }
+}

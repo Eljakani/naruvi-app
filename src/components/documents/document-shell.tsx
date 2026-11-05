@@ -270,7 +270,7 @@ export function VersionsPanel({ revisions, currentId, pending, onRestore }: { re
 }
 
 /** Document language as a small menu instead of four cryptic codes. */
-function LanguageMenu({ current, hrefFor }: { current: string; hrefFor: (code: string) => string }) {
+export function LanguageMenu({ current, hrefFor }: { current: string; hrefFor: (code: string) => string }) {
   const active = LANGS.find((item) => item.code === current)
   return (
     <DropdownMenu>

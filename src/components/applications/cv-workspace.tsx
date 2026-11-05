@@ -3,9 +3,13 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useCallback, useState, useTransition } from "react"
-import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, ChevronRightIcon, ExternalLinkIcon, FileTextIcon, SparklesIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, ExternalLinkIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 import { generateCvAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
+import { DocumentStart } from "@/components/documents/document-start"
+import { PRESETS, type DesignTokens } from "@/lib/design"
+
+const LANGUAGE_NAME: Record<string, string> = { en: "English", fr: "French", es: "Spanish", de: "German" }
 import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/applications/design-picker"
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import { CvAssistant, LineAssistant } from "@/components/applications/cv-assistant"
@@ -15,7 +19,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -34,30 +37,24 @@ function GenerateForm({ applicationId, language, label }: { applicationId: strin
   )
 }
 
-export function CvWorkspace({ applicationId, jobTitle, company, language, workspace, savedTemplates }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Awaited<ReturnType<typeof getCvWorkspace>>; savedTemplates: SavedDesign[] }) {
+export function CvWorkspace({ applicationId, jobTitle, company, language, workspace, savedTemplates, startDesign = { tokens: PRESETS.classic.tokens, name: "Classic" } }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Awaited<ReturnType<typeof getCvWorkspace>>; savedTemplates: SavedDesign[]; startDesign?: { tokens: DesignTokens; name: string } }) {
   if (!workspace?.current) {
     return (
-      <div className="mx-auto grid w-full max-w-2xl gap-4 pt-6">
-        <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href={`/applications/${applicationId}`} />}>
-          <ArrowLeftIcon /> {jobTitle} · {company}
-        </Button>
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FileTextIcon />
-            </EmptyMedia>
-            <EmptyTitle>Generate your {language.toUpperCase()} CV</EmptyTitle>
-            <EmptyDescription>Naruvi assembles your verified profile evidence for this job. If a model is configured, AI tailors the bullet selection and wording. Review its changes before sending.</EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <form action={generateCvAction}>
-              <input type="hidden" name="applicationId" value={applicationId} />
-              <input type="hidden" name="language" value={language} />
-              <RegenerateButton label="Generate CV" steps={AI_STEPS.cv} variant="default" size="default" icon={<SparklesIcon />} />
-            </form>
-          </EmptyContent>
-        </Empty>
-      </div>
+      <DocumentStart
+        applicationId={applicationId}
+        jobTitle={jobTitle}
+        company={company}
+        kind="cv"
+        language={language}
+        steps={AI_STEPS.cv}
+        action={generateCvAction}
+        label="Write my CV"
+        icon={<SparklesIcon />}
+        title="Your CV for this job"
+        lead={`Written in ${LANGUAGE_NAME[language] ?? language.toUpperCase()} from your verified profile, tailored to this posting. About 20 seconds.`}
+        design={startDesign.tokens}
+        designName={startDesign.name}
+      />
     )
   }
   return <Editor applicationId={applicationId} jobTitle={jobTitle} company={company} language={language} workspace={workspace} savedTemplates={savedTemplates} />

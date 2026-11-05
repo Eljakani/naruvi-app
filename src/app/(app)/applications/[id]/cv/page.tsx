@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import { startDesign } from "@/server/templates/service"
 import { Suspense } from "react"
 import { connection } from "next/server"
 import { CvWorkspace } from "@/components/applications/cv-workspace"
@@ -34,6 +35,7 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
       company={application.job.company?.name ?? ""}
       language={language}
       workspace={workspace}
+      startDesign={await startDesign()}
       savedTemplates={templates.map(({ id, name, tokens }) => ({ id, name, tokens }))}
     />
   )

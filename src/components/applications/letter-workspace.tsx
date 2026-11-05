@@ -1,21 +1,22 @@
 "use client"
 
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useCallback, useState, useTransition } from "react"
-import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, LightbulbIcon, MailIcon, PenLineIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, LightbulbIcon, PenLineIcon } from "lucide-react"
 import { toast } from "sonner"
 import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { CompanyResearch } from "@/components/applications/company-research"
+import { DocumentStart } from "@/components/documents/document-start"
+import { PRESETS, type DesignTokens } from "@/lib/design"
+
+const LANGUAGE_NAME: Record<string, string> = { en: "English", fr: "French", es: "Spanish", de: "German" }
 import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/applications/design-picker"
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import type { CompanyResearch as Research } from "@/server/research/brief"
 import { AI_STEPS } from "@/components/ai-progress"
 import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -55,6 +56,7 @@ export function LetterWorkspace({
   jobId,
   research,
   savedTemplates,
+  startDesign = { tokens: PRESETS.classic.tokens, name: "Classic" },
 }: {
   applicationId: string
   jobTitle: string
@@ -65,32 +67,26 @@ export function LetterWorkspace({
   jobId: string
   research: Research | null
   savedTemplates: SavedDesign[]
+  startDesign?: { tokens: DesignTokens; name: string }
 }) {
   if (!workspace?.current) {
     return (
-      <div className="mx-auto grid w-full max-w-2xl gap-4 pt-6">
-        <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href={`/applications/${applicationId}`} />}>
-          <ArrowLeftIcon /> {jobTitle} · {company}
-        </Button>
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <MailIcon />
-            </EmptyMedia>
-            <EmptyTitle>Draft a {language.toUpperCase()} cover letter</EmptyTitle>
-            <EmptyDescription>
-              {decision ? `${DECISION[decision.decision] ?? ""} ` : ""}The draft uses your verified evidence. With a configured model, AI tailors the opening, highlights and company motivation from the posting and available research. Review and personalize the draft before sending.
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <form action={generateLetterAction}>
-              <input type="hidden" name="applicationId" value={applicationId} />
-              <input type="hidden" name="language" value={language} />
-              <RegenerateButton label="Draft cover letter" steps={AI_STEPS.letter} variant="default" size="default" icon={<PenLineIcon />} />
-            </form>
-          </EmptyContent>
-        </Empty>
-      </div>
+      <DocumentStart
+        applicationId={applicationId}
+        jobTitle={jobTitle}
+        company={company}
+        kind="letter"
+        language={language}
+        steps={AI_STEPS.letter}
+        action={generateLetterAction}
+        label="Draft my cover letter"
+        icon={<PenLineIcon />}
+        title="Your cover letter for this job"
+        lead={`Drafted in ${LANGUAGE_NAME[language] ?? language.toUpperCase()} from your verified evidence, the posting and what we know about ${company || "the company"}. You make it personal before sending.`}
+        note={decision ? DECISION[decision.decision] : undefined}
+        design={startDesign.tokens}
+        designName={startDesign.name}
+      />
     )
   }
   return <Editor applicationId={applicationId} jobTitle={jobTitle} company={company} language={language} workspace={workspace} jobId={jobId} research={research} savedTemplates={savedTemplates} />
