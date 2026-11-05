@@ -150,11 +150,38 @@
 .cb-stagger > *:nth-child(3) { animation-delay: 80ms; }
 .cb-stagger > *:nth-child(4) { animation-delay: 120ms; }
 .cb-stagger > *:nth-child(n+5) { animation-delay: 160ms; }
+/* Page entrance: header first, then content, a few px of rise. Short so navigation stays snappy. */
+@keyframes cb-rise {
+  from { opacity: 0; transform: translateY(4px); }
+}
+@keyframes cb-fade-in {
+  from { opacity: 0; }
+}
+.cb-page > * { animation: cb-rise 220ms var(--ease-out) both; }
+.cb-page > *:nth-child(2) { animation-delay: 40ms; }
+.cb-page > *:nth-child(n+3) { animation-delay: 80ms; }
+/* Content that streams in after a skeleton fades rather than popping. */
+.cb-page [data-slot="card"] { animation: cb-fade-in 200ms var(--ease-out) both; }
+.cb-fade { animation: cb-fade-in 160ms var(--ease-out) both; }
+/* Skeletons pulse a little faster: loading feels quicker. */
+[data-slot="skeleton"] { animation-duration: 1.4s; }
+/* Clickable cards lift a touch, only where real hover exists. */
+@media (hover: hover) and (pointer: fine) {
+  a[data-slot="card"], a > [data-slot="card"], [data-slot="card"]:has(> a:only-child) {
+    transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+  }
+  a[data-slot="card"]:hover, a:hover > [data-slot="card"] {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -6px rgb(0 0 0 / 0.12);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition-property: opacity, color, background-color, border-color !important;
   }
-  .cb-enter, .cb-stagger > * { animation-name: none; }
+  .cb-enter, .cb-stagger > *, .cb-page > *, .cb-page [data-slot="card"] { animation-name: cb-fade-in; }
+  a[data-slot="card"]:hover, a:hover > [data-slot="card"] { transform: none; }
   [data-slot="button"]:active { transform: none !important; }
 }
 
