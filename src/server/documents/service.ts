@@ -4,6 +4,7 @@ import { db } from "@/server/db/client"
 import { applications, documents, revisions, type QualitySummary } from "@/server/db/schema"
 import { getApplication } from "@/server/applications/repository"
 import { getProfile, listEntries } from "@/server/profile/repository"
+import { getDocumentDefaults } from "@/server/settings/service"
 import { startRun } from "@/server/runs/tracer"
 import { composeCv } from "./compose"
 import { cvDocument, type CvDocument } from "./model"
@@ -12,6 +13,17 @@ import { checkLetter, composeLetter, letterDocument, type LetterDocument } from 
 import { renderCvPdf, renderLetterPdf } from "./render"
 
 type Kind = "cv" | "cover_letter"
+
+/** Keep the document's current design on regenerate; use the user's defaults the first time. */
+async function designFor(documentId: string) {
+  const [doc] = await db.select().from(documents).where(eq(documents.id, documentId))
+  if (doc?.currentRevisionId) {
+    const [current] = await db.select({ content: revisions.content }).from(revisions).where(eq(revisions.id, doc.currentRevisionId))
+    const content = current?.content as { template?: string; accent?: string; header?: { showPhoto?: boolean } } | undefined
+    if (content?.template) return { template: content.template as "classic" | "modern" | "serif", accent: content.accent ?? "#2563eb", showPhoto: Boolean(content.header?.showPhoto) }
+  }
+  return getDocumentDefaults()
+}
 
 async function documentFor(applicationId: string, language: string, kind: Kind = "cv") {
   const [existing] = await db.select().from(documents).where(and(eq(documents.applicationId, applicationId), eq(documents.kind, kind), eq(documents.language, language))).limit(1)
@@ -83,6 +95,10 @@ export async function generateCv(applicationId: string, language?: string) {
       (value) => `${value.sections.length} sections · ${value.sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included))).length} bullets`,
     )
     const document = await documentFor(application.id, lang)
+    const design = await designFor(document.id)
+    content.template = design.template
+    content.accent = design.accent
+    content.header.showPhoto = design.showPhoto && Boolean(content.header.photoPath)
     const { revision, quality } = await run.step("render & quality gate", () => addRevision(document.id, content, "generate", application.analysis?.requirements ?? [], run.id), (value) => `${value.revision.pages} page(s) · score ${value.quality.score}${value.quality.ready ? " · ready" : ""}`)
     await db.update(applications).set({ status: quality.ready ? "ready" : "generated" }).where(eq(applications.id, application.id))
     await run.finish("succeeded", { documentId: document.id, revisionId: revision.id, score: quality.score })
@@ -131,6 +147,9 @@ export async function generateLetter(applicationId: string, language?: string) {
       (value) => `${value.highlights.filter((h) => h.included).length} highlights`,
     )
     const document = await documentFor(application.id, lang, "cover_letter")
+    const design = await designFor(document.id)
+    content.template = design.template
+    content.accent = design.accent
     const { revision } = await run.step("render & quality gate", () => addRevision(document.id, content, "generate", [], run.id), (value) => `${value.revision.pages} page(s) · score ${value.quality.score}`)
     await run.finish("succeeded", { documentId: document.id, revisionId: revision.id })
     return { documentId: document.id, revisionId: revision.id }

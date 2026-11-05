@@ -364,3 +364,13 @@ export const companiesRelations = relations(companies, ({ many }) => ({
 export const applicationsRelations = relations(applications, ({ one }) => ({
   job: one(jobs, { fields: [applications.jobId], references: [jobs.id] }),
 }))
+
+/* ------------------------------------------------------------------ */
+/* settings (single-user app: one row per key)                         */
+/* ------------------------------------------------------------------ */
+
+export const settings = pgTable("settings", {
+  key: text().primaryKey(),
+  value: jsonb().$type<unknown>().notNull(),
+  updatedAt: updatedAt(),
+})

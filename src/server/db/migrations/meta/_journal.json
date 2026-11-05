@@ -50,6 +50,13 @@
       "when": 1793837507872,
       "tag": "0006_company_research",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793837926198,
+      "tag": "0007_settings",
+      "breakpoints": true
     }
   ]
 }
