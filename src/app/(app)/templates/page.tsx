@@ -7,6 +7,7 @@ import { PdfThumb } from "@/components/templates/pdf-thumb"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 import { PRESETS } from "@/lib/design"
 import { getDocumentDefaults } from "@/server/settings/service"
 import { listTemplates, previewSource } from "@/server/templates/service"
@@ -39,7 +40,11 @@ function Grid({ children }: { children: React.ReactNode }) {
 function Tile({ href, name, hint, tokens, badge, revision }: { href: string; name: string; hint: string; tokens: (typeof PRESETS)[string]["tokens"]; badge?: string; revision: string }) {
   return (
     <div className="group relative grid min-w-0 content-start gap-2 rounded-xl focus-within:ring-2 focus-within:ring-ring">
-      <PdfThumb tokens={tokens} revision={revision} retryable className={badge === "Default" ? "ring-2 ring-foreground" : undefined} />
+      {/* The pair: CV with its matching cover letter tucked behind. */}
+      <div className="relative pr-[18%] pb-[6%]">
+        <PdfThumb tokens={tokens} kind="letter" revision={revision} className="absolute right-0 bottom-0 w-[62%] rotate-3 opacity-90 shadow-sm transition-transform duration-200 ease-(--ease-out) group-hover:rotate-6" />
+        <PdfThumb tokens={tokens} revision={revision} retryable className={cn("relative shadow-sm", badge === "Default" && "ring-2 ring-foreground")} />
+      </div>
       <Link href={href} className="flex min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-1 px-0.5 after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none">
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{name}</div>

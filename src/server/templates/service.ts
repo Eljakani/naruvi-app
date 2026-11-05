@@ -4,6 +4,7 @@ import { designTokens, PRESETS, type DesignTokens } from "@/lib/design"
 import { db } from "@/server/db/client"
 import { documents, profiles, revisions, settings, templates, templateVersions } from "@/server/db/schema"
 import { cvDocument, type CvDocument } from "@/server/documents/model"
+import { letterDocument, type LetterDocument } from "@/server/documents/letter"
 
 export type SavedTemplate = { id: string; name: string; basedOn: string; tokens: DesignTokens; updatedAt: Date }
 
@@ -97,9 +98,13 @@ export async function previewContent(): Promise<CvDocument> {
   return (await previewSource()).content
 }
 
-export async function renderTemplatePreview(tokens: unknown, sample = false) {
+export async function renderTemplatePreview(tokens: unknown, sample = false, kind: "cv" | "letter" = "cv") {
   const design = designTokens.parse(tokens)
-  const { renderCvPdf } = await import("@/server/documents/render")
+  const { renderCvPdf, renderLetterPdf } = await import("@/server/documents/render")
+  if (kind === "letter") {
+    const letter = await previewLetter(sample)
+    return renderLetterPdf({ ...letter, template: "custom", design, accent: design.accent })
+  }
   const base = sample ? SAMPLE : await previewContent()
   // Show the summary styles even if this CV has no summary: profile text, else a sample.
   let summary = base.header.summary
@@ -121,4 +126,41 @@ export async function startDesign(): Promise<{ tokens: DesignTokens; name: strin
   if (defaults.design) return { tokens: defaults.design, name: "Your default" }
   const preset = PRESETS[defaults.template] ?? PRESETS.classic
   return { tokens: { ...preset.tokens, accent: defaults.accent ?? preset.tokens.accent }, name: preset.name }
+}
+
+/** The person's latest cover letter (headline/photo filled from the profile), or a sample. */
+async function previewLetter(sample: boolean): Promise<LetterDocument> {
+  const [profile] = await db.select().from(profiles).limit(1)
+  if (!sample) {
+    const [doc] = await db.select({ revisionId: documents.currentRevisionId }).from(documents).where(eq(documents.kind, "cover_letter")).orderBy(desc(documents.createdAt)).limit(1)
+    if (doc?.revisionId) {
+      const [rev] = await db.select({ content: revisions.content }).from(revisions).where(eq(revisions.id, doc.revisionId))
+      const parsed = letterDocument.safeParse(rev?.content)
+      if (parsed.success) {
+        const letter = parsed.data
+        return { ...letter, header: { ...letter.header, headline: letter.header.headline || profile?.headlines?.[letter.language] || "", photoPath: letter.header.photoPath ?? profile?.photoPath ?? null } }
+      }
+    }
+  }
+  const cv = sample ? SAMPLE : await previewContent()
+  return letterDocument.parse({
+    version: 1, kind: "cover_letter", language: "en",
+    header: { name: cv.header.name, headline: cv.header.headline, photoPath: cv.header.photoPath ?? null, email: cv.header.email, phone: cv.header.phone, location: cv.header.location, links: cv.header.links },
+    recipient: { company: "Northwind", location: "London" },
+    date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+    subject: "Application for the Product Designer role",
+    salutation: "Dear Hiring Team,",
+    paragraphs: [
+      { id: "opening", kind: "opening", text: "I’m applying for the Product Designer role. My recent work has been about turning research into shipped interfaces, which is what this team is looking for." },
+      { id: "highlights", kind: "highlights", text: "" },
+      { id: "motivation", kind: "motivation", text: "Your focus on simple, accessible tools for small businesses is exactly the kind of product I want to help build." },
+      { id: "closing", kind: "closing", text: "I’d be glad to talk about how I could help the team. Thank you for your time." },
+    ],
+    highlightsIntro: "A few things I’ve done that are relevant:",
+    highlights: [
+      { id: "h1", text: "Led the checkout redesign, lifting conversion by 12%.", organization: "Northwind" },
+      { id: "h2", text: "Built a design system used by 6 product teams.", organization: "Contoso" },
+    ],
+    signoff: "Kind regards,",
+  })
 }

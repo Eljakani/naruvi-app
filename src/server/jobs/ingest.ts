@@ -52,7 +52,7 @@ async function fetchHtml(url: string) {
  * that will read best in a square slot: squareness matters more than source.
  * Stops early once a high-priority, near-square mark is found.
  */
-async function pickLogo(candidates: { url: string; source: string; priority?: number; strictShape?: boolean }[]) {
+async function pickLogo(candidates: { url: string; source: string; priority?: number; strictShape?: boolean }[], employerLogo = false) {
   const scored: { buffer: Buffer; source: string; score: number }[] = []
   for (const candidate of candidates.slice(0, 10)) {
     try {
@@ -60,6 +60,10 @@ async function pickLogo(candidates: { url: string; source: string; priority?: nu
       if (fetched.status >= 400 || !sniffImage(fetched.buffer)) continue
       const trimmed = await trimLogo(fetched.buffer)
       if (!trimmed) continue
+      if (employerLogo) {
+        const stored = await storeLogo(trimmed.buffer)
+        return { path: stored.path, source: candidate.source }
+      }
       const { width, height } = trimmed
       const minSide = Math.min(width, height)
       if (width && height) {
@@ -177,23 +181,28 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
           (value) => (value.url ? `${value.url} (${value.source})` : "not found"),
         )
 
-    const topcard = sources.map((source) => linkedInTopcard(source.html)).find((value) => value.logo || value.companyPage) ?? { companyPage: "", logo: "" }
+    const linkedinLogos = parseJobUrl(url).board === "linkedin"
+      ? [...new Set(sources.map((source) => linkedInTopcard(source.html).logo).filter(Boolean))]
+      : []
     if (!site.url && job.company) {
       // The posting never links the site (LinkedIn, Indeed…): try likely domains, keep one whose page names the company.
       const guessed = await run.step("guess company site", () => guessCompanySite(job.company, job.location, quickHtml), (value) => value || "no verified match")
       if (guessed) Object.assign(site, { url: guessed, source: "domain guess (page names the company)", confidence: 0.7 })
     }
 
-    let logo: { path: string; source: string } | null = known?.logoPath ? { path: known.logoPath, source: "known company" } : null
+    const savedLogo = known?.logoPath ? { path: known.logoPath, source: known.logoSource || "known company" } : null
+    let logo = savedLogo?.source === "manual" ? savedLogo : null
     if (!logo) {
       logo = await run.step(
         "find logo",
         async () => {
+          const linkedinLogo = await pickLogo(linkedinLogos.map((url) => ({ url, source: "LinkedIn company logo" })), true)
+          if (linkedinLogo) return linkedinLogo
+          if (savedLogo) return savedLogo
           const fromPosting = page ? postingLogoCandidates(page.html, page.finalUrl, { company: job.company, structuredLogo: job.companyLogo }) : job.companyLogo ? [{ url: job.companyLogo, source: "structured-data" }] : []
           const home = site.url ? await fetchHtml(site.url) : null
           const fromSite = home ? siteLogoCandidates(home.html, home.finalUrl) : []
-          const fromTopcard = topcard.logo ? [{ url: topcard.logo, source: "LinkedIn company logo", priority: 96, strictShape: true }] : []
-          return pickLogo([...fromTopcard, ...fromPosting.map((item) => ({ ...item, priority: Math.min("priority" in item ? item.priority : 92, 92), strictShape: false })), ...fromSite])
+          return pickLogo([...fromPosting.map((item) => ({ ...item, priority: Math.min("priority" in item ? item.priority : 92, 92), strictShape: false })), ...fromSite])
         },
         (value) => (value ? value.source : "none"),
       )

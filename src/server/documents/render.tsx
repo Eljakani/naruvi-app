@@ -239,6 +239,48 @@ function Section({ section, logos, s, t, stacked = false }: { section: CvSection
   )
 }
 
+type HeaderData = { name: string; headline?: string; email: string; phone: string; location: string; links: { label: string; url: string }[] }
+
+/** Name, headline, photo and contact line: shared by CVs and letters so a pair always matches. */
+function DocHeader({ s, t, rtl, photo, header }: { s: Styles; t: Tokens; rtl: boolean; photo: string | null; header: HeaderData }) {
+  const contactFields = ([[header.email, "mail"], [header.phone, "phone"], [header.location, "location"]] as const).filter(([value]) => value).map(([value, icon]) => ({ value, icon: icon as PdfIcon }))
+  const iconBox = { marginRight: rtl ? 0 : 3, marginLeft: rtl ? 3 : 0 }
+  const iconColor = t.accentLinks ? t.accent : MUTED
+  return (
+    <View style={s.header}>
+      {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
+      {photo ? <Image src={photo} style={s.photo} /> : null}
+      <View style={s.headerText}>
+        <Text style={s.name}>{header.name}</Text>
+        {header.headline ? <Text style={s.headline}>{header.headline}</Text> : null}
+        <View style={s.contact}>
+          {[
+            ...contactFields.map(({ value, icon }) => (
+              <View key={value} style={{ flexDirection: rtl ? "row-reverse" : "row", alignItems: "center" }}>
+                {t.contactIcons ? <View style={iconBox}><Icon name={icon} size={t.size - 1} color={iconColor} /></View> : null}
+                <Text>{value}</Text>
+              </View>
+            )),
+            ...header.links.map((link) => (
+              <View key={link.url} style={{ flexDirection: rtl ? "row-reverse" : "row", alignItems: "center" }}>
+                {t.contactIcons ? <View style={iconBox}><Icon name={/github|gitlab|linkedin|twitter|x\.com/i.test(link.url) ? "link" : "globe"} size={t.size - 1} color={iconColor} /></View> : null}
+                <Link src={link.url} style={s.link}>
+                  {t.linkStyle === "label" && link.label ? link.label : link.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                </Link>
+              </View>
+            )),
+          ].map((node, index) => (
+            <View key={index} style={{ flexDirection: rtl ? "row-reverse" : "row" }}>
+              {index > 0 && t.contactLayout === "inline" && t.contactSeparator !== "space" ? <Text style={s.separator}>{t.contactSeparator === "dot" ? "·" : "|"}</Text> : null}
+              <View style={t.contactLayout === "inline" ? s.contactItem : undefined}>{node}</View>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  )
+}
+
 const RTL_LANGUAGES = ["ar", "he", "fa", "ur"]
 const SUMMARY_TITLE: Record<string, string> = { en: "Profile", fr: "Profil", es: "Perfil", de: "Profil", it: "Profilo", pt: "Perfil", nl: "Profiel" }
 const SIDE_KINDS = new Set(["skills", "languages", "certification"])
@@ -258,7 +300,6 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
     }
   }
   const photo = doc.header.showPhoto ? await pngData(doc.header.photoPath, 56, t.photoShape !== "square") : null
-  const contactFields = ([[doc.header.email, "mail"], [doc.header.phone, "phone"], [doc.header.location, "location"]] as const).filter(([value]) => value).map(([value, icon]) => ({ value, icon: icon as PdfIcon }))
   const visible = doc.sections.filter((section) => section.included)
   const side = t.layout === "sidebar" ? visible.filter((section) => SIDE_KINDS.has(section.kind)) : []
   const main = visible.filter((section) => !side.includes(section))
@@ -267,37 +308,7 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
     <Document title={`${doc.header.name} — CV`} author={doc.header.name} language={doc.language} creator="Naruvi" producer="Naruvi">
       <Page size={t.pageSize} style={s.page}>
         {t.pageNumbers ? <Text style={s.pageNumber} fixed render={({ pageNumber, totalPages }) => (totalPages > 1 ? `${pageNumber} / ${totalPages}` : "")} /> : null}
-        <View style={s.header}>
-          {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
-          {photo ? <Image src={photo} style={s.photo} /> : null}
-          <View style={s.headerText}>
-            <Text style={s.name}>{doc.header.name}</Text>
-            {doc.header.headline ? <Text style={s.headline}>{doc.header.headline}</Text> : null}
-            <View style={s.contact}>
-              {[
-                ...contactFields.map(({ value, icon }) => (
-                  <View key={value} style={{ flexDirection: rtl ? "row-reverse" : "row", alignItems: "center" }}>
-                    {t.contactIcons ? <View style={{ marginRight: rtl ? 0 : 3, marginLeft: rtl ? 3 : 0 }}><Icon name={icon} size={t.size - 1} color={t.accentLinks ? t.accent : MUTED} /></View> : null}
-                    <Text>{value}</Text>
-                  </View>
-                )),
-                ...doc.header.links.map((link) => (
-                  <View key={link.url} style={{ flexDirection: rtl ? "row-reverse" : "row", alignItems: "center" }}>
-                    {t.contactIcons ? <View style={{ marginRight: rtl ? 0 : 3, marginLeft: rtl ? 3 : 0 }}><Icon name={/github|gitlab|linkedin|twitter|x\.com/i.test(link.url) ? "link" : "globe"} size={t.size - 1} color={t.accentLinks ? t.accent : MUTED} /></View> : null}
-                    <Link src={link.url} style={s.link}>
-                      {t.linkStyle === "label" && link.label ? link.label : link.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-                    </Link>
-                  </View>
-                )),
-              ].map((node, index) => (
-                <View key={index} style={{ flexDirection: rtl ? "row-reverse" : "row" }}>
-                  {index > 0 && t.contactLayout === "inline" && t.contactSeparator !== "space" ? <Text style={s.separator}>{t.contactSeparator === "dot" ? "·" : "|"}</Text> : null}
-                  <View style={t.contactLayout === "inline" ? s.contactItem : undefined}>{node}</View>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
+        <DocHeader s={s} t={t} rtl={rtl} photo={photo} header={doc.header} />
         {doc.header.summary.trim() ? (
           <View wrap={false}>
             {t.summaryTitle ? (
@@ -333,75 +344,85 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
 
 export async function renderLetterPdf(doc: LetterDocument): Promise<RenderResult> {
   const t = resolveDesign(doc)
-  const theme = { base: t.font as BaseFont, size: t.size, accentName: t.accentName, accentHeadings: t.accentHeadings, bar: t.headingStyle === "bar" || t.headingStyle === "filled" || t.headingStyle === "underline-accent" }
-  const INK = t.ink
   const text = [doc.header.name, doc.subject, doc.salutation, ...doc.paragraphs.map((p) => p.text), ...doc.highlights.map((h) => h.text), doc.signoff].join("\n")
   const scripts = detectScripts(text, doc.language)
-  const fonts = await prepareFonts(theme.base, scripts, doc.language)
+  const fonts = await prepareFonts(t.font as BaseFont, scripts, doc.language)
+  const heading = t.headingFont !== "same" && t.headingFont !== t.font ? await prepareFonts(t.headingFont as BaseFont, scripts, doc.language) : fonts
   const rtl = isRtl(scripts) && RTL_LANGUAGES.includes(doc.language)
   const row = rtl ? "row-reverse" : "row"
-  const s = StyleSheet.create({
-    page: { paddingTop: 48, paddingBottom: 48, paddingHorizontal: Math.max(t.margin, 44), fontFamily: fonts.stack, fontSize: theme.size + 0.9, color: INK, lineHeight: 1.5, textAlign: rtl ? "right" : "left" },
-    name: { fontWeight: 700, fontSize: 17, lineHeight: 1.15, color: theme.accentName ? doc.accent : INK },
-    contact: { flexDirection: row, flexWrap: "wrap", marginTop: 4, fontSize: theme.size - 0.8, color: MUTED },
-    rule: { borderBottomWidth: theme.bar ? 2 : 0.8, borderBottomColor: theme.bar ? doc.accent : RULE, marginTop: 12, marginBottom: 18 },
-    meta: { flexDirection: row, justifyContent: "space-between", marginBottom: 16 },
-    strong: { fontWeight: 700 },
-    muted: { color: MUTED },
-    subject: { fontWeight: 700, marginBottom: 14, color: theme.accentHeadings ? doc.accent : INK },
-    paragraph: { marginBottom: 10, textAlign: rtl ? "right" : "justify" },
+  const align = rtl ? "right" : "left"
+  // Letters read a touch larger and airier than CVs, from the same design.
+  const letterTokens = { ...t, size: t.size + 0.6, margin: Math.max(t.margin, 40) }
+  const s = makeStyles(letterTokens, fonts.stack, heading.stack, rtl)
+  const gap = t.letterSpacing
+  const l = StyleSheet.create({
+    body: { lineHeight: Math.max(t.lineHeight, 1.4) + 0.08, fontSize: letterTokens.size },
+    meta: { flexDirection: t.letterDateAlign === "left" ? "column" : row, justifyContent: "space-between", marginTop: 6 * gap, marginBottom: 14 * gap },
+    date: { color: MUTED, ...(t.letterDateAlign === "left" ? { marginTop: 8 } : {}) },
+    subject: {
+      fontFamily: heading.stack,
+      fontWeight: 700,
+      marginBottom: 12 * gap,
+      color: t.letterSubject === "accent" || (t.letterSubject === "plain" && t.accentHeadings) ? t.accent : t.ink,
+      ...(t.letterSubject === "caps" ? { textTransform: "uppercase" as const, letterSpacing: 0.6, fontSize: letterTokens.size - 0.4 } : {}),
+    },
+    paragraph: { marginBottom: 9 * gap, textAlign: t.textAlign === "justify" && !rtl ? "justify" : align },
     highlight: { flexDirection: row, marginTop: 3 },
-    dot: { width: 12, color: theme.accentHeadings ? doc.accent : MUTED },
+    dot: { width: t.bullet === "none" ? 0 : 12, color: t.accentBullets ? t.accent : MUTED },
+    signoff: { marginTop: 4 * gap },
+    signature: { fontFamily: heading.stack, fontWeight: 700, marginTop: 16 * gap, color: t.accentName ? t.accent : t.ink },
+    signatureLine: { color: MUTED, fontSize: letterTokens.size - 1 },
+    rule: { borderBottomWidth: t.headingStyle === "underline-accent" ? 1.4 : 0.8, borderBottomColor: t.headingStyle === "underline-accent" || t.headingStyle === "bar" ? t.accent : RULE, marginTop: 4, marginBottom: 4 },
   })
-  const contact = [doc.header.email, doc.header.phone, doc.header.location, ...doc.header.links.map((link) => link.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))].filter(Boolean)
+  const photo = t.letterPhoto && doc.header.photoPath ? await pngData(doc.header.photoPath, 56, t.photoShape !== "square") : null
   const highlights = doc.highlights.filter((h) => h.included)
   const buffer = await renderToBuffer(
     <Document title={`${doc.header.name} — ${doc.subject}`} author={doc.header.name} language={doc.language} creator="Naruvi" producer="Naruvi">
-      <Page size="A4" style={s.page}>
-        <Text style={s.name}>{doc.header.name}</Text>
-        <View style={s.contact}>
-          {contact.map((value) => (
-            <Text key={value} style={{ marginRight: 10 }}>
-              {value}
-            </Text>
-          ))}
-        </View>
-        <View style={s.rule} />
-        <View style={s.meta}>
-          <View>
-            <Text style={s.strong}>{doc.recipient.company}</Text>
-            {doc.recipient.location ? <Text style={s.muted}>{doc.recipient.location}</Text> : null}
+      <Page size={t.pageSize} style={s.page}>
+        {t.pageNumbers ? <Text style={s.pageNumber} fixed render={({ pageNumber, totalPages }) => (totalPages > 1 ? `${pageNumber} / ${totalPages}` : "")} /> : null}
+        <DocHeader s={s} t={letterTokens} rtl={rtl} photo={photo} header={{ ...doc.header, headline: t.letterHeadline ? doc.header.headline : "" }} />
+        {!t.headerBand ? <View style={l.rule} /> : null}
+        <View style={l.body}>
+          <View style={l.meta}>
+            {t.letterRecipient ? (
+              <View>
+                <Text style={{ fontWeight: 700 }}>{doc.recipient.company}</Text>
+                {doc.recipient.location ? <Text style={{ color: MUTED }}>{doc.recipient.location}</Text> : null}
+              </View>
+            ) : <View />}
+            <Text style={l.date}>{doc.date}</Text>
           </View>
-          <Text style={s.muted}>{doc.date}</Text>
+          <Text style={l.subject}>{doc.subject}</Text>
+          <Text style={l.paragraph}>{doc.salutation}</Text>
+          {doc.paragraphs
+            .filter((paragraph) => paragraph.included)
+            .map((paragraph) =>
+              paragraph.kind === "highlights" ? (
+                highlights.length ? (
+                  <View key={paragraph.id} style={{ marginBottom: 9 * gap }} wrap={false}>
+                    <Text>{doc.highlightsIntro}</Text>
+                    {highlights.map((highlight) => (
+                      <View key={highlight.id} style={l.highlight}>
+                        {t.bullet !== "none" ? <Text style={l.dot}>{BULLETS[t.bullet]}</Text> : null}
+                        <Text style={{ flex: 1 }}>
+                          {highlight.text}
+                          {highlight.organization ? <Text style={{ color: MUTED }}> ({highlight.organization})</Text> : null}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null
+              ) : paragraph.text.trim() ? (
+                <Text key={paragraph.id} style={l.paragraph}>
+                  {paragraph.text}
+                </Text>
+              ) : null,
+            )}
+          <Text style={l.signoff}>{doc.signoff}</Text>
+          <Text style={l.signature}>{doc.header.name}</Text>
+          {t.letterSignature === "contact" ? <Text style={l.signatureLine}>{[doc.header.email, doc.header.phone].filter(Boolean).join(" · ")}</Text> : null}
+          {t.letterSignature === "headline" && doc.header.headline ? <Text style={l.signatureLine}>{doc.header.headline}</Text> : null}
         </View>
-        <Text style={s.subject}>{doc.subject}</Text>
-        <Text style={s.paragraph}>{doc.salutation}</Text>
-        {doc.paragraphs
-          .filter((paragraph) => paragraph.included)
-          .map((paragraph) =>
-            paragraph.kind === "highlights" ? (
-              highlights.length ? (
-                <View key={paragraph.id} style={{ marginBottom: 10 }} wrap={false}>
-                  <Text>{doc.highlightsIntro}</Text>
-                  {highlights.map((highlight) => (
-                    <View key={highlight.id} style={s.highlight}>
-                      <Text style={s.dot}>•</Text>
-                      <Text style={{ flex: 1 }}>
-                        {highlight.text}
-                        {highlight.organization ? <Text style={s.muted}> ({highlight.organization})</Text> : null}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null
-            ) : paragraph.text.trim() ? (
-              <Text key={paragraph.id} style={s.paragraph}>
-                {paragraph.text}
-              </Text>
-            ) : null,
-          )}
-        <Text style={{ marginTop: 6 }}>{doc.signoff}</Text>
-        <Text style={[s.strong, { marginTop: 18 }]}>{doc.header.name}</Text>
       </Page>
     </Document>,
   )

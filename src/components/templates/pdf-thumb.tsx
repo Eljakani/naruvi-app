@@ -10,13 +10,13 @@ const cache = new Map<string, ArrayBuffer>()
 const CACHE_LIMIT = 24
 
 /** Render only tiles near the viewport. A revision-aware cache stores successful PDFs. */
-export function PdfThumb({ tokens, className, revision, retryable = false }: { tokens: DesignTokens; className?: string; revision?: string; retryable?: boolean }) {
+export function PdfThumb({ tokens, className, revision, retryable = false, kind = "cv" }: { tokens: DesignTokens; className?: string; revision?: string; retryable?: boolean; kind?: "cv" | "letter" }) {
   const wrapper = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [visible, setVisible] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const [rendered, setRendered] = useState<{ key: string; ready: boolean }>()
-  const body = JSON.stringify({ tokens })
+  const body = JSON.stringify({ tokens, kind })
   const cacheKey = revision ? `${revision}:${body}` : undefined
   const renderKey = `${cacheKey ?? body}:${attempt}`
   const ready = rendered?.key === renderKey && rendered.ready

@@ -8,6 +8,16 @@ test("linkedin topcard: company page and logo", () => {
   assert.deepEqual(linkedInTopcard(html), { companyPage: "https://uk.linkedin.com/company/acme-labs", logo: "https://media.licdn.com/dms/image/v2/X/company-logo_100_100/0/1?e=1&v=beta" })
 })
 
+test("linkedin topcard reads the rendered employer image and ignores unrelated logos", () => {
+  const logo = "https://media.licdn.com/dms/image/v2/X/company-logo_100_100/0/employer"
+  const html = `<a href='https://www.linkedin.com/company/acme' class='topcard__org-logo-link'>
+    <img src='${logo}' data-delayed-url='https://static.licdn.com/placeholder.png'>
+  </a>
+  <a href='https://www.linkedin.com/company/other'><img src='https://media.licdn.com/company-logo/other'></a>`
+  assert.equal(linkedInTopcard(html).logo, logo)
+  assert.equal(linkedInTopcard(html.replace(logo, "https://example.com/company-logo")).logo, "")
+})
+
 test("domain candidates include acronyms and the local TLD", () => {
   const candidates = domainCandidates("Hilbert Investment Solutions SAS", "Paris, France")
   assert.ok(candidates.includes("https://hilbert-is.com"))

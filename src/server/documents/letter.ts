@@ -47,6 +47,8 @@ export const letterDocument = z.object({
   accent: z.string().regex(/^#[0-9a-f]{6}$/i).default("#2563eb"),
   header: z.object({
     name: z.string(),
+    headline: z.string().default(""),
+    photoPath: z.string().nullable().default(null),
     email: z.string().default(""),
     phone: z.string().default(""),
     location: z.string().default(""),
@@ -164,7 +166,7 @@ export function composeLetter(
     language,
     template: "classic",
     accent: "#2563eb",
-    header: { name: profile.fullName, email: profile.email, phone: profile.phone, location: profile.location, links: profile.links },
+    header: { name: profile.fullName, headline: profile.headlines[language] ?? "", photoPath: profile.photoPath ?? null, email: profile.email, phone: profile.phone, location: profile.location, links: profile.links },
     recipient: { company: job.company, location: job.location ?? "" },
     date: p.date(options.today ?? new Date()),
     subject: p.subject(job.title),

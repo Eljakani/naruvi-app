@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { startTransition, useEffect, useId, useRef, useState, useTransition } from "react"
-import { ArrowLeftIcon, BanIcon, CheckCircle2Icon, CircleDashedIcon, CopyIcon, EllipsisIcon, EyeIcon, FileTextIcon, HistoryIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, SparklesIcon, StarIcon, Trash2Icon, XIcon } from "lucide-react"
+import { ArrowLeftIcon, BanIcon, CheckCircle2Icon, CircleDashedIcon, CopyIcon, EllipsisIcon, EyeIcon, FileTextIcon, HistoryIcon, MailIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, SparklesIcon, StarIcon, Trash2Icon, XIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { designIdeas } from "@/lib/design-ideas"
 import { toast } from "sonner"
@@ -142,7 +142,9 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
   const draftKey = `naruvi:template-draft:v1:${initial.id ?? `new:${initial.customDefault ? "default" : initial.basedOn}`}`
   const savedKey = JSON.stringify(saved)
   const dirty = JSON.stringify({ name, tokens }) !== savedKey
-  const tokenKey = JSON.stringify(tokens)
+  // CV or letter preview: one template styles both, so you can check the pair.
+  const [previewKind, setPreviewKind] = useState<"cv" | "letter">("cv")
+  const tokenKey = `${previewKind}:${JSON.stringify(tokens)}`
   const failed = previewError?.key === tokenKey && previewError.attempt === attempt
   const rendering = !failed && (preview?.key !== tokenKey || preview.attempt !== attempt)
   const busy = asking || saving || !draftReady
@@ -200,7 +202,7 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
     const timer = setTimeout(async () => {
       const timeout = setTimeout(() => controller.abort(), 30_000)
       try {
-        const response = await fetch("/api/templates/preview", { method: "POST", headers: { "content-type": "application/json" }, body: `{"tokens":${tokenKey}}`, signal: controller.signal })
+        const response = await fetch("/api/templates/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tokens, kind: previewKind }), signal: controller.signal })
         if (!response.ok || !response.headers.get("content-type")?.startsWith("application/pdf")) throw new Error("Preview request failed")
         const blob = await response.blob()
         if (cancelled) return
@@ -220,7 +222,7 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
       clearTimeout(timer)
       controller.abort()
     }
-  }, [tokenKey, attempt, draftReady])
+  }, [tokenKey, attempt, draftReady, previewKind, tokens])
 
   const ask = (text = prompt) => {
     if (busy || text.trim().length < (history.length ? 1 : 3)) return
@@ -584,6 +586,22 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                   </AccordionItem>
                 ) : null}
 
+                <AccordionItem value="letter">
+                  <AccordionTrigger>Cover letter</AccordionTrigger>
+                  <AccordionContent>
+                    <FieldGroup className="gap-4 pt-1">
+                      <p className="text-xs text-muted-foreground">Letters use the same fonts, colours and header as the CV. These only change the letter.</p>
+                      <Flash on={glow("letterHeadline")}><Toggle label="Headline under the name" checked={tokens.letterHeadline} onChange={(value) => { set("letterHeadline", value); setPreviewKind("letter") }} /></Flash>
+                      <Flash on={glow("letterPhoto")}><Toggle label="Photo in the header" checked={tokens.letterPhoto} onChange={(value) => { set("letterPhoto", value); setPreviewKind("letter") }} /></Flash>
+                      <Flash on={glow("letterRecipient")}><Toggle label="Company block" hint="Company name and city above the subject" checked={tokens.letterRecipient} onChange={(value) => { set("letterRecipient", value); setPreviewKind("letter") }} /></Flash>
+                      <Flash on={glow("letterDateAlign")}><Field><FieldLabel>Date</FieldLabel><Choice label="Date position" value={tokens.letterDateAlign} onChange={(value) => { set("letterDateAlign", value); setPreviewKind("letter") }} options={[{ value: "right", label: "On the right" }, { value: "left", label: "Under the company" }]} /></Field></Flash>
+                      <Flash on={glow("letterSubject")}><Field><FieldLabel>Subject line</FieldLabel><Choice label="Subject style" value={tokens.letterSubject} onChange={(value) => { set("letterSubject", value); setPreviewKind("letter") }} options={[{ value: "plain", label: "Bold" }, { value: "accent", label: "Accent colour" }, { value: "caps", label: "CAPITALS" }]} /></Field></Flash>
+                      <Flash on={glow("letterSignature")}><Field><FieldLabel>Signature</FieldLabel><Choice label="Signature" value={tokens.letterSignature} onChange={(value) => { set("letterSignature", value); setPreviewKind("letter") }} options={[{ value: "name", label: "Name" }, { value: "headline", label: "Name + headline" }, { value: "contact", label: "Name + contact" }]} /></Field></Flash>
+                      <Flash on={glow("letterSpacing")}><Range label="Space between paragraphs" value={tokens.letterSpacing} min={0.6} max={1.8} step={0.05} unit="×" onChange={(value) => { set("letterSpacing", value); setPreviewKind("letter") }} /></Flash>
+                    </FieldGroup>
+                  </AccordionContent>
+                </AccordionItem>
+
                 <AccordionItem value="page">
                   <AccordionTrigger>Page</AccordionTrigger>
                   <AccordionContent>
@@ -628,7 +646,13 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
           </div>
         </Tabs>
         <div className={cn("min-h-0 min-w-0 flex-col gap-2 p-3 sm:p-4 lg:flex", mobilePreview ? "flex" : "hidden")}>
-          <p className="text-xs text-muted-foreground" role="status">Preview with your latest CV. {rendering ? "Updating…" : ""}</p>
+          <div className="flex items-center gap-2">
+            <ToggleGroup value={[previewKind]} onValueChange={(value) => value[0] && setPreviewKind(value[0] as "cv" | "letter")} variant="outline" size="sm" aria-label="Preview">
+              <ToggleGroupItem value="cv"><FileTextIcon /> CV</ToggleGroupItem>
+              <ToggleGroupItem value="letter"><MailIcon /> Cover letter</ToggleGroupItem>
+            </ToggleGroup>
+            <p className="text-xs text-muted-foreground" role="status">One template styles both. {rendering ? "Updating…" : ""}</p>
+          </div>
           {failed ? <div role="status" className="flex flex-wrap items-center gap-2 text-sm">
             <p>{preview ? "Couldn’t update the preview. Showing the previous design." : "Couldn’t render the preview."}</p>
             <Button size="sm" variant="outline" onClick={() => setAttempt((value) => value + 1)}>Retry preview</Button>

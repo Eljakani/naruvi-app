@@ -5,11 +5,30 @@
 
 const decode = (value: string) => value.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
 
+function attribute(tag: string, name: string) {
+  const match = tag.match(new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, "i"))
+  return decode(match?.[1] ?? match?.[2] ?? "")
+}
+
 /** LinkedIn guest job HTML: the hiring company's LinkedIn page and its square logo. */
 export function linkedInTopcard(html: string): { companyPage: string; logo: string } {
-  const companyPage = html.match(/class="topcard__org-name-link[^"]*"[^>]*href="([^"]+)"/)?.[1] ?? html.match(/href="([^"]*linkedin\.com\/company\/[^"?]+)[^"]*"[^>]*data-tracking-control-name="public_jobs_topcard_logo"/)?.[1] ?? ""
-  const logo = html.match(/data-tracking-control-name="public_jobs_topcard_logo"[\s\S]{0,600}?data-delayed-url="([^"]+company-logo[^"]+)"/)?.[1] ?? ""
-  return { companyPage: companyPage ? decode(companyPage).split("?")[0] : "", logo: logo ? decode(logo) : "" }
+  let companyPage = ""
+  let logo = ""
+  for (const match of html.matchAll(/(<a\b[^>]*>)([\s\S]*?)<\/a>/gi)) {
+    const [, anchor, content] = match
+    const classes = attribute(anchor, "class").split(/\s+/)
+    const employerLogo = classes.includes("topcard__org-logo-link") || attribute(anchor, "data-tracking-control-name") === "public_jobs_topcard_logo"
+    if (!employerLogo && !classes.includes("topcard__org-name-link")) continue
+    const href = attribute(anchor, "href")
+    if (/^https:\/\/(?:[\w-]+\.)?linkedin\.com\/company\//i.test(href)) companyPage ||= href.split(/[?#]/)[0]
+    if (!employerLogo || logo) continue
+    for (const [image] of content.matchAll(/<img\b[^>]*>/gi)) {
+      logo = ["data-delayed-url", "data-src", "src"].map((name) => attribute(image, name))
+        .find((url) => /^https:\/\/(?:[\w-]+\.)*licdn\.com\/[^?#]*company[-_]logo/i.test(url)) ?? ""
+      if (logo) break
+    }
+  }
+  return { companyPage, logo }
 }
 
 const LEGAL = new Set("sa sas sasu sarl gmbh ag inc llc ltd limited plc bv nv spa srl co corp corporation company group groupe holding the et and de des la le les".split(" "))

@@ -62,6 +62,14 @@ export const designTokens = z.object({
   summaryAlign: z.enum(["auto", "left", "justify", "center"]).default("auto"),
   summaryLineHeight: z.number().min(1.15).max(1.7).default(1.38),
   summaryTitle: z.boolean().default(false),
+  // Cover letter (same look as the CV, plus these)
+  letterHeadline: z.boolean().default(true),
+  letterPhoto: z.boolean().default(false),
+  letterRecipient: z.boolean().default(true),
+  letterDateAlign: z.enum(["right", "left"]).default("right"),
+  letterSubject: z.enum(["plain", "accent", "caps"]).default("plain"),
+  letterSpacing: z.number().min(0.6).max(1.8).default(1),
+  letterSignature: z.enum(["name", "headline", "contact"]).default("name"),
   sectionIcons: z.boolean().default(false),
   // Sections
   headingSize: z.number().min(0.85).max(1.6).default(1.1),

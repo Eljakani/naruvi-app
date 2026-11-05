@@ -31,6 +31,11 @@ async function designFor(documentId: string) {
     const content = current?.content as { template?: string; accent?: string; design?: DesignTokens; templateRef?: string; header?: { showPhoto?: boolean } } | undefined
     if (content?.template) return { template: content.template as CvDocument["template"], accent: content.accent ?? "#2563eb", design: content.design, templateRef: content.templateRef, showPhoto: Boolean(content.header?.showPhoto) }
   }
+  // A new cover letter matches the application's CV (the pair is one template).
+  if (doc?.kind === "cover_letter") {
+    const [cv] = await db.select().from(documents).where(and(eq(documents.applicationId, doc.applicationId), eq(documents.kind, "cv"))).orderBy(desc(documents.createdAt)).limit(1)
+    if (cv?.currentRevisionId && cv.id !== documentId) return designFor(cv.id)
+  }
   return getDocumentDefaults()
 }
 

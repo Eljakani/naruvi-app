@@ -55,6 +55,7 @@ export async function parseFromUrl(input: string, dependencies: UrlSourceDepende
   if (needsBrowser(best)) {
     try {
       const rendered = await dependencies.renderPage(pageUrl)
+      sources.push({ ...rendered, kind: "browser" })
       const job = parseSource("page", rendered.html, "text/html", input, rendered.finalUrl)
       const selected = choose(best, job)
       if (selected === job) {
