@@ -2,7 +2,7 @@ import "server-only"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { designTokens, PRESETS, type DesignTokens } from "@/lib/design"
 import { db } from "@/server/db/client"
-import { documents, revisions, settings, templates, templateVersions } from "@/server/db/schema"
+import { documents, profiles, revisions, settings, templates, templateVersions } from "@/server/db/schema"
 import { cvDocument, type CvDocument } from "@/server/documents/model"
 
 export type SavedTemplate = { id: string; name: string; basedOn: string; tokens: DesignTokens; updatedAt: Date }
