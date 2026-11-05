@@ -37,6 +37,8 @@ export async function parseFromUrl(input: string, dependencies: UrlSourceDepende
   )
   let best: ParsedJob | null = null
   let page: JobPage | null = null
+  /** Every HTML source fetched (ATS APIs included): logos and company links may live in any of them. */
+  const sources: (JobPage & { kind: string })[] = []
   const errors: string[] = []
   for (const candidate of candidates) {
     try {
@@ -44,6 +46,7 @@ export async function parseFromUrl(input: string, dependencies: UrlSourceDepende
       if (fetched.status >= 400) throw new Error(`${new URL(candidate.url).host} answered ${fetched.status}`)
       const job = parseSource(candidate.kind, fetched.text, fetched.contentType, input, fetched.finalUrl)
       if (candidate.kind === "page") page = { html: fetched.text, finalUrl: fetched.finalUrl }
+      if (/html/i.test(fetched.contentType)) sources.push({ kind: candidate.kind, html: fetched.text, finalUrl: fetched.finalUrl })
       best = choose(best, job)
     } catch (error) {
       errors.push(error instanceof Error ? error.message : String(error))
@@ -67,5 +70,5 @@ export async function parseFromUrl(input: string, dependencies: UrlSourceDepende
   if (!best || best.description.trim().length < 80 || blocked(best)) {
     throw new Error(`Could not read this posting (${errors.at(-1) ?? "no useful job content"}). Paste the job text instead.`)
   }
-  return { job: best, page, errors }
+  return { job: best, page, sources, errors }
 }

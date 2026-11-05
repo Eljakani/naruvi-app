@@ -112,3 +112,27 @@ export async function enrichJob(job: { title: string; company: string; text: str
   }
   return base
 }
+
+const CONTRACT_LABEL: Record<string, Record<string, string>> = {
+  fr: { permanent: "CDI", fixed_term: "CDD", freelance: "Freelance", internship: "Stage", apprenticeship: "Alternance" },
+  de: { permanent: "Unbefristet", fixed_term: "Befristet", freelance: "Freiberuflich", internship: "Praktikum", apprenticeship: "Ausbildung" },
+  es: { permanent: "Indefinido", fixed_term: "Temporal", freelance: "Autónomo", internship: "Prácticas", apprenticeship: "Formación" },
+  en: { permanent: "Permanent", fixed_term: "Fixed-term", freelance: "Freelance", internship: "Internship", apprenticeship: "Apprenticeship" },
+}
+const REMOTE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
+
+/** Contract and work mode for the import form, in the posting's language; "" when unsure (< 60%). */
+export async function decideContractAndRemote(text: string, language: string, decide: Decide, title = ""): Promise<{ contract: string; remote: string; confidence: { contract: number; remote: number } }> {
+  const result = await decide({ job_title: title, posting: text.slice(0, 30_000) }, {
+    contract: choice("The type of contract offered", CONTRACT),
+    work_mode: choice("Where the person will work", WORK_MODE),
+  })
+  const contract = result.answers.contract
+  const mode = result.answers.work_mode
+  const labels = CONTRACT_LABEL[language] ?? CONTRACT_LABEL.en
+  return {
+    contract: contract?.type === "choice" && contract.confidence >= 0.6 ? labels[contract.choice] ?? "" : "",
+    remote: mode?.type === "choice" && mode.confidence >= 0.6 ? REMOTE_LABEL[mode.choice] ?? "" : "",
+    confidence: { contract: contract?.type === "choice" ? contract.confidence : 0, remote: mode?.type === "choice" ? mode.confidence : 0 },
+  }
+}

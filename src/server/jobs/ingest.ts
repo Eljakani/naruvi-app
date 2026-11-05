@@ -17,6 +17,10 @@ import { startRun } from "@/server/runs/tracer"
 import { completionForRun } from "@/server/llm/client"
 import { getLlmOverview } from "@/server/settings/llm"
 import { extractJobFields, JOB_FIELDS_PROMPT_VERSION } from "./ai-extract"
+import { guessCompanySite, linkedInTopcard } from "./company-hints"
+import { decideContractAndRemote } from "./enrich"
+import { decisionClient } from "@/server/settings/decisions"
+import { tracedDecide } from "@/server/runs/decisions"
 
 export function slugify(value: string) {
   return (
@@ -28,6 +32,13 @@ export function slugify(value: string) {
       .replace(/^-+|-+$/g, "")
       .slice(0, 80) || "company"
   )
+}
+
+/** Short and small: used for many speculative domain checks in parallel. */
+async function quickHtml(url: string) {
+  const fetched = await safeFetch(url, { maxBytes: 1024 * 1024, accept: "text/html", timeoutMs: 5000 }).catch(() => null)
+  if (!fetched || fetched.status >= 400 || !/html/i.test(fetched.contentType)) return null
+  return { html: fetched.buffer.toString("utf8"), finalUrl: fetched.finalUrl }
 }
 
 async function fetchHtml(url: string) {
@@ -81,9 +92,9 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
   const pasted = input.text?.trim() ?? ""
   const run = await startRun("job.preview", { url, textLength: pasted.length })
   try {
-    const { job, page, errors } = url
+    const { job, page, sources, errors } = url
       ? await run.step("fetch & parse", () => parseFromUrl(url, { fetchText: safeFetchText, renderPage: renderJobPage }), (value) => `${value.job.source} · confidence ${value.job.confidence}${value.errors.length ? ` · ${value.errors.length} source(s) failed` : ""}`)
-      : await run.step("parse text", async () => ({ job: parsedJob.parse(parseJobDocument({ text: pasted })), page: null, errors: [] as string[] }), (value) => `confidence ${value.job.confidence}`)
+      : await run.step("parse text", async () => ({ job: parsedJob.parse(parseJobDocument({ text: pasted })), page: null, sources: [] as { kind: string; html: string; finalUrl: string }[], errors: [] as string[] }), (value) => `confidence ${value.job.confidence}`)
 
     // Prefer the pasted text when the page only gave a teaser.
     const description = pasted.length > job.description.length ? pasted : job.description
@@ -108,6 +119,7 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
     job.warnings = job.warnings.filter(
       (warning) => !(job.role && /role title was not detected/i.test(warning)) && !(job.company && /company was not detected/i.test(warning)),
     )
+    const parsedValues = { remote: job.remote, contract: job.employmentType }
     // AI pass: fills or corrects key fields when the rules were unsure. Values not
     // found verbatim in the posting are discarded, so the model cannot invent them.
     const needsAi = !url || job.confidence < 0.9 || !job.role || !job.company || !job.location
@@ -132,6 +144,18 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
       if (!url && ai.fields.language) job.language = ai.fields.language
       job.warnings = job.warnings.filter((warning) => !(job.role && /role title was not detected/i.test(warning)) && !(job.company && /company was not detected/i.test(warning)))
     }
+    // Contract and remote policy: calibrated decisions (Jev) when configured.
+    if (!parsedValues.remote || !parsedValues.contract) {
+      const decisions = await decisionClient().catch(() => null)
+      if (decisions && description.length >= 200) {
+        const decided = await run
+          .step("decide contract & remote (decisions)", () => decideContractAndRemote(description, job.language, tracedDecide(run, decisions.decide, decisions.model), job.role), (value) => `${value.remote || "remote unknown"} (${Math.round(value.confidence.remote * 100)}%) · ${value.contract || "contract unknown"} (${Math.round(value.confidence.contract * 100)}%)`)
+          .catch(() => null)
+        // The posting's own structured value wins; otherwise the calibrated decision replaces any guess.
+        if (decided?.remote && !parsedValues.remote) { job.remote = decided.remote; hints.remote = "decision model" }
+        if (decided?.contract && !parsedValues.contract) { job.employmentType = decided.contract; hints.employmentType = "decision model" }
+      }
+    }
     const known = job.company ? await db.query.companies.findFirst({ where: eq(companies.slug, slugify(job.company)) }) : undefined
 
     const site = known?.website
@@ -153,6 +177,13 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
           (value) => (value.url ? `${value.url} (${value.source})` : "not found"),
         )
 
+    const topcard = sources.map((source) => linkedInTopcard(source.html)).find((value) => value.logo || value.companyPage) ?? { companyPage: "", logo: "" }
+    if (!site.url && job.company) {
+      // The posting never links the site (LinkedIn, Indeed…): try likely domains, keep one whose page names the company.
+      const guessed = await run.step("guess company site", () => guessCompanySite(job.company, job.location, quickHtml), (value) => value || "no verified match")
+      if (guessed) Object.assign(site, { url: guessed, source: "domain guess (page names the company)", confidence: 0.7 })
+    }
+
     let logo: { path: string; source: string } | null = known?.logoPath ? { path: known.logoPath, source: "known company" } : null
     if (!logo) {
       logo = await run.step(
@@ -161,7 +192,8 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
           const fromPosting = page ? postingLogoCandidates(page.html, page.finalUrl, { company: job.company, structuredLogo: job.companyLogo }) : job.companyLogo ? [{ url: job.companyLogo, source: "structured-data" }] : []
           const home = site.url ? await fetchHtml(site.url) : null
           const fromSite = home ? siteLogoCandidates(home.html, home.finalUrl) : []
-          return pickLogo([...fromPosting.map((item) => ({ ...item, priority: Math.min("priority" in item ? item.priority : 92, 92), strictShape: false })), ...fromSite])
+          const fromTopcard = topcard.logo ? [{ url: topcard.logo, source: "LinkedIn company logo", priority: 96, strictShape: true }] : []
+          return pickLogo([...fromTopcard, ...fromPosting.map((item) => ({ ...item, priority: Math.min("priority" in item ? item.priority : 92, 92), strictShape: false })), ...fromSite])
         },
         (value) => (value ? value.source : "none"),
       )
