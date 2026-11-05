@@ -27,3 +27,14 @@ test("polish: rejects added skills, dropped values and copied job titles", async
   const kubernetes = await polishCv(doc, { title: "Y", company: "X", description: "" }, reply({ headline: "Kubernetes cloud engineer", sections: [] }))
   assert.equal(kubernetes.doc.header.headline, "Cloud engineer", "new skill in headline rejected")
 })
+
+test("polish: section order must be an exact permutation; only projects/certs can be hidden", async () => {
+  const withProjects = structuredClone(doc)
+  withProjects.sections.push({ id: "pr", kind: "project", title: "Projects", included: true, groups: [], items: [
+    { entryId: "p1", title: "A", included: true, bullets: [] }, { entryId: "p2", title: "B", included: true, bullets: [] },
+  ] } as never)
+  const result = await polishCv(withProjects, { title: "Y", company: "X", description: "" }, reply({ headline: "", sectionOrder: ["sk", "exp", "pr"], sections: [{ id: "pr", hide: ["p1", "p2"] }, { id: "exp", hide: ["e1"] }] }))
+  assert.deepEqual(result.doc.sections.map((s) => s.id), ["sk", "exp", "pr"])
+  assert.equal(result.hidden, 1, "at most half of a section is hidden")
+  assert.equal(result.doc.sections.find((s) => s.id === "exp")!.items[0].included, true, "experience is never hidden")
+})

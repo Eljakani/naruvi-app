@@ -107,7 +107,7 @@ export async function generateCv(applicationId: string, language?: string) {
         title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText,
       }, completionForRun(run, "CV tailoring", DOCUMENT_PROMPT_VERSION)), (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} entries tailored${value.aiAssistance?.reason ? ` · ${value.aiAssistance.reason}` : ""}`)
       const polished = await run
-        .step("AI order sections & headline", () => polishCv(content, { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }, completionForRun(run, "CV ordering", POLISH_PROMPT_VERSION)), (value) => `${value.reordered} list(s) reordered · headline ${value.headline ? "tightened" : "kept"}`)
+        .step("AI order sections & headline", () => polishCv(content, { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }, completionForRun(run, "CV ordering", POLISH_PROMPT_VERSION)), (value) => `headline ${value.headline ? `→ “${value.doc.header.headline}”` : "kept"} · ${value.sectionsMoved ? "sections reordered · " : ""}${value.reordered} list(s) reordered · ${value.hidden} off-topic item(s) hidden`)
         .catch(() => null) // ordering is polish, never a blocker
       if (polished) content = polished.doc
       const decisions = await decisionClient().catch(() => null)
