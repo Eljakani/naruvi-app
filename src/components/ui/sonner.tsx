@@ -5,7 +5,9 @@ import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  // No theme provider in the app: the UI is light, so toasts must be too (not the OS setting).
+  const { resolvedTheme } = useTheme()
+  const theme = resolvedTheme ?? "light"
 
   return (
     <Sonner
@@ -39,6 +41,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast: "cn-toast",
+          // Use the app's own colours: the toast library's dark-mode greys are unreadable on a light popover.
+          title: "!text-popover-foreground",
+          description: "!text-muted-foreground",
+          icon: "!text-popover-foreground",
         },
       }}
       {...props}
