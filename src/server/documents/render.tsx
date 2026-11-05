@@ -66,6 +66,7 @@ function makeStyles(t: Tokens, fontFamily: string[], headingFamily: string[], rt
     headline: { fontSize: t.size + 1.4, color: MUTED, marginTop: 3, lineHeight: 1.2, textAlign: t.headerAlign === "center" ? "center" : align },
     contact: { flexDirection: row, flexWrap: "wrap", marginTop: 5, fontSize: t.size - 1, color: MUTED, justifyContent: t.headerAlign === "center" ? "center" : "flex-start" },
     contactItem: t.headerAlign === "center" ? { marginHorizontal: 5 } : { marginRight: rtl ? 0 : 10, marginLeft: rtl ? 10 : 0 },
+    summary: { marginBottom: gap(4), color: t.ink, lineHeight: t.lineHeight + 0.05 },
     columns: { flexDirection: row },
     side: { width: "31%", paddingRight: rtl ? 0 : 14, paddingLeft: rtl ? 14 : 0, borderRightWidth: rtl ? 0 : 0.6, borderLeftWidth: rtl ? 0.6 : 0, borderColor: RULE, marginRight: rtl ? 0 : 14, marginLeft: rtl ? 14 : 0 },
     main: { flex: 1 },
@@ -212,6 +213,7 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
             </View>
           </View>
         </View>
+        {doc.header.summary.trim() ? <Text style={s.summary}>{doc.header.summary.trim()}</Text> : null}
         {side.length ? (
           <View style={s.columns}>
             <View style={s.side}>

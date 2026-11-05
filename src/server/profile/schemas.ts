@@ -50,6 +50,7 @@ export type EntryInput = z.input<typeof entryInput>
 export const identityInput = z.object({
   fullName: z.string().trim().min(2).max(120),
   headlines: z.record(z.string().regex(/^[a-z]{2}$/), z.string().trim().max(160)).default({}),
+  summaries: z.record(z.string().regex(/^[a-z]{2}$/), z.string().trim().max(1200)).default({}),
   photoPath: z
     .string()
     .regex(/^photos\/[a-f0-9]{24}\.(png|jpg|webp)$/)

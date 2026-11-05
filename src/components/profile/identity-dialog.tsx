@@ -7,6 +7,7 @@ import { saveIdentityAction, uploadPhotoAction } from "@/app/(app)/profile/actio
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import type { profiles } from "@/server/db/schema"
 
@@ -16,6 +17,7 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
   const [form, setForm] = useState(() => ({
     fullName: profile?.fullName ?? "",
     headlines: { en: profile?.headlines?.en ?? "", fr: profile?.headlines?.fr ?? "" },
+    summaries: { en: profile?.summaries?.en ?? "", fr: profile?.summaries?.fr ?? "" },
     photoPath: profile?.photoPath ?? null,
     email: profile?.email ?? "",
     phone: profile?.phone ?? "",
@@ -28,7 +30,8 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
   const save = () =>
     startTransition(async () => {
       const headlines = Object.fromEntries(Object.entries(form.headlines).filter(([, value]) => value.trim()))
-      const result = await saveIdentityAction({ ...form, headlines })
+      const summaries = Object.fromEntries(Object.entries(form.summaries).filter(([, value]) => value.trim()))
+      const result = await saveIdentityAction({ ...form, headlines, summaries })
       if (!result.ok) return void toast.error("Could not save", { description: result.error })
       toast.success("Identity saved")
       onOpenChange(false)
@@ -63,6 +66,25 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
               ))}
             </div>
             <p className="text-xs text-muted-foreground">The line under your name. A job can override it later; it never invents seniority.</p>
+          </div>
+          <div className="grid gap-2">
+            <Label>About you</Label>
+            <div className="grid gap-2">
+              {(["en", "fr"] as const).map((lang) => (
+                <div key={lang} className="flex items-start gap-2">
+                  <span className="mt-2 w-7 shrink-0 rounded border px-1 text-center font-mono text-[10px] uppercase text-muted-foreground">{lang}</span>
+                  <Textarea
+                    aria-label={`Summary ${lang}`}
+                    value={form.summaries[lang]}
+                    onChange={(event) => setForm({ ...form, summaries: { ...form.summaries, [lang]: event.target.value } })}
+                    placeholder={lang === "en" ? "2–3 sentences: what you do, for whom, and what you’re known for." : "2–3 phrases : ce que vous faites, pour qui, et ce qui vous distingue."}
+                    className="min-h-16"
+                    maxLength={1200}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Shown as a short paragraph at the top of your CV. For each job, AI can tailor it using only your verified facts.</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id="email" label="Email" value={form.email} onChange={set("email")} type="email" />

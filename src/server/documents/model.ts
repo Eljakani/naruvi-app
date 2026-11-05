@@ -58,6 +58,10 @@ export const cvDocument = z.object({
   header: z.object({
     name: z.string(),
     headline: z.string().default(""),
+    /** Profile summary paragraph under the header ("" = none). */
+    summary: z.string().max(1200).default(""),
+    /** The profile's own summary when AI tailored it, for undo. */
+    summaryOriginal: z.string().max(1200).optional(),
     email: z.string().default(""),
     phone: z.string().default(""),
     location: z.string().default(""),

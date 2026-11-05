@@ -2,7 +2,7 @@ import "server-only"
 import { desc, eq } from "drizzle-orm"
 import { designTokens, PRESETS, type DesignTokens } from "@/lib/design"
 import { db } from "@/server/db/client"
-import { documents, revisions, templates } from "@/server/db/schema"
+import { documents, revisions, templates, templateVersions } from "@/server/db/schema"
 import { cvDocument, type CvDocument } from "@/server/documents/model"
 import { renderCvPdf } from "@/server/documents/render"
 
@@ -19,14 +19,34 @@ export async function getTemplate(id: string) {
   return row ? parse(row) : null
 }
 
-export async function createTemplate(input: { name: string; basedOn: string; tokens: unknown }) {
-  const [row] = await db.insert(templates).values({ name: input.name.trim().slice(0, 80) || "My template", basedOn: PRESETS[input.basedOn] ? input.basedOn : "classic", tokens: designTokens.parse(input.tokens) }).returning()
-  return parse(row)
+export async function createTemplate(input: { name: string; basedOn: string; tokens: unknown; note?: string }) {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.insert(templates).values({ name: input.name.trim().slice(0, 80) || "My template", basedOn: PRESETS[input.basedOn] ? input.basedOn : "classic", tokens: designTokens.parse(input.tokens) }).returning()
+    await tx.insert(templateVersions).values({ templateId: row.id, name: row.name, tokens: row.tokens, note: input.note || "created" })
+    return parse(row)
+  })
 }
 
-export async function updateTemplate(id: string, input: { name?: string; tokens?: unknown }) {
-  const [row] = await db.update(templates).set({ ...(input.name ? { name: input.name.trim().slice(0, 80) } : {}), ...(input.tokens ? { tokens: designTokens.parse(input.tokens) } : {}) }).where(eq(templates.id, id)).returning()
-  return row ? parse(row) : null
+/** Every save is a version, so any earlier look can be restored. */
+export async function updateTemplate(id: string, input: { name?: string; tokens?: unknown; note?: string }) {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.update(templates).set({ ...(input.name ? { name: input.name.trim().slice(0, 80) } : {}), ...(input.tokens ? { tokens: designTokens.parse(input.tokens) } : {}) }).where(eq(templates.id, id)).returning()
+    if (!row) return null
+    await tx.insert(templateVersions).values({ templateId: id, name: row.name, tokens: row.tokens, note: input.note || "saved" })
+    return parse(row)
+  })
+}
+
+export async function listTemplateVersions(templateId: string) {
+  const rows = await db.select().from(templateVersions).where(eq(templateVersions.templateId, templateId)).orderBy(desc(templateVersions.createdAt)).limit(50)
+  return rows.map((row) => ({ id: row.id, name: row.name, note: row.note, createdAt: row.createdAt, tokens: designTokens.parse(row.tokens) }))
+}
+export type TemplateVersion = Awaited<ReturnType<typeof listTemplateVersions>>[number]
+
+export async function restoreTemplateVersion(templateId: string, versionId: string) {
+  const [version] = await db.select().from(templateVersions).where(eq(templateVersions.id, versionId))
+  if (!version || version.templateId !== templateId) return null
+  return updateTemplate(templateId, { tokens: version.tokens, note: `restored ${version.createdAt.toISOString()}` })
 }
 
 export async function deleteTemplate(id: string) {

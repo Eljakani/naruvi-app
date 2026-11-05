@@ -1,12 +1,12 @@
 "use client"
 
+import Link from "next/link"
 import { useState, useTransition } from "react"
-import { DownloadIcon, Loader2Icon } from "lucide-react"
+import { DownloadIcon, Loader2Icon, PaletteIcon } from "lucide-react"
 import { toast } from "sonner"
 import { downloadFontsAction, saveDocumentDefaultsAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
 import { DecisionSettings } from "./decision-settings"
 import { ModelSettings } from "./model-settings"
-import { DesignPicker, type SavedDesign } from "@/components/applications/design-picker"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,7 +27,7 @@ const LANGS = [
 
 const FONT_NAMES: Record<string, string> = { SC: "Chinese (Simplified)", JP: "Japanese", KR: "Korean" }
 
-export function SettingsView({ overview, defaults: initialDefaults, savedTemplates = [] }: { overview: Overview; defaults: DocumentDefaults; savedTemplates?: SavedDesign[] }) {
+export function SettingsView({ overview, defaults: initialDefaults }: { overview: Overview; defaults: DocumentDefaults }) {
   const [defaults, setDefaults] = useState(initialDefaults)
   const [language, setLanguage] = useState(overview.defaultLanguage)
   const [pending, startTransition] = useTransition()
@@ -87,31 +87,14 @@ export function SettingsView({ overview, defaults: initialDefaults, savedTemplat
               </Select>
             </Field>
             <FieldSeparator />
-            <Field>
+            <Field orientation="horizontal">
               <FieldContent>
-                <FieldTitle>Template and accent</FieldTitle>
-                <FieldDescription>Used the first time a CV or letter is generated.</FieldDescription>
+                <FieldTitle>Design</FieldTitle>
+                <FieldDescription>Fonts, colours and layout live on the Templates page. The one marked Default is used for new documents.</FieldDescription>
               </FieldContent>
-              <div className="max-w-2xl">
-                <DesignPicker
-                  template={defaults.template}
-                  accent={defaults.accent}
-                  design={defaults.design}
-                  templateRef={defaults.templateRef}
-                  saved={savedTemplates}
-                  onChange={(change) => {
-                    const next: DocumentDefaults = { ...defaults }
-                    if (change.template) next.template = change.template as DocumentDefaults["template"]
-                    if (change.design === null) delete next.design
-                    else if (change.design) next.design = change.design
-                    if (change.templateRef === null) delete next.templateRef
-                    else if (change.templateRef) next.templateRef = change.templateRef
-                    if (change.accent) next.accent = change.accent
-                    saveDefaults(next)
-                  }}
-                  disabled={pending}
-                />
-              </div>
+              <Button variant="outline" nativeButton={false} render={<Link href="/templates" />}>
+                <PaletteIcon /> Open templates
+              </Button>
             </Field>
             <FieldSeparator />
             <Field orientation="horizontal">

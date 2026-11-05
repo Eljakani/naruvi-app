@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { generateCvAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/applications/design-picker"
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
+import { CvAssistant, LineAssistant } from "@/components/applications/cv-assistant"
 import { AI_STEPS } from "@/components/ai-progress"
 import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { Button } from "@/components/ui/button"
@@ -135,7 +136,8 @@ function Editor({ applicationId, jobTitle, company, language, workspace, savedTe
             if (next.aiAssistance) next.aiAssistance.reviewed = true
             persist(next, "AI draft reviewed", () => setDraft(next))
           }} />
-        <CvContent draft={draft} update={update} language={language} />
+        <CvAssistant applicationId={applicationId} draft={draft} apply={setDraft} />
+        <CvContent draft={draft} update={update} language={language} lineAssistant={(bulletId) => <LineAssistant applicationId={applicationId} draft={draft} bulletId={bulletId} apply={setDraft} />} />
       </div>}
     />
   )
@@ -155,7 +157,8 @@ function Mover({ onUp, onDown, upDisabled, downDisabled, label }: { onUp: () => 
 }
 
 /** One CV line: tick to include; AI-reworded lines show a badge with Edit and Undo, never a duplicate copy. */
-function BulletRow({ bullet, label, first, last, onToggle, onEdit, onUndo, onUp, onDown }: {
+function BulletRow({ bullet, label, first, last, onToggle, onEdit, onUndo, onUp, onDown, assistant }: {
+  assistant?: React.ReactNode
   bullet: CvDocument["sections"][number]["items"][number]["bullets"][number]
   label: string
   first: boolean
@@ -179,6 +182,7 @@ function BulletRow({ bullet, label, first, last, onToggle, onEdit, onUndo, onUp,
             {bullet.text}
           </button>
         )}
+        <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-popup-open]]:opacity-100">{assistant}</span>
         <Mover label={label} upDisabled={first} downDisabled={last} onUp={onUp} onDown={onDown} />
       </div>
       {reworded && !editing ? (
@@ -197,13 +201,25 @@ function swap<T>(list: T[], a: number, b: number) {
   ;[list[a], list[b]] = [list[b], list[a]]
 }
 
-function CvContent({ draft, update, language }: { draft: CvDocument; update: (fn: (doc: CvDocument) => void) => void; language: string }) {
+function CvContent({ draft, update, language, lineAssistant }: { draft: CvDocument; update: (fn: (doc: CvDocument) => void) => void; language: string; lineAssistant?: (bulletId: string) => React.ReactNode }) {
   const [open, setOpen] = useState<Record<string, boolean>>(() => Object.fromEntries(draft.sections.flatMap((s) => s.items.slice(0, 2).map((i) => [i.entryId, true]))))
   return (
     <div className="grid min-w-0 grid-cols-1 gap-6">
       <div className="grid gap-1.5">
         <label htmlFor="cv-headline" className="text-xs font-semibold tracking-wide uppercase">Headline</label>
         <Input id="cv-headline" value={draft.header.headline} maxLength={160} onChange={(event) => update((doc) => void (doc.header.headline = event.target.value))} placeholder="e.g. DevSecOps engineer — cloud security and CI/CD" />
+        <div className="mt-2 flex items-center justify-between">
+          <label htmlFor="cv-summary" className="text-xs font-semibold tracking-wide uppercase">Summary</label>
+          {draft.header.summaryOriginal !== undefined && draft.header.summaryOriginal !== draft.header.summary ? (
+            <Button type="button" variant="ghost" size="xs" className="text-muted-foreground" title={draft.header.summaryOriginal || "No summary"} onClick={() => update((doc) => {
+              doc.header.summary = doc.header.summaryOriginal ?? ""
+              delete doc.header.summaryOriginal
+            })}>
+              Undo AI wording
+            </Button>
+          ) : null}
+        </div>
+        <Textarea id="cv-summary" value={draft.header.summary} maxLength={1200} rows={3} onChange={(event) => update((doc) => void (doc.header.summary = event.target.value))} placeholder="A short paragraph about you for this job. Leave empty to hide it." className="text-[13px]" />
         <p className="text-xs text-muted-foreground">Tick the lines you want on this CV. Unticked ones are spares you can swap in. Changes here don’t touch your profile.</p>
       </div>
       {draft.sections.map((section, s) => (
@@ -244,6 +260,7 @@ function CvContent({ draft, update, language }: { draft: CvDocument; update: (fn
                         {item.bullets.map((bullet, b) => (
                           <BulletRow
                             key={bullet.id}
+                            assistant={lineAssistant?.(bullet.id)}
                             bullet={bullet}
                             label={`${item.title}, line ${b + 1}`}
                             first={b === 0}

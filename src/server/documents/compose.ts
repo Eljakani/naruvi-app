@@ -31,6 +31,7 @@ export type ComposeAnalysis = {
 export type ComposeProfile = {
   fullName: string
   headlines: Record<string, string>
+  summaries?: Record<string, string>
   email: string
   phone: string
   location: string
@@ -164,6 +165,7 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
       name: profile.fullName,
       // No fallback to another language: the quality gate asks for one instead.
       headline: profile.headlines[language] ?? "",
+      summary: profile.summaries?.[language] ?? "",
       email: profile.email,
       phone: profile.phone,
       location: profile.location,

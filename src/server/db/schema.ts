@@ -80,6 +80,8 @@ export const profiles = pgTable("profiles", {
   fullName: text().notNull(),
   /** Short professional title per language, shown under the name: { en, fr }. */
   headlines: jsonb().$type<Record<string, string>>().notNull().default({}),
+  /** Short "about me" paragraph per language; tailored per job by the CV composer. */
+  summaries: jsonb().$type<Record<string, string>>().notNull().default({}),
   /** Profile photo in the asset store (photos/<sha>.<ext>). */
   photoPath: text(),
   email: text().notNull().default(""),
@@ -411,3 +413,19 @@ export const templates = pgTable("templates", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 })
+
+export const templateVersions = pgTable(
+  "template_versions",
+  {
+    id: id(),
+    templateId: uuid()
+      .notNull()
+      .references(() => templates.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    tokens: jsonb().$type<Record<string, unknown>>().notNull(),
+    /** What produced it: "save", "ai: <prompt>", "restore". */
+    note: text().notNull().default(""),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.templateId, t.createdAt)],
+)
