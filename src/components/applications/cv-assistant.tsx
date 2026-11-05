@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { SparklesIcon } from "lucide-react"
+import { CheckCircle2Icon, CircleDashedIcon, FileTextIcon, GaugeIcon, SparklesIcon, XIcon } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { reviseCvAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { AiSteps, useStep } from "@/components/ai-progress"
@@ -11,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import type { CvDocument } from "@/server/documents/model"
 
 const IDEAS = ["Make it shorter", "Fit on one page", "Stress leadership", "More technical", "Simpler words", "Lead with results"]
-const STEPS = ["Reading your request", "Rewriting with your facts only", "Checking every change"]
+const STEPS = ["Reading your request", "Rewriting with your facts only", "Rendering and scoring the CV", "Fixing what the checks flag", "Keeping the best version"]
 const LINE_ACTIONS = [
   { label: "Shorter", request: "Make this line shorter and punchier, same meaning." },
   { label: "Stronger verb", request: "Start this line with a stronger action verb." },
@@ -20,24 +22,52 @@ const LINE_ACTIONS = [
   { label: "Lead with the result", request: "Rewrite this line to lead with the outcome its facts state." },
 ]
 
-function useRevise(applicationId: string, draft: CvDocument, apply: (doc: CvDocument) => void) {
+type Outcome = { kind: "done" | "none"; note: string; scoreBefore: number; scoreAfter: number; pages: number; rounds: number; rejected: number }
+
+function useRevise(applicationId: string, draft: CvDocument, apply: (doc: CvDocument) => void, report?: (outcome: Outcome) => void) {
   const [pending, start] = useTransition()
   const run = (request: string, bulletId?: string) =>
     start(async () => {
       const result = await reviseCvAction(applicationId, draft, request, bulletId)
       if (!result.ok) return void toast.error(result.error)
-      const { doc, changed, rejected, note } = result.data
-      if (!changed) return void toast(rejected ? "Nothing passed the fact check" : "No changes needed", { description: rejected ? `${rejected} suggestion(s) would have added claims your facts don’t support.` : note || undefined })
-      apply(doc)
-      toast.success(note || `${changed} change${changed === 1 ? "" : "s"} made`, { description: `Review and press Save. Discard undoes everything.${rejected ? ` ${rejected} suggestion(s) were dropped by the fact check.` : ""}` })
+      const { doc, changed, rejected, note, scoreBefore, scoreAfter, pages, rounds } = result.data
+      const outcome: Outcome = { kind: changed ? "done" : "none", note: note || (changed ? "Done" : rejected ? "Nothing passed the fact check" : "No changes needed"), scoreBefore, scoreAfter, pages, rounds, rejected }
+      if (changed) apply(doc)
+      if (report) report(outcome)
+      else if (changed) toast.success(outcome.note, { description: "Review it, then Save. Discard undoes it." })
+      else toast(outcome.note)
     })
   return { pending, run }
+}
+
+/** One line with an icon and a few chips; no wall of text. */
+function OutcomeLine({ outcome, onDismiss }: { outcome: Outcome; onDismiss: () => void }) {
+  const done = outcome.kind === "done"
+  const Icon = done ? CheckCircle2Icon : CircleDashedIcon
+  return (
+    <div role="status" className="cb-step flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-2 text-xs">
+      <Icon key={outcome.note} className={cn("cb-pop mt-px size-4 shrink-0", done ? "text-primary" : "text-muted-foreground")} />
+      <div className="grid min-w-0 flex-1 gap-1">
+        <span className="font-medium">{outcome.note}</span>
+        {done && outcome.scoreAfter ? (
+          <span className="flex flex-wrap gap-1">
+            <Badge variant="secondary" className="gap-1"><GaugeIcon className="size-3" /> {outcome.scoreBefore === outcome.scoreAfter ? `Score ${outcome.scoreAfter}` : `Score ${outcome.scoreBefore} → ${outcome.scoreAfter}`}</Badge>
+            <Badge variant="secondary" className="gap-1"><FileTextIcon className="size-3" /> {outcome.pages} page{outcome.pages === 1 ? "" : "s"}</Badge>
+            {outcome.rounds > 1 ? <Badge variant="secondary">{outcome.rounds} rounds</Badge> : null}
+          </span>
+        ) : null}
+        {done ? <span className="text-muted-foreground">Not saved yet: review it, then Save.</span> : outcome.rejected ? <span className="text-muted-foreground">{outcome.rejected} idea(s) would have claimed things your facts don’t say.</span> : null}
+      </div>
+      <button type="button" onClick={onDismiss} aria-label="Dismiss" className="rounded p-0.5 text-muted-foreground hover:text-foreground"><XIcon className="size-3.5" /></button>
+    </div>
+  )
 }
 
 /** "Ask AI" for the whole CV: free text or one tap. Changes land in the draft for review. */
 export function CvAssistant({ applicationId, draft, apply }: { applicationId: string; draft: CvDocument; apply: (doc: CvDocument) => void }) {
   const [text, setText] = useState("")
-  const { pending, run } = useRevise(applicationId, draft, apply)
+  const [outcome, setOutcome] = useState<Outcome | null>(null)
+  const { pending, run } = useRevise(applicationId, draft, apply, setOutcome)
   const step = useStep(pending, STEPS.length)
   return (
     <div className="grid gap-2 rounded-lg border px-3 py-2.5">
@@ -66,6 +96,7 @@ export function CvAssistant({ applicationId, draft, apply }: { applicationId: st
           ))}
         </div>
       )}
+      {outcome && !pending ? <OutcomeLine outcome={outcome} onDismiss={() => setOutcome(null)} /> : null}
     </div>
   )
 }

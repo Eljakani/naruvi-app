@@ -13,7 +13,8 @@ import { getDocumentDefaults } from "@/server/settings/service"
 import { startRun } from "@/server/runs/tracer"
 import { getLlmOverview } from "@/server/settings/llm"
 import { completionForRun } from "@/server/llm/client"
-import { DOCUMENT_PROMPT_VERSION, enrichCv, enrichLetter, POLISH_PROMPT_VERSION, polishCv, researchSources } from "./ai-compose"
+import { DOCUMENT_PROMPT_VERSION, enrichCv, enrichLetter, POLISH_PROMPT_VERSION, polishCv, researchSources, REVISE_PROMPT_VERSION, reviseCv } from "./ai-compose"
+import { runCvAgent } from "./cv-agent"
 import { composeCv } from "./compose"
 import { cvDocument, type CvDocument } from "./model"
 import { checkQuality, type QualityReport } from "./quality"
@@ -126,6 +127,19 @@ export async function generateCv(applicationId: string, language?: string) {
     if (design.templateRef) content.templateRef = design.templateRef
     content.accent = design.accent
     content.header.showPhoto = design.showPhoto && Boolean(content.header.photoPath)
+    // Content agent: render with the real design, score, and fix what the checks flag.
+    if (model?.configured) {
+      const facts = new Map(entries.filter((entry) => entry.status === "verified").flatMap((entry) => entry.facts.map((fact) => [fact.id, fact.statement] as const)))
+      const job = { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }
+      const requirements = application.analysis?.requirements ?? []
+      const agent = await run
+        .step("CV agent (render, score, fix)", () => runCvAgent(content, {}, {
+          evaluate: (doc) => evaluate(doc, requirements).then(({ pages, quality }) => ({ pages, quality })),
+          revise: (doc, instruction) => reviseWithChecks(run, doc, instruction, facts, job, entries),
+        }), (value) => `${value.rounds.length} round(s) · score ${value.scoreBefore} → ${value.scoreAfter} · ${value.pages} page(s)`)
+        .catch(() => null)
+      if (agent?.improved) content = agent.doc
+    }
     const { revision, quality } = await run.step("render & quality gate", () => addRevision(document.id, content, "generate", application.analysis?.requirements ?? [], run.id), (value) => `${value.revision.pages} page(s) · score ${value.quality.score}${value.quality.ready ? " · ready" : ""}`)
     await advanceAutomatically(application.id, quality.ready ? "ready" : "generated")
     await run.finish("succeeded", { documentId: document.id, revisionId: revision.id, score: quality.score })
@@ -257,4 +271,19 @@ export async function revisionPdf(revisionId: string) {
   const content = cvDocument.parse(raw)
   const { buffer } = await renderCvPdf(content)
   return { buffer, name: `${content.header.name.replace(/[^\p{L}\p{N}]+/gu, "-")}-CV-${content.language}.pdf` }
+}
+
+/** One revision step: AI edit with the fact check, then the decision model's claim check. */
+export async function reviseWithChecks(run: Awaited<ReturnType<typeof startRun>>, doc: CvDocument, instruction: string, facts: Map<string, string>, job: { title: string; company: string; description: string } | null, entries: Awaited<ReturnType<typeof listEntries>>, bulletId?: string) {
+  const result = await reviseCv(doc, instruction, facts, job, completionForRun(run, "CV revision", REVISE_PROMPT_VERSION), bulletId)
+  const decisions = await decisionClient().catch(() => null)
+  if (!decisions || !result.changed) return result
+  const checked = await verifyCvRewrites(result.doc, entries, tracedDecide(run, decisions.decide, decisions.model)).catch(() => null)
+  return checked ? { ...result, doc: checked.doc, rejected: result.rejected + checked.reverted } : result
+}
+
+/** Renders and scores a CV draft without saving it. */
+export async function scoreCvDraft(doc: CvDocument, requirements: Parameters<typeof checkQuality>[2]) {
+  const { pages, quality } = await evaluate(doc, requirements)
+  return { pages, quality }
 }
