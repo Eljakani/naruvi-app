@@ -11,7 +11,9 @@ import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import { AI_STEPS } from "@/components/ai-progress"
 import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
@@ -148,6 +150,45 @@ function Mover({ onUp, onDown, upDisabled, downDisabled, label }: { onUp: () => 
   )
 }
 
+/** One CV line: tick to include; AI-reworded lines show a badge with Edit and Undo, never a duplicate copy. */
+function BulletRow({ bullet, label, first, last, onToggle, onEdit, onUndo, onUp, onDown }: {
+  bullet: CvDocument["sections"][number]["items"][number]["bullets"][number]
+  label: string
+  first: boolean
+  last: boolean
+  onToggle: (value: boolean) => void
+  onEdit: (text: string) => void
+  onUndo: () => void
+  onUp: () => void
+  onDown: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const reworded = Boolean(bullet.originalText && bullet.originalText !== bullet.text)
+  return (
+    <li className="group/row grid gap-1 rounded-md px-1.5 py-1.5 hover:bg-muted/60">
+      <div className="flex items-start gap-2.5">
+        <Checkbox className="mt-0.5" checked={bullet.included} onCheckedChange={(value) => onToggle(Boolean(value))} aria-label={`Include ${label}`} />
+        {editing ? (
+          <Textarea autoFocus aria-label={`Edit ${label}`} value={bullet.text} maxLength={600} rows={3} onChange={(event) => onEdit(event.target.value)} onBlur={() => setEditing(false)} onKeyDown={(event) => { if (event.key === "Escape" || (event.key === "Enter" && (event.metaKey || event.ctrlKey))) setEditing(false) }} className="min-w-0 flex-1 text-[13px]" />
+        ) : (
+          <button type="button" onClick={() => setEditing(true)} className={cn("min-w-0 flex-1 cursor-text text-left text-[13px] leading-5 [overflow-wrap:anywhere]", !bullet.included && "text-muted-foreground")} title="Click to edit">
+            {bullet.text}
+          </button>
+        )}
+        <Mover label={label} upDisabled={first} downDisabled={last} onUp={onUp} onDown={onDown} />
+      </div>
+      {reworded && !editing ? (
+        <div className="flex items-center gap-1 pl-6.5">
+          <Badge variant="outline" className="px-1 py-0 text-[10px]">AI</Badge>
+          <Button type="button" variant="ghost" size="xs" className="text-muted-foreground" onClick={onUndo} title={bullet.originalText}>
+            Undo AI wording
+          </Button>
+        </div>
+      ) : null}
+    </li>
+  )
+}
+
 function swap<T>(list: T[], a: number, b: number) {
   ;[list[a], list[b]] = [list[b], list[a]]
 }
@@ -156,7 +197,11 @@ function CvContent({ draft, update, language }: { draft: CvDocument; update: (fn
   const [open, setOpen] = useState<Record<string, boolean>>(() => Object.fromEntries(draft.sections.flatMap((s) => s.items.slice(0, 2).map((i) => [i.entryId, true]))))
   return (
     <div className="grid min-w-0 grid-cols-1 gap-6">
-      <p className="text-xs text-muted-foreground">Choose what goes on this CV. Extra approved bullets are listed, unchecked, ready to swap in. AI wording can be edited here or restored to the original; profile wording stays unchanged.</p>
+      <div className="grid gap-1.5">
+        <label htmlFor="cv-headline" className="text-xs font-semibold tracking-wide uppercase">Headline</label>
+        <Input id="cv-headline" value={draft.header.headline} maxLength={160} onChange={(event) => update((doc) => void (doc.header.headline = event.target.value))} placeholder="e.g. DevSecOps engineer — cloud security and CI/CD" />
+        <p className="text-xs text-muted-foreground">Tick the lines you want on this CV. Unticked ones are spares you can swap in. Changes here don’t touch your profile.</p>
+      </div>
       {draft.sections.map((section, s) => (
         <section key={section.id} className="grid min-w-0 grid-cols-1 gap-2">
           <div className="flex items-center justify-between">
@@ -193,31 +238,26 @@ function CvContent({ draft, update, language }: { draft: CvDocument; update: (fn
                     {expanded && item.included && item.bullets.length ? (
                       <ul className="grid min-w-0 grid-cols-1 gap-0.5 border-t px-1.5 py-1.5">
                         {item.bullets.map((bullet, b) => (
-                          <li key={bullet.id} className="group/row flex flex-wrap items-start gap-1 rounded-md hover:bg-muted/60">
-                            <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 px-1.5 py-1.5">
-                              <Checkbox className="mt-0.5" checked={bullet.included} onCheckedChange={(value) => update((doc) => void (doc.sections[s].items[i].bullets[b].included = Boolean(value)))} />
-                              <span className={cn("text-[13px] leading-5 [overflow-wrap:anywhere]", !bullet.included && "text-muted-foreground")}>{bullet.text}</span>
-                            </label>
-                            <Mover
-                              label="bullet"
-                              upDisabled={b === 0}
-                              downDisabled={b === item.bullets.length - 1}
-                              onUp={() => update((doc) => swap(doc.sections[s].items[i].bullets, b, b - 1))}
-                              onDown={() => update((doc) => swap(doc.sections[s].items[i].bullets, b, b + 1))}
-                            />
-                            {bullet.originalText ? <div className="grid w-full gap-2 px-2 pb-2">
-                              <Textarea aria-label={`AI wording: ${item.title}, bullet ${b + 1}`} value={bullet.text} maxLength={600} rows={2} onChange={(event) => update((doc) => {
-                                doc.sections[s].items[i].bullets[b].text = event.target.value
-                                if (doc.aiAssistance) doc.aiAssistance.reviewed = false
-                              })} className="text-xs" />
-                              <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => update((doc) => {
-                                const target = doc.sections[s].items[i].bullets[b]
-                                target.text = target.originalText!
-                                target.source = target.phrasingId ? "phrasing" : "fact"
-                                delete target.originalText
-                              })}>Use original wording</Button>
-                            </div> : null}
-                          </li>
+                          <BulletRow
+                            key={bullet.id}
+                            bullet={bullet}
+                            label={`${item.title}, line ${b + 1}`}
+                            first={b === 0}
+                            last={b === item.bullets.length - 1}
+                            onToggle={(value) => update((doc) => void (doc.sections[s].items[i].bullets[b].included = value))}
+                            onEdit={(text) => update((doc) => {
+                              doc.sections[s].items[i].bullets[b].text = text
+                              if (doc.aiAssistance) doc.aiAssistance.reviewed = false
+                            })}
+                            onUndo={() => update((doc) => {
+                              const target = doc.sections[s].items[i].bullets[b]
+                              target.text = target.originalText!
+                              target.source = target.phrasingId ? "phrasing" : "fact"
+                              delete target.originalText
+                            })}
+                            onUp={() => update((doc) => swap(doc.sections[s].items[i].bullets, b, b - 1))}
+                            onDown={() => update((doc) => swap(doc.sections[s].items[i].bullets, b, b + 1))}
+                          />
                         ))}
                         <li className="px-2 pt-1 pb-0.5">
                           <Link href={`/profile/${item.entryId}#bullets`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
