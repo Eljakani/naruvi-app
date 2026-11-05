@@ -7,6 +7,7 @@ const doc = (overrides: Partial<CvDocument> = {}): CvDocument => ({
   version: 1,
   language: "en",
   template: "classic",
+  accent: "#2563eb",
   header: { name: "Alex", headline: "Nurse", email: "a@x.io", phone: "", location: "", links: [], photoPath: null, showPhoto: false },
   sections: [
     {

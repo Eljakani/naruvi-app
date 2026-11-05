@@ -159,6 +159,7 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
     version: 1,
     language,
     template: "classic",
+    accent: "#2563eb",
     header: {
       name: profile.fullName,
       // No fallback to another language: the quality gate asks for one instead.

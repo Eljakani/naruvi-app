@@ -25,6 +25,11 @@ export const cvItem = z.object({
   bullets: z.array(cvBullet).default([]),
 })
 
+/** Visual templates; all single-column with real text, so ATS-safe. */
+export const templateIds = ["classic", "modern", "serif"] as const
+export type TemplateId = (typeof templateIds)[number]
+export const ACCENTS = ["#2563eb", "#0f766e", "#7c3aed", "#be123c", "#c2410c", "#111827"] as const
+
 export const sectionKinds = ["experience", "education", "project", "certification", "achievement", "skills", "languages"] as const
 
 export const cvSection = z.object({
@@ -40,7 +45,8 @@ export const cvSection = z.object({
 export const cvDocument = z.object({
   version: z.literal(1),
   language: z.string().regex(/^[a-z]{2}$/),
-  template: z.enum(["classic"]).default("classic"),
+  template: z.enum(templateIds).default("classic"),
+  accent: z.string().regex(/^#[0-9a-f]{6}$/i).default("#2563eb"),
   header: z.object({
     name: z.string(),
     headline: z.string().default(""),

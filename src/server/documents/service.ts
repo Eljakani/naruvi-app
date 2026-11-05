@@ -22,13 +22,20 @@ async function documentFor(applicationId: string, language: string, kind: Kind =
 
 /** Render + check a document of either kind. */
 async function evaluate(content: CvDocument | LetterDocument, requirements: Parameters<typeof checkQuality>[2]) {
-  if ("kind" in content && content.kind === "cover_letter") {
-    const { pages } = await renderLetterPdf(content)
-    return { pages, quality: checkLetter(content, pages), cited: [...new Set(content.highlights.filter((h) => h.included).flatMap((h) => h.factIds))] }
+  const isLetter = "kind" in content && content.kind === "cover_letter"
+  const rendered = isLetter ? await renderLetterPdf(content as LetterDocument) : await renderCvPdf(content as CvDocument)
+  const quality = isLetter ? checkLetter(content as LetterDocument, rendered.pages) : checkQuality(content as CvDocument, rendered.pages, requirements)
+  if (rendered.missingScripts.length) {
+    // Text in a script whose font could not be loaded would print as empty boxes.
+    quality.checks.push({ id: "fonts", status: "fail", label: "Fonts for every script", detail: `No font available for ${rendered.missingScripts.join(", ")} text. Connect to the internet once so CareerBuddy can download it.` })
+    quality.errors += 1
+    quality.score = Math.max(0, quality.score - 20)
+    quality.ready = false
   }
-  const cv = content as CvDocument
-  const { pages } = await renderCvPdf(cv)
-  return { pages, quality: checkQuality(cv, pages, requirements), cited: [...new Set(cv.sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included).flatMap((b) => b.factIds))))] }
+  const cited = isLetter
+    ? [...new Set((content as LetterDocument).highlights.filter((h) => h.included).flatMap((h) => h.factIds))]
+    : [...new Set((content as CvDocument).sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included).flatMap((b) => b.factIds))))]
+  return { pages: rendered.pages, quality, cited }
 }
 
 async function addRevision(documentId: string, content: CvDocument | LetterDocument, origin: "generate" | "manual", requirements: Parameters<typeof checkQuality>[2], runId?: string) {

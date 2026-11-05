@@ -20,6 +20,7 @@ import {
   XCircleIcon,
 } from "lucide-react"
 import { toast } from "sonner"
+import { DesignPicker } from "@/components/applications/design-picker"
 import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -155,6 +156,19 @@ function Editor({ header, applicationId, language, workspace }: { header: React.
       router.refresh()
     })
 
+  /** Design changes save immediately so the preview updates. */
+  const applyDesign = (change: { template?: "classic" | "modern" | "serif"; accent?: string; showPhoto?: boolean }) => {
+    const next = structuredClone(draft)
+    if (change.template) next.template = change.template
+    if (change.accent) next.accent = change.accent
+    setDraft(next)
+    startTransition(async () => {
+      const result = await saveCvEditAction(applicationId, workspace.document.id, next)
+      if (!result.ok) return void toast.error("Not saved", { description: result.error })
+      router.refresh()
+    })
+  }
+
   const restore = (revisionId: string) =>
     startTransition(async () => {
       const result = await setCurrentRevisionAction(applicationId, workspace.document.id, revisionId)
@@ -192,6 +206,16 @@ function Editor({ header, applicationId, language, workspace }: { header: React.
                   </li>
                 ))}
               </ul>
+            </CardContent>
+          </Card>
+
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle className="text-sm">Design</CardTitle>
+              <CardDescription>All templates are single-column with real text, so applicant-tracking systems read them.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DesignPicker template={draft.template} accent={draft.accent} onChange={applyDesign}  disabled={pending} />
             </CardContent>
           </Card>
 

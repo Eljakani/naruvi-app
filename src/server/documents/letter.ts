@@ -10,6 +10,7 @@
  *    quality gate refuses "ready" until every placeholder is replaced.
  */
 import { z } from "zod"
+import { templateIds } from "./model"
 import type { ComposeAnalysis, ComposeEntry, ComposeProfile } from "./compose"
 
 export const letterParagraph = z.object({
@@ -33,6 +34,8 @@ export const letterDocument = z.object({
   version: z.literal(1),
   kind: z.literal("cover_letter"),
   language: z.string().regex(/^[a-z]{2}$/),
+  template: z.enum(templateIds).default("classic"),
+  accent: z.string().regex(/^#[0-9a-f]{6}$/i).default("#2563eb"),
   header: z.object({
     name: z.string(),
     email: z.string().default(""),
@@ -150,6 +153,8 @@ export function composeLetter(
     version: 1,
     kind: "cover_letter",
     language,
+    template: "classic",
+    accent: "#2563eb",
     header: { name: profile.fullName, email: profile.email, phone: profile.phone, location: profile.location, links: profile.links },
     recipient: { company: job.company, location: job.location ?? "" },
     date: p.date(options.today ?? new Date()),

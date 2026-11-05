@@ -32,3 +32,17 @@ Studio) generated LaTeX with an LLM and compiled it in a TeX Live container.
   clean, ATS-friendly CVs).
 - Quality of wording depends on the user's approved phrasings — which is the
   point: the user stays the author of every claim.
+
+## Update 2026-11-05 — templates and fonts
+
+- Three templates (classic, modern, serif), all single-column real text; modern
+  takes an accent color. Users switch freely; design changes save a revision.
+- Fonts: per-script Noto families (Latin, Latin Ext, Cyrillic, Greek, Arabic,
+  Hebrew, Devanagari, Thai) are bundled via @fontsource; CJK (SC/JP/KR, static
+  Regular/Bold from notofonts/noto-cjk) download on first use into the asset
+  volume. Each document gets a font stack from the scripts it contains; the
+  document language's script goes first. Missing fonts fail the quality gate.
+- Hyphenation is disabled (react-pdf only knows English rules).
+- **Known limitation:** react-pdf's Arabic shaping can drop a letter at the
+  start of some runs. Right-to-left layout works; Arabic text needs a check
+  before sending until react-pdf improves or an alternative renderer is added.
