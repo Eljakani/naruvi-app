@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Suspense } from "react"
 import { ArrowRightIcon, BriefcaseBusinessIcon, CheckCircle2Icon, ChevronRightIcon, CircleIcon, FileTextIcon, PlusIcon, SendIcon, UserRoundCheckIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
+import { FitRing } from "@/components/applications/fit-ring"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -177,7 +178,9 @@ async function DashboardData() {
                         <TableCell>
                           <Badge variant={application.status === "ready" ? "default" : "secondary"}>{STATUS_LABEL[application.status] ?? application.status}</Badge>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">{score ?? "—"}</TableCell>
+                        <TableCell className="text-right">
+                          <FitRing score={score} className="ml-auto" />
+                        </TableCell>
                         <TableCell className="hidden text-right text-muted-foreground sm:table-cell">{relative(application.updatedAt)}</TableCell>
                         <TableCell>
                           <Button size="icon-sm" variant="ghost" aria-label="Open" nativeButton={false} render={<Link href={`/applications/${application.id}`} />}>

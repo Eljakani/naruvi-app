@@ -4,6 +4,7 @@ import { connection } from "next/server"
 import { ChevronRightIcon, FileTextIcon, KanbanIcon, ListIcon, PlusIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { EntryLogo } from "@/components/profile/entry-logo"
+import { FitRing } from "@/components/applications/fit-ring"
 import { Board } from "@/components/tracking/board"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -118,7 +119,9 @@ async function List({ searchParams }: { searchParams: Promise<Record<string, str
                   <Badge variant={application.status === "ready" ? "default" : "secondary"}>{STATUS_LABEL[application.status]}</Badge>
                 </TableCell>
                 <TableCell className="hidden text-muted-foreground md:table-cell">{analysis ? `${analysis.counts.met} proven · ${analysis.counts.gap} not in profile` : "—"}</TableCell>
-                <TableCell className="text-right font-medium tabular-nums">{analysis?.fitScore ?? "—"}</TableCell>
+                <TableCell className="text-right">
+                  <FitRing score={analysis?.fitScore} className="ml-auto" />
+                </TableCell>
                 <TableCell className="hidden text-right text-muted-foreground sm:table-cell">{application.updatedAt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</TableCell>
                 <TableCell>
                   <Button size="icon-sm" variant="ghost" aria-label="Open" nativeButton={false} render={<Link href={`/applications/${application.id}`} />}>

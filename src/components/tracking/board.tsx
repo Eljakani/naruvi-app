@@ -5,6 +5,7 @@ import { useOptimistic, useState, useTransition } from "react"
 import { EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
 import { moveApplicationAction } from "@/app/(app)/applications/actions"
+import { FitRing } from "@/components/applications/fit-ring"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -116,8 +117,8 @@ export function Board({ items }: { items: BoardItem[] }) {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="secondary">{STATUS_LABEL[item.status]}</Badge>
-                      {item.fit !== null ? <span className="tabular-nums">Fit {item.fit}</span> : null}
-                      <span className="ml-auto">{age(item.since)}</span>
+                      <span>{age(item.since)}</span>
+                      {item.fit !== null ? <FitRing score={item.fit} size={28} className="ml-auto" /> : null}
                     </div>
                   </CardContent>
                 </Card>
