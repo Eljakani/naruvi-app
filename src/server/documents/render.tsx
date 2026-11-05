@@ -239,6 +239,15 @@ function Section({ section, logos, s, t, stacked = false }: { section: CvSection
   )
 }
 
+/** A recognisable icon per link: LinkedIn, GitHub, GitLab and X get their own; other sites a globe. */
+function linkIcon(url: string): PdfIcon {
+  if (/linkedin\./i.test(url)) return "linkedin"
+  if (/github\./i.test(url)) return "github"
+  if (/gitlab\./i.test(url)) return "gitlab"
+  if (/(twitter|x)\.com/i.test(url)) return "twitter"
+  return /^mailto:/i.test(url) ? "mail" : "globe"
+}
+
 type HeaderData = { name: string; headline?: string; email: string; phone: string; location: string; links: { label: string; url: string }[] }
 
 /** Name, headline, photo and contact line: shared by CVs and letters so a pair always matches. */
@@ -263,7 +272,7 @@ function DocHeader({ s, t, rtl, photo, header }: { s: Styles; t: Tokens; rtl: bo
             )),
             ...header.links.map((link) => (
               <View key={link.url} style={{ flexDirection: rtl ? "row-reverse" : "row", alignItems: "center" }}>
-                {t.contactIcons ? <View style={iconBox}><Icon name={/github|gitlab|linkedin|twitter|x\.com/i.test(link.url) ? "link" : "globe"} size={t.size - 1} color={iconColor} /></View> : null}
+                {t.contactIcons ? <View style={iconBox}><Icon name={linkIcon(link.url)} size={t.size - 1} color={iconColor} /></View> : null}
                 <Link src={link.url} style={s.link}>
                   {t.linkStyle === "label" && link.label ? link.label : link.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
                 </Link>
