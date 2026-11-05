@@ -57,7 +57,7 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
   }
 
   return (
-    <div className="grid max-w-3xl gap-6">
+    <div className="cb-stagger grid max-w-3xl gap-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

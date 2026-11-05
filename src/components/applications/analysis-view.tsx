@@ -52,7 +52,7 @@ function FitRing({ score }: { score: number }) {
     <div className="relative size-24 shrink-0">
       <svg viewBox="0 0 80 80" className="size-full -rotate-90">
         <circle cx="40" cy="40" r={r} className="fill-none stroke-muted" strokeWidth="7" />
-        <circle cx="40" cy="40" r={r} className={cn("fill-none transition-all", tone)} strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - score / 100)} />
+        <circle cx="40" cy="40" r={r} className={cn("fill-none transition-[stroke-dashoffset] duration-500 ease-(--ease-out)", tone)} strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - score / 100)} />
       </svg>
       <div className="absolute inset-0 grid place-content-center text-center">
         <span className="text-2xl font-semibold tabular-nums">{score}</span>
