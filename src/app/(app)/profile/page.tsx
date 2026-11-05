@@ -9,7 +9,7 @@ export const metadata = { title: "Profile" }
 
 export default function ProfilePage() {
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-6">
+    <div className="grid gap-6">
       <PageHeader title="Profile" description="Everything your CVs and letters say about you comes from here, and nothing else." />
       <Suspense fallback={<ProfileSkeleton />}>
         <ProfileData />
