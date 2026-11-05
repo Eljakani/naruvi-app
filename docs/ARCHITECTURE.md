@@ -301,8 +301,8 @@ Every workflow has a deterministic baseline and an optional AI pass. The model p
 | --- | --- | --- |
 | Job import (`jobs/ai-extract.ts`) | Reads role, company, location, contract, salary and language when the rules are unsure | Each value must occur verbatim in the posting; structured board data wins |
 | Requirement filtering (`analysis/filter.ts`) | Separates qualifications and duties from hiring-process, benefits and company text | Only supplied item ids; unreviewed items keep the rule result |
-| Fit matching (`analysis/refine.ts`) | Second opinion on uncertain matches | Only verified facts can be cited |
-| CV tailoring (`documents/ai-compose.ts`) | Picks and tightens bullets for the job | No new numbers or skills; must-have evidence can't be dropped |
+| Fit matching (`analysis/refine.ts`) | Reviews every requirement, including rule gaps, against the whole verified fact catalog, matching meaning rather than words | Cited ids must exist; met/partial need a cited fact; a rule "met" can drop to partial, never gap; failed batches keep the rule result |
+| CV tailoring (`documents/ai-compose.ts`) | Picks and tightens bullets for the job, then orders skills/projects/certifications by relevance and may tighten the headline | No new numbers or skills; must-have evidence can't be dropped; only exact permutations; headline can't copy the job title |
 | Cover letter (`documents/ai-compose.ts`) | Drafts opening, motivation and closing | Every paragraph cites facts and sources |
 | Company research (`research/ai-angles.ts`) | Turns the company's own pages into specific, cited angles | Every angle cites sources; no numbers its sources don't state |
 | Profile bullets (`profile/ai-bullets.ts`) | Drafts bullets in each language from an entry's facts | Must cite facts; no numbers or skills beyond them; never saved without the user |

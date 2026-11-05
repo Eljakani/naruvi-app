@@ -31,3 +31,28 @@ test("malformed model output changes nothing", async () => {
   assert.equal(result.changed, 0)
   assert.deepEqual(result.matches, before)
 })
+
+test("full review: finds semantic matches for rule gaps, with guards", async () => {
+  const { reviewAllMatches } = await import("../../analysis/refine")
+  const base = { kind: "must" as const, section: "", keywords: [], years: null, covered: [], missing: [], note: "", source: "rules" as const }
+  const matches = [
+    { ...base, id: "r1", text: "Observability", status: "gap" as const, factIds: [] },
+    { ...base, id: "r2", text: "Kubernetes", status: "met" as const, factIds: ["f9"] },
+    { ...base, id: "r3", text: "Rust", status: "gap" as const, factIds: [] },
+    { ...base, id: "r4", text: "Go", status: "gap" as const, factIds: [] },
+  ]
+  const catalog = [{ id: "f1", statement: "Built Prometheus monitoring", entry: "Oracle", kind: "experience" }]
+  const fake = async () => ({ text: JSON.stringify({ reviews: [
+    { id: "r1", status: "met", facts: ["F1"], note: "Prometheus monitoring" },
+    { id: "r2", status: "gap", facts: [], note: "" },
+    { id: "r3", status: "met", facts: ["F99"], note: "invented" },
+    { id: "r4", status: "partial", facts: [], note: "" },
+  ] }) })
+  const result = await reviewAllMatches(matches, catalog, fake)
+  const by = Object.fromEntries(result.matches.map((m) => [m.id, m]))
+  assert.equal(by.r1.status, "met")
+  assert.deepEqual(by.r1.factIds, ["f1"])
+  assert.equal(by.r2.status, "partial", "rule met can only drop to partial")
+  assert.equal(by.r3.status, "gap", "invented fact id is not evidence")
+  assert.equal(by.r4.status, "gap", "partial needs a cited fact")
+})

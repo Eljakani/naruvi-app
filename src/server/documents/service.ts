@@ -9,7 +9,7 @@ import { getDocumentDefaults } from "@/server/settings/service"
 import { startRun } from "@/server/runs/tracer"
 import { getLlmOverview } from "@/server/settings/llm"
 import { completionForRun } from "@/server/llm/client"
-import { DOCUMENT_PROMPT_VERSION, enrichCv, enrichLetter, researchSources } from "./ai-compose"
+import { DOCUMENT_PROMPT_VERSION, enrichCv, enrichLetter, POLISH_PROMPT_VERSION, polishCv, researchSources } from "./ai-compose"
 import { composeCv } from "./compose"
 import { cvDocument, type CvDocument } from "./model"
 import { checkQuality, type QualityReport } from "./quality"
@@ -103,6 +103,10 @@ export async function generateCv(applicationId: string, language?: string) {
       content = await run.step("AI tailor CV", () => enrichCv(content, entries, application.analysis, {
         title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText,
       }, completionForRun(run, "CV tailoring", DOCUMENT_PROMPT_VERSION)), (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} entries tailored${value.aiAssistance?.reason ? ` · ${value.aiAssistance.reason}` : ""}`)
+      const polished = await run
+        .step("AI order sections & headline", () => polishCv(content, { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }, completionForRun(run, "CV ordering", POLISH_PROMPT_VERSION)), (value) => `${value.reordered} list(s) reordered · headline ${value.headline ? "tightened" : "kept"}`)
+        .catch(() => null) // ordering is polish, never a blocker
+      if (polished) content = polished.doc
     }
     const document = await documentFor(application.id, lang)
     const design = await designFor(document.id)

@@ -3,8 +3,8 @@ import { advanceAutomatically } from "@/server/tracking/service"
 import { and, desc, eq, inArray } from "drizzle-orm"
 import { db } from "@/server/db/client"
 import { applications, entries, facts, jobs } from "@/server/db/schema"
-import { candidateFacts, indexFacts, matchRequirement, summarize, type Analysis, type ProfileFact } from "@/server/analysis/match"
-import { PROMPT_VERSION, refineMatches } from "@/server/analysis/refine"
+import { indexFacts, matchRequirement, summarize, type Analysis, type ProfileFact } from "@/server/analysis/match"
+import { REVIEW_PROMPT_VERSION, reviewAllMatches } from "@/server/analysis/refine"
 import { getLlmOverview } from "@/server/settings/llm"
 import { completionForRun } from "@/server/llm/client"
 import { coverLetterDecision, extractRequirementCandidates } from "@/server/analysis/requirements"
@@ -51,17 +51,17 @@ export async function analyzeJob(jobId: string) {
     let matches = await run.step("match evidence (rules)", async () => requirements.map((requirement) => matchRequirement(requirement, indexed)), (value) => `${value.filter((m) => m.status === "met").length} met · ${value.filter((m) => m.status === "partial").length} partial · ${value.filter((m) => m.status === "gap").length} gap`)
     let modelReview: { reviewed: number; changed: number; model?: string } | null = null
     if (modelConfiguration?.configured) {
-      const candidates = Object.fromEntries(matches.map((match) => [match.id, candidateFacts(match, indexed)]))
       let model = ""
+      const catalog = profileFacts.map((fact) => ({ id: fact.id, statement: fact.statement, entry: fact.entryTitle, kind: fact.entryKind }))
       const reviewed = await run
         .step(
-          `model review (${PROMPT_VERSION})`,
-          () => refineMatches(matches, candidates, async (input) => {
-            const completion = await completionForRun(run, "fit review", PROMPT_VERSION)(input)
+          `AI fit review (${REVIEW_PROMPT_VERSION})`,
+          () => reviewAllMatches(matches, catalog, async (input) => {
+            const completion = await completionForRun(run, "fit review", REVIEW_PROMPT_VERSION)(input)
             model = completion.model
             return completion
           }),
-          (value) => `reviewed ${value.reviewed} · changed ${value.changed}`,
+          (value) => `reviewed ${value.reviewed}/${matches.length} · changed ${value.changed}${value.failedBatches ? ` · ${value.failedBatches} batch(es) kept rule result` : ""}`,
         )
         .catch(() => null) // the model is an optional improvement, never a blocker
       if (reviewed && reviewed.reviewed > 0) {
