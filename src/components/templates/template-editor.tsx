@@ -25,7 +25,7 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { designTokens, FONTS, PRESETS, type DesignTokens } from "@/lib/design"
+import { affectedDocuments, designTokens, FONTS, PRESETS, type DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
 import { mergeDesignChanges } from "@/lib/template-edit"
 
@@ -33,6 +33,20 @@ const ACCENTS = ["#2563eb", "#0f766e", "#4338ca", "#7c3aed", "#be123c", "#c2410c
 const DESIGN_STEPS = ["Planning the change", "Rendering your CV", "Measuring pages and readability", "Fixing what didn’t pass", "Final check against your request"]
 
 type Initial = { id?: string; name: string; basedOn: string; tokens: DesignTokens; customDefault?: boolean }
+
+/** "fonts and colours", "the header"… for the confirmation line. */
+function changeAreas(keys: string[]) {
+  const areas = new Set<string>()
+  for (const key of keys) {
+    if (/font|size|lineHeight|nameSpacing|nameCase/i.test(key)) areas.add("text")
+    else if (/accent|ink|Band|Tint/i.test(key)) areas.add("colours")
+    else if (/photo|contact|link|headerAlign|headline/i.test(key)) areas.add("header")
+    else if (/margin|spacing|Spacing/i.test(key)) areas.add("spacing")
+    else if (/page|textAlign|bullet/i.test(key)) areas.add("page")
+    else areas.add("layout")
+  }
+  return [...areas].join(", ")
+}
 
 /** One line: what happened, with an icon. Rejections say why in a sentence and change nothing. */
 function AgentStatus({ result, onDismiss }: { result: AgentResult; onDismiss: () => void }) {
@@ -224,11 +238,21 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
     }
   }, [tokenKey, attempt, draftReady, previewKind, tokens])
 
+  const [pendingBoth, setPendingBoth] = useState<{ before: DesignTokens; changes: Partial<DesignTokens>; keys: string[]; text: string; other: "cv" | "letter" } | null>(null)
+  const applyChanges = (before: DesignTokens, changes: Partial<DesignTokens>, keys: string[], text: string) => {
+    setTokens((current) => mergeDesignChanges(before, current, changes))
+    setLastPrompt(text)
+    setPrompt("")
+    setFlash(new Set(keys))
+    clearTimeout(flashTimer.current)
+    flashTimer.current = setTimeout(() => setFlash(new Set()), 1600)
+  }
+
   const ask = (text = prompt) => {
     if (busy || text.trim().length < (history.length ? 1 : 3)) return
     startAsking(async () => {
       try {
-        const result = await aiDesignAction({ tokens, prompt: text, history })
+        const result = await aiDesignAction({ tokens, prompt: text, history, viewing: previewKind })
         if (!active.current) return
         if (!result.ok) return void toast.error(result.message)
         setAgentLog(result.data)
@@ -243,12 +267,13 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
         // Only a fully verified design is applied; a rejected request leaves the design untouched.
         if (result.data.outcome !== "applied") return
         const changes = Object.fromEntries(result.data.changed.map((key) => [key, result.data.tokens[key as keyof DesignTokens]])) as Partial<DesignTokens>
-        setTokens((current) => mergeDesignChanges(tokens, current, changes))
-        setLastPrompt(text)
-        setPrompt("")
-        setFlash(new Set(result.data.changed))
-        clearTimeout(flashTimer.current)
-        flashTimer.current = setTimeout(() => setFlash(new Set()), 1600)
+        const other = previewKind === "cv" ? "letter" : "cv"
+        // A change that would also alter the document you aren't looking at waits for your OK.
+        if (affectedDocuments(result.data.changed)[other]) {
+          setPendingBoth({ before: tokens, changes, keys: result.data.changed, text, other })
+          return
+        }
+        applyChanges(tokens, changes, result.data.changed, text)
       } catch {
         if (active.current) toast.error("Couldn’t apply the design request. Try again.")
       }
@@ -409,7 +434,24 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                     </Button>
                   </div>
                 )}
-                {agentLog && !asking ? <AgentStatus result={agentLog} onDismiss={() => setAgentLog(null)} /> : null}
+                {pendingBoth && !asking ? (
+                  <div role="status" className="cb-step grid gap-2 rounded-lg border bg-background px-2.5 py-2 text-xs">
+                    <span className="flex items-start gap-2">
+                      <CopyIcon className="cb-pop mt-px size-4 shrink-0 text-primary" />
+                      <span className="grid gap-0.5">
+                        <span className="font-medium">{agentLog?.summary || "Ready to apply"}</span>
+                        <span className="text-muted-foreground">
+                          This also changes your {pendingBoth.other === "letter" ? "cover letter" : "CV"} ({changeAreas(pendingBoth.keys)}), because both share this template.
+                        </span>
+                      </span>
+                    </span>
+                    <span className="flex flex-wrap gap-1.5 pl-6">
+                      <Button size="xs" onClick={() => { applyChanges(pendingBoth.before, pendingBoth.changes, pendingBoth.keys, pendingBoth.text); setPendingBoth(null) }}>Apply to both</Button>
+                      <Button size="xs" variant="outline" onClick={() => { setPreviewKind(pendingBoth.other); applyChanges(pendingBoth.before, pendingBoth.changes, pendingBoth.keys, pendingBoth.text); setPendingBoth(null) }}>Apply and show the {pendingBoth.other === "letter" ? "letter" : "CV"}</Button>
+                      <Button size="xs" variant="ghost" onClick={() => { setPendingBoth(null); setAgentLog(null) }}>Cancel</Button>
+                    </span>
+                  </div>
+                ) : agentLog && !asking ? <AgentStatus result={agentLog} onDismiss={() => setAgentLog(null)} /> : null}
                 {fitGoal ? <p role="status" className="text-xs text-muted-foreground">{failed ? "Couldn’t verify page fit. Retry the preview." : rendering ? "Checking page count…" : preview?.pages === 1 ? "Verified: the preview fits on one page." : `The preview still needs ${preview?.pages || "multiple"} pages. No content was removed.`}</p> : null}
               </div>
 

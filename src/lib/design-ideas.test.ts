@@ -19,3 +19,10 @@ test("suggestions rotate between requests and skip the last one", () => {
   assert.ok(!later.includes(first[0]))
   assert.notDeepEqual(first, later)
 })
+
+test("letter-only and CV-only changes affect one document", async () => {
+  const { affectedDocuments } = await import("./design")
+  assert.deepEqual(affectedDocuments(["letterSubject"]), { cv: false, letter: true })
+  assert.deepEqual(affectedDocuments(["skillsStyle", "layout"]), { cv: true, letter: false })
+  assert.deepEqual(affectedDocuments(["accent"]), { cv: true, letter: true })
+})

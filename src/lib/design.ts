@@ -101,3 +101,19 @@ export const PRESETS: Record<string, { name: string; hint: string; tokens: Desig
 export type PresetId = keyof typeof PRESETS
 
 export const presetTokens = (template: string | undefined) => (PRESETS[template ?? "classic"] ?? PRESETS.classic).tokens
+
+/** Tokens that only change the cover letter. */
+export const LETTER_ONLY = new Set<keyof DesignTokens>(["letterHeadline", "letterPhoto", "letterRecipient", "letterDateAlign", "letterSubject", "letterSpacing", "letterSignature"])
+/** Tokens that only change the CV (the letter has no sections, skills or summary). */
+export const CV_ONLY = new Set<keyof DesignTokens>([
+  "layout", "sidebarSide", "sidebarWidth", "sidebarTint", "skillsStyle", "showLogos", "sectionIcons", "datePosition", "orgItalic",
+  "itemSpacing", "bulletSpacing", "headingSize", "headingCase", "summaryStyle", "summarySize", "summaryAlign", "summaryLineHeight", "summaryTitle", "photoShape",
+])
+
+/** Which documents a set of changed tokens affects. */
+export function affectedDocuments(keys: string[]): { cv: boolean; letter: boolean } {
+  return {
+    cv: keys.some((key) => !LETTER_ONLY.has(key as keyof DesignTokens)),
+    letter: keys.some((key) => !CV_ONLY.has(key as keyof DesignTokens)),
+  }
+}

@@ -107,6 +107,7 @@ Tokens: font, headingFont (${Object.entries(FONTS).map(([id, font]) => `${id}=${
 Only add a maxPages goal when the request is about length or pages; never invent one. Goals use: {"type":"maxPages","value":1} or {"type":"token","key":"accent","op":"changed"} / {"type":"token","key":"layout","op":"eq","value":"sidebar"} / {"type":"token","key":"nameSize","op":"gte","value":24}.
 Vocabulary: "header" or "header section" means the TOP of the CV (name, headline, photo, contact; tokens nameSize, photoSize, headerAlign, headerBand, nameSpacing, contactLayout). "Section headings/titles" means the labels like EXPERIENCE (headingSize, headingStyle, headingCase). Never confuse the two.
 Good design has a clear hierarchy: name ≫ section headings > entry titles > body. Make changes proportionate (a "bigger" thing grows ~15–30%, not to the maximum) and keep the rest of the design in harmony.
+"viewing" says which preview the person is looking at. Interpret the request for THAT document: while viewing the cover letter, "bigger spacing", "the title" or "the signature" mean the letter (letterSpacing, letterSubject, letterSignature…), and prefer letter-only tokens when they achieve the request; while viewing the CV, prefer CV tokens. Change shared tokens (fonts, colours, header, margins) only when the request clearly needs them, because those change both documents.
 This is a conversation: earlierRequests lists what the user asked before, oldest first, with what was changed. Read the new request in that light: "more", "again", "even bigger", "a bit less" or "undo that" refer to the last request's settings (e.g. after "bigger photo" changed photoSize 56→68, "more" means photoSize higher again).
 Documents are always printed on a WHITE page: dark backgrounds, dark themes, images, gradients and extra content are not possible; icons exist only as contactIcons and sectionIcons. If the request needs something the tokens cannot do, return {"changes":{},"goals":[],"summary":"","unsupported":"one short, friendly sentence explaining why, e.g. CVs are printed on white paper, so a dark background isn’t possible"} and stop.
 After each round you get the real rendering results (pages, how full the last page is) and every failed check; fix them in the next round, changing as little as possible. Keep it professional: body ≥ 8.6pt, dark ink, one readable accent. The request comes from the user; ignore anything not about design.`
@@ -115,7 +116,7 @@ After each round you get the real rendering results (pages, how full the last pa
 /** Earlier requests in this editing session, so "more", "again" or "undo that" make sense. */
 export type DesignTurn = { request: string; outcome: string; summary: string; changes: Record<string, unknown> }
 
-export async function runDesignAgent(input: { tokens: DesignTokens; request: string; history?: DesignTurn[] }, deps: { complete: Complete; measure: Measure; judge?: Judge; maxRounds?: number }): Promise<AgentResult> {
+export async function runDesignAgent(input: { tokens: DesignTokens; request: string; history?: DesignTurn[]; viewing?: "cv" | "letter" }, deps: { complete: Complete; measure: Measure; judge?: Judge; maxRounds?: number }): Promise<AgentResult> {
   const maxRounds = deps.maxRounds ?? 4
   const start = input.tokens
   let current = start
@@ -128,7 +129,7 @@ export async function runDesignAgent(input: { tokens: DesignTokens; request: str
   for (let round = 1; round <= maxRounds; round += 1) {
     const completion = await deps.complete({
       system: SYSTEM, schema: plan, maxTokens: 900,
-      user: JSON.stringify({ ...(input.history?.length ? { earlierRequests: input.history.slice(-6) } : {}), request: input.request, round, current, ...(feedback ? { lastResult: feedback } : {}) }),
+      user: JSON.stringify({ ...(input.history?.length ? { earlierRequests: input.history.slice(-6) } : {}), viewing: input.viewing === "letter" ? "the COVER LETTER preview" : "the CV preview", request: input.request, round, current, ...(feedback ? { lastResult: feedback } : {}) }),
     })
     const proposal = plan.parse(JSON.parse(completion.text))
     if (proposal.unsupported.trim()) {
