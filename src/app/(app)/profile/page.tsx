@@ -9,12 +9,12 @@ export const metadata = { title: "Profile" }
 
 export default function ProfilePage() {
   return (
-    <>
+    <div className="mx-auto grid w-full max-w-5xl gap-6">
       <PageHeader title="Profile" description="Everything your CVs and letters say about you comes from here, and nothing else." />
       <Suspense fallback={<ProfileSkeleton />}>
         <ProfileData />
       </Suspense>
-    </>
+    </div>
   )
 }
 
@@ -27,13 +27,10 @@ async function ProfileData() {
 function ProfileSkeleton() {
   return (
     <div className="grid gap-4">
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Skeleton className="h-40 rounded-xl lg:col-span-2" />
-        <Skeleton className="h-40 rounded-xl" />
-      </div>
-      <Skeleton className="h-10 w-full rounded-lg" />
+      <Skeleton className="h-32 rounded-xl" />
+      <Skeleton className="h-9 w-full rounded-lg" />
       {[0, 1, 2, 3].map((i) => (
-        <Skeleton key={i} className="h-24 rounded-xl" />
+        <Skeleton key={i} className="h-14 rounded-xl" />
       ))}
     </div>
   )

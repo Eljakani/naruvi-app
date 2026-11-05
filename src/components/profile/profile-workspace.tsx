@@ -11,7 +11,6 @@ import {
   PhoneIcon,
   PlusIcon,
   SearchIcon,
-  ShieldCheckIcon,
   UserRoundIcon,
   SparklesIcon,
 } from "lucide-react"
@@ -20,7 +19,7 @@ import Link from "next/link"
 import { IdentityDialog } from "@/components/profile/identity-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
@@ -113,13 +112,13 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
 
   return (
     <>
-      <div className="grid items-start gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardContent className="flex items-start gap-4">
+      <Card>
+        <CardContent className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="flex items-center gap-5">
             <button
               type="button"
               onClick={() => setIdentityOpen(true)}
-              className="group/photo relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="group/photo relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               aria-label={profile?.photoPath ? "Change photo" : "Add a photo"}
             >
               {profile?.photoPath ? (
@@ -178,38 +177,29 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
                 </div>
               ) : null}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardDescription>Your profile</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {active.length - stats.attention} of {active.length} ready
-            </CardTitle>
-            <CardAction>
-              <ShieldCheckIcon className="size-4 text-muted-foreground" />
-            </CardAction>
-          </CardHeader>
-          <CardContent className="space-y-3">
+          {/* Readiness: same card, separated by a rule, fixed width so both halves stay balanced. */}
+          <div className="grid gap-3 border-t pt-5 lg:w-72 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-sm text-muted-foreground">Ready for CVs</span>
+              <span className="text-sm font-medium tabular-nums">
+                {active.length - stats.attention}/{active.length}
+              </span>
+            </div>
             <Progress value={active.length ? ((active.length - stats.attention) / active.length) * 100 : 0} />
             {stats.attention ? (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  {stats.attention} {stats.attention === 1 ? "entry needs" : "entries need"} a quick look before CVs can use {stats.attention === 1 ? "it" : "them"}.
-                </p>
-                <Button size="sm" className="w-full" nativeButton={false} render={<Link href="/profile/review" />}>
-                  <AlertTriangleIcon /> Review {stats.attention} {stats.attention === 1 ? "entry" : "entries"}
-                </Button>
-              </>
+              <Button size="sm" variant="outline" className="w-full" nativeButton={false} render={<Link href="/profile/review" />}>
+                <AlertTriangleIcon /> Review {stats.attention} {stats.attention === 1 ? "entry" : "entries"}
+              </Button>
             ) : (
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <BadgeCheckIcon className="size-4 text-primary" /> Everything is checked. Every CV line is backed by your own facts.
+                <BadgeCheckIcon className="size-4 text-primary" /> Everything is checked.
               </p>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1">
