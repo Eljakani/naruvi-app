@@ -11,10 +11,17 @@ import { KIND_SINGULAR } from "@/components/profile/labels"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import type { ProfileImport as Result } from "@/server/profile/ai-import"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import type { ProfileImport } from "@/server/profile/ai-import"
+import type { EntryMatch } from "@/server/profile/import-match"
+
+type Result = Omit<ProfileImport, "entries"> & { entries: (ProfileImport["entries"][number] & { match: EntryMatch | null })[] }
+type Decision = "new" | "merge" | "skip"
+
+/** Default: update what you already have, add what's new, skip what adds nothing. */
+const initialDecision = (entry: Result["entries"][number]): Decision => (!entry.match ? "new" : entry.match.newFacts.length || entry.match.newSkills.length ? "merge" : "skip")
 
 /** Upload or paste a CV → review what was found → add the chosen entries as "needs review". */
 export function ProfileImport() {
@@ -22,7 +29,7 @@ export function ProfileImport() {
   const [text, setText] = useState("")
   const [file, setFile] = useState<File | null>(null)
   const [result, setResult] = useState<Result | null>(null)
-  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [decisions, setDecisions] = useState<Decision[]>([])
   const [reading, startReading] = useTransition()
   const [saving, startSaving] = useTransition()
   const [dragging, setDragging] = useState(false)
@@ -37,19 +44,26 @@ export function ProfileImport() {
       const response = await readCvAction(form)
       if (!response.ok) return void toast.error(response.message)
       setResult(response.data)
-      setSelected(new Set(response.data.entries.map((_, index) => index)))
+      setDecisions(response.data.entries.map(initialDecision))
     })
 
   const save = () =>
     startSaving(async () => {
       if (!result) return
-      const response = await saveImportAction({ language: result.language, identity: result.identity, entries: result.entries.filter((_, index) => selected.has(index)).map((entry) => ({ kind: entry.kind, title: entry.title, display: entry.display, facts: entry.facts, skills: entry.skills, bullets: entry.bullets })) })
+      const response = await saveImportAction({
+        language: result.language,
+        identity: result.identity,
+        entries: result.entries.filter((_, index) => decisions[index] === "new").map((entry) => ({ kind: entry.kind, title: entry.title, display: entry.display, facts: entry.facts, skills: entry.skills, bullets: entry.bullets })),
+        merges: result.entries.flatMap((entry, index) => (decisions[index] === "merge" && entry.match ? [{ entryId: entry.match.entryId, facts: entry.match.newFacts, skills: entry.match.newSkills, display: entry.display }] : [])),
+      })
       if (!response.ok) return void toast.error(response.message)
-      toast.success(`${response.data.created} entr${response.data.created === 1 ? "y" : "ies"} added for review`, { description: response.data.skipped ? `${response.data.skipped} already in your profile were skipped.` : "Verify each one so documents can use it." })
+      const { created, merged, factsAdded, reverify } = response.data
+      toast.success([created ? `${created} new entr${created === 1 ? "y" : "ies"}` : "", merged ? `${merged} updated (+${factsAdded} facts)` : ""].filter(Boolean).join(" · ") || "Nothing to add", { description: reverify ? `${reverify} verified entr${reverify === 1 ? "y needs" : "ies need"} a quick re-check for the new facts.` : "Everything new is waiting for your review." })
       router.push("/profile")
     })
 
-  const toggle = (index: number) => setSelected((current) => { const next = new Set(current); if (next.has(index)) next.delete(index); else next.add(index); return next })
+  const decide = (index: number, value: Decision) => setDecisions((current) => current.map((item, i) => (i === index ? value : item)))
+  const count = (value: Decision) => decisions.filter((item) => item === value).length
 
   if (!result) {
     return (
@@ -101,10 +115,12 @@ export function ProfileImport() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Here’s what we found</h1>
-          <p className="text-sm text-muted-foreground">Untick anything you don’t want. Everything is added as “needs review”; you can edit each entry after.</p>
+          <p className="text-sm text-muted-foreground">
+            {count("new")} new · {count("merge")} to update · {count("skip")} skipped. Entries you already have are updated with only what’s new; nothing you wrote is overwritten.
+          </p>
         </div>
-        <Button onClick={save} disabled={saving || !selected.size}>
-          <CheckIcon /> Add {selected.size} entr{selected.size === 1 ? "y" : "ies"}
+        <Button onClick={save} disabled={saving || count("skip") === decisions.length}>
+          <CheckIcon /> Apply
         </Button>
       </div>
 
@@ -121,44 +137,60 @@ export function ProfileImport() {
       ) : null}
 
       <div className="cb-stagger grid gap-3">
-        {result.entries.map((entry, index) => (
-          <Card key={index} size="sm" className={cn("transition-opacity", !selected.has(index) && "opacity-50")}>
-            <CardHeader>
-              <div className="flex items-start gap-3">
-                <Checkbox checked={selected.has(index)} onCheckedChange={() => toggle(index)} aria-label={`Include ${entry.title}`} className="mt-0.5" />
-                <div className="grid min-w-0 gap-0.5">
-                  <CardTitle className="truncate">{entry.display.role || entry.title}</CardTitle>
-                  <CardDescription className="truncate">{[entry.display.organization, entry.display.dates, entry.display.location].filter(Boolean).join(" · ")}</CardDescription>
-                </div>
-              </div>
-              <CardAction>
-                <Badge variant="secondary">{KIND_SINGULAR[entry.kind] ?? entry.kind}</Badge>
-              </CardAction>
-            </CardHeader>
-            {entry.facts.length || entry.skills.length ? (
-              <CardContent className="grid gap-2 pl-11">
-                {entry.facts.length ? (
-                  <ul className="grid list-disc gap-1 pl-4 text-sm text-muted-foreground">
-                    {entry.facts.slice(0, 6).map((fact) => (
-                      <li key={fact}>{fact}</li>
-                    ))}
-                    {entry.facts.length > 6 ? <li className="list-none text-xs">+{entry.facts.length - 6} more facts</li> : null}
-                  </ul>
-                ) : null}
-                {entry.skills.length ? (
-                  <div className="flex flex-wrap gap-1">
-                    {entry.skills.slice(0, 14).map((skill) => (
-                      <Badge key={skill} variant="outline">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : null}
-                {entry.dropped ? <p className="text-xs text-muted-foreground">{entry.dropped} item(s) left out: their numbers weren’t in your CV.</p> : null}
-              </CardContent>
-            ) : null}
-          </Card>
-        ))}
+        {result.entries.map((entry, index) => {
+          const decision = decisions[index]
+          const match = entry.match
+          const facts = decision === "merge" && match ? match.newFacts : entry.facts
+          const skills = decision === "merge" && match ? match.newSkills : entry.skills
+          return (
+            <Card key={index} size="sm" className={cn("transition-opacity", decision === "skip" && "opacity-50")}>
+              <CardHeader>
+                <CardTitle className="truncate">{entry.display.role || entry.title}</CardTitle>
+                <CardDescription className="truncate">
+                  {KIND_SINGULAR[entry.kind] ?? entry.kind}
+                  {[entry.display.organization, entry.display.dates, entry.display.location].filter(Boolean).map((part) => ` · ${part}`)}
+                </CardDescription>
+                <CardAction>
+                  <ToggleGroup value={[decision]} onValueChange={(value) => value[0] && decide(index, value[0] as Decision)} variant="outline" size="sm" aria-label={`What to do with ${entry.title}`}>
+                    {match ? <ToggleGroupItem value="merge">Update</ToggleGroupItem> : null}
+                    <ToggleGroupItem value="new">{match ? "Add as new" : "Add"}</ToggleGroupItem>
+                    <ToggleGroupItem value="skip">Skip</ToggleGroupItem>
+                  </ToggleGroup>
+                </CardAction>
+              </CardHeader>
+              {decision !== "skip" || match ? (
+                <CardContent className="grid gap-2">
+                  {match ? (
+                    <p className="text-xs text-muted-foreground">
+                      Matches <span className="font-medium text-foreground">{match.title}</span> in your profile
+                      {match.knownFacts ? ` · ${match.knownFacts} fact${match.knownFacts === 1 ? "" : "s"} already there` : ""}
+                      {decision === "merge" && !facts.length && !skills.length ? " · nothing new to add" : ""}
+                      {decision === "merge" && facts.length && match.status === "verified" ? " · it will need a quick re-check" : ""}
+                    </p>
+                  ) : null}
+                  {decision !== "skip" && facts.length ? (
+                    <ul className="grid list-disc gap-1 pl-4 text-sm text-muted-foreground">
+                      {facts.slice(0, 6).map((fact) => (
+                        <li key={fact}>{decision === "merge" ? <span className="text-foreground">+ </span> : null}{fact}</li>
+                      ))}
+                      {facts.length > 6 ? <li className="list-none text-xs">+{facts.length - 6} more</li> : null}
+                    </ul>
+                  ) : null}
+                  {decision !== "skip" && skills.length ? (
+                    <div className="flex flex-wrap gap-1">
+                      {skills.slice(0, 14).map((skill) => (
+                        <Badge key={skill} variant="outline">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  {entry.dropped ? <p className="text-xs text-muted-foreground">{entry.dropped} item(s) left out: their numbers weren’t in your CV.</p> : null}
+                </CardContent>
+              ) : null}
+            </Card>
+          )
+        })}
       </div>
     </div>
   )

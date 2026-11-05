@@ -21,7 +21,7 @@ export default function ProfilePage() {
 async function ProfileData() {
   await connection()
   const [profile, entries] = await Promise.all([getProfile(), listEntries()])
-  return <ProfileWorkspace profile={profile} entries={entries} defaultImportPath={process.env.PROFILE_IMPORT_DIR ?? ""} />
+  return <ProfileWorkspace profile={profile} entries={entries} />
 }
 
 function ProfileSkeleton() {

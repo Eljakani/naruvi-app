@@ -5,7 +5,7 @@ import { z } from "zod"
 import { safeFetchBytes } from "@/server/assets/safe-fetch"
 import { MAX_IMAGE_BYTES, storeLogo, storePhoto } from "@/server/assets/store"
 import { addFactForBullet, linkBulletFacts, setBulletRole } from "@/server/profile/repository"
-import { deleteEntry, importProfileFolder, saveEntry, saveIdentity, setEntryStatus } from "@/server/profile/repository"
+import { deleteEntry, saveEntry, saveIdentity, setEntryStatus } from "@/server/profile/repository"
 import type { EntryInput, IdentityInput } from "@/server/profile/schemas"
 import { BULLETS_PROMPT_VERSION, suggestBullets, type BulletSuggestion } from "@/server/profile/ai-bullets"
 import { completionForRun } from "@/server/llm/client"
@@ -13,7 +13,8 @@ import { startRun } from "@/server/runs/tracer"
 import { getLlmOverview } from "@/server/settings/llm"
 import { describeEntry, importProfileText, IMPORT_PROMPT_VERSION, translateEntry } from "@/server/profile/ai-import"
 import { pdfText } from "@/server/profile/pdf-text"
-import { saveImportedProfile } from "@/server/profile/repository"
+import { entriesForMatching, mergeIntoEntry, saveImportedProfile } from "@/server/profile/repository"
+import { matchEntry } from "@/server/profile/import-match"
 import { decisionClient } from "@/server/settings/decisions"
 import { SUPPORT_THRESHOLD, verifyClaims } from "@/server/decisions/verify"
 import { tracedDecide } from "@/server/runs/decisions"
@@ -50,9 +51,6 @@ export async function saveIdentityAction(input: IdentityInput) {
   })
 }
 
-export async function importProfileAction(folder: string) {
-  return run(() => importProfileFolder(z.string().trim().min(1, "Enter a folder path.").parse(folder)))
-}
 
 /** Upload a logo file. Returns the stored path; the entry is updated on Save. */
 export async function uploadLogoAction(formData: FormData) {
@@ -158,9 +156,13 @@ export async function readCvAction(formData: FormData) {
     if (text.trim().length < 80) return { ok: false as const, message: "Couldn’t read text from that file. If it’s a scanned PDF, paste the text instead." }
   }
   if (text.length < 80) return { ok: false as const, message: "Paste your CV or upload a PDF first." }
-  return withModel("profile.import", "profile import", IMPORT_PROMPT_VERSION, (complete, run) =>
-    run.step("structure CV", () => importProfileText(text, complete), (value) => `${value.entries.length} entries · ${value.entries.reduce((sum, item) => sum + item.facts.length, 0)} facts · ${value.entries.reduce((sum, item) => sum + item.dropped, 0)} unsupported items dropped`),
-  )
+  const existing = await entriesForMatching()
+  return withModel("profile.import", "profile import", IMPORT_PROMPT_VERSION, async (complete, run) => {
+    const result = await run.step("structure CV", () => importProfileText(text, complete), (value) => `${value.entries.length} entries · ${value.entries.reduce((sum, item) => sum + item.facts.length, 0)} facts · ${value.entries.reduce((sum, item) => sum + item.dropped, 0)} unsupported items dropped`)
+    const entries = result.entries.map((entry) => ({ ...entry, match: matchEntry(entry, existing) }))
+    await run.step("match existing entries", async () => entries.filter((entry) => entry.match).length, (value) => `${value} of ${entries.length} already in your profile`)
+    return { ...result, entries }
+  })
 }
 
 const importedEntry = z.object({
@@ -173,6 +175,7 @@ const importedEntry = z.object({
 })
 const importPayload = z.object({
   language: z.string().regex(/^[a-z]{2}$/),
+  merges: z.array(z.object({ entryId: z.string().uuid(), facts: z.array(z.string().trim().min(3).max(600)).max(30), skills: z.array(z.string().max(60)).max(40), display: z.object({ role: z.string().max(200), organization: z.string().max(200), dates: z.string().max(80), location: z.string().max(120) }) })).max(60).default([]),
   identity: z.object({ fullName: z.string().max(120), headline: z.string().max(160), email: z.string().max(200), phone: z.string().max(40), location: z.string().max(120), links: z.array(z.object({ label: z.string().max(40), url: z.string().max(500) })).max(10) }),
   entries: z.array(importedEntry).max(60),
 })
@@ -180,10 +183,19 @@ const importPayload = z.object({
 export async function saveImportAction(input: unknown) {
   const parsed = importPayload.safeParse(input)
   if (!parsed.success) return { ok: false as const, message: "Some imported entries are invalid." }
-  const result = await saveImportedProfile(parsed.data)
+  const result = await saveImportedProfile(parsed.data, { dedupe: false })
+  let merged = 0
+  let factsAdded = 0
+  let reverify = 0
+  for (const merge of parsed.data.merges) {
+    const outcome = await mergeIntoEntry(merge.entryId, { facts: merge.facts, skills: merge.skills, display: { language: parsed.data.language, ...merge.display } })
+    merged += 1
+    factsAdded += outcome.added
+    if (outcome.reverified) reverify += 1
+  }
   revalidatePath("/profile")
   revalidatePath("/")
-  return { ok: true as const, data: result }
+  return { ok: true as const, data: { ...result, merged, factsAdded, reverify } }
 }
 
 export async function describeEntryAction(input: { words: string; kind?: string; existingFacts: string[] }) {

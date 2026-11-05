@@ -343,7 +343,7 @@ export async function saveImportedProfile(input: {
   language: string
   identity: { fullName: string; headline: string; email: string; phone: string; location: string; links: { label: string; url: string }[] }
   entries: { kind: EntryInput["kind"]; title: string; display: { role: string; organization: string; dates: string; location: string }; facts: string[]; skills: string[]; bullets: { text: string; facts: number[] }[] }[]
-}) {
+}, { dedupe = true }: { dedupe?: boolean } = {}) {
   const profile = await requireProfile()
   const existing = await db.select({ kind: entries.kind, title: entries.title, display: entries.display }).from(entries).where(eq(entries.profileId, profile.id))
   const key = (kind: string, title: string) => `${kind}:${title.trim().toLowerCase()}`
@@ -354,7 +354,7 @@ export async function saveImportedProfile(input: {
   let created = 0
   let skipped = 0
   for (const item of input.entries) {
-    if (seen.has(key(item.kind, item.title)) || (item.display.role && seen.has(key(item.kind, `${item.display.role}@${item.display.organization}`)))) {
+    if (dedupe && (seen.has(key(item.kind, item.title)) || (item.display.role && seen.has(key(item.kind, `${item.display.role}@${item.display.organization}`))))) {
       skipped += 1
       continue
     }
@@ -383,4 +383,44 @@ export async function saveImportedProfile(input: {
   if (newLinks.length) patch.links = [...links, ...newLinks].slice(0, 12)
   if (Object.keys(patch).length) await db.update(profiles).set(patch).where(eq(profiles.id, profile.id))
   return { created, skipped, identityFields: Object.keys(patch) }
+}
+
+/** Existing entries in the shape the import matcher needs. */
+export async function entriesForMatching() {
+  const profile = await getProfile()
+  if (!profile) return []
+  const rows = await db.select().from(entries).where(eq(entries.profileId, profile.id))
+  const factRows = rows.length ? await db.select({ entryId: facts.entryId, statement: facts.statement }).from(facts).where(inArray(facts.entryId, rows.map((row) => row.id))) : []
+  return rows.filter((row) => row.status !== "archived").map((row) => ({
+    id: row.id, kind: row.kind, title: row.title, status: row.status,
+    display: (row.display ?? {}) as Record<string, { role?: string; organization?: string; dates?: string }>,
+    facts: factRows.filter((fact) => fact.entryId === row.id).map((fact) => fact.statement),
+    skills: row.skills,
+  }))
+}
+
+/**
+ * Adds new facts and skills to an existing entry without touching what is
+ * there (existing fact ids stay stable for analyses and documents). The entry
+ * goes back to "needs review" when it gains facts, so unverified claims never
+ * reach a CV unnoticed.
+ */
+export async function mergeIntoEntry(entryId: string, input: { facts: string[]; skills: string[]; display?: { language: string; role: string; organization: string; dates: string; location: string } }) {
+  return db.transaction(async (tx) => {
+    const [entry] = await tx.select().from(entries).where(eq(entries.id, entryId)).for("update")
+    if (!entry) throw new Error("Entry not found.")
+    const existing = await tx.select({ statement: facts.statement, sortOrder: facts.sortOrder }).from(facts).where(eq(facts.entryId, entryId))
+    const fresh = [...new Set(input.facts.map((fact) => fact.trim()).filter((fact) => fact.length >= 3 && !existing.some((known) => known.statement.trim().toLowerCase() === fact.toLowerCase())))]
+    const start = existing.reduce((max, fact) => Math.max(max, fact.sortOrder), -1) + 1
+    if (fresh.length) await tx.insert(facts).values(fresh.map((statement, index) => ({ entryId, statement, sortOrder: start + index })))
+    const skills = [...entry.skills, ...input.skills.filter((skill) => !entry.skills.some((known) => known.toLowerCase() === skill.toLowerCase()))]
+    const display = { ...((entry.display ?? {}) as Record<string, Record<string, string>>) }
+    if (input.display) {
+      const current = display[input.display.language] ?? {}
+      const filled = Object.fromEntries((["role", "organization", "dates", "location"] as const).map((key) => [key, current[key] || input.display![key] || ""]).filter(([, value]) => value))
+      if (Object.keys(filled).length) display[input.display.language] = filled
+    }
+    await tx.update(entries).set({ skills, display, ...(fresh.length && entry.status === "verified" ? { status: "needs_review" as const } : {}) }).where(eq(entries.id, entryId))
+    return { added: fresh.length, skills: skills.length - entry.skills.length, reverified: Boolean(fresh.length && entry.status === "verified") }
+  })
 }

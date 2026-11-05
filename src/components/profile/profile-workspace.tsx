@@ -1,10 +1,9 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useMemo, useState } from "react"
 import {
   AlertTriangleIcon,
   BadgeCheckIcon,
-  DownloadIcon,
   LockIcon,
   MailIcon,
   MapPinIcon,
@@ -16,8 +15,6 @@ import {
   UserRoundIcon,
   SparklesIcon,
 } from "lucide-react"
-import { toast } from "sonner"
-import { importProfileAction } from "@/app/(app)/profile/actions"
 import { EntryCard } from "@/components/profile/entry-card"
 import Link from "next/link"
 import { IdentityDialog } from "@/components/profile/identity-dialog"
@@ -25,18 +22,8 @@ import { KIND_LABELS } from "@/components/profile/labels"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { profiles } from "@/server/db/schema"
@@ -51,11 +38,10 @@ export function needsAttention(entry: ProfileEntry) {
   return entry.status !== "verified" || entry.phrasings.some((phrasing) => !phrasing.grounding.grounded) || entry.facts.length === 0
 }
 
-export function ProfileWorkspace({ profile, entries, defaultImportPath }: { profile: Profile | null; entries: ProfileEntry[]; defaultImportPath: string }) {
+export function ProfileWorkspace({ profile, entries }: { profile: Profile | null; entries: ProfileEntry[] }) {
   const [filter, setFilter] = useState<Filter>("all")
   const [query, setQuery] = useState("")
     const [identityOpen, setIdentityOpen] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
 
   const active = entries.filter((entry) => entry.status !== "archived")
   const stats = useMemo(() => {
@@ -118,15 +104,11 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
             <Button nativeButton={false} render={<Link href="/profile/import" />}>
               <SparklesIcon /> Start from my CV
             </Button>
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
-              <DownloadIcon /> Import folder
-            </Button>
             <Button variant="outline" nativeButton={false} render={<Link href="/profile/new" />}>
               <PlusIcon /> Add entry
             </Button>
           </EmptyContent>
         </Empty>
-        <ImportDialog open={importOpen} onOpenChange={setImportOpen} defaultPath={defaultImportPath} />
       </>
     )
   }
@@ -250,9 +232,6 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
           <Button variant="outline" nativeButton={false} render={<Link href="/profile/import" />}>
             <SparklesIcon /> From CV
           </Button>
-          <Button variant="ghost" onClick={() => setImportOpen(true)}>
-            <DownloadIcon /> Folder
-          </Button>
           <Button nativeButton={false} render={<Link href="/profile/new" />}>
             <PlusIcon /> Add entry
           </Button>
@@ -274,47 +253,6 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
         </Empty>
       )}
       <IdentityDialog open={identityOpen} onOpenChange={setIdentityOpen} profile={profile} />
-      <ImportDialog open={importOpen} onOpenChange={setImportOpen} defaultPath={defaultImportPath} />
     </>
-  )
-}
-
-function ImportDialog({ open, onOpenChange, defaultPath }: { open: boolean; onOpenChange: (open: boolean) => void; defaultPath: string }) {
-  const [path, setPath] = useState(defaultPath)
-  const [pending, startTransition] = useTransition()
-  const submit = () =>
-    startTransition(async () => {
-      const result = await importProfileAction(path)
-      if (!result.ok) {
-        toast.error("Import failed", { description: result.error })
-        return
-      }
-      const summary = result.data!
-      toast.success(`Imported ${summary.entries} entries`, {
-        description: `${summary.facts} facts, ${summary.phrasings} phrasings, ${summary.logos} logos${summary.ungrounded.length ? ` · ${summary.ungrounded.length} bullets need a fact link` : ""}.`,
-      })
-      onOpenChange(false)
-    })
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Import a profile folder</DialogTitle>
-          <DialogDescription>
-            A folder with <code>identity.md</code> and <code>pools/**/*.md</code>. Entries are matched by their ID, so importing again updates them instead of duplicating.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-2">
-          <Label htmlFor="import-path">Folder path on this machine</Label>
-          <Input id="import-path" value={path} onChange={(event) => setPath(event.target.value)} placeholder="/home/you/my-cv/profile" />
-        </div>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button onClick={submit} disabled={pending || !path.trim()}>
-            <DownloadIcon /> {pending ? "Importing…" : "Import"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }
