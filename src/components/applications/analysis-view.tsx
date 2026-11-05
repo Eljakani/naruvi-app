@@ -229,11 +229,11 @@ export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: 
         </Card>
       </div>
 
-      <aside className="grid content-start gap-4">
+      <aside className="grid min-w-0 content-start gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">About {research.company}</CardTitle>
-            <CardDescription>From their own website and this posting — each line links to its source.</CardDescription>
+            <CardDescription>Specific things you can mention, each from their own site.</CardDescription>
           </CardHeader>
           <CardContent>
             <CompanyResearch {...research} />

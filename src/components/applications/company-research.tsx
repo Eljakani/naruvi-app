@@ -12,6 +12,31 @@ import { WorkingBar } from "@/components/working-bar"
 import { cn } from "@/lib/utils"
 import { promptsFor, type CompanyResearch as Research } from "@/server/research/brief"
 
+/** Source links collapsed to their sites: "sekoia.com" once, not every page. */
+function Sources({ sources }: { sources: string[] }) {
+  const byHost = new Map<string, string>()
+  for (const source of sources) {
+    let host = source
+    try {
+      host = new URL(source).hostname.replace(/^www\./, "")
+    } catch {
+      // "job posting"
+    }
+    if (!byHost.has(host)) byHost.set(host, source)
+  }
+  return (
+    <span className="flex min-w-0 flex-wrap gap-x-2">
+      {[...byHost].map(([host, url]) => (url.startsWith("http") ? (
+        <a key={host} href={url} target="_blank" rel="noopener noreferrer nofollow" title={url} className="inline-flex min-w-0 items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground">
+          <span className="truncate">{host}</span> <ExternalLinkIcon className="size-2.5 shrink-0" />
+        </a>
+      ) : (
+        <span key={host} className="text-[11px] text-muted-foreground">{host}</span>
+      )))}
+    </span>
+  )
+}
+
 function SourceLink({ source }: { source: string }) {
   if (source === "job posting") return <span className="text-[11px] text-muted-foreground">job posting</span>
   let label = source
@@ -177,73 +202,73 @@ export function CompanyResearch({
     )
   }
 
+  // Angles first (short, cited); everything else one click away. Posting text isn't repeated here.
+  const angles = research.angles ?? []
+  const about = research.about.filter((item) => item.source !== "job posting")
+  const extra = about.length + research.mission.length + research.values.length + research.facts.length
+  const visibleAngles = showAll ? angles : angles.slice(0, 3)
   return (
-    <div className={cn("grid gap-3 transition-opacity duration-200", pending && "opacity-60")} aria-busy={pending}>
+    <div className={cn("grid min-w-0 gap-3 [overflow-wrap:anywhere] transition-opacity duration-200", pending && "opacity-60")} aria-busy={pending}>
       {pending ? <AiSteps steps={AI_STEPS.research} step={researchStep} className="opacity-100" /> : null}
       {research.notes?.map((note) => (
-        <p key={note} className="rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+        <p key={note} className="rounded-md bg-muted px-2.5 py-2 text-xs text-muted-foreground">
           {note}
         </p>
       ))}
-      {research.angles?.length ? (
+      {angles.length ? (
+        <ol className="cb-stagger grid gap-2.5">
+          {visibleAngles.map((angle, index) => (
+            <li key={angle.text} className="flex min-w-0 gap-2.5">
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium tabular-nums">{index + 1}</span>
+              <div className="grid min-w-0 gap-0.5">
+                <p className={cn("text-sm leading-5", !showAll && "line-clamp-3")}>{angle.text}</p>
+                <Sources sources={angle.sources} />
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      {(!angles.length || showAll) && (about.length || research.mission.length) ? (
         <div className="grid gap-2">
-          <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            <SparklesIcon className="size-3" /> Angles worth mentioning
-          </span>
-          <ul className="grid gap-2">
-            {research.angles.map((angle) => (
-              <li key={angle.text} className="grid gap-0.5">
-                <p className="text-sm leading-6">{angle.text}</p>
-                <div className="flex flex-wrap gap-2">
-                  {angle.sources.map((source) => (
-                    <SourceLink key={source} source={source} />
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ul>
+          {research.mission.slice(0, showAll ? 2 : 1).map((item) => (
+            <div key={item.text} className="grid gap-0.5 border-l-2 pl-3">
+              <p className="text-sm leading-5 italic">“{item.text}”</p>
+              <Sources sources={[item.source]} />
+            </div>
+          ))}
+          {about.slice(0, showAll ? 2 : 1).map((item) => (
+            <div key={item.text} className="grid gap-0.5">
+              <p className={cn("text-sm leading-5 text-muted-foreground", !showAll && "line-clamp-3")}>{item.text}</p>
+              <Sources sources={[item.source]} />
+            </div>
+          ))}
         </div>
       ) : null}
-      {empty && !research.notes?.length ? <p className="text-xs text-muted-foreground">No quotable information found on {research.website || "the company site"}. Check the website on the job page.</p> : null}
-      {research.about.slice(0, showAll ? 3 : 1).map((item) => (
-        <div key={item.text} className="grid gap-0.5">
-          <p className="text-sm leading-6">{item.text}</p>
-          <SourceLink source={item.source} />
-        </div>
-      ))}
-      {research.mission.slice(0, showAll ? 3 : 1).map((item) => (
-        <div key={item.text} className="grid gap-1">
-          <blockquote className="border-l-2 pl-6 italic">{item.text}</blockquote>
-          <SourceLink source={item.source} />
-        </div>
-      ))}
-      {research.values.length ? (
-        <div className="grid gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">Values they state</span>
-          <div className="flex flex-wrap gap-1">
-            {research.values.map((value) => (
-              <Badge key={value.text} variant="secondary" className="font-normal">
-                {value.text}
-              </Badge>
-            ))}
-          </div>
+      {showAll && research.values.length ? (
+        <div className="flex flex-wrap gap-1">
+          {research.values.map((value) => (
+            <Badge key={value.text} variant="secondary" className="font-normal">
+              {value.text}
+            </Badge>
+          ))}
         </div>
       ) : null}
-      {research.facts.length ? (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+      {showAll && research.facts.length ? (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
           {research.facts.map((fact) => (
             <div key={fact.label} className="contents">
               <dt className="text-muted-foreground">{fact.label}</dt>
-              <dd className="min-w-0 [overflow-wrap:anywhere]">{fact.value}</dd>
+              <dd className="min-w-0">{fact.value}</dd>
             </div>
           ))}
         </dl>
       ) : null}
-      <div className="flex items-center gap-2 border-t pt-2 text-[11px] text-muted-foreground">
-        <BuildingIcon className="size-3" /> {research.sources.length} page{research.sources.length === 1 ? "" : "s"} read · {new Date(research.generatedAt).toLocaleDateString()}
-        {research.about.length > 1 || research.mission.length > 1 ? (
+      {empty && !angles.length && !research.notes?.length ? <p className="text-xs text-muted-foreground">Nothing quotable found on {research.website || "the company site"}. Check the website on the job page.</p> : null}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-2 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1"><BuildingIcon className="size-3" /> {research.sources.length} page{research.sources.length === 1 ? "" : "s"} read</span>
+        {angles.length > 3 || extra ? (
           <button type="button" className="hover:text-foreground" onClick={() => setShowAll(!showAll)}>
-            · {showAll ? "less" : "more"}
+            · {showAll ? "Show less" : "Show more"}
           </button>
         ) : null}
         <button type="button" onClick={() => run(true)} disabled={pending} className="ml-auto inline-flex items-center gap-1 hover:text-foreground">
