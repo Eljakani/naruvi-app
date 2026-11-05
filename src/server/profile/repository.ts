@@ -337,3 +337,50 @@ export async function addFactForBullet(phrasingId: string, statement: string, al
 export async function setBulletRole(phrasingId: string, role: "bullet" | "label") {
   await db.update(phrasings).set({ role }).where(eq(phrasings.id, phrasingId))
 }
+
+/** Saves imported entries as "needs review" and fills only empty identity fields. Skips entries already in the profile. */
+export async function saveImportedProfile(input: {
+  language: string
+  identity: { fullName: string; headline: string; email: string; phone: string; location: string; links: { label: string; url: string }[] }
+  entries: { kind: EntryInput["kind"]; title: string; display: { role: string; organization: string; dates: string; location: string }; facts: string[]; skills: string[]; bullets: { text: string; facts: number[] }[] }[]
+}) {
+  const profile = await requireProfile()
+  const existing = await db.select({ kind: entries.kind, title: entries.title, display: entries.display }).from(entries).where(eq(entries.profileId, profile.id))
+  const key = (kind: string, title: string) => `${kind}:${title.trim().toLowerCase()}`
+  const seen = new Set(existing.flatMap((row) => {
+    const shown = Object.values((row.display ?? {}) as Record<string, { role?: string; organization?: string }>)
+    return [key(row.kind, row.title), ...shown.map((value) => key(row.kind, `${value.role ?? ""}@${value.organization ?? ""}`))]
+  }))
+  let created = 0
+  let skipped = 0
+  for (const item of input.entries) {
+    if (seen.has(key(item.kind, item.title)) || (item.display.role && seen.has(key(item.kind, `${item.display.role}@${item.display.organization}`)))) {
+      skipped += 1
+      continue
+    }
+    const shown = Object.fromEntries(Object.entries(item.display).filter(([, value]) => value.trim()))
+    await saveEntry({
+      title: item.title, kind: item.kind, status: "needs_review",
+      display: Object.keys(shown).length ? { [input.language]: shown } : {},
+      skills: item.skills, facts: item.facts.map((statement) => ({ statement })),
+      phrasings: item.bullets.map((bullet) => ({ group: "Imported", role: "bullet" as const, language: input.language, text: bullet.text, factRefs: bullet.facts })),
+    })
+    seen.add(key(item.kind, item.title))
+    created += 1
+  }
+  const empty = (value: string | null | undefined) => !value || !value.trim() || value === "Your name"
+  const patch: Partial<typeof profiles.$inferInsert> = {}
+  const id = input.identity
+  if (empty(profile.fullName) && id.fullName.trim().length >= 2) patch.fullName = id.fullName.trim()
+  if (empty(profile.email) && /^\S+@\S+\.\S+$/.test(id.email.trim())) patch.email = id.email.trim()
+  if (empty(profile.phone) && id.phone.trim()) patch.phone = id.phone.trim()
+  if (empty(profile.location) && id.location.trim()) patch.location = id.location.trim()
+  const headlines = (profile.headlines ?? {}) as Record<string, string>
+  if (id.headline.trim() && empty(headlines[input.language])) patch.headlines = { ...headlines, [input.language]: id.headline.trim() }
+  const links = (profile.links ?? []) as { label: string; url: string }[]
+  const normalized = id.links.map((link) => ({ label: link.label.trim() || "Link", url: /^https?:\/\//i.test(link.url.trim()) ? link.url.trim() : /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(link.url.trim()) ? `https://${link.url.trim()}` : "" }))
+  const newLinks = normalized.filter((link) => link.url && URL.canParse(link.url) && !links.some((known) => known.url === link.url))
+  if (newLinks.length) patch.links = [...links, ...newLinks].slice(0, 12)
+  if (Object.keys(patch).length) await db.update(profiles).set(patch).where(eq(profiles.id, profile.id))
+  return { created, skipped, identityFields: Object.keys(patch) }
+}

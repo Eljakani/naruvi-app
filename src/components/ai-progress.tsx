@@ -13,6 +13,9 @@ export const AI_STEPS = {
   letter: ["Gathering your evidence and company sources", "Drafting the opening and motivation", "Checking every claim against your facts", "Rendering the PDF"],
   research: ["Checking what the site allows", "Reading the company’s own pages", "Finding mission, values and facts", "Writing cited angles"],
   bullets: ["Reading your facts", "Drafting bullets in each language", "Checking each one against its facts"],
+  cvImport: ["Reading your CV", "Finding each job, school and project", "Splitting achievements into facts", "Picking out skills and dates", "Checking every number against your CV"],
+  describe: ["Reading what you wrote", "Finding role, dates and place", "Turning it into facts", "Picking out skills"],
+  translate: ["Translating titles and dates", "Translating bullets", "Checking every number is unchanged"],
 } as const
 
 const STEP_MS = 1800

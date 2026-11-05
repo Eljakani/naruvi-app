@@ -28,6 +28,7 @@ import { deleteEntryAction, saveEntryAction } from "@/app/(app)/profile/actions"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { LogoField } from "@/components/profile/editor/logo-field"
 import { BulletSuggestions } from "@/components/profile/editor/bullet-suggestions"
+import { EntryAssist } from "@/components/profile/editor/entry-assist"
 import { ChipInput, FactPicker, GrowText, LineList, StringLineList } from "@/components/profile/editor/inputs"
 import { type Draft, type DraftBullet, type Lang, LANGS, newKey, pairRows, toDraft, toInput } from "@/components/profile/editor/draft"
 import { KIND_SINGULAR, STATUS_LABELS } from "@/components/profile/labels"
@@ -230,6 +231,7 @@ export function EntryEditor({ entry }: { entry: ProfileEntry | null }) {
       <div className="grid gap-6 p-4 md:p-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid min-w-0 gap-6">
           {/* 1. basics */}
+          <EntryAssist draft={draft} patch={patch} />
           <Section id="basics" n={1} title="What is it?" description="Pick the type first; the fields below adapt to it.">
             <ToggleGroup value={[draft.kind]} onValueChange={(value) => value[0] && patch({ kind: value[0] as Draft["kind"] })} variant="outline" className="flex w-full flex-wrap justify-start" spacing={2} aria-label="Entry type">
               {entryKinds.map((kind) => {

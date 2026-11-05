@@ -14,6 +14,7 @@ import {
   SearchIcon,
   ShieldCheckIcon,
   UserRoundIcon,
+  SparklesIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { importProfileAction } from "@/app/(app)/profile/actions"
@@ -110,11 +111,14 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
             </EmptyMedia>
             <EmptyTitle>Start your profile</EmptyTitle>
             <EmptyDescription>
-              Import an existing profile folder (identity.md + pools/) or add your first entry by hand. Nothing is used for generation until you verify it.
+              Upload your CV and AI fills your profile for you, or add entries by hand. Nothing is used for generation until you verify it.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent className="flex-row justify-center gap-2">
-            <Button onClick={() => setImportOpen(true)}>
+            <Button nativeButton={false} render={<Link href="/profile/import" />}>
+              <SparklesIcon /> Start from my CV
+            </Button>
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
               <DownloadIcon /> Import folder
             </Button>
             <Button variant="outline" nativeButton={false} render={<Link href="/profile/new" />}>
@@ -243,8 +247,11 @@ export function ProfileWorkspace({ profile, entries, defaultImportPath }: { prof
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search facts, tools, bullets…" className="pl-8" />
           </div>
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <DownloadIcon /> Import
+          <Button variant="outline" nativeButton={false} render={<Link href="/profile/import" />}>
+            <SparklesIcon /> From CV
+          </Button>
+          <Button variant="ghost" onClick={() => setImportOpen(true)}>
+            <DownloadIcon /> Folder
           </Button>
           <Button nativeButton={false} render={<Link href="/profile/new" />}>
             <PlusIcon /> Add entry
