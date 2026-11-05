@@ -14,7 +14,9 @@ import {
   SparklesIcon,
   XCircleIcon,
 } from "lucide-react"
+import { CompanyResearch } from "@/components/applications/company-research"
 import { EntryLogo } from "@/components/profile/entry-logo"
+import type { CompanyResearch as Research } from "@/server/research/brief"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -119,7 +121,7 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
 
 type Filter = "all" | "attention" | "proven"
 
-export function AnalysisView({ analysis, facts, cvHref }: { analysis: StoredAnalysis; facts: FactRow[]; cvHref: string }) {
+export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: StoredAnalysis; facts: FactRow[]; cvHref: string; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null } }) {
   const [filter, setFilter] = useState<Filter>("all")
   const groups = useMemo(() => {
     const visible = analysis.requirements.filter((match) =>
@@ -208,6 +210,16 @@ export function AnalysisView({ analysis, facts, cvHref }: { analysis: StoredAnal
       </div>
 
       <aside className="grid content-start gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">About {research.company}</CardTitle>
+            <CardDescription>From their own website and this posting — each line links to its source.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CompanyResearch {...research} />
+          </CardContent>
+        </Card>
+
         {analysis.mustGaps.length ? (
           <Card className="border-rose-200 dark:border-rose-900">
             <CardHeader>

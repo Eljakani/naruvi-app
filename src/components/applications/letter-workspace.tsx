@@ -6,7 +6,9 @@ import { useCallback, useState, useTransition } from "react"
 import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, LightbulbIcon, MailIcon, PenLineIcon } from "lucide-react"
 import { toast } from "sonner"
 import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
+import { CompanyResearch } from "@/components/applications/company-research"
 import { DesignPicker } from "@/components/applications/design-picker"
+import type { CompanyResearch as Research } from "@/server/research/brief"
 import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -48,6 +50,8 @@ export function LetterWorkspace({
   language,
   decision,
   workspace,
+  jobId,
+  research,
 }: {
   applicationId: string
   jobTitle: string
@@ -55,6 +59,8 @@ export function LetterWorkspace({
   language: string
   decision: { decision: string; evidence: string } | null
   workspace: Awaited<ReturnType<typeof getLetterWorkspace>>
+  jobId: string
+  research: Research | null
 }) {
   if (!workspace?.current) {
     return (
@@ -85,10 +91,10 @@ export function LetterWorkspace({
       </div>
     )
   }
-  return <Editor applicationId={applicationId} jobTitle={jobTitle} company={company} language={language} workspace={workspace} />
+  return <Editor applicationId={applicationId} jobTitle={jobTitle} company={company} language={language} workspace={workspace} jobId={jobId} research={research} />
 }
 
-function Editor({ applicationId, jobTitle, company, language, workspace }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Workspace }) {
+function Editor({ applicationId, jobTitle, company, language, workspace, jobId, research }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Workspace; jobId: string; research: Research | null }) {
   const router = useRouter()
   const current = workspace.current!
   const [draft, setDraft] = useState<LetterDocument>(current.content)
@@ -191,6 +197,22 @@ function Editor({ applicationId, jobTitle, company, language, workspace }: { app
                 <LightbulbIcon className="mt-0.5 size-3.5 shrink-0" />
                 <span>Be specific: one thing about {company || "them"} you genuinely like (product, mission, team, a recent project) and how it connects to what you’ve done. Two or three sentences.</span>
               </div>
+            ) : null}
+            {motivation ? (
+              <CompanyResearch
+                mode="helper"
+                applicationId={applicationId}
+                jobId={jobId}
+                company={company}
+                language={language}
+                initial={research}
+                onInsert={(starter) =>
+                  update((doc) => {
+                    const currentText = isInstruction(doc.paragraphs[index].text) ? "" : doc.paragraphs[index].text
+                    doc.paragraphs[index].text = currentText ? `${currentText.trimEnd()} ${starter}` : starter
+                  })
+                }
+              />
             ) : null}
             <Textarea
               rows={motivation ? 5 : 3}

@@ -123,8 +123,8 @@ docs/                  architecture and decisions (ADRs)
 4. Analysis: requirements, evidence matching, fit, optional model review. ✅
 5. Generation ← **next**: requirements/keywords/fit with cited facts.
    Generation + LaTeX service + quality gate + revisions.
-6. Cover letters ✅ · research, more templates & non-Latin fonts ← **next**
-7. Tracking board, traces UI, eval dashboard.
+6. Cover letters, templates & fonts, company research ✅
+7. Tracking board, traces UI, eval dashboard ← **next**
 
 ## 8. Grounding rules (implemented in `src/server/domain/grounding.ts`)
 
@@ -201,3 +201,15 @@ en/fr/es/de that names the company/role and claims nothing, and a
 letter gate refuses "ready" while the placeholder remains, and checks company
 named, grounded highlights, length and one page. Same revisions/versions and
 PDF route as the CV.
+
+## 13. Company research (`src/server/research/`)
+
+No LLM, nothing invented, every item sourced. Reads up to 6 pages of the
+company's own site (home → linked about/mission/values/careers pages →
+conventional paths), same registrable domain only, robots.txt respected
+(wildcards supported), SSRF-safe fetches; 403/429 blocks are reported, not
+retried. Extraction is deterministic (meta, JSON-LD Organization, mission and
+"we/our" scale/founded sentences, values lists) plus the posting's own
+"About" section (recruiting sentences excluded). Facts are cached on the
+company for 7 days; prompts and sentence starters are generated per document
+language at display time and are questions for the candidate — never prose.

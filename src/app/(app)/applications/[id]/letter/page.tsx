@@ -5,6 +5,7 @@ import { LetterWorkspace } from "@/components/applications/letter-workspace"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getApplication } from "@/server/applications/repository"
 import { getLetterWorkspace } from "@/server/documents/service"
+import type { CompanyResearch as Research } from "@/server/research/brief"
 
 export const metadata = { title: "Cover letter" }
 
@@ -33,6 +34,8 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
       company={application.job.company?.name ?? ""}
       language={language}
       decision={application.analysis?.coverLetter ?? null}
+      jobId={application.job.id}
+      research={(application.job.company?.research ?? null) as unknown as Research | null}
       workspace={workspace}
     />
   )

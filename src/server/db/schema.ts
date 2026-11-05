@@ -192,6 +192,9 @@ export const companies = pgTable(
     websiteSource: text(),
     logoPath: text(),
     logoSource: text(),
+    /** Sourced brief from the company's own site + postings (see src/server/research). */
+    research: jsonb().$type<Record<string, unknown>>(),
+    researchedAt: timestamp({ withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

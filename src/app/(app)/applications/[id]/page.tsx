@@ -9,6 +9,7 @@ import { EntryLogo } from "@/components/profile/entry-logo"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getApplication } from "@/server/applications/repository"
+import type { CompanyResearch as Research } from "@/server/research/brief"
 
 export const metadata = { title: "Application" }
 
@@ -46,7 +47,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
         </div>
         <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />
       </div>
-      {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
+      {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
     </div>
   )
 }

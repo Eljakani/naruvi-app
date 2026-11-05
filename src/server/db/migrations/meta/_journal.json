@@ -43,6 +43,13 @@
       "when": 1793835657007,
       "tag": "0005_revision_content",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793837507872,
+      "tag": "0006_company_research",
+      "breakpoints": true
     }
   ]
 }
