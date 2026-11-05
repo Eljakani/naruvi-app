@@ -214,7 +214,7 @@ function Section({ section, logos, s, t, stacked = false }: { section: CvSection
       {first ? (
         <View wrap={false}>
           {head}
-          <Item item={first} logo={stacked ? null : logos.get(first.entryId) ?? null} s={s} t={t} narrow={stacked} />
+          <Item item={first} logo={logos.get(first.entryId) ?? null} s={s} t={t} narrow={stacked} />
         </View>
       ) : (
         <View wrap={false}>
@@ -223,7 +223,7 @@ function Section({ section, logos, s, t, stacked = false }: { section: CvSection
         </View>
       )}
       {rest.map((item) => (
-        <Item key={item.entryId} item={item} logo={stacked ? null : logos.get(item.entryId) ?? null} s={s} t={t} narrow={stacked} />
+        <Item key={item.entryId} item={item} logo={logos.get(item.entryId) ?? null} s={s} t={t} narrow={stacked} />
       ))}
       {(first ? section.groups : section.groups.slice(1)).map(renderGroup)}
     </View>
@@ -243,7 +243,7 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
   const logos = new Map<string, string | null>()
   if (t.showLogos) {
     for (const section of doc.sections) {
-      if (section.kind !== "experience" && section.kind !== "education") continue
+      if (!["experience", "education", "certification", "project", "achievement"].includes(section.kind)) continue
       for (const item of section.items) logos.set(item.entryId, await pngData(item.logoPath, 18))
     }
   }
