@@ -1,4 +1,6 @@
 import "server-only"
+import { designTokens } from "@/lib/design"
+import { templateIds } from "@/server/documents/model"
 import { getDecisionOverview } from "./decisions"
 import { existsSync, statSync } from "node:fs"
 import { join } from "node:path"
@@ -14,7 +16,9 @@ import { applications, entries, facts, jobs, phrasings, profiles, revisions, set
 
 /** Document defaults applied when a CV or letter is first generated. */
 export const documentDefaults = z.object({
-  template: z.enum(["classic", "modern", "serif"]).default("classic"),
+  template: z.enum(templateIds).catch("classic").default("classic"),
+  design: designTokens.optional(),
+  templateRef: z.string().uuid().optional(),
   accent: z.string().regex(/^#[0-9a-f]{6}$/i).default("#2563eb"),
   showPhoto: z.boolean().default(false),
 })

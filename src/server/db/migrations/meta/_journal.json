@@ -71,6 +71,13 @@
       "when": 1793882671011,
       "tag": "0009_job_insights",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793890646641,
+      "tag": "0010_templates",
+      "breakpoints": true
     }
   ]
 }

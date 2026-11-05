@@ -1,4 +1,5 @@
 import "server-only"
+import type { DesignTokens } from "@/lib/design"
 import { advanceAutomatically } from "@/server/tracking/service"
 import { decisionClient } from "@/server/settings/decisions"
 import { tracedDecide } from "@/server/runs/decisions"
@@ -26,8 +27,8 @@ async function designFor(documentId: string) {
   const [doc] = await db.select().from(documents).where(eq(documents.id, documentId))
   if (doc?.currentRevisionId) {
     const [current] = await db.select({ content: revisions.content }).from(revisions).where(eq(revisions.id, doc.currentRevisionId))
-    const content = current?.content as { template?: string; accent?: string; header?: { showPhoto?: boolean } } | undefined
-    if (content?.template) return { template: content.template as "classic" | "modern" | "serif", accent: content.accent ?? "#2563eb", showPhoto: Boolean(content.header?.showPhoto) }
+    const content = current?.content as { template?: string; accent?: string; design?: DesignTokens; templateRef?: string; header?: { showPhoto?: boolean } } | undefined
+    if (content?.template) return { template: content.template as CvDocument["template"], accent: content.accent ?? "#2563eb", design: content.design, templateRef: content.templateRef, showPhoto: Boolean(content.header?.showPhoto) }
   }
   return getDocumentDefaults()
 }
@@ -121,6 +122,8 @@ export async function generateCv(applicationId: string, language?: string) {
     const document = await documentFor(application.id, lang)
     const design = await designFor(document.id)
     content.template = design.template
+    if (design.design) content.design = design.design
+    if (design.templateRef) content.templateRef = design.templateRef
     content.accent = design.accent
     content.header.showPhoto = design.showPhoto && Boolean(content.header.photoPath)
     const { revision, quality } = await run.step("render & quality gate", () => addRevision(document.id, content, "generate", application.analysis?.requirements ?? [], run.id), (value) => `${value.revision.pages} page(s) · score ${value.quality.score}${value.quality.ready ? " · ready" : ""}`)
@@ -196,6 +199,8 @@ export async function generateLetter(applicationId: string, language?: string) {
     }
     const design = await designFor(document.id)
     content.template = design.template
+    if (design.design) content.design = design.design
+    if (design.templateRef) content.templateRef = design.templateRef
     content.accent = design.accent
     const { revision } = await run.step("render & quality gate", () => addRevision(document.id, content, "generate", [], run.id), (value) => `${value.revision.pages} page(s) · score ${value.quality.score}`)
     await run.finish("succeeded", { documentId: document.id, revisionId: revision.id })

@@ -2,6 +2,7 @@ import {
   BriefcaseBusinessIcon,
   FileTextIcon,
   LayoutDashboardIcon,
+  PaletteIcon,
   type LucideIcon,
   ScrollTextIcon,
   Settings2Icon,
@@ -15,6 +16,7 @@ export const navItems: NavItem[] = [
   { title: "Applications", url: "/applications", icon: FileTextIcon, description: "Tailored CVs and letters" },
   { title: "Jobs", url: "/jobs", icon: BriefcaseBusinessIcon, description: "Parsed postings" },
   { title: "Profile", url: "/profile", icon: UserRoundIcon, description: "Verified facts — the source of truth" },
+  { title: "Templates", url: "/templates", icon: PaletteIcon, description: "How your documents look" },
   { title: "Runs", url: "/runs", icon: ScrollTextIcon, description: "Agent traces and decisions" },
   { title: "Settings", url: "/settings", icon: Settings2Icon, description: "Model, compiler and data" },
 ]

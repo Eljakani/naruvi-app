@@ -32,6 +32,11 @@ export const BASE_FAMILIES = {
   sans: { family: "CB Noto Sans", faces: () => faces("noto-sans", "latin", { italic: true }) },
   inter: { family: "CB Inter", faces: () => faces("inter", "latin") },
   serif: { family: "CB Source Serif", faces: () => faces("source-serif-4", "latin", { italic: true }) },
+  lato: { family: "CB Lato", faces: () => faces("lato", "latin", { italic: true }) },
+  roboto: { family: "CB Roboto", faces: () => faces("roboto", "latin", { italic: true }) },
+  plex: { family: "CB IBM Plex Sans", faces: () => faces("ibm-plex-sans", "latin", { italic: true }) },
+  merriweather: { family: "CB Merriweather", faces: () => faces("merriweather", "latin", { italic: true }) },
+  garamond: { family: "CB EB Garamond", faces: () => faces("eb-garamond", "latin", { italic: true }) },
 } as const
 export type BaseFont = keyof typeof BASE_FAMILIES
 

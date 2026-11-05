@@ -10,7 +10,7 @@ type PdfJs = typeof import("pdfjs-dist")
 let pdfjsPromise: Promise<PdfJs> | null = null
 
 /** Load pdf.js once, in the browser only, with its worker. */
-function loadPdfJs() {
+export function loadPdfJs() {
   pdfjsPromise ??= import("pdfjs-dist").then((pdfjs) => {
     pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString()
     return pdfjs

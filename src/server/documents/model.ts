@@ -3,6 +3,7 @@
  * immutable revisions. Every bullet keeps the ids that ground it.
  */
 import { z } from "zod"
+import { designTokens, presetTokens, type DesignTokens } from "@/lib/design"
 import { aiAssistance } from "./ai-metadata"
 
 export const cvBullet = z.object({
@@ -28,7 +29,7 @@ export const cvItem = z.object({
 })
 
 /** Visual templates; all single-column with real text, so ATS-safe. */
-export const templateIds = ["classic", "modern", "serif"] as const
+export const templateIds = ["classic", "modern", "serif", "minimal", "compact", "executive", "sidebar", "bold", "custom"] as const
 export type TemplateId = (typeof templateIds)[number]
 export const ACCENTS = ["#2563eb", "#0f766e", "#7c3aed", "#be123c", "#c2410c", "#111827"] as const
 
@@ -48,7 +49,11 @@ export const cvDocument = z.object({
   aiAssistance: aiAssistance.optional(),
   version: z.literal(1),
   language: z.string().regex(/^[a-z]{2}$/),
-  template: z.enum(templateIds).default("classic"),
+  template: z.enum(templateIds).catch("classic").default("classic"),
+  /** Full design; overrides the preset named by `template`. */
+  design: designTokens.optional(),
+  /** Saved template this design came from (Templates page), if any. */
+  templateRef: z.string().uuid().optional(),
   accent: z.string().regex(/^#[0-9a-f]{6}$/i).default("#2563eb"),
   header: z.object({
     name: z.string(),
@@ -94,4 +99,10 @@ export function documentText(doc: CvDocument) {
     for (const group of section.groups) parts.push(group.label, group.values.join(", "))
   }
   return parts.filter(Boolean).join("\n")
+}
+
+/** The effective design of a document: preset, then saved/custom tokens, then the accent field. */
+export function resolveDesign(doc: { template?: string; design?: DesignTokens; accent?: string }): DesignTokens {
+  const tokens = doc.design ?? presetTokens(doc.template)
+  return { ...tokens, accent: doc.design ? tokens.accent : doc.accent ?? tokens.accent }
 }

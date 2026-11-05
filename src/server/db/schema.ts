@@ -397,3 +397,17 @@ export const applicationEvents = pgTable(
   },
   (t) => [index().on(t.applicationId, t.createdAt)],
 )
+
+/* ------------------------------------------------------------------ */
+/* templates: saved document designs (see src/lib/design.ts)           */
+/* ------------------------------------------------------------------ */
+
+export const templates = pgTable("templates", {
+  id: id(),
+  name: text().notNull(),
+  /** Preset it started from, for display. */
+  basedOn: text().notNull().default("classic"),
+  tokens: jsonb().$type<Record<string, unknown>>().notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})

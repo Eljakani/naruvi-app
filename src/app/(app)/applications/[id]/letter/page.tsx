@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import { listTemplates } from "@/server/templates/service"
 import { Suspense } from "react"
 import { connection } from "next/server"
 import { LetterWorkspace } from "@/components/applications/letter-workspace"
@@ -37,6 +38,7 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
       jobId={application.job.id}
       research={(application.job.company?.research ?? null) as unknown as Research | null}
       workspace={workspace}
+      savedTemplates={(await listTemplates()).map((template) => ({ id: template.id, name: template.name, tokens: template.tokens }))}
     />
   )
 }

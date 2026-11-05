@@ -6,7 +6,7 @@ import { renderCvPdf } from "@/server/documents/render"
 export async function GET(request: Request) {
   if (process.env.NODE_ENV === "production") notFound()
   const params = new URL(request.url).searchParams
-  const template = (params.get("template") ?? "classic") as "classic" | "modern" | "serif"
+  const template = params.get("template") ?? "classic"
   const language = params.get("lang") ?? "en"
   const doc = cvDocument.parse({
     version: 1,

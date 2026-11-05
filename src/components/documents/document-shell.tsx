@@ -49,6 +49,9 @@ export function RegenerateButton({ label = "Regenerate", steps, variant = "outli
   )
 }
 
+/** Last open tab per document, kept across remounts in this browser session. */
+const lastTab = new Map<string, string>()
+
 /** Shared layout for the CV and cover-letter pages. */
 export function DocumentShell({
   applicationId,
@@ -87,7 +90,13 @@ export function DocumentShell({
   design: React.ReactNode
   versions: React.ReactNode
 }) {
-  const [tab, setTab] = useState("content")
+  // Saving a design or edit creates a new version and remounts this shell; keep the tab the user was on.
+  const tabKey = `${applicationId}:${kind}`
+  const [tab, setTabState] = useState(() => lastTab.get(tabKey) ?? "content")
+  const setTab = (value: string) => {
+    lastTab.set(tabKey, value)
+    setTabState(value)
+  }
   const issues = quality.checks.filter((check) => check.status !== "pass").length
 
   useEffect(() => {

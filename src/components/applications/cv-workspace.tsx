@@ -6,7 +6,7 @@ import { useCallback, useState, useTransition } from "react"
 import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, ChevronRightIcon, ExternalLinkIcon, FileTextIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 import { generateCvAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
-import { DesignPicker } from "@/components/applications/design-picker"
+import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/applications/design-picker"
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import { AI_STEPS } from "@/components/ai-progress"
 import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
@@ -33,7 +33,7 @@ function GenerateForm({ applicationId, language, label }: { applicationId: strin
   )
 }
 
-export function CvWorkspace({ applicationId, jobTitle, company, language, workspace }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Awaited<ReturnType<typeof getCvWorkspace>> }) {
+export function CvWorkspace({ applicationId, jobTitle, company, language, workspace, savedTemplates = [] }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Awaited<ReturnType<typeof getCvWorkspace>>; savedTemplates?: SavedDesign[] }) {
   if (!workspace?.current) {
     return (
       <div className="mx-auto grid w-full max-w-2xl gap-4 pt-6">
@@ -59,10 +59,10 @@ export function CvWorkspace({ applicationId, jobTitle, company, language, worksp
       </div>
     )
   }
-  return <Editor applicationId={applicationId} jobTitle={jobTitle} company={company} language={language} workspace={workspace} />
+  return <Editor applicationId={applicationId} jobTitle={jobTitle} company={company} language={language} workspace={workspace} savedTemplates={savedTemplates} />
 }
 
-function Editor({ applicationId, jobTitle, company, language, workspace }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Workspace }) {
+function Editor({ applicationId, jobTitle, company, language, workspace, savedTemplates }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Workspace; savedTemplates: SavedDesign[] }) {
   const router = useRouter()
   const current = workspace.current!
   const [draft, setDraft] = useState<CvDocument>(current.content)
@@ -96,9 +96,13 @@ function Editor({ applicationId, jobTitle, company, language, workspace }: { app
       router.refresh()
     })
 
-  const applyDesign = (change: { template?: "classic" | "modern" | "serif"; accent?: string; showPhoto?: boolean }) => {
+  const applyDesign = (change: DesignChange) => {
     const next = structuredClone(draft)
-    if (change.template) next.template = change.template
+    if (change.template) next.template = change.template as typeof next.template
+    if (change.design === null) delete next.design
+    else if (change.design) next.design = change.design
+    if (change.templateRef === null) delete next.templateRef
+    else if (change.templateRef) next.templateRef = change.templateRef
     if (change.accent) next.accent = change.accent
     if (change.showPhoto !== undefined) next.header.showPhoto = change.showPhoto
     setDraft(next)
@@ -121,7 +125,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace }: { app
       pending={pending}
       onSave={() => persist(draft, "Saved")}
       onDiscard={() => setDraft(current.content)}
-      design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} onChange={applyDesign} photo={{ available: Boolean(draft.header.photoPath), shown: draft.header.showPhoto }} disabled={pending} />}
+      design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} design={draft.design} templateRef={draft.templateRef} saved={savedTemplates} onChange={applyDesign} photo={{ available: Boolean(draft.header.photoPath), shown: draft.header.showPhoto }} disabled={pending} />}
       versions={<VersionsPanel revisions={workspace.history} currentId={current.id} pending={pending} onRestore={restore} />}
       content={<div className="grid gap-5">
         <AiReviewPanel assistance={draft.aiAssistance} pending={pending}

@@ -1,0 +1,13 @@
+import { renderTemplatePreview } from "@/server/templates/service"
+
+/** Renders a design (tokens in the body) with the person's latest CV, or the sample. */
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== "object") return new Response("Bad request", { status: 400 })
+  try {
+    const { buffer, pages } = await renderTemplatePreview((body as { tokens?: unknown }).tokens ?? {}, Boolean((body as { sample?: boolean }).sample))
+    return new Response(new Uint8Array(buffer), { headers: { "content-type": "application/pdf", "cache-control": "no-store", "x-pages": String(pages) } })
+  } catch {
+    return new Response("Invalid design", { status: 422 })
+  }
+}

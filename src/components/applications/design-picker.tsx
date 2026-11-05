@@ -1,85 +1,76 @@
 "use client"
 
-import { CheckIcon } from "lucide-react"
+import Link from "next/link"
+import { CheckIcon, PaletteIcon } from "lucide-react"
+import { PdfThumb } from "@/components/templates/pdf-thumb"
+import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { PRESETS, presetTokens, type DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
 
-const TEMPLATES = [
-  { id: "classic", name: "Classic", hint: "Neutral sans, uppercase headings", sample: "font-sans" },
-  { id: "modern", name: "Modern", hint: "Inter, accent color", sample: "font-sans" },
-  { id: "serif", name: "Serif", hint: "Traditional (law, academia, finance)", sample: "font-serif" },
-] as const
+const ACCENTS = ["#2563eb", "#0f766e", "#4338ca", "#7c3aed", "#be123c", "#c2410c", "#1e3a5f", "#111827"]
 
-const ACCENTS = ["#2563eb", "#0f766e", "#7c3aed", "#be123c", "#c2410c", "#111827"]
+export type DesignChange = { template?: string; design?: DesignTokens | null; templateRef?: string | null; accent?: string; showPhoto?: boolean }
+export type SavedDesign = { id: string; name: string; tokens: DesignTokens }
 
-/** Template, accent and photo choices. Every option is single-column and ATS-safe. */
+/** Pick a design (built-in or your own), its accent colour and the photo. Thumbnails show your own CV. */
 export function DesignPicker({
   template,
   accent,
+  design,
+  templateRef,
+  saved = [],
   onChange,
   photo,
   disabled,
 }: {
   template: string
   accent: string
-  onChange: (value: { template?: "classic" | "modern" | "serif"; accent?: string; showPhoto?: boolean }) => void
+  design?: DesignTokens
+  templateRef?: string
+  saved?: SavedDesign[]
+  onChange: (value: DesignChange) => void
   photo?: { available: boolean; shown: boolean }
   disabled?: boolean
 }) {
+  const current = design ?? { ...presetTokens(template), accent }
+  const customizeHref = templateRef ? `/templates/${templateRef}` : `/templates/new?from=${PRESETS[template] ? template : "classic"}`
+  const options = [
+    ...saved.map((item) => ({ key: item.id, name: item.name, tokens: item.tokens, active: templateRef === item.id, pick: () => onChange({ template: "custom", design: item.tokens, templateRef: item.id, accent: item.tokens.accent }) })),
+    ...Object.entries(PRESETS).map(([id, preset]) => ({ key: id, name: preset.name, tokens: { ...preset.tokens, accent: design ? preset.tokens.accent : accent }, active: !templateRef && !design && template === id, pick: () => onChange({ template: id, design: null, templateRef: null }) })),
+  ]
   return (
-    <div className="grid gap-3">
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Template">
-        {TEMPLATES.map((item) => {
-          const active = item.id === template
-          return (
-            <button
-              key={item.id}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              disabled={disabled}
-              onClick={() => onChange({ template: item.id })}
-              className={cn("grid gap-1.5 rounded-lg border p-2 text-left transition-colors hover:border-foreground/30 disabled:opacity-60", active && "border-foreground ring-1 ring-foreground")}
-            >
-              {/* Miniature of the template's first lines */}
-              <span className="grid gap-1 rounded bg-white p-1.5 shadow-xs ring-1 ring-border">
-                <span className={cn("h-1.5 w-2/3 rounded-sm", item.id === "modern" ? "" : "bg-zinc-800")} style={item.id === "modern" ? { backgroundColor: accent } : undefined} />
-                <span className="flex items-center gap-1">
-                  {item.id === "modern" ? <span className="h-1.5 w-0.5 rounded-sm" style={{ backgroundColor: accent }} /> : null}
-                  <span className={cn("h-1 w-1/3 rounded-sm", item.id === "modern" ? "" : "bg-zinc-500")} style={item.id === "modern" ? { backgroundColor: accent } : undefined} />
-                </span>
-                {item.id !== "modern" ? <span className="h-px w-full bg-zinc-300" /> : null}
-                <span className="h-0.5 w-full rounded-sm bg-zinc-300" />
-                <span className="h-0.5 w-5/6 rounded-sm bg-zinc-300" />
-              </span>
-              <span className="flex items-center justify-between text-xs font-medium">
-                <span className={item.sample}>{item.name}</span>
-                {active ? <CheckIcon className="size-3.5" /> : null}
-              </span>
-              <span className="text-[10.5px] leading-tight text-muted-foreground">{item.hint}</span>
-            </button>
-          )
-        })}
+    <div className="grid gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Design">
+        {options.map((option) => (
+          <button key={option.key} type="button" role="radio" aria-checked={option.active} disabled={disabled} onClick={option.pick} className="group grid gap-1.5 text-left disabled:opacity-60">
+            <PdfThumb tokens={option.tokens} className={cn("transition-shadow", option.active ? "ring-2 ring-foreground" : "group-hover:shadow-md")} />
+            <span className="flex items-center justify-between gap-1 text-xs font-medium">
+              <span className="truncate">{option.name}</span>
+              {option.active ? <CheckIcon className="size-3.5 shrink-0" /> : null}
+            </span>
+          </button>
+        ))}
       </div>
-      {template === "modern" ? (
-        <div className="flex items-center gap-2" role="radiogroup" aria-label="Accent color">
-          <span className="text-xs text-muted-foreground">Accent</span>
-          {ACCENTS.map((color) => (
-            <button
-              key={color}
-              type="button"
-              role="radio"
-              aria-checked={accent === color}
-              aria-label={`Accent ${color}`}
-              disabled={disabled}
-              onClick={() => onChange({ accent: color })}
-              className={cn("size-5 rounded-full ring-offset-2 ring-offset-background transition-shadow", accent === color && "ring-2 ring-foreground")}
-              style={{ backgroundColor: color }}
-            />
-          ))}
-        </div>
-      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Accent colour">
+        <span className="text-xs text-muted-foreground">Accent</span>
+        {ACCENTS.map((color) => (
+          <button
+            key={color}
+            type="button"
+            role="radio"
+            aria-checked={current.accent === color}
+            aria-label={`Accent ${color}`}
+            disabled={disabled}
+            onClick={() => onChange(design ? { design: { ...design, accent: color }, accent: color } : { accent: color })}
+            className={cn("size-5 rounded-full ring-offset-2 ring-offset-background transition-shadow", current.accent === color && "ring-2 ring-foreground")}
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </div>
+
       {photo ? (
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="show-photo" className="text-xs font-normal">
@@ -89,6 +80,10 @@ export function DesignPicker({
           <Switch id="show-photo" size="sm" checked={photo.shown} disabled={disabled || !photo.available} onCheckedChange={(value) => onChange({ showPhoto: value })} />
         </div>
       ) : null}
+
+      <Button variant="outline" size="sm" className="w-fit" nativeButton={false} render={<Link href={customizeHref} />}>
+        <PaletteIcon /> Customise fonts, colours and layout
+      </Button>
     </div>
   )
 }

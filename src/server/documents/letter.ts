@@ -12,6 +12,7 @@
 import { z } from "zod"
 import { aiAssistance, aiReviewCheck } from "./ai-metadata"
 import { templateIds } from "./model"
+import { designTokens } from "@/lib/design"
 import type { ComposeAnalysis, ComposeEntry, ComposeProfile } from "./compose"
 
 export const letterParagraph = z.object({
@@ -40,7 +41,9 @@ export const letterDocument = z.object({
   version: z.literal(1),
   kind: z.literal("cover_letter"),
   language: z.string().regex(/^[a-z]{2}$/),
-  template: z.enum(templateIds).default("classic"),
+  template: z.enum(templateIds).catch("classic").default("classic"),
+  design: designTokens.optional(),
+  templateRef: z.string().uuid().optional(),
   accent: z.string().regex(/^#[0-9a-f]{6}$/i).default("#2563eb"),
   header: z.object({
     name: z.string(),

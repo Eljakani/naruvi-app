@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { downloadFontsAction, saveDocumentDefaultsAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
 import { DecisionSettings } from "./decision-settings"
 import { ModelSettings } from "./model-settings"
-import { DesignPicker } from "@/components/applications/design-picker"
+import { DesignPicker, type SavedDesign } from "@/components/applications/design-picker"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,7 +27,7 @@ const LANGS = [
 
 const FONT_NAMES: Record<string, string> = { SC: "Chinese (Simplified)", JP: "Japanese", KR: "Korean" }
 
-export function SettingsView({ overview, defaults: initialDefaults }: { overview: Overview; defaults: DocumentDefaults }) {
+export function SettingsView({ overview, defaults: initialDefaults, savedTemplates = [] }: { overview: Overview; defaults: DocumentDefaults; savedTemplates?: SavedDesign[] }) {
   const [defaults, setDefaults] = useState(initialDefaults)
   const [language, setLanguage] = useState(overview.defaultLanguage)
   const [pending, startTransition] = useTransition()
@@ -93,7 +93,24 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
                 <FieldDescription>Used the first time a CV or letter is generated.</FieldDescription>
               </FieldContent>
               <div className="max-w-2xl">
-                <DesignPicker template={defaults.template} accent={defaults.accent} onChange={(change) => saveDefaults({ ...defaults, ...change })} disabled={pending} />
+                <DesignPicker
+                  template={defaults.template}
+                  accent={defaults.accent}
+                  design={defaults.design}
+                  templateRef={defaults.templateRef}
+                  saved={savedTemplates}
+                  onChange={(change) => {
+                    const next: DocumentDefaults = { ...defaults }
+                    if (change.template) next.template = change.template as DocumentDefaults["template"]
+                    if (change.design === null) delete next.design
+                    else if (change.design) next.design = change.design
+                    if (change.templateRef === null) delete next.templateRef
+                    else if (change.templateRef) next.templateRef = change.templateRef
+                    if (change.accent) next.accent = change.accent
+                    saveDefaults(next)
+                  }}
+                  disabled={pending}
+                />
               </div>
             </Field>
             <FieldSeparator />

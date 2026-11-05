@@ -7,7 +7,7 @@ import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, LightbulbIcon, MailIcon, Pen
 import { toast } from "sonner"
 import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { CompanyResearch } from "@/components/applications/company-research"
-import { DesignPicker } from "@/components/applications/design-picker"
+import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/applications/design-picker"
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import type { CompanyResearch as Research } from "@/server/research/brief"
 import { AI_STEPS } from "@/components/ai-progress"
@@ -54,6 +54,7 @@ export function LetterWorkspace({
   workspace,
   jobId,
   research,
+  savedTemplates = [],
 }: {
   applicationId: string
   jobTitle: string
@@ -63,6 +64,7 @@ export function LetterWorkspace({
   workspace: Awaited<ReturnType<typeof getLetterWorkspace>>
   jobId: string
   research: Research | null
+  savedTemplates?: SavedDesign[]
 }) {
   if (!workspace?.current) {
     return (
@@ -91,10 +93,10 @@ export function LetterWorkspace({
       </div>
     )
   }
-  return <Editor applicationId={applicationId} jobTitle={jobTitle} company={company} language={language} workspace={workspace} jobId={jobId} research={research} />
+  return <Editor applicationId={applicationId} jobTitle={jobTitle} company={company} language={language} workspace={workspace} jobId={jobId} research={research} savedTemplates={savedTemplates} />
 }
 
-function Editor({ applicationId, jobTitle, company, language, workspace, jobId, research }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Workspace; jobId: string; research: Research | null }) {
+function Editor({ applicationId, jobTitle, company, language, workspace, jobId, research, savedTemplates }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Workspace; jobId: string; research: Research | null; savedTemplates: SavedDesign[] }) {
   const router = useRouter()
   const current = workspace.current!
   const [draft, setDraft] = useState<LetterDocument>(current.content)
@@ -129,9 +131,13 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
       router.refresh()
     })
 
-  const applyDesign = (change: { template?: "classic" | "modern" | "serif"; accent?: string }) => {
+  const applyDesign = (change: DesignChange) => {
     const next = structuredClone(draft)
-    if (change.template) next.template = change.template
+    if (change.template) next.template = change.template as typeof next.template
+    if (change.design === null) delete next.design
+    else if (change.design) next.design = change.design
+    if (change.templateRef === null) delete next.templateRef
+    else if (change.templateRef) next.templateRef = change.templateRef
     if (change.accent) next.accent = change.accent
     setDraft(next)
     persist(next)
@@ -261,7 +267,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
       pending={pending}
       onSave={() => persist(draft, "Saved")}
       onDiscard={() => setDraft(current.content)}
-      design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} onChange={applyDesign} disabled={pending} />}
+      design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} design={draft.design} templateRef={draft.templateRef} saved={savedTemplates} onChange={applyDesign} disabled={pending} />}
       versions={<VersionsPanel revisions={workspace.history} currentId={current.id} pending={pending} onRestore={restore} />}
       content={content}
     />
