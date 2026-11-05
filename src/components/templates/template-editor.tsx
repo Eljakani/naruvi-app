@@ -545,6 +545,19 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
                   </AccordionContent>
                 </AccordionItem>
 
+                <AccordionItem value="summary">
+                  <AccordionTrigger>Summary paragraph</AccordionTrigger>
+                  <AccordionContent>
+                    <FieldGroup className="gap-4 pt-1">
+                      <Flash on={glow("summaryStyle")}><Field><FieldLabel>Style</FieldLabel><Choice label="Summary style" value={tokens.summaryStyle} onChange={(value) => set("summaryStyle", value)} options={[{ value: "plain", label: "Plain" }, { value: "italic", label: "Italic" }, { value: "bar", label: "Accent bar" }, { value: "box", label: "Tinted box" }]} /></Field></Flash>
+                      <Flash on={glow("summaryAlign")}><Field><FieldLabel>Alignment</FieldLabel><Choice label="Summary alignment" value={tokens.summaryAlign} onChange={(value) => set("summaryAlign", value)} options={[{ value: "auto", label: "Like the text" }, { value: "left", label: "Left" }, { value: "justify", label: "Justified" }, { value: "center", label: "Centred" }]} /></Field></Flash>
+                      <Flash on={glow("summarySize")}><Range label="Text size" value={tokens.summarySize} min={0.9} max={1.2} step={0.05} unit="×" onChange={(value) => set("summarySize", value)} /></Flash>
+                      <Flash on={glow("summaryLineHeight")}><Range label="Line spacing" value={tokens.summaryLineHeight} min={1.15} max={1.7} step={0.01} onChange={(value) => set("summaryLineHeight", value)} /></Flash>
+                      <Flash on={glow("summaryTitle")}><Toggle label="Show a “Profile” heading" hint="Uses the same style as the other section headings" checked={tokens.summaryTitle} onChange={(value) => set("summaryTitle", value)} /></Flash>
+                    </FieldGroup>
+                  </AccordionContent>
+                </AccordionItem>
+
                 <AccordionItem value="sections">
                   <AccordionTrigger>Spacing &amp; skills</AccordionTrigger>
                   <AccordionContent>

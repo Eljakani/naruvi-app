@@ -56,6 +56,12 @@ export const designTokens = z.object({
   linkStyle: z.enum(["url", "label"]).default("url"),
   accentLinks: z.boolean().default(false),
   contactIcons: z.boolean().default(false),
+  // Summary paragraph under the header
+  summaryStyle: z.enum(["plain", "italic", "bar", "box"]).default("plain"),
+  summarySize: z.number().min(0.9).max(1.2).default(1),
+  summaryAlign: z.enum(["auto", "left", "justify", "center"]).default("auto"),
+  summaryLineHeight: z.number().min(1.15).max(1.7).default(1.38),
+  summaryTitle: z.boolean().default(false),
   sectionIcons: z.boolean().default(false),
   // Sections
   headingSize: z.number().min(0.85).max(1.6).default(1.1),

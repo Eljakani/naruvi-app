@@ -67,7 +67,16 @@ function makeStyles(t: Tokens, fontFamily: string[], headingFamily: string[], rt
     headline: { fontSize: t.size + 1.4, color: MUTED, marginTop: 3, lineHeight: 1.2, textAlign: t.headerAlign === "center" ? "center" : align },
     contact: { flexDirection: t.contactLayout === "stacked" ? "column" : row, flexWrap: "wrap", marginTop: 5, fontSize: t.size - 1, color: MUTED, justifyContent: t.headerAlign === "center" ? "center" : "flex-start" },
     contactItem: t.headerAlign === "center" ? { marginHorizontal: 5 } : { marginRight: rtl ? 0 : 10, marginLeft: rtl ? 10 : 0 },
-    summary: { marginBottom: gap(4), color: t.ink, lineHeight: t.lineHeight + 0.05, textAlign: t.textAlign === "justify" && !rtl ? "justify" : align },
+    summary: {
+      marginBottom: gap(4),
+      color: t.ink,
+      fontSize: t.size * t.summarySize,
+      lineHeight: t.summaryLineHeight,
+      textAlign: (t.summaryAlign === "auto" ? (t.textAlign === "justify" ? "justify" : align) : t.summaryAlign === "justify" && rtl ? align : t.summaryAlign) as "left" | "right" | "center" | "justify",
+      ...(t.summaryStyle === "italic" ? { fontStyle: "italic" as const } : {}),
+      ...(t.summaryStyle === "bar" ? { borderLeftWidth: 2, borderLeftColor: t.accent, paddingLeft: 8 } : {}),
+      ...(t.summaryStyle === "box" ? { backgroundColor: tint(t.accent, 0.94), padding: 8, borderRadius: 3 } : {}),
+    },
     separator: { color: RULE, marginRight: rtl ? 0 : 10, marginLeft: rtl ? 10 : 0 },
     link: { color: t.accentLinks ? t.accent : MUTED, textDecoration: "none" },
     pageNumber: { position: "absolute", bottom: t.margin * 0.4, left: 0, right: 0, textAlign: "center", fontSize: t.size - 1.5, color: MUTED },
@@ -231,6 +240,7 @@ function Section({ section, logos, s, t, stacked = false }: { section: CvSection
 }
 
 const RTL_LANGUAGES = ["ar", "he", "fa", "ur"]
+const SUMMARY_TITLE: Record<string, string> = { en: "Profile", fr: "Profil", es: "Perfil", de: "Profil", it: "Profilo", pt: "Perfil", nl: "Profiel" }
 const SIDE_KINDS = new Set(["skills", "languages", "certification"])
 
 export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
@@ -288,7 +298,17 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
             </View>
           </View>
         </View>
-        {doc.header.summary.trim() ? <Text style={s.summary}>{doc.header.summary.trim()}</Text> : null}
+        {doc.header.summary.trim() ? (
+          <View wrap={false}>
+            {t.summaryTitle ? (
+              <View style={s.sectionHead}>
+                {t.headingStyle === "bar" ? <View style={s.bar} /> : null}
+                <Text style={s.sectionTitle}>{SUMMARY_TITLE[doc.language] ?? SUMMARY_TITLE.en}</Text>
+              </View>
+            ) : null}
+            <Text style={s.summary}>{doc.header.summary.trim()}</Text>
+          </View>
+        ) : null}
         {side.length ? (
           <View style={s.columns}>
             <View style={s.side}>

@@ -61,7 +61,7 @@ export async function deleteTemplate(id: string) {
 /** Built-in sample used when the person has not generated a CV yet. */
 const SAMPLE: CvDocument = cvDocument.parse({
   version: 1, language: "en",
-  header: { name: "Alex Morgan", headline: "Product designer — research, prototyping and design systems", email: "alex@example.org", phone: "+44 20 7946 0000", location: "London, UK", links: [{ label: "Portfolio", url: "https://example.org" }] },
+  header: { name: "Alex Morgan", headline: "Product designer — research, prototyping and design systems", summary: "Product designer who turns research into shipped interfaces: checkout, onboarding and design systems used by several product teams.", email: "alex@example.org", phone: "+44 20 7946 0000", location: "London, UK", links: [{ label: "Portfolio", url: "https://example.org" }] },
   sections: [
     { id: "experience", kind: "experience", title: "Experience", items: [
       { entryId: "a", title: "Senior Product Designer", organization: "Northwind", dates: "2022 – Present", location: "London", bullets: [
@@ -101,7 +101,13 @@ export async function renderTemplatePreview(tokens: unknown, sample = false) {
   const design = designTokens.parse(tokens)
   const { renderCvPdf } = await import("@/server/documents/render")
   const base = sample ? SAMPLE : await previewContent()
-  return renderCvPdf({ ...base, template: "custom", design, accent: design.accent })
+  // Show the summary styles even if this CV has no summary: profile text, else a sample.
+  let summary = base.header.summary
+  if (!summary.trim()) {
+    const [profile] = await db.select({ summaries: profiles.summaries }).from(profiles).limit(1)
+    summary = profile?.summaries?.[base.language] || Object.values(profile?.summaries ?? {})[0] || SAMPLE.header.summary
+  }
+  return renderCvPdf({ ...base, template: "custom", design, accent: design.accent, header: { ...base.header, summary } })
 }
 
 /** The design a new document will start with (Settings → default), for previews. */
