@@ -21,8 +21,39 @@ const SENTENCE_END = /[.!?…:;)"”’]$/
 const QUALIFICATIONS = /^(?:(?:minimum|preferred|required|basic|desired) )?qualifications$/i
 const SECTION_BOUNDARY = /^(?:description|summary|responsibilities|requirements|benefits|how to apply|about (?:us|the company)|equal opportunity(?: employer)?|compensation|additional information)$/i
 
+/**
+ * Some sources hand us a posting flattened into one line ("### Missions: Build
+ * … - Enhance … - Develop …"). Put headings, bullets and the sub-headings
+ * stuck to the end of a bullet back on their own lines. Only used when the
+ * text has almost no line breaks.
+ */
+export function unflatten(text: string): string {
+  const breaks = (text.match(/\n/g) ?? []).length
+  if (text.length < 400 || breaks > text.length / 350) return text
+  const lines = text
+    .replace(/\s+(#{1,6} )/g, "\n\n$1")
+    .replace(/^(#{1,6} [^:\n]{1,80}:)[ \t]+/gm, "$1\n")
+    .replace(/[ \t]+[-•*▪–][ \t]+(?=[A-ZÀ-Ý0-9"“(])/g, "\n- ")
+    // Emoji often start a new line in flattened postings ("📍 Based in…", "👀 Interested?").
+    .replace(/[ \t]+(?=\p{Extended_Pictographic})/gu, "\n")
+    .split("\n")
+  const out: string[] = []
+  for (const line of lines) {
+    // "- …implementation. Secure our applications and software supply chain" → bullet + sub-heading
+    const stuck = line.match(/^(- .*?[.!?])\s+([A-ZÀ-Ý][^.!?:]{3,80})$/)
+    if (stuck) out.push(stuck[1], "", stuck[2])
+    else {
+      // Paragraph text ending in a short title right before the first bullet.
+      const lead = line.match(/^([^-#].*?[.!?])\s+([A-ZÀ-Ý][^.!?:]{3,80})$/)
+      if (lead && !line.startsWith("- ")) out.push(lead[1], "", lead[2])
+      else out.push(line)
+    }
+  }
+  return out.join("\n")
+}
+
 export function normalizeText(raw: string): string {
-  return String(raw ?? "")
+  return unflatten(String(raw ?? ""))
     .replace(/\r\n?/g, "\n")
     .replace(/[   \t]/g, " ")
     .replace(/[​-‍﻿]/g, "")

@@ -10,7 +10,7 @@ export type RequirementKind = "must" | "nice" | "responsibility"
 export type Requirement = { id: string; text: string; kind: RequirementKind; section: string; keywords: string[]; terms?: string[]; years: number | null }
 
 const NICE = /nice to have|bonus|\bplus\b|preferred|desirable|ideally|un plus|appréci|souhait|optionnel|would be great/i
-const MUST = /require|qualification|looking for|what you bring|you (?:have|bring)|must|profil|expertise|compétences|skills|experience|about you|who you are|your background|ce que nous recherchons|vous (?:avez|êtes)|critical competencies/i
+const MUST = /require|qualification|looking for|what you bring|you (?:have|bring)|must|profil|expertise|compétences|skills|experience|about you|who you are|your background|ce que nous recherchons|vous (?:avez|êtes)|critical competencies|meet you if|ideal candidate|you are|you'll need|what we're looking for|nous recherchons|candidat idéal/i
 const RESPONSIBILITY = /you(?:'ll| will)|responsibilit|what you.?ll do|day[- ]to[- ]day|missions?|livrables|key tasks|the role|your role|in this role|tasks|vos missions|vous (?:serez|allez)|at .+ you will/i
 const SKIP = /benefit|offer|perks|avantages|salary|rémunération|diversity|inclusion|equal|about (?:us|the company)|à propos|who we are|process|interview|how to apply|location|our tech|why join|culture|life at/i
 

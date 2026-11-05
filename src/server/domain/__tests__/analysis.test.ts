@@ -146,3 +146,13 @@ test("named tools need a fact that names them", () => {
   assert.equal(matchRequirement(req("Power BI or Tableau a plus", "nice"), named).status, "met")
   assert.equal(matchRequirement(req("Experience building dashboards", "nice"), data).status, "met")
 })
+
+test("a posting flattened into one line still yields its requirements", async () => {
+  const { extractRequirementCandidates } = await import("../../analysis/requirements")
+  const flat = "We build security products for companies of every size and we are growing fast across Europe with a strong engineering culture and a lot of autonomy for every engineer on the team. ### Your missions: Build our foundations - Harden our Kubernetes clusters. - Secure our CI/CD pipelines. Grow our culture - Deliver security training. ### Your profile: 🤩 We are excited to meet you if: - You have 3+ years of security engineering experience. - You have experience implementing SAST and DAST. - You know Python well. 👀 Interested? Apply now."
+  const result = extractRequirementCandidates(flat)
+  const texts = result.requirements.map((r) => r.text)
+  assert.ok(texts.some((t) => /3\+ years of security engineering/.test(t)))
+  assert.ok(texts.some((t) => /SAST and DAST/.test(t)))
+  assert.ok(result.candidates.length >= 6)
+})
