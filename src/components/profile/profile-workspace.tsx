@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import {
   AlertTriangleIcon,
   BadgeCheckIcon,
-  LockIcon,
+  ExternalLinkIcon,
   MailIcon,
   MapPinIcon,
   PencilIcon,
@@ -113,34 +113,34 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
 
   return (
     <>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid items-start gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <CardContent className="flex items-start gap-4">
             <button
               type="button"
               onClick={() => setIdentityOpen(true)}
-              className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              aria-label="Edit photo"
+              className="group/photo relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              aria-label={profile?.photoPath ? "Change photo" : "Add a photo"}
             >
               {profile?.photoPath ? (
                 // eslint-disable-next-line @next/next/no-img-element -- local asset
                 <img src={`/api/assets/${profile.photoPath}`} alt="" className="size-full object-cover" />
               ) : (
-                <UserRoundIcon className="size-7 text-muted-foreground" />
+                <UserRoundIcon className="size-6 text-muted-foreground" />
               )}
+              <span className="absolute inset-0 grid place-items-center bg-black/40 text-white opacity-0 transition-opacity group-hover/photo:opacity-100 group-focus-visible/photo:opacity-100">
+                <PencilIcon className="size-4" />
+              </span>
             </button>
-            <div className="grid min-w-0 flex-1 gap-2">
+            <div className="grid min-w-0 flex-1 gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="truncate text-xl font-semibold tracking-tight">{profile?.fullName ?? "Your name"}</h2>
                   {profile?.headlines?.en || profile?.headlines?.fr ? (
-                    <p className="text-sm text-muted-foreground">
-                      {profile.headlines.en || profile.headlines.fr}
-                      {profile.headlines.en && profile.headlines.fr ? <span className="ml-2 text-xs text-muted-foreground/70">EN · FR</span> : null}
-                    </p>
+                    <p className="truncate text-sm text-muted-foreground">{profile.headlines.en || profile.headlines.fr}</p>
                   ) : (
-                    <button type="button" onClick={() => setIdentityOpen(true)} className="text-sm text-amber-600 hover:underline">
-                      + Add a headline (EN / FR)
+                    <button type="button" onClick={() => setIdentityOpen(true)} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+                      + Add a one-line headline
                     </button>
                   )}
                 </div>
@@ -148,36 +148,35 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
                   <PencilIcon /> Edit
                 </Button>
               </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                {profile?.email ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <MailIcon className="size-3.5" /> {profile.email}
-                  </span>
-                ) : null}
-                {profile?.phone ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <PhoneIcon className="size-3.5" /> {profile.phone}
-                  </span>
-                ) : null}
-                {profile?.location ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <MapPinIcon className="size-3.5" /> {profile.location}
-                  </span>
-                ) : null}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+                {(
+                  [
+                    [MailIcon, profile?.email, "email"],
+                    [PhoneIcon, profile?.phone, "phone"],
+                    [MapPinIcon, profile?.location, "city"],
+                  ] as const
+                ).map(([Icon, value, label]) =>
+                  value ? (
+                    <span key={label} className="inline-flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                      <Icon className="size-3.5 shrink-0" /> <span className="truncate">{value}</span>
+                    </span>
+                  ) : (
+                    <button key={label} type="button" onClick={() => setIdentityOpen(true)} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+                      <Icon className="size-3.5" /> + Add {label}
+                    </button>
+                  ),
+                )}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {profile?.links.map((link) => (
-                  <Badge key={link.url} variant="secondary" render={<a href={link.url} target="_blank" rel="noreferrer" />}>
-                    {link.label}
-                  </Badge>
-                ))}
-                {profile?.availability ? <Badge variant="outline">Available {profile.availability}</Badge> : null}
-                {profile?.locked.length ? (
-                  <Badge variant="outline" className="gap-1">
-                    <LockIcon className="size-3" /> Contact locked for generation
-                  </Badge>
-                ) : null}
-              </div>
+              {profile?.links.length || profile?.availability ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {profile?.links.map((link) => (
+                    <Button key={link.url} size="xs" variant="outline" nativeButton={false} render={<a href={link.url} target="_blank" rel="noreferrer" />}>
+                      {link.label} <ExternalLinkIcon />
+                    </Button>
+                  ))}
+                  {profile?.availability ? <Badge variant="secondary">Available {profile.availability}</Badge> : null}
+                </div>
+              ) : null}
             </div>
           </CardContent>
         </Card>
