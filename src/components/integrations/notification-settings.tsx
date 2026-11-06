@@ -67,12 +67,12 @@ export function NotificationSettings({ overview }: { overview: NotificationOverv
             <FieldGroup className="grid gap-3 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="ntfy-server">Server</FieldLabel>
-                <Input id="ntfy-server" value={server} onChange={(event) => setServer(event.target.value)} placeholder="https://ntfy.sh" />
+                <Input id="ntfy-server" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" value={server} onChange={(event) => setServer(event.target.value)} placeholder="https://ntfy.sh" />
               </Field>
               <Field>
                 <FieldLabel htmlFor="ntfy-topic">Topic</FieldLabel>
                 <div className="flex gap-2">
-                  <Input id="ntfy-topic" value={topic} onChange={(event) => setTopic(event.target.value)} placeholder="Created for you when you save" className="font-mono text-xs" />
+                  <Input id="ntfy-topic" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" value={topic} onChange={(event) => setTopic(event.target.value)} placeholder="Created for you when you save" className="font-mono text-xs" />
                   <Button type="button" variant="outline" onClick={() => setTopic(randomTopic())}>
                     New
                   </Button>
@@ -80,7 +80,7 @@ export function NotificationSettings({ overview }: { overview: NotificationOverv
               </Field>
               <Field className="sm:col-span-2">
                 <FieldLabel htmlFor="ntfy-token">Access token (optional)</FieldLabel>
-                <Input id="ntfy-token" type="password" autoComplete="off" value={token} onChange={(event) => setToken(event.target.value)} placeholder={overview.enabled && overview.hasToken ? "Leave empty to keep the saved token" : "Only for protected topics or your own server"} />
+                <Input id="ntfy-token" autoComplete="new-password" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" type="password" value={token} onChange={(event) => setToken(event.target.value)} placeholder={overview.enabled && overview.hasToken ? "Leave empty to keep the saved token" : "Only for protected topics or your own server"} />
                 <FieldDescription>Stored encrypted, like your other keys.</FieldDescription>
               </Field>
             </FieldGroup>

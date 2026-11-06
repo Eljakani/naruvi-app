@@ -14,6 +14,7 @@ import { ClearFilters, SearchBox, UrlSelect } from "@/components/list-toolbar"
 import { CONTRACT_LABEL, SENIORITY_LABEL, WORK_MODE_LABEL } from "@/lib/job-labels"
 import { STATUS_LABEL } from "@/lib/stages"
 import { cn } from "@/lib/utils"
+import { AddJobDialog } from "@/components/jobs/job-reader"
 import { JobLeads } from "@/components/jobs/job-leads"
 import { allTags } from "@/server/companies/repository"
 import { newLeads } from "@/server/jobs/leads"
@@ -32,9 +33,7 @@ export default function JobsPage({ searchParams }: PageProps<"/jobs">) {
         title="Jobs"
         description="Postings you're considering. Each one keeps its original text, unchanged."
         actions={
-          <Button nativeButton={false} render={<Link href="/jobs/new" />}>
-            <PlusIcon /> Add a job
-          </Button>
+          <AddJobDialog trigger={<Button><PlusIcon /> Add a job</Button>} />
         }
       />
       <Suspense fallback={<div className="grid gap-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>}>
@@ -78,9 +77,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
           <EmptyDescription>Paste a link from LinkedIn, Greenhouse, Lever, Ashby, Workday or any careers page.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button nativeButton={false} render={<Link href="/jobs/new" />}>
-            <PlusIcon /> Add your first job
-          </Button>
+          <AddJobDialog trigger={<Button><PlusIcon /> Add your first job</Button>} />
         </EmptyContent>
       </Empty>
     )

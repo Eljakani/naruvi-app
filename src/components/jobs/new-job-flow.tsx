@@ -3,31 +3,19 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
-import {
-  AlertTriangleIcon,
-  ArrowLeftIcon,
-  CheckCircle2Icon,
-  ClipboardPasteIcon,
-  CopyIcon,
-  ExternalLinkIcon,
-  GlobeIcon,
-  LinkIcon,
-  Loader2Icon,
-  SparklesIcon,
-} from "lucide-react"
+import { AlertTriangleIcon, ArrowLeftIcon, CheckCircle2Icon, CopyIcon, ExternalLinkIcon, GlobeIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
-import { previewJobAction, saveJobAction, type Duplicate } from "@/app/(app)/jobs/actions"
+import { saveJobAction, type Duplicate } from "@/app/(app)/jobs/actions"
+import { DRAFT_KEY, JobReader, type ReadResult } from "@/components/jobs/job-reader"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { STATUS_LABEL } from "@/lib/stages"
-import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
 import { JobDescription } from "@/components/jobs/job-description"
 import { LogoField } from "@/components/profile/editor/logo-field"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
@@ -35,7 +23,6 @@ import type { JobDraft } from "@/server/jobs/schema"
 
 type Draft = JobDraft & { runId?: string }
 
-const BOARDS = ["LinkedIn", "Greenhouse", "Lever", "Ashby", "SmartRecruiters", "Workday", "Welcome to the Jungle", "any careers page"]
 const SOURCE_LABEL: Record<string, string> = {
   link: "found in a link on the posting",
   email: "from the recruiter's e-mail domain",
@@ -53,26 +40,18 @@ function sourceLabel(source: string) {
   return `${SOURCE_LABEL[base] ?? base}${verified ? ", verified on the site" : ""}`
 }
 
-export function NewJobFlow({ initialUrl = "", initialText = "" }: { initialUrl?: string; initialText?: string } = {}) {
+export function NewJobFlow({ initialUrl = "", initialText = "", initial }: { initialUrl?: string; initialText?: string; initial?: ReadResult } = {}) {
   const router = useRouter()
-  // A page saved from the browser comes with its text: read that, keep the link as the source.
-  const [mode, setMode] = useState<"link" | "text">(initialText ? "text" : "link")
-  const [url, setUrl] = useState(initialUrl)
-  const [text, setText] = useState(initialText)
-  const [draft, setDraft] = useState<Draft | null>(null)
-  const [duplicates, setDuplicates] = useState<Duplicate[]>([])
-  const [reading, startReading] = useTransition()
-  const importStep = useStep(reading, AI_STEPS.importJob.length)
+  const [draft, setDraft] = useState<Draft | null>(initial?.draft ?? null)
+  const [duplicates, setDuplicates] = useState<Duplicate[]>(initial?.duplicates ?? [])
   const [saving, startSaving] = useTransition()
   const [descriptionView, setDescriptionView] = useState<"preview" | "edit">("preview")
 
-  const read = () =>
-    startReading(async () => {
-      const result = await previewJobAction(mode === "link" ? { url } : { text })
-      if (!result.ok) return void toast.error("Couldn't read that posting", { description: result.error })
-      setDraft(mode === "text" && initialUrl && !result.data.draft.sourceUrl ? { ...result.data.draft, sourceUrl: initialUrl, canonicalUrl: initialUrl } : result.data.draft)
-      setDuplicates(result.data.duplicates)
-    })
+  // A page saved from the browser comes with its text: read that, keep the link as the source.
+  const onRead = (result: ReadResult, source: { mode: "link" | "text" }) => {
+    setDraft(source.mode === "text" && initialUrl && !result.draft.sourceUrl ? { ...result.draft, sourceUrl: initialUrl, canonicalUrl: initialUrl } : result.draft)
+    setDuplicates(result.duplicates)
+  }
 
   const save = () =>
     startSaving(async () => {
@@ -80,11 +59,9 @@ export function NewJobFlow({ initialUrl = "", initialText = "" }: { initialUrl?:
       const result = await saveJobAction(draft)
       if (!result.ok) return void toast.error("Not saved", { description: result.error })
       // Next.js can keep this page mounted when navigating to the saved job.
+      sessionStorage.removeItem(DRAFT_KEY)
       setDraft(null)
       setDuplicates([])
-      setUrl("")
-      setText("")
-      setMode("link")
       setDescriptionView("preview")
       toast.success("Job saved")
       router.push(`/jobs/${result.data.id}`)
@@ -94,7 +71,7 @@ export function NewJobFlow({ initialUrl = "", initialText = "" }: { initialUrl?:
 
   if (!draft) {
     return (
-      <div className="mx-auto grid w-full max-w-2xl gap-4">
+      <div className="mx-auto grid w-full max-w-xl gap-3 pt-[8vh]">
         <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href="/jobs" />}>
           <ArrowLeftIcon /> Jobs
         </Button>
@@ -104,54 +81,12 @@ export function NewJobFlow({ initialUrl = "", initialText = "" }: { initialUrl?:
             <CardDescription>
               {initialText && initialUrl
                 ? `Saved from your browser · ${new URL(initialUrl).hostname.replace(/^www\./, "")}. Read the text, check the details, then save.`
-                : "Paste the link to the posting. Naruvi reads it, finds the real company website and logo, and lets you check everything before saving."}
+                : "Paste the link to the posting. Naruvi reads it, finds the company’s own website and logo, and lets you check everything before saving."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={mode} onValueChange={(value) => setMode(value as "link" | "text")}>
-              <TabsList>
-                <TabsTrigger value="link">
-                  <LinkIcon /> Link
-                </TabsTrigger>
-                <TabsTrigger value="text">
-                  <ClipboardPasteIcon /> Paste text
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="link" className="grid gap-3 pt-3">
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    read()
-                  }}
-                  className="flex gap-2"
-                >
-                  <Input autoFocus value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://jobs.lever.co/acme/…" aria-label="Job link" className="h-10" />
-                  <Button type="submit" size="lg" disabled={reading || !url.trim()}>
-                    {reading ? <Loader2Icon className="animate-spin" /> : <SparklesIcon />} Read
-                  </Button>
-                </form>
-                <div className="flex flex-wrap gap-1.5">
-                  {BOARDS.map((board) => (
-                    <Badge key={board} variant="secondary" className="font-normal">
-                      {board}
-                    </Badge>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">If the site needs a login (LinkedIn sometimes does), use “Paste text” instead.</p>
-              </TabsContent>
-              <TabsContent value="text" className="grid gap-3 pt-3">
-                <Textarea value={text} onChange={(event) => setText(event.target.value)} rows={10} placeholder="Paste the full job description, including the company name and role." aria-label="Job description" />
-                <Button className="w-fit" onClick={read} disabled={reading || text.trim().length < 80}>
-                  {reading ? <Loader2Icon className="animate-spin" /> : <SparklesIcon />} Read text
-                </Button>
-              </TabsContent>
-            </Tabs>
+            <JobReader onDone={onRead} initialUrl={initialUrl} initialText={initialText} />
           </CardContent>
-          {reading ? (
-            <CardFooter className="grid gap-2 border-t">
-              <AiSteps steps={AI_STEPS.importJob} step={importStep} />
-            </CardFooter>
-          ) : null}
         </Card>
       </div>
     )
@@ -161,7 +96,15 @@ export function NewJobFlow({ initialUrl = "", initialText = "" }: { initialUrl?:
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => setDraft(null)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            sessionStorage.removeItem(DRAFT_KEY)
+            setDraft(null)
+            if (initial) router.replace("/jobs/new")
+          }}
+        >
           <ArrowLeftIcon /> Start over
         </Button>
         <div className="flex-1" />

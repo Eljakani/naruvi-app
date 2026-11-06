@@ -163,6 +163,7 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
           <span className="h-px flex-1 bg-border" /> or with an app password <span className="h-px flex-1 bg-border" />
         </div>
         <form
+          autoComplete="off"
           className="grid gap-5"
           onSubmit={(event) => {
             event.preventDefault()
@@ -172,16 +173,16 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
           <FieldGroup className="grid gap-4 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="mail-email">Email address</FieldLabel>
-              <Input id="mail-email" type="email" autoComplete="email" required value={form.email} onChange={(event) => onEmail(event.target.value)} placeholder="you@example.com" />
+              <Input id="mail-email" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" type="email" required value={form.email} onChange={(event) => onEmail(event.target.value)} placeholder="you@example.com" />
               {form.email.includes("@") ? <FieldDescription>{provider.name}</FieldDescription> : null}
             </Field>
             <Field>
               <FieldLabel htmlFor="mail-name">Your name (for sending)</FieldLabel>
-              <Input id="mail-name" value={form.displayName} onChange={(event) => set("displayName", event.target.value)} placeholder="Alex Morgan" />
+              <Input id="mail-name" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" value={form.displayName} onChange={(event) => set("displayName", event.target.value)} placeholder="Alex Morgan" />
             </Field>
             <Field className="sm:col-span-2">
               <FieldLabel htmlFor="mail-password">App password</FieldLabel>
-              <Input id="mail-password" type="password" autoComplete="off" value={form.password} onChange={(event) => set("password", event.target.value)} placeholder={overview.connected ? "Leave empty to keep the saved password" : "Paste the app password"} />
+              <Input id="mail-password" autoComplete="new-password" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" type="password" value={form.password} onChange={(event) => set("password", event.target.value)} placeholder={overview.connected ? "Leave empty to keep the saved password" : "Paste the app password"} />
               <FieldDescription>{provider.help}</FieldDescription>
             </Field>
           </FieldGroup>
@@ -194,7 +195,7 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
               <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
                 <Field className="sm:col-span-2">
                   <FieldLabel htmlFor="mail-user">Username</FieldLabel>
-                  <Input id="mail-user" value={form.username} onChange={(event) => set("username", event.target.value)} placeholder="Usually your email address" />
+                  <Input id="mail-user" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" value={form.username} onChange={(event) => set("username", event.target.value)} placeholder="Usually your email address" />
                 </Field>
                 <ServerFields label="Incoming (IMAP)" prefix="imap" host={form.imapHost} port={form.imapPort} secure={form.imapSecure} onHost={(value) => set("imapHost", value)} onPort={(value) => set("imapPort", value)} onSecure={(value) => set("imapSecure", value)} />
                 <ServerFields label="Outgoing (SMTP)" prefix="smtp" host={form.smtpHost} port={form.smtpPort} secure={form.smtpSecure} onHost={(value) => set("smtpHost", value)} onPort={(value) => set("smtpPort", value)} onSecure={(value) => set("smtpSecure", value)} />
@@ -243,7 +244,7 @@ function ServerFields({ label, prefix, host, port, secure, onHost, onPort, onSec
       <div className="grid grid-cols-[1fr_6rem] gap-2">
         <Field>
           <FieldLabel htmlFor={`${prefix}-host`} className="text-xs">Server</FieldLabel>
-          <Input id={`${prefix}-host`} value={host} onChange={(event) => onHost(event.target.value.trim())} placeholder={`${prefix}.example.com`} />
+          <Input autoComplete="off" data-1p-ignore data-lpignore="true" data-form-type="other" id={`${prefix}-host`} value={host} onChange={(event) => onHost(event.target.value.trim())} placeholder={`${prefix}.example.com`} />
         </Field>
         <Field>
           <FieldLabel htmlFor={`${prefix}-port`} className="text-xs">Port</FieldLabel>

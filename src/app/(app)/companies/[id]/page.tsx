@@ -4,6 +4,7 @@ import { Suspense } from "react"
 import { connection } from "next/server"
 import { ArrowLeftIcon, CalendarClockIcon, ExternalLinkIcon, PlusIcon } from "lucide-react"
 import { FitRing } from "@/components/applications/fit-ring"
+import { AddJobDialog } from "@/components/jobs/job-reader"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -57,9 +58,7 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
             ) : null}
           </p>
         </div>
-        <Button variant="outline" nativeButton={false} render={<Link href="/jobs/new" />}>
-          <PlusIcon /> Add a job
-        </Button>
+        <AddJobDialog trigger={<Button variant="outline"><PlusIcon /> Add a job</Button>} />
       </div>
 
       {sent.length ? (

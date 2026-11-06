@@ -70,16 +70,16 @@ function SetupDialog({ provider, current, origin, onClose }: { provider: OAuthPr
           </Field>
           <Field>
             <FieldLabel htmlFor="oauth-id">Client ID</FieldLabel>
-            <Input id="oauth-id" value={clientId} onChange={(event) => setClientId(event.target.value)} autoComplete="off" />
+            <Input id="oauth-id" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" value={clientId} onChange={(event) => setClientId(event.target.value)} />
           </Field>
           <Field>
             <FieldLabel htmlFor="oauth-secret">Client secret</FieldLabel>
-            <Input id="oauth-secret" type="password" value={clientSecret} onChange={(event) => setClientSecret(event.target.value)} autoComplete="off" placeholder={current.configured ? "Leave empty to keep the saved secret" : ""} />
+            <Input id="oauth-secret" autoComplete="new-password" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" type="password" value={clientSecret} onChange={(event) => setClientSecret(event.target.value)} placeholder={current.configured ? "Leave empty to keep the saved secret" : ""} />
           </Field>
           {provider === "microsoft" ? (
             <Field>
               <FieldLabel htmlFor="oauth-tenant">Tenant</FieldLabel>
-              <Input id="oauth-tenant" value={tenant} onChange={(event) => setTenant(event.target.value)} />
+              <Input id="oauth-tenant" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" value={tenant} onChange={(event) => setTenant(event.target.value)} />
               <FieldDescription>common for most people; consumers for personal accounts only, or your organization’s tenant ID.</FieldDescription>
             </Field>
           ) : null}

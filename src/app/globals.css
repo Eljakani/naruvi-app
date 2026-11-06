@@ -209,6 +209,9 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
 
 /* Status icon pops in (scale from 0.6 + fade, never from 0). */
 .cb-pop { animation: cb-pop 260ms var(--ease-out) both; }
+/* A read line moving down a page sketch while a posting is read. */
+@keyframes cb-scan { from { transform: translateY(-2.5rem); } to { transform: translateY(14rem); } }
+.cb-scan { animation: cb-scan 1.8s var(--ease-in-out) infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -218,6 +221,7 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
   [data-slot="button"]:active { transform: none !important; }
   .cb-working-bar > div { animation: none; width: 100%; opacity: 0.5; }
   .cb-shimmer { animation: none; color: var(--foreground); background: none; }
+  .cb-scan { animation: none; opacity: 0; }
   .cb-breathe { animation: none; }
   .cb-step { animation-name: cb-fade-in; }
   .cb-pop { animation-name: cb-fade-in; }
