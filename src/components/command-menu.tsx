@@ -13,6 +13,7 @@ const PAGES: { label: string; href: string; icon: LucideIcon; keywords?: string 
   { label: "Applications", href: "/applications", icon: FileTextIcon, keywords: "board pipeline" },
   { label: "Archived applications", href: "/applications?show=archived", icon: FileTextIcon },
   { label: "Jobs", href: "/jobs", icon: BriefcaseBusinessIcon, keywords: "postings" },
+  { label: "Companies", href: "/companies", icon: Building2Icon, keywords: "employers" },
   { label: "Profile", href: "/profile", icon: UserIcon, keywords: "experience facts" },
   { label: "Templates", href: "/templates", icon: LayoutTemplateIcon, keywords: "design themes" },
   { label: "Runs", href: "/runs", icon: ActivityIcon, keywords: "traces ai" },
@@ -96,7 +97,7 @@ export function CommandMenu() {
             {companies.length ? (
               <CommandGroup heading="Companies">
                 {companies.map((company) => (
-                  <CommandItem key={company.id} value={`company-${company.id}`} onSelect={() => go(company.jobId ? `/jobs/${company.jobId}` : `/jobs?q=${encodeURIComponent(company.name)}`)}>
+                  <CommandItem key={company.id} value={`company-${company.id}`} onSelect={() => go(`/companies/${company.id}`)}>
                     <Building2Icon />
                     {company.name}
                   </CommandItem>

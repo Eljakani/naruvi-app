@@ -228,6 +228,8 @@ export const jobs = pgTable(
     parseWarnings: text().array().notNull().default(sql`'{}'::text[]`),
     /** Structured enrichment computed at import (see src/server/jobs/enrich.ts). */
     insights: jsonb().$type<Record<string, unknown>>(),
+    /** The person's own labels ("Paris cloud", "Plan B") to keep parallel searches apart. */
+    tags: text().array().notNull().default(sql`'{}'::text[]`),
     /**
      * Search over title, location and the posting. The "simple" configuration
      * has no language rules, so every language is searchable the same way.
@@ -235,7 +237,7 @@ export const jobs = pgTable(
     search: tsvector().generatedAlwaysAs(sql`setweight(to_tsvector('simple', coalesce(title, '')), 'A') || setweight(to_tsvector('simple', coalesce(location, '')), 'B') || to_tsvector('simple', coalesce(raw_text, ''))`),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex().on(t.canonicalUrl), index().on(t.companyId), index().using("gin", t.search), index().on(t.createdAt)],
+  (t) => [uniqueIndex().on(t.canonicalUrl), index().on(t.companyId), index().using("gin", t.search), index().on(t.createdAt), index().using("gin", t.tags)],
 )
 
 /* ------------------------------------------------------------------ */

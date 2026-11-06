@@ -14,13 +14,14 @@ import { ClearFilters, SearchBox, UrlSelect } from "@/components/list-toolbar"
 import { CONTRACT_LABEL, SENIORITY_LABEL, WORK_MODE_LABEL } from "@/lib/job-labels"
 import { STATUS_LABEL } from "@/lib/stages"
 import { cn } from "@/lib/utils"
+import { allTags } from "@/server/companies/repository"
 import { JOB_SORTS, JOB_STAGES, jobFacets, searchJobs } from "@/server/jobs/search"
 
 export const metadata = { title: "Jobs" }
 
 type Search = Promise<Record<string, string | string[] | undefined>>
 const one = (value: string | string[] | undefined) => (typeof value === "string" ? value : undefined)
-const FILTERS = ["q", "workMode", "contract", "seniority", "stage", "sort"]
+const FILTERS = ["q", "tag", "workMode", "contract", "seniority", "stage", "sort"]
 
 export default function JobsPage({ searchParams }: PageProps<"/jobs">) {
   return (
@@ -61,7 +62,9 @@ async function JobList({ searchParams }: { searchParams: Search }) {
     sort: pick(one(params.sort), JOB_SORTS),
     page: Number(one(params.page)) || 1,
   }
-  const [result, facets] = await Promise.all([searchJobs(filter), jobFacets()])
+  const tags = await allTags()
+  const tag = one(params.tag)
+  const [result, facets] = await Promise.all([searchJobs({ ...filter, tag: tag && tags.some((item) => item.tag === tag) ? tag : undefined }), jobFacets()])
   if (!facets.total) {
     return (
       <Empty className="border">
@@ -80,7 +83,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
       </Empty>
     )
   }
-  const filtered = Boolean(filter.q || filter.workMode || filter.contract || filter.seniority || filter.stage)
+  const filtered = Boolean(filter.q || tag || filter.workMode || filter.contract || filter.seniority || filter.stage)
   const pageHref = (page: number) => {
     const query = new URLSearchParams(Object.entries(params).filter(([key, value]) => key !== "page" && typeof value === "string") as [string, string][])
     if (page > 1) query.set("page", String(page))
@@ -91,6 +94,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <SearchBox placeholder="Search title, company, location, text…" />
+        {tags.length ? <UrlSelect name="tag" label="Tag" options={[{ value: "all", label: "Any tag" }, ...tags.map((item) => ({ value: item.tag, label: `${item.tag} (${item.count})` }))]} /> : null}
         <UrlSelect name="stage" label="Stage" options={Object.entries(JOB_STAGES).map(([value, label]) => ({ value, label }))} className="w-44" />
         {facets.workMode.size ? <UrlSelect name="workMode" label="Work mode" options={options("Any work mode", facets.workMode, WORK_MODE_LABEL)} /> : null}
         {facets.contract.size ? <UrlSelect name="contract" label="Contract" options={options("Any contract", facets.contract, CONTRACT_LABEL)} /> : null}
@@ -111,7 +115,18 @@ async function JobList({ searchParams }: { searchParams: Search }) {
                 <Card className={cn("flex flex-row items-center gap-4 px-5 py-3.5 transition-colors group-hover:bg-muted/40", closed && "opacity-70")}>
                   <EntryLogo path={job.logoPath} name={job.company ?? "?"} size={40} />
                   <div className="min-w-0 flex-1 space-y-1">
-                    <div className="truncate font-medium">{job.title}</div>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-medium">{job.title}</span>
+                      {job.tags.length ? (
+                        <span className="hidden shrink-0 gap-1 md:flex">
+                          {job.tags.slice(0, 3).map((item) => (
+                            <Badge key={item} variant="outline" className="h-5 font-normal">
+                              {item}
+                            </Badge>
+                          ))}
+                        </span>
+                      ) : null}
+                    </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                       <span>{job.company}</span>
                       {job.location ? (

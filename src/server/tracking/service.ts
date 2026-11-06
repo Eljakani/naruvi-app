@@ -1,9 +1,13 @@
 import "server-only"
 import { and, desc, eq, inArray, isNull } from "drizzle-orm"
 import { dueIn } from "@/lib/attention"
+
 import { automaticStatus, type Status } from "@/lib/stages"
 import { db } from "@/server/db/client"
 import { applicationEvents, applications } from "@/server/db/schema"
+
+const AUTO_FOLLOW_UP = "Follow up if there is no reply"
+const PREPARING: Status[] = ["draft", "parsed", "analyzed", "generated", "ready"]
 
 /** Set a status by hand (board, menu). Records the change. */
 export async function moveApplication(id: string, to: Status, note = "") {
@@ -12,7 +16,13 @@ export async function moveApplication(id: string, to: Status, note = "") {
     if (!current) throw new Error("Application not found.")
     if (current.status === to) return { changed: false }
     // Sending without a plan: suggest a follow-up in a week (editable, clearable).
-    const followUp = to === "submitted" && !current.nextStep && !current.nextStepDue ? { nextStep: "Follow up if there is no reply", nextStepDue: dueIn(7, Date.now()) } : {}
+    const followUp =
+      to === "submitted" && !current.nextStep && !current.nextStepDue
+        ? { nextStep: AUTO_FOLLOW_UP, nextStepDue: dueIn(7, Date.now()) }
+        : // Moved back before it was sent: drop the automatic follow-up if untouched.
+          current.status === "submitted" && PREPARING.includes(to) && current.nextStep === AUTO_FOLLOW_UP
+          ? { nextStep: "", nextStepDue: null }
+          : {}
     await tx.update(applications).set({ status: to, ...followUp }).where(eq(applications.id, id))
     await tx.insert(applicationEvents).values({ applicationId: id, fromStatus: current.status, toStatus: to, actor: "user", note })
     return { changed: true }

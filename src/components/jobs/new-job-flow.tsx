@@ -8,6 +8,7 @@ import {
   ArrowLeftIcon,
   CheckCircle2Icon,
   ClipboardPasteIcon,
+  CopyIcon,
   ExternalLinkIcon,
   GlobeIcon,
   LinkIcon,
@@ -15,7 +16,9 @@ import {
   SparklesIcon,
 } from "lucide-react"
 import { toast } from "sonner"
-import { previewJobAction, saveJobAction } from "@/app/(app)/jobs/actions"
+import { previewJobAction, saveJobAction, type Duplicate } from "@/app/(app)/jobs/actions"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { STATUS_LABEL } from "@/lib/stages"
 import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
 import { JobDescription } from "@/components/jobs/job-description"
 import { LogoField } from "@/components/profile/editor/logo-field"
@@ -56,6 +59,7 @@ export function NewJobFlow() {
   const [url, setUrl] = useState("")
   const [text, setText] = useState("")
   const [draft, setDraft] = useState<Draft | null>(null)
+  const [duplicates, setDuplicates] = useState<Duplicate[]>([])
   const [reading, startReading] = useTransition()
   const importStep = useStep(reading, AI_STEPS.importJob.length)
   const [saving, startSaving] = useTransition()
@@ -65,7 +69,8 @@ export function NewJobFlow() {
     startReading(async () => {
       const result = await previewJobAction(mode === "link" ? { url } : { text })
       if (!result.ok) return void toast.error("Couldn't read that posting", { description: result.error })
-      setDraft(result.data)
+      setDraft(result.data.draft)
+      setDuplicates(result.data.duplicates)
     })
 
   const save = () =>
@@ -75,6 +80,7 @@ export function NewJobFlow() {
       if (!result.ok) return void toast.error("Not saved", { description: result.error })
       // Next.js can keep this page mounted when navigating to the saved job.
       setDraft(null)
+      setDuplicates([])
       setUrl("")
       setText("")
       setMode("link")
@@ -161,6 +167,29 @@ export function NewJobFlow() {
           {saving ? "Saving…" : "Save job"}
         </Button>
       </div>
+
+      {duplicates.length ? (
+        <Alert>
+          <CopyIcon />
+          <AlertTitle>{duplicates.some((item) => item.sameLink) ? "You already saved this posting" : "This looks like a job you already have"}</AlertTitle>
+          <AlertDescription className="grid gap-2">
+            <p>{duplicates.some((item) => item.sameLink) ? "Saving again updates the existing job with this text; your analysis and documents stay." : "Same company and a very similar title. Open the existing one, or save this as a separate job if it’s a different opening."}</p>
+            <ul className="grid gap-1">
+              {duplicates.map((item) => (
+                <li key={item.id} className="flex flex-wrap items-center gap-2">
+                  <Link href={item.applicationId ? `/applications/${item.applicationId}` : `/jobs/${item.id}`} className="font-medium text-foreground underline-offset-2 hover:underline">
+                    {item.title}
+                  </Link>
+                  <span className="text-xs">
+                    {item.company} · added {new Date(item.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                    {item.status ? ` · ${STATUS_LABEL[item.status]}` : " · not analyzed"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {draft.warnings.length ? (
         <div className="grid gap-1 rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/30">

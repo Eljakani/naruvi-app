@@ -14,6 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getJob } from "@/server/jobs/ingest"
 import { applicationForJob } from "@/server/applications/repository"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
+import { JobTags } from "@/components/jobs/job-tags"
+import { allTags } from "@/server/companies/repository"
 
 export const metadata = { title: "Job" }
 
@@ -31,7 +33,7 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
   const job = await getJob(id)
   if (!job) notFound()
-  const application = await applicationForJob(job.id)
+  const [application, tagSuggestions] = await Promise.all([applicationForJob(job.id), allTags()])
   const chips = [
     job.location && { icon: MapPinIcon, text: job.location },
     job.remote && { icon: GlobeIcon, text: job.remote },
@@ -49,7 +51,11 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
         <div className="min-w-0 flex-1 space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight">{job.title}</h1>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{job.company?.name}</span>
+            {job.company ? (
+              <Link href={`/companies/${job.company.id}`} className="font-medium text-foreground hover:underline">
+                {job.company.name}
+              </Link>
+            ) : null}
             {job.company?.website ? (
               <a href={job.company.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
                 {new URL(job.company.website).hostname} <ExternalLinkIcon className="size-3" />
@@ -66,6 +72,7 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
               {job.language}
             </Badge>
           </div>
+          <JobTags jobId={job.id} tags={job.tags} suggestions={tagSuggestions.map((item) => item.tag)} />
         </div>
         <div className="flex gap-2">
           {job.sourceUrl ? (

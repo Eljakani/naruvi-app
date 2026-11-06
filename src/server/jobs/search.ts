@@ -9,7 +9,7 @@ export type JobSort = keyof typeof JOB_SORTS
 export const JOB_STAGES = { all: "Any stage", new: "Not analyzed yet", active: "In progress", closed: "Closed or archived" } as const
 export type JobStage = keyof typeof JOB_STAGES
 
-export type JobFilter = { q?: string; workMode?: string; contract?: string; seniority?: string; stage?: JobStage; sort?: JobSort; page?: number }
+export type JobFilter = { q?: string; workMode?: string; contract?: string; seniority?: string; tag?: string; stage?: JobStage; sort?: JobSort; page?: number }
 export const JOBS_PER_PAGE = 30
 
 const CLOSED_SQL = sql`(${applications.status} in ('rejected', 'withdrawn') or ${applications.archivedAt} is not null)`
@@ -23,6 +23,7 @@ export async function searchJobs(filter: JobFilter) {
   for (const key of ["workMode", "contract", "seniority"] as const) {
     if (filter[key]) where.push(sql`${jobs.insights}->>${key} = ${filter[key]}`)
   }
+  if (filter.tag) where.push(sql`${jobs.tags} @> array[${filter.tag}]::text[]`)
   if (filter.stage === "new") where.push(sql`${applications.id} is null`)
   if (filter.stage === "active") where.push(sql`${applications.id} is not null and not ${CLOSED_SQL}`)
   if (filter.stage === "closed") where.push(CLOSED_SQL)
@@ -39,7 +40,7 @@ export async function searchJobs(filter: JobFilter) {
 
   const rows = await db
     .select({
-      id: jobs.id, title: jobs.title, location: jobs.location, remote: jobs.remote, language: jobs.language, board: jobs.board, createdAt: jobs.createdAt,
+      id: jobs.id, title: jobs.title, tags: jobs.tags, location: jobs.location, remote: jobs.remote, language: jobs.language, board: jobs.board, createdAt: jobs.createdAt,
       insights: sql<{ workMode?: string; contract?: string; seniority?: string } | null>`${jobs.insights}`,
       company: companies.name, logoPath: companies.logoPath,
       applicationId: applications.id, status: applications.status, archivedAt: applications.archivedAt, fit: fitSql,
