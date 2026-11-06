@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
-import { BriefcaseBusinessIcon, Building2Icon, FileTextIcon, LayoutDashboardIcon, LayoutTemplateIcon, PlusIcon, SearchIcon, SettingsIcon, UserIcon, ActivityIcon, type LucideIcon } from "lucide-react"
+import { BriefcaseBusinessIcon, Building2Icon, FileTextIcon, LayoutDashboardIcon, LayoutTemplateIcon, PlusIcon, SearchIcon, SettingsIcon, SparklesIcon, UserIcon, UsersIcon, ActivityIcon, type LucideIcon } from "lucide-react"
 import { quickSearchAction } from "@/app/(app)/search/actions"
 import { Button } from "@/components/ui/button"
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command"
@@ -14,10 +14,12 @@ const PAGES: { label: string; href: string; icon: LucideIcon; keywords?: string 
   { label: "Archived applications", href: "/applications?show=archived", icon: FileTextIcon },
   { label: "Jobs", href: "/jobs", icon: BriefcaseBusinessIcon, keywords: "postings" },
   { label: "Companies", href: "/companies", icon: Building2Icon, keywords: "employers" },
+  { label: "Contacts", href: "/contacts", icon: UsersIcon, keywords: "people recruiters hr managers spontaneous" },
   { label: "Profile", href: "/profile", icon: UserIcon, keywords: "experience facts" },
   { label: "Templates", href: "/templates", icon: LayoutTemplateIcon, keywords: "design themes" },
   { label: "Runs", href: "/runs", icon: ActivityIcon, keywords: "traces ai" },
   { label: "Settings", href: "/settings", icon: SettingsIcon, keywords: "model api key" },
+  { label: "Setup guide", href: "/setup", icon: SparklesIcon, keywords: "onboarding start install first run" },
 ]
 
 type Results = Awaited<ReturnType<typeof quickSearchAction>>

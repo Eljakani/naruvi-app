@@ -18,7 +18,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Open [Naruvi](http://localhost:3000). Run `npm run worker` in another terminal
+Open [Naruvi](http://localhost:3000). A new install starts with the **setup guide** (`/setup`): secure storage, an AI model, your profile (import a CV or LinkedIn export, or answer guided questions by typing or dictating), a look, and your first job. Run `npm run worker` in another terminal
 for background jobs. Configure optional model access in **Settings → Language model**.
 
 URL imports try structured job-board APIs and direct HTTP first. If the extracted
@@ -132,6 +132,7 @@ Everything lives on the **Integrations** page and runs on your machine.
 - **Browser extension**: `extension/` sends the posting you're viewing (including pages behind a login) to Naruvi. See `extension/README.md`.
 - **API and MCP**: `/api/v1` with API keys (see `docs/API.md`), and `mcp/naruvi-mcp.mjs` (`npm run mcp`) for Claude and other MCP clients.
 - **Spreadsheets**: export all applications as CSV.
+- **Contacts**: recruiters, HR and managers; import from Excel/CSV or LinkedIn's Connections export, save LinkedIn profiles with the extension, find work emails with Hunter.io (your key), and start spontaneous applications without a posting.
 
 Background tasks start with the app; set `NARUVI_BACKGROUND=off` to disable them and `NARUVI_URL` for links in notifications.
 

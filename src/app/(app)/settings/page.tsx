@@ -1,4 +1,6 @@
+import Link from "next/link"
 import { Suspense } from "react"
+import { Button } from "@/components/ui/button"
 import { connection } from "next/server"
 import { PageHeader } from "@/components/page-header"
 import { SettingsView } from "@/components/settings/settings-view"
@@ -10,7 +12,11 @@ export const metadata = { title: "Settings" }
 export default function SettingsPage() {
   return (
     <>
-      <PageHeader title="Settings" description="Your model, document defaults, fonts and data. AI assistance sends relevant job text, verified facts and available company research to your configured provider." />
+      <PageHeader
+        title="Settings"
+        description="Your model, document defaults, fonts and data. AI assistance sends relevant job text, verified facts and available company research to your configured provider."
+        actions={<Button variant="outline" size="sm" nativeButton={false} render={<Link href="/setup" />}>Setup guide</Button>}
+      />
       <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
         <Loader />
       </Suspense>

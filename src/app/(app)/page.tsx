@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import { ArrowRightIcon, BriefcaseBusinessIcon, CheckCircle2Icon, ChevronRightIcon, CircleIcon, FileTextIcon, PlusIcon, SendIcon, UserRoundCheckIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
@@ -97,6 +98,8 @@ function relative(date: Date) {
 
 async function DashboardData() {
   const data = await getDashboard()
+  // A brand-new install starts with the setup guide.
+  if (!data.hasProfile && data.jobs === 0) redirect("/setup")
   const sum = (keys: readonly string[]) => keys.reduce((total, key) => total + (data.statusCounts[key] ?? 0), 0)
   const pipeline = PIPELINE.map((stage) => ({ ...stage, count: sum(stage.statuses) }))
   const active = pipeline.reduce((total, stage) => total + stage.count, 0)
@@ -118,8 +121,11 @@ async function DashboardData() {
             <CardDescription>
               {setupDone} of {setup.length} done
             </CardDescription>
-            <CardAction className="w-32">
-              <Progress value={(setupDone / setup.length) * 100} />
+            <CardAction className="flex items-center gap-3">
+              <Progress value={(setupDone / setup.length) * 100} className="w-24" />
+              <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/setup" />}>
+                Setup guide <ArrowRightIcon />
+              </Button>
             </CardAction>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
