@@ -3,12 +3,14 @@ import { createHash } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { join, resolve, sep } from "node:path"
 import { IMAGE_MIME, type ImageFormat, imageSize, logoShapeWarning, sniffImage } from "./image"
+import { MAX_IMAGE_BYTES } from "@/lib/asset-limits"
+
+export { MAX_IMAGE_BYTES }
 
 /** Local, content-addressed asset store (a Docker volume in compose). */
 // Runtime volume, never a source dependency. Tracing this dynamic path can make
 // Turbopack watch the project root, including its own generated files and logs.
 export const ASSETS_DIR = resolve(/* turbopackIgnore: true */ process.env.ASSETS_DIR || "data/assets")
-export const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 const ASSET_PATH = /^(logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg|ico)|photos\/[a-f0-9]{24}\.(png|jpg|webp))$/
 
 export function isAssetPath(value: string): boolean {

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { z } from "zod"
-import { generateCv, generateLetter, reviseWithChecks, saveCvEdit, scoreCvDraft, setCurrentRevision } from "@/server/documents/service"
+import { generateCv, generateLetter, reviseWithChecks, saveCvEdit, scoreCvDraft, setCurrentRevision, suggestLetter } from "@/server/documents/service"
+import { letterDocument } from "@/server/documents/letter"
 import { runCvAgent } from "@/server/documents/cv-agent"
 import { getApplication } from "@/server/applications/repository"
 import { cvDocument } from "@/server/documents/model"
@@ -45,9 +46,24 @@ export async function setCurrentRevisionAction(applicationId: string, documentId
 export async function generateLetterAction(formData: FormData) {
   const applicationId = uuid.parse(formData.get("applicationId"))
   const language = lang.parse(formData.get("language"))
-  await generateLetter(applicationId, language)
+  const authorNotes = z.string().trim().max(1500).parse(formData.get("authorNotes") ?? "")
+  try {
+    await generateLetter(applicationId, language, authorNotes)
+  } catch (error) {
+    return error instanceof Error ? error.message : "Couldn’t draft the letter. Try again."
+  }
   revalidatePath(`/applications/${applicationId}`, "layout")
   redirect(`/applications/${applicationId}/letter?lang=${language}`)
+}
+
+export async function suggestLetterAction(applicationId: string, draft: unknown, instruction: string) {
+  try {
+    const parsed = letterDocument.parse(draft)
+    const direction = z.string().trim().max(600).parse(instruction)
+    return { ok: true as const, data: await suggestLetter(uuid.parse(applicationId), parsed, direction) }
+  } catch (error) {
+    return { ok: false as const, error: error instanceof Error ? error.message : "Couldn’t draft a suggestion." }
+  }
 }
 
 /** Applies a free-form request to the CV draft. Returns the revised draft; nothing is saved until the user saves. */

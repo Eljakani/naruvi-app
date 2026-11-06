@@ -9,6 +9,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { LiveRefresh } from "@/components/refresh-runs"
+import { ago, workflowLabel } from "@/components/runs/labels"
+import { WorkflowIcon } from "@/components/runs/workflow-icon"
+import { COLUMNS } from "@/lib/stages"
+import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -18,12 +23,21 @@ import { getDashboard } from "@/server/queries/dashboard"
 
 export const metadata = { title: "Dashboard" }
 
-const STAGES = [
-  { label: "Preparing", keys: ["draft", "parsed", "analyzed"] },
-  { label: "Documents ready", keys: ["generated", "ready"] },
-  { label: "Sent", keys: ["submitted"] },
-  { label: "Interviewing", keys: ["interviewing", "offer"] },
-] as const
+const PIPELINE = COLUMNS.filter((column) => column.id !== "closed")
+const STAGE_COLOR = {
+  preparing: "bg-chart-1",
+  documents: "bg-chart-2",
+  sent: "bg-chart-3",
+  interviewing: "bg-chart-4",
+  offer: "bg-chart-5",
+}
+const RUN_STATUS = {
+  queued: "Queued",
+  running: "Running",
+  succeeded: "Completed",
+  failed: "Failed",
+  cancelled: "Cancelled",
+} as const
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
@@ -36,14 +50,6 @@ const STATUS_LABEL: Record<string, string> = {
   offer: "Offer",
   rejected: "Closed",
   withdrawn: "Withdrawn",
-}
-
-const WORKFLOW_LABEL: Record<string, string> = {
-  "application.analyze": "Fit analysis",
-  "company.research": "Company research",
-  "cv.generate": "CV generated",
-  "letter.generate": "Cover letter generated",
-  "job.preview": "Job read",
 }
 
 export default function DashboardPage() {
@@ -92,7 +98,9 @@ function relative(date: Date) {
 async function DashboardData() {
   const data = await getDashboard()
   const sum = (keys: readonly string[]) => keys.reduce((total, key) => total + (data.statusCounts[key] ?? 0), 0)
-  const active = sum(["draft", "parsed", "analyzed", "generated", "ready", "submitted", "interviewing", "offer"])
+  const pipeline = PIPELINE.map((stage) => ({ ...stage, count: sum(stage.statuses) }))
+  const active = pipeline.reduce((total, stage) => total + stage.count, 0)
+  const busy = data.recentRuns.some((run) => run.status === "running" || run.status === "queued")
 
   const setup = [
     { done: data.hasProfile && data.verifiedFacts > 0, label: "Build your profile", detail: "Add experience and verify the facts your documents will cite.", href: "/profile", icon: UserRoundCheckIcon },
@@ -215,47 +223,62 @@ async function DashboardData() {
           </CardContent>
         </Card>
 
-        <div className="grid content-start gap-4">
-          <Card>
+        <div className="grid min-w-0 content-start gap-4">
+          <LiveRefresh active every={busy ? 5000 : 20000} />
+          <Card size="sm">
             <CardHeader>
-              <CardTitle>Pipeline</CardTitle>
-              <CardDescription>{active} active</CardDescription>
+              <CardTitle><h2>Pipeline</h2></CardTitle>
+              <CardDescription>{active ? `${active} active application${active === 1 ? "" : "s"}` : "No active applications"}</CardDescription>
+              <CardAction>
+                <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/applications" />}>Board <ArrowRightIcon /></Button>
+              </CardAction>
             </CardHeader>
-            <CardContent className="grid gap-4">
-              {STAGES.map((stage) => {
-                const n = sum(stage.keys)
-                return (
-                  <div key={stage.label} className="grid gap-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>{stage.label}</span>
-                      <span className="tabular-nums text-muted-foreground">{n}</span>
-                    </div>
-                    <Progress value={active ? (n / active) * 100 : 0} />
-                  </div>
-                )
-              })}
+            <CardContent className="grid gap-2">
+              {active > 0 ? <div aria-hidden="true" className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-muted">
+                {pipeline.filter((stage) => stage.count > 0).map((stage) => (
+                  <span key={stage.id} className={STAGE_COLOR[stage.id]} style={{ flexGrow: stage.count, flexBasis: 0 }} />
+                ))}
+              </div> : null}
+              <ul className="grid grid-cols-2 gap-x-2">
+                {pipeline.map((stage) => (
+                  <li key={stage.id}>
+                    <Link href={`/applications?view=list&stage=${stage.id}`} className="flex min-h-8 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2">
+                      <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full ring-1 ring-foreground/20", STAGE_COLOR[stage.id])} />
+                      <span className="min-w-0 flex-1">{stage.title}</span>
+                      <span className="font-medium tabular-nums">{stage.count}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card size="sm">
             <CardHeader>
-              <CardTitle>Recent activity</CardTitle>
+              <CardTitle><h2>Recent activity</h2></CardTitle>
+              <CardAction><Button size="xs" variant="ghost" nativeButton={false} render={<Link href="/runs" />}>All runs <ArrowRightIcon /></Button></CardAction>
             </CardHeader>
             <CardContent>
               {data.recentRuns.length ? (
-                <ul className="grid gap-3">
-                  {data.recentRuns.map((run) => (
-                    <li key={run.id} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="truncate">{WORKFLOW_LABEL[run.workflow] ?? run.workflow}</span>
-                      <span className="flex shrink-0 items-center gap-2">
-                        {run.status === "failed" ? <Badge variant="destructive">Failed</Badge> : null}
-                        <span className="text-muted-foreground">{relative(run.createdAt)}</span>
-                      </span>
+                <ul className="divide-y">
+                  {data.recentRuns.slice(0, 3).map((run) => (
+                    <li key={run.id}>
+                      <Link href={`/runs/${run.id}`} className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2">
+                        <WorkflowIcon workflow={run.workflow} className="size-7" />
+                        <span className="grid min-w-0 flex-1 gap-0.5">
+                          <span className="break-words text-sm font-medium">{workflowLabel(run.workflow)}</span>
+                          {run.title ? <span className="truncate text-xs text-muted-foreground" title={run.title}>{run.title}</span> : null}
+                        </span>
+                          <span className="grid shrink-0 justify-items-end text-xs text-muted-foreground">
+                            <span className={cn(run.status === "failed" && "font-medium text-destructive", run.status === "running" && "font-medium text-foreground")}>{RUN_STATUS[run.status]}</span>
+                            <time dateTime={run.createdAt.toISOString()}>{ago(run.createdAt, data.now)}</time>
+                          </span>
+                      </Link>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted-foreground">Nothing yet.</p>
+                <p className="py-2 text-sm text-muted-foreground">Job imports, analyses, and document drafts will appear here.</p>
               )}
             </CardContent>
           </Card>

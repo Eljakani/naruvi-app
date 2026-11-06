@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation"
 import { useCallback, useState, useTransition } from "react"
-import { ArrowDownIcon, ArrowUpIcon, LightbulbIcon, PenLineIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, LightbulbIcon, PenLineIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
-import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
+import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction, suggestLetterAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { CompanyResearch } from "@/components/applications/company-research"
 import { DocumentStart } from "@/components/documents/document-start"
 import { DEFAULT_PRESET, PRESETS, type DesignTokens } from "@/lib/design"
@@ -14,7 +14,8 @@ import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import type { CompanyResearch as Research } from "@/server/research/brief"
 import { AI_STEPS } from "@/components/ai-progress"
-import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
+import { DocumentShell, VersionsPanel, type Quality } from "@/components/documents/document-shell"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -35,16 +36,6 @@ const DECISION: Record<string, string> = {
 
 const words = (text: string) => text.split(/\s+/).filter(Boolean).length
 const isInstruction = (text: string) => /^\s*\[/.test(text)
-
-function GenerateForm({ applicationId, language, label }: { applicationId: string; language: string; label: string }) {
-  return (
-    <form action={generateLetterAction}>
-      <input type="hidden" name="applicationId" value={applicationId} />
-      <input type="hidden" name="language" value={language} />
-      <RegenerateButton label={label} steps={AI_STEPS.letter} />
-    </form>
-  )
-}
 
 export function LetterWorkspace({
   applicationId,
@@ -79,10 +70,10 @@ export function LetterWorkspace({
         language={language}
         steps={AI_STEPS.letter}
         action={generateLetterAction}
-        label="Draft my cover letter"
+        label="Draft with AI"
         icon={<PenLineIcon />}
         title="Your cover letter for this job"
-        lead={`Drafted in ${LANGUAGE_NAME[language] ?? language.toUpperCase()} from your verified evidence, the posting and what we know about ${company || "the company"}. You make it personal before sending.`}
+        lead={`AI writes a complete letter in ${LANGUAGE_NAME[language] ?? language.toUpperCase()} using the job posting. You can review it, edit it yourself, or ask AI for changes.`}
         note={decision ? DECISION[decision.decision] : undefined}
         design={startDesign.tokens}
         designName={startDesign.name}
@@ -97,6 +88,18 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
   const current = workspace.current!
   const [draft, setDraft] = useState<LetterDocument>(current.content)
   const [pending, startTransition] = useTransition()
+  const [asking, startAsking] = useTransition()
+  const [direction, setDirection] = useState("")
+  const [previousDraft, setPreviousDraft] = useState<LetterDocument | null>(null)
+
+  const ask = () => startAsking(async () => {
+    const result = await suggestLetterAction(applicationId, draft, direction)
+    if (!result.ok) return void toast.error(result.error)
+    if (result.data.aiAssistance?.status === "unchanged") return void toast.info("AI kept your wording.")
+    setPreviousDraft(draft)
+    setDraft(result.data)
+    toast.success("Suggestion ready. Review it before saving.")
+  })
   const dirty = JSON.stringify(draft) !== JSON.stringify(current.content)
   const instruction = (current.content.paragraphs.find((p) => p.kind === "motivation")?.text ?? "").replace(/^\s*\[|\]\s*$/g, "")
 
@@ -142,7 +145,21 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
   const total = words(letterText(draft))
 
   const content = (
-    <div className="grid min-w-0 grid-cols-1 gap-5">
+    <fieldset disabled={asking} className="grid min-w-0 grid-cols-1 gap-5">
+      <div className="grid gap-2 rounded-lg border p-3">
+        <Label htmlFor="letter-notes">Your reasons for applying</Label>
+        <Textarea id="letter-notes" value={draft.authorNotes ?? ""} maxLength={1500} rows={3}
+          placeholder="What drew you to this role? A few words are enough."
+          onChange={(event) => update((doc) => void (doc.authorNotes = event.target.value))} />
+        <Label htmlFor="letter-direction">What should AI change?</Label>
+        <Input id="letter-direction" value={direction} maxLength={600} onChange={(event) => setDirection(event.target.value)}
+          placeholder="For example, make it shorter and more conversational" />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" size="sm" onClick={ask} disabled={pending || asking}><SparklesIcon /> {asking ? "Drafting…" : "Suggest a rewrite"}</Button>
+          {previousDraft ? <Button size="sm" variant="ghost" onClick={() => { setDraft(previousDraft); setPreviousDraft(null) }}>Undo suggestion</Button> : null}
+        </div>
+        <p className="text-xs text-muted-foreground">Suggestions stay in the editor until you save or approve them.</p>
+      </div>
       <AiReviewPanel assistance={draft.aiAssistance} pending={pending}
         changes={[
           ...draft.paragraphs.filter((paragraph) => paragraph.originalText).map((paragraph) => ({ label: paragraph.kind, original: paragraph.originalText!, text: paragraph.text, sources: paragraph.sourceUrls })),
@@ -154,8 +171,8 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
           persist(next, "AI draft reviewed", () => setDraft(next))
         }} />
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-        <span>Edit in reading order. Highlights come from your fact-backed bullets.</span>
-        <span className={cn("shrink-0 tabular-nums", total > 450 && "text-amber-600")}>{total} words</span>
+        <span>Edit any paragraph in your own voice.</span>
+        <span className={cn("shrink-0 tabular-nums", total > 250 && "text-amber-600")}>{total} words</span>
       </div>
       <Field label="Subject">
         <Input value={draft.subject} onChange={(event) => update((doc) => void (doc.subject = event.target.value))} />
@@ -166,7 +183,12 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
       {draft.paragraphs.map((paragraph, index) => {
         if (paragraph.kind === "highlights") {
           return (
-            <Field key={paragraph.id} label="Evidence highlights" hint={`${draft.highlights.filter((h) => h.included).length} of ${draft.highlights.length} · 2–3 read best`}>
+            <Field key={paragraph.id} label="Highlights from an earlier draft">
+              <Button type="button" size="sm" variant="outline" className="w-fit" onClick={() => update((doc) => {
+                doc.paragraphs = doc.paragraphs.filter((item) => item.kind !== "highlights")
+                doc.highlights = []
+                doc.highlightsIntro = ""
+              })}>Remove highlights</Button>
               <Input aria-label="Introduction to the highlights" value={draft.highlightsIntro} onChange={(event) => update((doc) => void (doc.highlightsIntro = event.target.value))} />
               {draft.highlights.length ? (
                 <ul className="grid min-w-0 grid-cols-1 gap-0.5 rounded-lg border p-1.5">
@@ -212,7 +234,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
             {motivation && needsWords ? (
               <div className="flex gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
                 <LightbulbIcon className="mt-0.5 size-3.5 shrink-0" />
-                <span>Be specific: one thing about {company || "them"} you genuinely like (product, mission, team, a recent project) and how it connects to what you’ve done. Two or three sentences.</span>
+                <span>What caught your attention about {company || "the team"} or this role? Add a sentence here, or give AI a few rough notes above.</span>
               </div>
             ) : null}
             {motivation ? (
@@ -232,10 +254,19 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
               />
             ) : null}
             <Textarea
+              aria-label={label}
               rows={motivation ? 5 : 3}
               value={isInstruction(paragraph.text) ? "" : paragraph.text}
               placeholder={motivation ? instruction : undefined}
-              onChange={(event) => update((doc) => void (doc.paragraphs[index].text = event.target.value))}
+              onChange={(event) => update((doc) => {
+                const paragraph = doc.paragraphs[index]
+                paragraph.text = event.target.value
+                paragraph.placeholder = false
+                delete paragraph.originalText
+                delete paragraph.factIds
+                delete paragraph.sourceUrls
+                if (doc.aiAssistance?.status === "applied") doc.aiAssistance.reviewed = false
+              })}
               className={cn("min-h-20 text-sm leading-6", needsWords && "border-amber-300 dark:border-amber-800")}
             />
           </Field>
@@ -244,7 +275,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
       <Field label="Sign-off">
         <Input value={draft.signoff} onChange={(event) => update((doc) => void (doc.signoff = event.target.value))} />
       </Field>
-    </div>
+    </fieldset>
   )
 
   return (
@@ -255,16 +286,16 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
       kind="letter"
       language={language}
       quality={current.quality as unknown as Quality}
-      regenerate={<GenerateForm applicationId={applicationId} language={language} label="Redraft" />}
+      regenerate={null}
       downloadHref={`/api/revisions/${current.id}/pdf?download=1`}
       previewUrl={`/api/revisions/${current.id}/pdf`}
       pageBudget={1}
       dirty={dirty}
-      pending={pending}
+      pending={pending || asking}
       onSave={() => persist(draft, "Saved")}
-      onDiscard={() => setDraft(current.content)}
-      design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} design={draft.design} templateRef={draft.templateRef} saved={savedTemplates} onChange={applyDesign} disabled={pending} />}
-      versions={<VersionsPanel revisions={workspace.history} currentId={current.id} pending={pending} onRestore={restore} />}
+      onDiscard={() => { setDraft(current.content); setPreviousDraft(null) }}
+      design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} design={draft.design} templateRef={draft.templateRef} saved={savedTemplates} onChange={applyDesign} disabled={pending || asking} />}
+      versions={<VersionsPanel revisions={workspace.history} currentId={current.id} pending={pending || asking} onRestore={restore} />}
       content={content}
     />
   )

@@ -49,6 +49,7 @@ export async function deleteEntryAction(entryId: string) {
 export async function saveIdentityAction(input: IdentityInput) {
   return run(async () => {
     await saveIdentity(input)
+    revalidatePath("/", "layout")
   })
 }
 
@@ -213,7 +214,7 @@ export async function saveImportAction(input: unknown) {
     if (outcome.reverified) reverify += 1
   }
   revalidatePath("/profile")
-  revalidatePath("/")
+  revalidatePath("/", "layout")
   return { ok: true as const, data: { ...result, merged, factsAdded, reverify } }
 }
 

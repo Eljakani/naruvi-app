@@ -1,5 +1,6 @@
 "use client"
 
+import { useActionState } from "react"
 import Link from "next/link"
 import { ArrowLeftIcon, CheckIcon, PaletteIcon } from "lucide-react"
 import { ApplicationNav } from "@/components/applications/application-nav"
@@ -34,7 +35,7 @@ export function DocumentStart({
   kind: "cv" | "letter"
   language: string
   steps: readonly string[]
-  action: (formData: FormData) => void | Promise<void>
+  action: (formData: FormData) => Promise<void | string>
   label: string
   icon: React.ReactNode
   title: string
@@ -43,6 +44,7 @@ export function DocumentStart({
   design: DesignTokens
   designName: string
 }) {
+  const [error, submit] = useActionState(async (_previous: string, data: FormData) => (await action(data)) ?? "", "")
   const base = `/applications/${applicationId}`
   return (
     <div className="-mx-4 -mt-4 flex h-[calc(100svh-3.5rem)] flex-col md:-mx-6 md:-mt-6">
@@ -61,8 +63,8 @@ export function DocumentStart({
       </div>
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[440px_minmax(0,1fr)]">
-        <div className="flex min-h-0 flex-col justify-center overflow-y-auto border-r bg-background p-6 md:p-8">
-          <div className="cb-enter grid gap-6">
+        <div className="flex min-h-0 flex-col overflow-y-auto border-r bg-background p-6 md:p-8">
+          <div className="cb-enter my-auto grid gap-6">
             <div className="grid gap-2">
               <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
               <p className="text-sm text-muted-foreground">{lead}</p>
@@ -76,12 +78,13 @@ export function DocumentStart({
                 </li>
               ))}
             </ol>
-            <form action={action} className="grid gap-2">
+            <form action={submit} className="grid gap-2">
               <input type="hidden" name="applicationId" value={applicationId} />
               <input type="hidden" name="language" value={language} />
+              {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
               <RegenerateButton label={label} steps={steps} variant="default" size="default" icon={icon} />
               <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CheckIcon className="size-3.5" /> Uses only your verified facts. You can edit everything afterwards.
+                <CheckIcon className="size-3.5" /> {kind === "letter" ? "You can edit and approve the draft before using it." : "Uses only your verified facts. You can edit everything afterwards."}
               </p>
             </form>
           </div>

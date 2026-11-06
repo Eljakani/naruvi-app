@@ -4,6 +4,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import * as React from "react"
 import { Suspense } from "react"
+import { PlusIcon } from "lucide-react"
+import { AddJobDialog } from "@/components/jobs/job-reader"
 import { NaruviMark } from "@/components/naruvi-mark"
 import { navCountsAction } from "@/app/(app)/nav/actions"
 import { NAV_GROUPS, settingsItem } from "@/components/nav"
@@ -44,6 +46,18 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <AddJobDialog trigger={
+                <SidebarMenuButton tooltip="New job" aria-label="New job" className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground">
+                  <PlusIcon />
+                  <span>New job</span>
+                </SidebarMenuButton>
+              } />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
         <Suspense fallback={<NavGroups pathname={null} />}>
           <ActiveNavGroups />
         </Suspense>

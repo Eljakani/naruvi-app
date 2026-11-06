@@ -10,7 +10,7 @@ export const AI_STEPS = {
   importJob: ["Fetching the posting", "Reading role, company and location", "Finding the company website", "Looking for the logo"],
   analyze: ["Reading the posting", "Separating requirements from hiring steps and perks", "Matching each requirement to your verified facts", "Double-checking every match", "Scoring your fit"],
   cv: ["Picking your strongest evidence", "Tailoring bullets to this job", "Ordering skills by relevance", "Verifying every rewritten line", "Rendering the PDF and running quality checks"],
-  letter: ["Gathering your evidence and company sources", "Drafting the opening and motivation", "Checking every claim against your facts", "Rendering the PDF"],
+  letter: ["Reading the posting and your notes", "Drafting a short letter", "Checking the draft and rendering the PDF"],
   research: ["Checking what the site allows", "Reading the company’s own pages", "Finding mission, values and facts", "Writing cited angles"],
   bullets: ["Reading your facts", "Drafting bullets in each language", "Checking each one against its facts"],
   cvImport: ["Reading your CV", "Finding each job, school and project", "Splitting achievements into facts", "Picking out skills and dates", "Checking every number against your CV"],

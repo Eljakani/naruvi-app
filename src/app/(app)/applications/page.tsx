@@ -14,7 +14,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { CLOSED } from "@/lib/attention"
-import { STATUS_LABEL } from "@/lib/stages"
+import { COLUMNS, STATUS_LABEL, columnOf } from "@/lib/stages"
 import { cn } from "@/lib/utils"
 import { ClearFilters, SearchBox, UrlSelect } from "@/components/list-toolbar"
 import { APPLICATION_SORTS, listApplications, type ApplicationSort, type StoredAnalysis } from "@/server/applications/repository"
@@ -92,14 +92,18 @@ async function List({ searchParams }: { searchParams: Search }) {
   const show = showOf(params.show)
   const view = show === "active" && params.view !== "list" ? "board" : "list"
   const q = typeof params.q === "string" ? params.q.slice(0, 200) : undefined
+  const stages = COLUMNS.filter((column) => column.id !== "closed")
+  const stage = show === "active" && view === "list" ? stages.find((column) => column.id === params.stage) : undefined
   const sort = typeof params.sort === "string" && Object.hasOwn(APPLICATION_SORTS, params.sort) ? (params.sort as ApplicationSort) : undefined
   const [all, since, inbox] = await Promise.all([listApplications({ archived: show === "archived", q, sort }), stageSince(), mailInbox()])
-  const applications = show === "archived" ? all : all.filter((application) => (show === "closed") === CLOSED.includes(application.status))
+  const applications = show === "archived" ? all : all.filter((application) =>
+    (show === "closed") === CLOSED.includes(application.status) && (!stage || columnOf(application.status) === stage.id))
   const closedCount = show === "active" ? all.filter((application) => CLOSED.includes(application.status)).length : 0
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
       <SearchBox placeholder="Search role, company, location…" />
-      <ClearFilters names={["q"]} />
+      {show === "active" && view === "list" ? <UrlSelect name="stage" label="Pipeline stage" options={[{ value: "all", label: "All stages" }, ...stages.map(({ id, title }) => ({ value: id, label: title }))]} /> : null}
+      <ClearFilters names={["q", "stage"]} />
       <div className="ml-auto flex items-center gap-2">
         {q ? <span className="text-sm text-muted-foreground tabular-nums">{applications.length} match{applications.length === 1 ? "" : "es"}</span> : null}
         {view === "list" ? <UrlSelect name="sort" label="Sort" options={Object.entries(APPLICATION_SORTS).map(([value, label]) => ({ value, label }))} className="w-44" /> : null}
@@ -151,7 +155,7 @@ async function List({ searchParams }: { searchParams: Search }) {
     return (
       <div className="grid gap-3">
         {toolbar}
-        <EmptyState show={show} q={q} />
+        {stage ? <p className="rounded-xl border p-6 text-sm text-muted-foreground">No applications in {stage.title.toLowerCase()} match these filters.</p> : <EmptyState show={show} q={q} />}
       </div>
     )
   }

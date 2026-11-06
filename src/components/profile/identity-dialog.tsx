@@ -9,6 +9,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { MAX_IMAGE_BYTES } from "@/lib/asset-limits"
 import type { profiles } from "@/server/db/schema"
 
 type Profile = typeof profiles.$inferSelect
@@ -26,6 +27,7 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
     links: profile?.links ?? [],
   }))
   const [pending, startTransition] = useTransition()
+  const [uploading, startUpload] = useTransition()
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: event.target.value })
   const save = () =>
     startTransition(async () => {
@@ -45,7 +47,7 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
         </DialogHeader>
         <div className="grid gap-4">
           <div className="flex items-center gap-4">
-            <PhotoField value={form.photoPath} name={form.fullName} onChange={(photoPath) => setForm({ ...form, photoPath })} />
+            <PhotoField pending={uploading || pending} startUpload={startUpload} value={form.photoPath} name={form.fullName} onChange={(photoPath) => setForm((current) => ({ ...current, photoPath }))} />
             <div className="grid flex-1 gap-2">
               <Field id="fullName" label="Full name" value={form.fullName} onChange={set("fullName")} />
             </div>
@@ -110,7 +112,7 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
         </div>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button onClick={save} disabled={pending}>
+          <Button onClick={save} disabled={pending || uploading}>
             {pending ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
@@ -128,24 +130,52 @@ function Field({ id, label, ...props }: { id: string; label: string } & React.Co
   )
 }
 
-function PhotoField({ value, name, onChange }: { value: string | null; name: string; onChange: (path: string | null) => void }) {
+async function preparePhoto(file: File): Promise<Blob> {
+  if (file.size <= MAX_IMAGE_BYTES) return file
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    throw new Error("Choose a JPEG, PNG or WebP photo.")
+  }
+
+  const bitmap = await createImageBitmap(file)
+  try {
+    const scale = Math.min(1, 1200 / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement("canvas")
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext("2d")
+    if (!context) throw new Error("Couldn’t resize this photo. Choose a photo under 2 MB.")
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    const photo = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.85))
+    if (!photo || photo.size > MAX_IMAGE_BYTES) throw new Error("Choose a photo under 2 MB.")
+    return photo
+  } finally {
+    bitmap.close()
+  }
+}
+
+function PhotoField({ value, name, onChange, pending, startUpload }: { value: string | null; name: string; onChange: (path: string | null) => void; pending: boolean; startUpload: React.TransitionStartFunction }) {
   const input = useRef<HTMLInputElement>(null)
-  const [pending, startTransition] = useTransition()
   const upload = (file: File | undefined) => {
-    if (!file) return
-    const form = new FormData()
-    form.set("file", file)
-    startTransition(async () => {
-      const result = await uploadPhotoAction(form)
-      if (!result.ok) return void toast.error("Photo not added", { description: result.error })
-      onChange(result.data!.path)
-      if (result.data!.warning) toast.warning(result.data!.warning)
+    if (!file || pending) return
+    startUpload(async () => {
+      try {
+        const photo = await preparePhoto(file)
+        const form = new FormData()
+        form.set("file", photo, photo === file ? file.name : "profile-photo")
+        const result = await uploadPhotoAction(form)
+        if (!result.ok) return void toast.error("Photo not added", { description: result.error })
+        onChange(result.data!.path)
+        if (result.data!.warning) toast.warning(result.data!.warning)
+      } catch {
+        toast.error("Photo not added", { description: "Try a JPEG, PNG or WebP photo under 2 MB." })
+      }
     })
   }
   return (
     <div className="grid justify-items-center gap-1.5">
       <button
         type="button"
+        disabled={pending}
         onClick={() => input.current?.click()}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
@@ -161,12 +191,12 @@ function PhotoField({ value, name, onChange }: { value: string | null; name: str
         ) : (
           <UserRoundIcon className="mx-auto size-8 text-muted-foreground" />
         )}
-        <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100">
+        <span className={`absolute inset-0 flex items-center justify-center bg-black/45 text-white transition-opacity group-hover:opacity-100 ${pending ? "opacity-100" : "opacity-0"}`}>
           {pending ? <Loader2Icon className="size-5 animate-spin" /> : <ImageUpIcon className="size-5" />}
         </span>
       </button>
       {value ? (
-        <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => onChange(null)}>
+        <button type="button" disabled={pending} className="text-xs text-muted-foreground hover:text-foreground" onClick={() => onChange(null)}>
           Remove
         </button>
       ) : (

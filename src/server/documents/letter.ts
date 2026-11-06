@@ -37,6 +37,7 @@ export const letterHighlight = z.object({
 })
 
 export const letterDocument = z.object({
+  authorNotes: z.string().max(1500).default(""),
   aiAssistance: aiAssistance.optional(),
   version: z.literal(1),
   kind: z.literal("cover_letter"),
@@ -83,7 +84,7 @@ export const LETTER_PHRASES: Record<string, Phrases> = {
   en: {
     subject: (role) => `Application for the ${role} position`,
     salutation: (company) => `Dear ${company} hiring team,`,
-    opening: (role, company) => `I am writing to apply for the ${role} position at ${company}. My experience matches several of the requirements in your posting, as outlined below.`,
+    opening: (role, company) => `I am writing to apply for the ${role} position at ${company}.`,
     highlightsIntro: "Relevant highlights from my experience:",
     motivation: (company) => `[Why ${company}? In 2–3 sentences of your own, say what draws you to this team, product or mission. Only you can write this part.]`,
     closing: "I would welcome the opportunity to discuss how I can contribute to your team. Thank you for your time and consideration.",
@@ -93,7 +94,7 @@ export const LETTER_PHRASES: Record<string, Phrases> = {
   fr: {
     subject: (role) => `Candidature au poste de ${role}`,
     salutation: () => "Madame, Monsieur,",
-    opening: (role, company) => `Je vous adresse ma candidature au poste de ${role} au sein de ${company}. Mon parcours répond à plusieurs des exigences de votre annonce, comme détaillé ci-dessous.`,
+    opening: (role, company) => `Je vous adresse ma candidature au poste de ${role} au sein de ${company}.`,
     highlightsIntro: "Quelques réalisations en lien avec le poste :",
     motivation: (company) => `[Pourquoi ${company} ? En 2 à 3 phrases, avec vos propres mots, expliquez ce qui vous attire dans cette équipe, ce produit ou cette mission. Vous seul pouvez écrire cette partie.]`,
     closing: "Je me tiens à votre disposition pour un entretien afin d’échanger sur ma contribution possible à votre équipe. Je vous remercie pour votre attention.",
@@ -103,7 +104,7 @@ export const LETTER_PHRASES: Record<string, Phrases> = {
   es: {
     subject: (role) => `Candidatura al puesto de ${role}`,
     salutation: (company) => `Estimado equipo de selección de ${company}:`,
-    opening: (role, company) => `Les escribo para presentar mi candidatura al puesto de ${role} en ${company}. Mi experiencia responde a varios de los requisitos de su oferta, como detallo a continuación.`,
+    opening: (role, company) => `Les escribo para presentar mi candidatura al puesto de ${role} en ${company}.`,
     highlightsIntro: "Logros relevantes de mi experiencia:",
     motivation: (company) => `[¿Por qué ${company}? En 2–3 frases propias, explique qué le atrae de este equipo, producto o misión. Solo usted puede escribir esta parte.]`,
     closing: "Me encantaría tener la oportunidad de conversar sobre cómo puedo contribuir a su equipo. Gracias por su tiempo y consideración.",
@@ -113,7 +114,7 @@ export const LETTER_PHRASES: Record<string, Phrases> = {
   de: {
     subject: (role) => `Bewerbung als ${role}`,
     salutation: () => "Sehr geehrte Damen und Herren,",
-    opening: (role, company) => `hiermit bewerbe ich mich um die Position als ${role} bei ${company}. Meine Erfahrung entspricht mehreren Anforderungen Ihrer Ausschreibung, wie unten beschrieben.`,
+    opening: (role, company) => `hiermit bewerbe ich mich um die Position als ${role} bei ${company}.`,
     highlightsIntro: "Relevante Ergebnisse aus meiner Erfahrung:",
     motivation: (company) => `[Warum ${company}? Beschreiben Sie in 2–3 eigenen Sätzen, was Sie an diesem Team, Produkt oder dieser Mission reizt. Nur Sie können diesen Teil schreiben.]`,
     closing: "Über die Gelegenheit zu einem persönlichen Gespräch freue ich mich sehr. Vielen Dank für Ihre Zeit.",
@@ -143,7 +144,7 @@ export function composeLetter(
   // best approved bullet in this language that cites the evidence.
   const highlights: LetterDocument["highlights"] = []
   const used = new Set<string>()
-  const ranked = [...(analysis?.requirements ?? [])]
+  const ranked = options.maxHighlights === 0 ? [] : [...(analysis?.requirements ?? [])]
     .filter((r) => (r.status === "met" || r.status === "partial") && r.factIds.length)
     .sort((a, b) => Number(b.status === "met") - Number(a.status === "met") || Number(b.kind === "must") - Number(a.kind === "must"))
   for (const requirement of ranked) {
@@ -161,6 +162,7 @@ export function composeLetter(
   }
 
   return {
+    authorNotes: "",
     version: 1,
     kind: "cover_letter",
     language,
@@ -173,7 +175,7 @@ export function composeLetter(
     salutation: p.salutation(job.company),
     paragraphs: [
       { id: "opening", kind: "opening", text: p.opening(job.title, job.company), placeholder: false, included: true },
-      { id: "highlights", kind: "highlights", text: "", placeholder: false, included: highlights.length > 0 },
+      ...(highlights.length ? [{ id: "highlights", kind: "highlights" as const, text: "", placeholder: false, included: true }] : []),
       { id: "motivation", kind: "motivation", text: p.motivation(job.company), placeholder: true, included: true },
       { id: "closing", kind: "closing", text: p.closing, placeholder: false, included: true },
     ],
@@ -215,10 +217,10 @@ export function checkLetter(doc: LetterDocument, pages: number | null) {
   const highlights = doc.highlights.filter((h) => h.included)
   const showsHighlights = paragraphs.some((p) => p.kind === "highlights") && highlights.length > 0
   const ungrounded = highlights.filter((h) => !h.factIds.length)
-  add("evidence", !showsHighlights ? "warn" : ungrounded.length ? "fail" : "pass", "Backs claims with your evidence", !showsHighlights ? "No highlights included: add 2–3 so the letter shows proof, not just intent." : ungrounded.length ? `${ungrounded.length} highlight(s) without a fact.` : `${highlights.length} highlight(s), each backed by a verified fact.`)
+  if (showsHighlights) add("evidence", ungrounded.length ? "fail" : "pass", "Backs claims with your evidence", ungrounded.length ? `${ungrounded.length} highlight(s) without a fact.` : `${highlights.length} highlight(s), each backed by a verified fact.`)
   if (highlights.length > 4) add("focus", "warn", "Focused", `${highlights.length} highlights — 2 to 4 read best.`)
   const words = text.split(/\s+/).filter(Boolean).length
-  add("length", words < 120 ? "warn" : words > 480 ? "warn" : "pass", "Length", words < 120 ? `${words} words — a little short; expand your motivation.` : words > 480 ? `${words} words — aim for under 450.` : `${words} words.`)
+  add("length", words > 250 ? "warn" : "pass", "Length", words > 250 ? `${words} words. Consider shortening it to the points that matter most.` : `${words} words.`)
   if (pages === null) add("pages", "warn", "One page", "Not rendered yet.")
   else add("pages", pages <= 1 ? "pass" : "fail", "One page", pages <= 1 ? "Fits on one page." : `${pages} pages — shorten it to one.`)
   add("contact", doc.header.email || doc.header.phone ? "pass" : "fail", "Contact details", doc.header.email || doc.header.phone ? "Present." : "Add an email or phone to your profile.")

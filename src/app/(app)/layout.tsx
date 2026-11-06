@@ -1,3 +1,5 @@
+import { connection } from "next/server"
+import { getProfile } from "@/server/profile/repository"
 import { Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { CommandMenu } from "@/components/command-menu"
@@ -8,7 +10,9 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <SidebarProvider>
-      <AppSidebar user={{ name: "Local user", email: "Single-user · runs on your machine", avatar: "" }} />
+      <Suspense fallback={<AppSidebar user={emptyIdentity} />}>
+        <ProfileSidebar />
+      </Suspense>
       <SidebarInset className="min-w-0">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
@@ -26,4 +30,17 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       </SidebarInset>
     </SidebarProvider>
   )
+}
+
+
+const emptyIdentity = { name: "Your profile", email: "", avatar: "" }
+
+async function ProfileSidebar() {
+  await connection()
+  const profile = await getProfile()
+  return <AppSidebar user={profile ? {
+    name: profile.fullName.trim() || emptyIdentity.name,
+    email: profile.email || profile.location,
+    avatar: profile.photoPath ? `/api/assets/${profile.photoPath}` : "",
+  } : emptyIdentity} />
 }

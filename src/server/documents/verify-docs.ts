@@ -18,7 +18,7 @@ export async function verifyCvRewrites(doc: CvDocument, entries: ComposeEntry[],
     if ((scores.get(bullet.id) ?? 1) >= SUPPORT_THRESHOLD) continue
     bullet.text = bullet.originalText!
     delete bullet.originalText
-    delete (bullet as { source?: string }).source
+    bullet.source = bullet.phrasingId ? "phrasing" : "fact"
     reverted += 1
   }
   return { doc: next, checked: bullets.length, reverted }

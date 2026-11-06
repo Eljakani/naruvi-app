@@ -23,7 +23,7 @@ export type ComposeEntry = {
 }
 
 export type ComposeAnalysis = {
-  requirements: { kind: string; status: string; keywords: string[]; factIds: string[] }[]
+  requirements: { kind: string; status: string; text?: string; keywords: string[]; factIds: string[] }[]
   recommendedEntries: { entryId: string; requirements: number }[]
   keywords: { key: string; count: number }[]
 }

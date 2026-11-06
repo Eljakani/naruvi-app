@@ -3,7 +3,7 @@ import type { DesignTokens } from "@/lib/design"
 import { advanceAutomatically } from "@/server/tracking/service"
 import { decisionClient } from "@/server/settings/decisions"
 import { tracedDecide } from "@/server/runs/decisions"
-import { verifyCvRewrites, verifyLetterRewrites } from "./verify-docs"
+import { verifyCvRewrites } from "./verify-docs"
 import { and, desc, eq } from "drizzle-orm"
 import { db } from "@/server/db/client"
 import { documents, revisions, type QualitySummary } from "@/server/db/schema"
@@ -13,7 +13,7 @@ import { getDocumentDefaults } from "@/server/settings/service"
 import { startRun } from "@/server/runs/tracer"
 import { getLlmOverview } from "@/server/settings/llm"
 import { completionForRun } from "@/server/llm/client"
-import { DOCUMENT_PROMPT_VERSION, enrichCv, enrichLetter, POLISH_PROMPT_VERSION, polishCv, researchSources, REVISE_PROMPT_VERSION, reviseCv } from "./ai-compose"
+import { CV_EDITORIAL_REVIEW_VERSION, CV_TAILOR_PROMPT_VERSION, enrichCv, enrichLetter, LETTER_PROMPT_VERSION, POLISH_PROMPT_VERSION, polishCv, researchSources, REVISE_PROMPT_VERSION, reviewCvTailoring, reviseCv } from "./ai-compose"
 import { runCvAgent } from "./cv-agent"
 import { composeCv } from "./compose"
 import { cvDocument, type CvDocument } from "./model"
@@ -108,11 +108,12 @@ export async function generateCv(applicationId: string, language?: string) {
         ),
       (value) => `${value.sections.length} sections · ${value.sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included))).length} bullets`,
     )
+    const baseline = content
     const model = await run.step("Check AI configuration", () => getLlmOverview(), (value) => value.configured ? `${value.model} configured` : "AI skipped: no usable model key or local model is configured.").catch(() => null)
     if (model?.configured) {
       content = await run.step("AI tailor CV", () => enrichCv(content, entries, application.analysis, {
         title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText,
-      }, completionForRun(run, "CV tailoring", DOCUMENT_PROMPT_VERSION)), (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} entries tailored${value.aiAssistance?.reason ? ` · ${value.aiAssistance.reason}` : ""}`)
+      }, completionForRun(run, "CV tailoring", CV_TAILOR_PROMPT_VERSION)), (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} entries tailored${value.aiAssistance?.reason ? ` · ${value.aiAssistance.reason}` : ""}`)
       const polished = await run
         .step("AI order sections & headline", () => polishCv(content, { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }, completionForRun(run, "CV ordering", POLISH_PROMPT_VERSION)), (value) => `headline ${value.headline ? `→ “${value.doc.header.headline}”` : "kept"} · summary ${value.summary ? "tailored" : "kept"} · ${value.sectionsMoved ? "sections reordered · " : ""}${value.reordered} list(s) reordered · ${value.hidden} off-topic item(s) hidden`)
         .catch(() => null) // ordering is polish, never a blocker
@@ -144,6 +145,12 @@ export async function generateCv(applicationId: string, language?: string) {
         }), (value) => `${value.rounds.length} round(s) · score ${value.scoreBefore} → ${value.scoreAfter} · ${value.pages} page(s)`)
         .catch(() => null)
       if (agent?.improved) content = agent.doc
+      const edited = await run.step(
+        "Editorial review of CV rewrites",
+        () => reviewCvTailoring(baseline, content, entries, job, completionForRun(run, "CV editorial review", CV_EDITORIAL_REVIEW_VERSION)),
+        (value) => `${value.accepted} worthwhile rewrite(s) kept · ${value.rejected} reverted`,
+      )
+      content = edited.doc
     }
     const { revision, quality } = await run.step("render & quality gate", () => addRevision(document.id, content, "generate", application.analysis?.requirements ?? [], run.id), (value) => `${value.revision.pages} page(s) · score ${value.quality.score}${value.quality.ready ? " · ready" : ""}`)
     await advanceAutomatically(application.id, quality.ready ? "ready" : "generated")
@@ -170,8 +177,8 @@ export async function saveCvEdit(documentId: string, input: unknown) {
   return { revisionId: result.revision.id, quality: result.quality }
 }
 
-/** Compose a cover letter (grounded highlights + localized wording + placeholder). */
-export async function generateLetter(applicationId: string, language?: string) {
+/** Create an editable prose draft using the candidate's own reasons. */
+export async function generateLetter(applicationId: string, language?: string, authorNotes = "") {
   const application = await getApplication(applicationId)
   if (!application) throw new Error("Application not found.")
   const profile = await getProfile()
@@ -179,42 +186,27 @@ export async function generateLetter(applicationId: string, language?: string) {
   const lang = language ?? application.language
   const run = await startRun("letter.generate", { applicationId, language: lang }, applicationId)
   try {
-    const entries = await listEntries()
-    let content = await run.step(
-      "compose letter (grounded)",
-      async () =>
-        composeLetter(
-          { fullName: profile.fullName, headlines: profile.headlines, summaries: profile.summaries, email: profile.email, phone: profile.phone, location: profile.location, links: profile.links, photoPath: profile.photoPath, defaultLanguage: profile.defaultLanguage },
-          entries,
-          application.analysis,
-          { title: application.job.title, company: application.job.company?.name ?? "", location: application.job.location },
-          { language: lang },
-        ),
-      (value) => `${value.highlights.filter((h) => h.included).length} highlights`,
+    let content = composeLetter(profile, [], null,
+      { title: application.job.title, company: application.job.company?.name ?? "", location: application.job.location },
+      { language: lang, maxHighlights: 0 },
     )
+    content.authorNotes = authorNotes
     const document = await documentFor(application.id, lang, "cover_letter")
     // Keep personal motivation that the user already wrote or reviewed.
     if (document.currentRevisionId) {
       const [previous] = await db.select({ content: revisions.content }).from(revisions).where(eq(revisions.id, document.currentRevisionId))
       const parsed = letterDocument.safeParse(previous?.content)
+      if (parsed.success && !authorNotes) content.authorNotes = parsed.data.authorNotes
       const motivation = parsed.success ? parsed.data.paragraphs.find((paragraph) => paragraph.kind === "motivation") : undefined
       if (motivation?.text.trim() && !motivation.placeholder && !isPlaceholder(motivation.text) && (!motivation.originalText || (parsed.success && parsed.data.aiAssistance?.reviewed))) {
         content.paragraphs = content.paragraphs.map((paragraph) => paragraph.kind === "motivation" ? { ...motivation, originalText: undefined } : paragraph)
       }
     }
-    const model = await run.step("Check AI configuration", () => getLlmOverview(), (value) => value.configured ? `${value.model} configured` : "AI skipped: no usable model key or local model is configured.").catch(() => null)
-    if (model?.configured) {
-      content = await run.step("AI draft letter", () => enrichLetter(content, entries, {
-        title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText,
-        url: application.job.sourceUrl ?? "",
-      }, researchSources(application.job.company?.research), completionForRun(run, "cover-letter drafting", DOCUMENT_PROMPT_VERSION)), (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} passages tailored${value.aiAssistance?.reason ? ` · ${value.aiAssistance.reason}` : ""}`)
-      const decisions = await decisionClient().catch(() => null)
-      if (decisions) {
-        const checked = await run
-          .step("verify rewrites (decision model)", () => verifyLetterRewrites(content, entries, researchSources(application.job.company?.research), tracedDecide(run, decisions.decide, decisions.model)), (value) => `${value.checked} passage(s) checked · ${value.reverted} reverted`)
-          .catch(() => null)
-        if (checked) content = checked.doc
-      }
+    if (!(await getLlmOverview().catch(() => null))?.configured) throw new Error("Connect a language model in Settings, then try again.")
+    content = await draftLetter(run, application, content)
+    if (content.aiAssistance?.status === "fallback") throw new Error(content.aiAssistance.reason ?? "Couldn’t draft the letter. Try again.")
+    if (content.paragraphs.some((paragraph) => paragraph.included && (paragraph.placeholder || isPlaceholder(paragraph.text)))) {
+      throw new Error("The AI returned an incomplete letter. Try again.")
     }
     const design = await designFor(document.id)
     content.template = design.template
@@ -224,6 +216,31 @@ export async function generateLetter(applicationId: string, language?: string) {
     const { revision } = await run.step("render & quality gate", () => addRevision(document.id, content, "generate", [], run.id), (value) => `${value.revision.pages} page(s) · score ${value.quality.score}`)
     await run.finish("succeeded", { documentId: document.id, revisionId: revision.id })
     return { documentId: document.id, revisionId: revision.id }
+  } catch (error) {
+    await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
+    throw error
+  }
+}
+
+function draftLetter(run: Awaited<ReturnType<typeof startRun>>, application: NonNullable<Awaited<ReturnType<typeof getApplication>>>, content: LetterDocument, instruction = "") {
+  return run.step("AI draft personal letter", () => enrichLetter(content, {
+    title: application.job.title,
+    company: application.job.company?.name ?? "",
+    description: application.job.rawText,
+  }, researchSources(application.job.company?.research), completionForRun(run, "cover-letter drafting", LETTER_PROMPT_VERSION), instruction),
+  (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} changes`)
+}
+
+export async function suggestLetter(applicationId: string, draft: LetterDocument, instruction: string) {
+  const application = await getApplication(applicationId)
+  if (!application) throw new Error("Application not found.")
+  if (!(await getLlmOverview().catch(() => null))?.configured) throw new Error("Connect a language model in Settings first.")
+  const run = await startRun("letter.revise", { applicationId, language: draft.language }, applicationId)
+  try {
+    const proposal = await draftLetter(run, application, draft, instruction)
+    if (proposal.aiAssistance?.status === "fallback") throw new Error(proposal.aiAssistance.reason ?? "Couldn’t draft a suggestion.")
+    await run.finish("succeeded", { changes: proposal.aiAssistance?.changes ?? 0 })
+    return proposal
   } catch (error) {
     await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
     throw error

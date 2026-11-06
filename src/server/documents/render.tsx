@@ -1,7 +1,8 @@
 import "server-only"
-import { Circle, Document, Font, Image, Line, Link, Page, Path, Polyline, Rect, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer"
+import { Circle, Document, Font, Image, Line, Link, Page, Path, Polyline, Rect, StyleSheet, Svg, Text as PdfText, View, renderToBuffer } from "@react-pdf/renderer"
 import { PDF_ICONS, type PdfIcon } from "./pdf-icons"
 import sharp from "sharp"
+import { Children, type ComponentProps, type PropsWithChildren } from "react"
 import { detectScripts, isRtl, type Script } from "@/lib/scripts"
 import { readAsset } from "@/server/assets/store"
 import { prepareFonts, type BaseFont } from "./fonts"
@@ -12,6 +13,12 @@ import { documentText, resolveDesign, type CvDocument, type CvItem, type CvSecti
 // react-pdf only ships English hyphenation; applied to other languages it
 // breaks words wrongly ("dé-ploiement"). No hyphenation is the safe default.
 Font.registerHyphenationCallback((word) => [word])
+
+function Text({ children, ...props }: PropsWithChildren<ComponentProps<typeof PdfText>>) {
+  return <PdfText {...props}>{Children.map(children, (child) =>
+    typeof child === "string" ? child.replace(/(\d)\s*—\s*(?=\d)/g, "$1-").replace(/\s*—\s*/g, ", ") : child
+  )}</PdfText>
+}
 
 const MUTED = "#4b5563"
 const RULE = "#d1d5db"
@@ -314,7 +321,7 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
   const main = visible.filter((section) => !side.includes(section))
 
   const buffer = await renderToBuffer(
-    <Document title={`${doc.header.name} — CV`} author={doc.header.name} language={doc.language} creator="Naruvi" producer="Naruvi">
+    <Document title={`${doc.header.name}, CV`} author={doc.header.name} language={doc.language} creator="Naruvi" producer="Naruvi">
       <Page size={t.pageSize} style={s.page}>
         {t.pageNumbers ? <Text style={s.pageNumber} fixed render={({ pageNumber, totalPages }) => (totalPages > 1 ? `${pageNumber} / ${totalPages}` : "")} /> : null}
         <DocHeader s={s} t={t} rtl={rtl} photo={photo} header={doc.header} />
@@ -386,7 +393,7 @@ export async function renderLetterPdf(doc: LetterDocument): Promise<RenderResult
   const photo = t.letterPhoto && doc.header.photoPath ? await pngData(doc.header.photoPath, 56, t.photoShape !== "square") : null
   const highlights = doc.highlights.filter((h) => h.included)
   const buffer = await renderToBuffer(
-    <Document title={`${doc.header.name} — ${doc.subject}`} author={doc.header.name} language={doc.language} creator="Naruvi" producer="Naruvi">
+    <Document title={`${doc.header.name}, ${doc.subject}`} author={doc.header.name} language={doc.language} creator="Naruvi" producer="Naruvi">
       <Page size={t.pageSize} style={s.page}>
         {t.pageNumbers ? <Text style={s.pageNumber} fixed render={({ pageNumber, totalPages }) => (totalPages > 1 ? `${pageNumber} / ${totalPages}` : "")} /> : null}
         <DocHeader s={s} t={letterTokens} rtl={rtl} photo={photo} header={{ ...doc.header, headline: t.letterHeadline ? doc.header.headline : "" }} />
