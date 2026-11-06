@@ -160,3 +160,15 @@ test("an unsure model can't turn a structurally excluded perk into a requirement
   assert.ok(kept.some((text) => /Maintenance/.test(text)), "weak 'outside a section' exclusions are rescued")
   assert.ok(kept.some((text) => /GitLab/.test(text)))
 })
+
+test("the same experience minimum stated twice is kept once, without the salary sentence", () => {
+  const text = `Nous recrutons en CDI, à partir de 5 années d'expérience, pour une rémunération de 45K€ à 52k€.
+
+Les profils que nous recrutons ont au minimum 5 années d'expérience sur le poste.
+
+Côté compétences, vous maitrisez GitLab et AWS.`
+  const extracted = extractRequirementCandidates(text)
+  const kept = extracted.requirements.map((item) => item.text)
+  assert.deepEqual(kept, ["Les profils que nous recrutons ont au minimum 5 années d'expérience sur le poste.", "Côté compétences, vous maitrisez GitLab et AWS."])
+  assert.ok(!extracted.candidates.some((item) => /45K€/.test(item.text)), "a dropped duplicate can't be put back by the model")
+})

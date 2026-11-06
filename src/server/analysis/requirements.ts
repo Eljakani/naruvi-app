@@ -116,9 +116,34 @@ export function extractRequirementCandidates(rawText: string): RequirementExtrac
     }
   }
   // Never reintroduce explicitly excluded benefits/interview steps through fallback.
-  const requirements = preferred.length ? preferred : fallback
+  const requirements = dedupe(preferred.length ? preferred : fallback, candidates)
   if (preferred.length) for (const requirement of fallback) excluded.push({ requirement, category: "other", source: "rules", reason: EXCLUDED_REASONS.other })
   return { candidates, requirements, excluded }
+}
+
+/** Salary, contract and place details: an offer sentence that also happens to mention experience. */
+const OFFER_NOISE = /\d\s*[kK]?\s*[€$£]|[€$£]\s*\d|\b(?:salaire|rémunération|salary|compensation|gehalt|salario|CDI|CDD|full[- ]time|part[- ]time|télétravail|remote)\b/i
+
+/**
+ * Postings often repeat the same minimum ("5 years", once in the intro next to
+ * the salary, once in the profile). Keep one per years value when neither names
+ * a specific skill: the cleaner sentence wins. Removed duplicates leave the
+ * candidate list too, so a model can't put them back.
+ */
+function dedupe(requirements: Requirement[], candidates: Requirement[]): Requirement[] {
+  // Known skills only: capitalised words like a city ("Rennes") don't make a sentence specific.
+  const skillful = (item: Requirement) => item.keywords.length > 0
+  const byYears = new Map<number, Requirement[]>()
+  for (const item of requirements) if (item.years !== null && !skillful(item)) byYears.set(item.years, [...(byYears.get(item.years) ?? []), item])
+  const drop = new Set<string>()
+  for (const group of byYears.values()) {
+    if (group.length < 2) continue
+    const best = [...group].sort((a, b) => Number(OFFER_NOISE.test(a.text)) - Number(OFFER_NOISE.test(b.text)) || a.text.length - b.text.length)[0]
+    for (const item of group) if (item !== best) drop.add(item.id)
+  }
+  if (!drop.size) return requirements
+  for (let index = candidates.length - 1; index >= 0; index -= 1) if (drop.has(candidates[index].id)) candidates.splice(index, 1)
+  return requirements.filter((item) => !drop.has(item.id))
 }
 
 export function extractRequirements(rawText: string): Requirement[] {

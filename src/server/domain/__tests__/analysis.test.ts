@@ -156,3 +156,8 @@ test("a posting flattened into one line still yields its requirements", async ()
   assert.ok(texts.some((t) => /SAST and DAST/.test(t)))
   assert.ok(result.candidates.length >= 6)
 })
+
+test("contract and work-arrangement words are never skills to prove", async () => {
+  const { termsIn } = await import("../../analysis/keywords")
+  assert.deepEqual(termsIn("Poste en CDI ou CDD, Freelance possible, télétravail hybride, F/H/NB").filter((term) => /cdi|cdd|freelance|nb/.test(term)), [])
+})
