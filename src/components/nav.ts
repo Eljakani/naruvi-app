@@ -1,4 +1,4 @@
-import { BriefcaseBusinessIcon, Building2Icon, FileTextIcon, LayoutDashboardIcon, PaletteIcon, ScrollTextIcon, Settings2Icon, UserRoundIcon, type LucideIcon } from "lucide-react"
+import { BriefcaseBusinessIcon, Building2Icon, FileTextIcon, LayoutDashboardIcon, PaletteIcon, PlugIcon, ScrollTextIcon, Settings2Icon, UserRoundIcon, type LucideIcon } from "lucide-react"
 
 export type NavItem = { title: string; url: string; icon: LucideIcon; description: string }
 
@@ -9,6 +9,7 @@ export const navItems: NavItem[] = [
   { title: "Companies", url: "/companies", icon: Building2Icon, description: "Every job and application per company" },
   { title: "Profile", url: "/profile", icon: UserRoundIcon, description: "Verified facts — the source of truth" },
   { title: "Templates", url: "/templates", icon: PaletteIcon, description: "How your documents look" },
+  { title: "Integrations", url: "/integrations", icon: PlugIcon, description: "Email, calendar and other connections" },
   { title: "Runs", url: "/runs", icon: ScrollTextIcon, description: "Agent traces and decisions" },
   { title: "Settings", url: "/settings", icon: Settings2Icon, description: "Model, compiler and data" },
 ]

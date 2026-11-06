@@ -1,0 +1,59 @@
+"use server"
+
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
+import { deleteMailAccount, getMailAccount, mailAccountInput, saveMailAccount, testMailConnection, type MailAccountInput, type MailOverview } from "@/server/mail/account"
+import { syncMail } from "@/server/mail/sync"
+
+type Result<T = undefined> = { ok: true; data: T; message?: string } | { ok: false; message: string }
+const fail = (error: unknown): { ok: false; message: string } => ({
+  ok: false,
+  message: error instanceof z.ZodError ? (error.issues[0]?.message ?? "Check the form.") : error instanceof Error ? error.message : String(error),
+})
+
+/** Log in with these settings without saving them. */
+export async function testMailAction(raw: MailAccountInput): Promise<Result<{ messages: number; smtp: string }>> {
+  try {
+    const input = mailAccountInput.parse(raw)
+    const saved = input.password ? null : await getMailAccount()
+    const password = input.password || (saved && saved.email.toLowerCase() === input.email.toLowerCase() ? saved.password : "")
+    if (!password) return { ok: false, message: "Enter the password (an app password for most providers)." }
+    return { ok: true, data: await testMailConnection({ ...input, username: input.username || input.email, password }) }
+  } catch (error) {
+    return fail(error)
+  }
+}
+
+export async function saveMailAction(raw: MailAccountInput): Promise<Result<MailOverview>> {
+  try {
+    const overview = await saveMailAccount(raw)
+    revalidatePath("/integrations")
+    return { ok: true, data: overview }
+  } catch (error) {
+    return fail(error)
+  }
+}
+
+export async function syncMailAction(): Promise<Result<{ checked: number; stored: number }>> {
+  try {
+    const result = await syncMail()
+    revalidatePath("/integrations")
+    revalidatePath("/")
+    revalidatePath("/applications")
+    if (result.skipped) return { ok: false, message: result.skipped }
+    return { ok: true, data: { checked: result.checked, stored: result.stored } }
+  } catch (error) {
+    return fail(error)
+  }
+}
+
+export async function disconnectMailAction(): Promise<Result> {
+  try {
+    await deleteMailAccount()
+    revalidatePath("/integrations")
+    revalidatePath("/")
+    return { ok: true, data: undefined }
+  } catch (error) {
+    return fail(error)
+  }
+}

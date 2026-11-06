@@ -113,6 +113,13 @@
       "when": 1793980442939,
       "tag": "0015_job_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793981343138,
+      "tag": "0016_mail",
+      "breakpoints": true
     }
   ]
 }

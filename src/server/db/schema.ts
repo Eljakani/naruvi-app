@@ -444,3 +444,68 @@ export const templateVersions = pgTable(
   },
   (t) => [index().on(t.templateId, t.createdAt)],
 )
+
+/* ------------------------------------------------------------------ */
+/* mail: a connected mailbox and the messages matched to applications  */
+/* ------------------------------------------------------------------ */
+
+export const mailAccounts = pgTable("mail_accounts", {
+  id: id(),
+  email: text().notNull(),
+  displayName: text().notNull().default(""),
+  provider: text().notNull().default("other"),
+  username: text().notNull(),
+  /** AES-256-GCM, same scheme as the model API key; never sent to the browser. */
+  encryptedPassword: text().notNull(),
+  imapHost: text().notNull(),
+  imapPort: integer().notNull().default(993),
+  imapSecure: boolean().notNull().default(true),
+  smtpHost: text().notNull().default(""),
+  smtpPort: integer().notNull().default(465),
+  smtpSecure: boolean().notNull().default(true),
+  /** Only mail received after this is read. */
+  syncFrom: timestamp({ withTimezone: true }).notNull(),
+  /** IMAP UID bookkeeping per folder: { INBOX: { validity, last } }. */
+  cursor: jsonb().$type<Record<string, { validity: string; last: number }>>().notNull().default({}),
+  status: text().notNull().default("ok"),
+  lastError: text(),
+  lastSyncAt: timestamp({ withTimezone: true }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
+
+export const mailMessages = pgTable(
+  "mail_messages",
+  {
+    id: id(),
+    accountId: uuid()
+      .notNull()
+      .references(() => mailAccounts.id, { onDelete: "cascade" }),
+    applicationId: uuid().references(() => applications.id, { onDelete: "set null" }),
+    /** RFC 5322 Message-ID; unique per account so a sync never stores twice. */
+    messageId: text().notNull(),
+    inReplyTo: text(),
+    references: text().array().notNull().default(sql`'{}'::text[]`),
+    folder: text().notNull().default("INBOX"),
+    uid: integer(),
+    direction: text().notNull().default("in"),
+    fromAddress: text().notNull().default(""),
+    fromName: text().notNull().default(""),
+    toAddresses: text().array().notNull().default(sql`'{}'::text[]`),
+    subject: text().notNull().default(""),
+    sentAt: timestamp({ withTimezone: true }).notNull(),
+    /** Plain text body, capped. Untrusted input. */
+    text: text().notNull().default(""),
+    /** Why it was linked to the application ("sender domain dashlane.com"). */
+    matchReason: text().notNull().default(""),
+    /** rejection, interview, info_request, offer, acknowledgement, job_alert, other */
+    kind: text(),
+    kindConfidence: real(),
+    /** A proposed change (status, next step) waiting for the person. */
+    suggestion: jsonb().$type<{ status?: string; nextStep?: string; nextStepDue?: string; archive?: boolean; summary?: string }>(),
+    suggestionState: text().notNull().default("none"),
+    readAt: timestamp({ withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex().on(t.accountId, t.messageId), index().on(t.applicationId, t.sentAt), index().on(t.suggestionState)],
+)
