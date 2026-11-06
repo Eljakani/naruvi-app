@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { PRESETS } from "@/lib/design"
+import { ALL_PRESETS, PRESETS } from "@/lib/design"
 import { getDocumentDefaults } from "@/server/settings/service"
 import { listTemplates, previewSource } from "@/server/templates/service"
 
@@ -69,7 +69,7 @@ async function Gallery() {
           <Grid>
             {customDefault ? <Tile href="/templates/new?default=1" name="Custom default" hint="Used for new CVs and letters" tokens={customDefault} badge="Default" revision={revision} /> : null}
             {saved.map((template) => (
-              <Tile key={template.id} href={`/templates/${template.id}`} name={template.name} hint={`Based on ${PRESETS[template.basedOn]?.name ?? "Classic"}`} tokens={template.tokens} badge={isDefault(template.id, true) ? "Default" : "Yours"} revision={revision} />
+              <Tile key={template.id} href={`/templates/${template.id}`} name={template.name} hint={`Based on ${ALL_PRESETS[template.basedOn]?.name ?? "Classic"}`} tokens={template.tokens} badge={isDefault(template.id, true) ? "Default" : "Yours"} revision={revision} />
             ))}
           </Grid>
         </section>

@@ -6,7 +6,7 @@ import { PdfThumb } from "@/components/templates/pdf-thumb"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { PRESETS, presetTokens, type DesignTokens } from "@/lib/design"
+import { ALL_PRESETS, DEFAULT_PRESET, PRESETS, presetTokens, type DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
 
 const ACCENTS = ["#2563eb", "#0f766e", "#4338ca", "#7c3aed", "#be123c", "#c2410c", "#1e3a5f", "#111827"]
@@ -35,10 +35,15 @@ export function DesignPicker({
   disabled?: boolean
 }) {
   const current = design ?? { ...presetTokens(template), accent }
-  const customizeHref = templateRef ? `/templates/${templateRef}` : `/templates/new?from=${PRESETS[template] ? template : "classic"}`
+  const customizeHref = templateRef ? `/templates/${templateRef}` : `/templates/new?from=${ALL_PRESETS[template] ? template : DEFAULT_PRESET}`
   const options = [
     ...saved.map((item) => ({ key: item.id, name: item.name, tokens: item.tokens, active: templateRef === item.id, pick: () => onChange({ template: "custom", design: item.tokens, templateRef: item.id, accent: item.tokens.accent }) })),
-    ...Object.entries(PRESETS).map(([id, preset]) => ({ key: id, name: preset.name, tokens: { ...preset.tokens, accent: design ? preset.tokens.accent : accent }, active: !templateRef && !design && template === id, pick: () => onChange({ template: id, design: null, templateRef: null }) })),
+    // A document on an earlier built-in style keeps it listed so it stays selected.
+    ...Object.entries({ ...(!PRESETS[template] && ALL_PRESETS[template] && !design ? { [template]: ALL_PRESETS[template] } : {}), ...PRESETS }).map(([id, preset]) => {
+      const active = !templateRef && !design && template === id
+      // Each theme brings its own colour; the current one keeps the colour already chosen.
+      return { key: id, name: preset.name, tokens: { ...preset.tokens, accent: active ? accent : preset.tokens.accent }, active, pick: () => onChange({ template: id, design: null, templateRef: null, accent: preset.tokens.accent }) }
+    }),
   ]
   return (
     <div className="grid gap-4">

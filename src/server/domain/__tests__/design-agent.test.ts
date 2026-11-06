@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { PRESETS } from "../../../lib/design"
+import { ALL_PRESETS as PRESETS } from "../../../lib/design"
 import { applyChanges, contrastOnWhite, qualityFailures, runDesignAgent } from "../../templates/design-agent"
 
 const base = PRESETS.classic.tokens

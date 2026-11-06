@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { designTokens, PRESETS, type DesignTokens } from "@/lib/design"
+import { ALL_PRESETS, designTokens, type DesignTokens } from "@/lib/design"
 import { completionForRun } from "@/server/llm/client"
 import { tracedDecide } from "@/server/runs/decisions"
 import { decisionClient } from "@/server/settings/decisions"
@@ -94,7 +94,7 @@ export async function setDefaultDesignAction(input: { templateRef?: string; pres
   const { templateRef, preset, tokens } = parsed.data
   const saved = templateRef ? await getTemplate(templateRef) : null
   if (templateRef && !saved) return { ok: false, message: "Template not found. Save it again before making it your default." }
-  if (preset && !Object.hasOwn(PRESETS, preset)) return { ok: false, message: "Unknown preset." }
+  if (preset && !Object.hasOwn(ALL_PRESETS, preset)) return { ok: false, message: "Unknown preset." }
   const design = saved?.tokens ?? tokens
   await saveDocumentDefaults({
     ...current,

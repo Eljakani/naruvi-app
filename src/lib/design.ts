@@ -85,8 +85,60 @@ export type DesignTokens = z.infer<typeof designTokens>
 
 const base = designTokens.parse({})
 
-/** Built-in starting points. */
-export const PRESETS: Record<string, { name: string; hint: string; tokens: DesignTokens }> = {
+type Preset = { name: string; hint: string; tokens: DesignTokens }
+const theme = (tokens: Partial<DesignTokens>): DesignTokens => designTokens.parse({ ...base, ...tokens })
+
+/**
+ * Built-in themes shown on the Templates page. Each one styles a CV and a
+ * cover letter as a pair, and uses one font pairing, one accent and one idea.
+ */
+export const PRESETS: Record<string, Preset> = {
+  atlas: { name: "Atlas", hint: "Clean and balanced; works for any field", tokens: theme({
+    font: "inter", size: 9.5, accent: "#1d4ed8", accentHeadings: true, headingStyle: "rule", headingCase: "upper", headingSize: 1.05,
+    contactIcons: true, contactSeparator: "space", linkStyle: "label", orgItalic: false, summaryStyle: "plain",
+    letterSubject: "accent", letterSignature: "name" }) },
+  harbor: { name: "Harbor", hint: "Tinted side column for skills, languages and links", tokens: theme({
+    font: "plex", layout: "sidebar", sidebarSide: "left", sidebarWidth: 30, sidebarTint: true, accent: "#0f766e", accentName: true, accentHeadings: true,
+    headingStyle: "plain", headingCase: "upper", headingSize: 1, skillsStyle: "tags", sectionIcons: true, contactIcons: true, contactSeparator: "dot",
+    linkStyle: "label", orgItalic: false, photoShape: "circle", letterSubject: "accent", letterSignature: "headline" }) },
+  ledger: { name: "Ledger", hint: "Serif, centred and formal: law, finance, public sector", tokens: theme({
+    font: "serif", size: 9.7, lineHeight: 1.34, margin: 34, headerAlign: "center", nameSize: 23, nameCase: "upper", nameSpacing: 1.5, accent: "#1e3a5f",
+    accentHeadings: true, headingStyle: "underline-accent", headingCase: "upper", contactSeparator: "pipe", textAlign: "justify", showLogos: false,
+    bullet: "dash", summaryStyle: "italic", summaryAlign: "center", letterSubject: "caps", letterDateAlign: "right", letterSignature: "contact" }) },
+  studio: { name: "Studio", hint: "Colour band header, larger photo: creative and product roles", tokens: theme({
+    font: "lato", headingFont: "inter", headerBand: true, accent: "#6d28d9", accentHeadings: true, accentBullets: true, headingStyle: "bar", headingCase: "none",
+    headingSize: 1.2, nameSize: 26, photoSize: 70, photoPosition: "right", photoShape: "rounded", skillsStyle: "tags", summaryStyle: "box",
+    contactSeparator: "dot", linkStyle: "label", orgItalic: false, letterPhoto: true, letterSubject: "accent" }) },
+  slate: { name: "Slate", hint: "Dense and tidy: fits a long career on one page", tokens: theme({
+    font: "roboto", size: 8.9, lineHeight: 1.28, margin: 28, spacing: 0.8, itemSpacing: 0.8, bulletSpacing: 0.8, nameSize: 18, photoSize: 46,
+    accent: "#334155", headingStyle: "rule", headingCase: "upper", headingSize: 1, contactSeparator: "pipe", linkStyle: "label", summarySize: 0.95,
+    letterSpacing: 0.9 }) },
+  nordic: { name: "Nordic", hint: "Quiet and airy: no lines, lots of white space", tokens: theme({
+    font: "lato", size: 9.6, lineHeight: 1.5, margin: 48, spacing: 1.25, nameCase: "upper", nameSpacing: 2, nameSize: 19, accent: "#475569",
+    headingStyle: "plain", headingCase: "none", headingSize: 1.15, accentHeadings: true, showLogos: false, orgItalic: false, bullet: "dash",
+    summaryStyle: "italic", summaryLineHeight: 1.55, letterSpacing: 1.3, letterDateAlign: "left" }) },
+  scholar: { name: "Scholar", hint: "Garamond with page numbers: academia and research", tokens: theme({
+    font: "garamond", size: 10.8, lineHeight: 1.35, nameSize: 24, accent: "#7f1d1d", headingStyle: "rule", headingCase: "upper", headingSize: 1,
+    showLogos: false, pageNumbers: true, summaryTitle: true, textAlign: "justify", contactSeparator: "dot", letterSubject: "plain", letterSignature: "headline" }) },
+  vertex: { name: "Vertex", hint: "Right side column, tags and icons: engineering and tech", tokens: theme({
+    font: "plex", layout: "sidebar", sidebarSide: "right", sidebarWidth: 29, sidebarTint: true, accent: "#2563eb", accentName: true, accentHeadings: true,
+    accentLinks: true, headingStyle: "bar", headingCase: "none", skillsStyle: "tags", sectionIcons: true, contactIcons: true, linkStyle: "label",
+    contactSeparator: "dot", orgItalic: false, bullet: "arrow", letterSubject: "accent" }) },
+  meridian: { name: "Meridian", hint: "Merriweather titles, centred header: senior and executive", tokens: theme({
+    font: "inter", headingFont: "merriweather", size: 9.6, headerAlign: "center", nameSize: 27, nameCase: "upper", nameSpacing: 2.5, accent: "#881337",
+    accentHeadings: true, headingStyle: "underline-accent", headingCase: "upper", headingSize: 1.1, contactSeparator: "pipe", linkStyle: "label",
+    summaryStyle: "bar", summarySize: 1.05, showLogos: false, letterSubject: "caps", letterSignature: "headline" }) },
+  pulse: { name: "Pulse", hint: "Warm accent and section icons: modern and friendly", tokens: theme({
+    font: "inter", size: 9.5, accent: "#c2410c", accentName: true, accentHeadings: true, accentBullets: true, headingStyle: "bar", headingCase: "none",
+    headingSize: 1.12, sectionIcons: true, contactIcons: true, linkStyle: "label", bullet: "square", summaryStyle: "bar", skillsStyle: "inline", bulletSpacing: 1.1,
+    orgItalic: false, photoShape: "rounded", letterSubject: "accent" }) },
+}
+
+/**
+ * Earlier built-in styles. Hidden from the pickers but kept unchanged, because
+ * documents that use them are rendered from these values.
+ */
+export const LEGACY_PRESETS: Record<string, Preset> = {
   classic: { name: "Classic", hint: "Neutral sans, uppercase headings with a rule", tokens: base },
   modern: { name: "Modern", hint: "Inter, accent bars and name", tokens: { ...base, font: "inter", accentName: true, accentHeadings: true, accentBullets: true, headingStyle: "bar", headingCase: "none", orgItalic: false, size: 9.5 } },
   serif: { name: "Serif", hint: "Traditional: law, academia, finance", tokens: { ...base, font: "serif", size: 10 } },
@@ -98,9 +150,13 @@ export const PRESETS: Record<string, { name: string; hint: string; tokens: Desig
   elegant: { name: "Elegant", hint: "Spaced capitals, justified text, quiet accents", tokens: { ...base, font: "merriweather", headingFont: "same", size: 9.4, nameCase: "upper", nameSpacing: 2.5, nameSize: 22, headerAlign: "center", contactSeparator: "pipe", headingStyle: "underline-accent", accent: "#7c2d12", accentHeadings: true, accentLinks: true, textAlign: "justify", showLogos: false, lineHeight: 1.45 } },
   bold: { name: "Bold", hint: "Coloured header band, strong headings", tokens: { ...base, font: "inter", headerBand: true, headingStyle: "filled", accent: "#4338ca", accentHeadings: true, nameSize: 24, orgItalic: false } },
 }
+
+/** Every built-in style, current and legacy, by id. */
+export const ALL_PRESETS: Record<string, Preset> = { ...LEGACY_PRESETS, ...PRESETS }
+export const DEFAULT_PRESET = "atlas"
 export type PresetId = keyof typeof PRESETS
 
-export const presetTokens = (template: string | undefined) => (PRESETS[template ?? "classic"] ?? PRESETS.classic).tokens
+export const presetTokens = (template: string | undefined) => (ALL_PRESETS[template ?? "classic"] ?? LEGACY_PRESETS.classic).tokens
 
 /** Tokens that only change the cover letter. */
 export const LETTER_ONLY = new Set<keyof DesignTokens>(["letterHeadline", "letterPhoto", "letterRecipient", "letterDateAlign", "letterSubject", "letterSpacing", "letterSignature"])

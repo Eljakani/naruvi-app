@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { PRESETS } from "./design"
+import { ALL_PRESETS as PRESETS } from "./design"
 import { designIdeas } from "./design-ideas"
 
 test("suggestions fit the current design", () => {

@@ -1,6 +1,6 @@
 import "server-only"
 import { and, desc, eq, sql } from "drizzle-orm"
-import { designTokens, PRESETS, type DesignTokens } from "@/lib/design"
+import { ALL_PRESETS, designTokens, type DesignTokens } from "@/lib/design"
 import { db } from "@/server/db/client"
 import { documents, profiles, revisions, settings, templates, templateVersions } from "@/server/db/schema"
 import { cvDocument, type CvDocument } from "@/server/documents/model"
@@ -21,7 +21,7 @@ export async function getTemplate(id: string) {
 
 export async function createTemplate(input: { name: string; basedOn: string; tokens: unknown; note?: string }) {
   return db.transaction(async (tx) => {
-    const [row] = await tx.insert(templates).values({ name: input.name.trim().slice(0, 80) || "My template", basedOn: Object.hasOwn(PRESETS, input.basedOn) ? input.basedOn : "classic", tokens: designTokens.parse(input.tokens) }).returning()
+    const [row] = await tx.insert(templates).values({ name: input.name.trim().slice(0, 80) || "My template", basedOn: Object.hasOwn(ALL_PRESETS, input.basedOn) ? input.basedOn : "classic", tokens: designTokens.parse(input.tokens) }).returning()
     await tx.insert(templateVersions).values({ templateId: row.id, name: row.name, tokens: row.tokens, note: input.note || "created" })
     return parse(row)
   })
@@ -124,7 +124,7 @@ export async function startDesign(): Promise<{ tokens: DesignTokens; name: strin
     if (saved) return { tokens: saved.tokens, name: saved.name }
   }
   if (defaults.design) return { tokens: defaults.design, name: "Your default" }
-  const preset = PRESETS[defaults.template] ?? PRESETS.classic
+  const preset = ALL_PRESETS[defaults.template] ?? ALL_PRESETS.classic
   return { tokens: { ...preset.tokens, accent: defaults.accent ?? preset.tokens.accent }, name: preset.name }
 }
 

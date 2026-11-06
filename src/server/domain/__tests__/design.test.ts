@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { designTokens, PRESETS } from "../../../lib/design"
+import { designTokens, ALL_PRESETS as PRESETS } from "../../../lib/design"
 import { cvDocument, resolveDesign } from "../../documents/model"
 
 test("every preset is a valid, complete design", () => {

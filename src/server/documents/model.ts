@@ -29,7 +29,7 @@ export const cvItem = z.object({
 })
 
 /** Visual templates; all single-column with real text, so ATS-safe. */
-export const templateIds = ["classic", "modern", "serif", "minimal", "compact", "executive", "sidebar", "bold", "tech", "elegant", "custom"] as const
+export const templateIds = ["classic", "modern", "serif", "minimal", "compact", "executive", "sidebar", "bold", "tech", "elegant", "atlas", "harbor", "ledger", "studio", "slate", "nordic", "scholar", "vertex", "meridian", "pulse", "custom"] as const
 export type TemplateId = (typeof templateIds)[number]
 export const ACCENTS = ["#2563eb", "#0f766e", "#7c3aed", "#be123c", "#c2410c", "#111827"] as const
 

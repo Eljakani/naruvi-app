@@ -3,7 +3,7 @@ import { Suspense } from "react"
 import { connection } from "next/server"
 import { TemplateEditor } from "@/components/templates/template-editor"
 import { Skeleton } from "@/components/ui/skeleton"
-import { PRESETS } from "@/lib/design"
+import { ALL_PRESETS, DEFAULT_PRESET } from "@/lib/design"
 import { getTemplate } from "@/server/templates/service"
 import { getDocumentDefaults } from "@/server/settings/service"
 import { z } from "zod"
@@ -24,13 +24,13 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
   if (id === "new") {
     const query = await searchParams
     const from = query.from
-    const preset = typeof from === "string" && Object.hasOwn(PRESETS, from) ? from : "classic"
+    const preset = typeof from === "string" && Object.hasOwn(ALL_PRESETS, from) ? from : DEFAULT_PRESET
     const defaults = await getDocumentDefaults()
     if (query.default === "1" && !defaults.templateRef && defaults.design) {
       return <TemplateEditor key="new:default" initial={{ name: "My default design", basedOn: "classic", tokens: defaults.design, customDefault: true }} />
     }
-    const tokens = !defaults.templateRef && !defaults.design && defaults.template === preset ? { ...PRESETS[preset].tokens, accent: defaults.accent } : PRESETS[preset].tokens
-    return <TemplateEditor key={`new:${preset}`} initial={{ name: `My ${PRESETS[preset].name}`, basedOn: preset, tokens }} />
+    const tokens = !defaults.templateRef && !defaults.design && defaults.template === preset ? { ...ALL_PRESETS[preset].tokens, accent: defaults.accent } : ALL_PRESETS[preset].tokens
+    return <TemplateEditor key={`new:${preset}`} initial={{ name: `My ${ALL_PRESETS[preset].name}`, basedOn: preset, tokens }} />
   }
   if (!z.string().uuid().safeParse(id).success) notFound()
   const template = await getTemplate(id)

@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { CompanyResearch } from "@/components/applications/company-research"
 import { DocumentStart } from "@/components/documents/document-start"
-import { PRESETS, type DesignTokens } from "@/lib/design"
+import { DEFAULT_PRESET, PRESETS, type DesignTokens } from "@/lib/design"
 
 const LANGUAGE_NAME: Record<string, string> = { en: "English", fr: "French", es: "Spanish", de: "German" }
 import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/applications/design-picker"
@@ -56,7 +56,7 @@ export function LetterWorkspace({
   jobId,
   research,
   savedTemplates,
-  startDesign = { tokens: PRESETS.classic.tokens, name: "Classic" },
+  startDesign = { tokens: PRESETS[DEFAULT_PRESET].tokens, name: PRESETS[DEFAULT_PRESET].name },
 }: {
   applicationId: string
   jobTitle: string

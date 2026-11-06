@@ -7,7 +7,7 @@ import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, ExternalLinkIcon, Sparkle
 import { toast } from "sonner"
 import { generateCvAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { DocumentStart } from "@/components/documents/document-start"
-import { PRESETS, type DesignTokens } from "@/lib/design"
+import { DEFAULT_PRESET, PRESETS, type DesignTokens } from "@/lib/design"
 
 const LANGUAGE_NAME: Record<string, string> = { en: "English", fr: "French", es: "Spanish", de: "German" }
 import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/applications/design-picker"
@@ -37,7 +37,7 @@ function GenerateForm({ applicationId, language, label }: { applicationId: strin
   )
 }
 
-export function CvWorkspace({ applicationId, jobTitle, company, language, workspace, savedTemplates, startDesign = { tokens: PRESETS.classic.tokens, name: "Classic" } }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Awaited<ReturnType<typeof getCvWorkspace>>; savedTemplates: SavedDesign[]; startDesign?: { tokens: DesignTokens; name: string } }) {
+export function CvWorkspace({ applicationId, jobTitle, company, language, workspace, savedTemplates, startDesign = { tokens: PRESETS[DEFAULT_PRESET].tokens, name: PRESETS[DEFAULT_PRESET].name } }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Awaited<ReturnType<typeof getCvWorkspace>>; savedTemplates: SavedDesign[]; startDesign?: { tokens: DesignTokens; name: string } }) {
   if (!workspace?.current) {
     return (
       <DocumentStart

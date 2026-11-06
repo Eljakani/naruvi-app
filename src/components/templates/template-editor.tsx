@@ -25,7 +25,7 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { affectedDocuments, designTokens, FONTS, PRESETS, type DesignTokens } from "@/lib/design"
+import { affectedDocuments, designTokens, FONTS, ALL_PRESETS as PRESETS, type DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
 import { mergeDesignChanges } from "@/lib/template-edit"
 

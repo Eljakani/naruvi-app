@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { PRESETS } from "./design"
+import { ALL_PRESETS as PRESETS } from "./design"
 import { fitDesignToPage, mergeDesignChanges } from "./template-edit"
 
 test("an AI reply keeps both unrelated manual edits and manual edits to the same field", () => {

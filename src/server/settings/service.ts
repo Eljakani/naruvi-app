@@ -16,10 +16,10 @@ import { applications, entries, facts, jobs, phrasings, profiles, revisions, set
 
 /** Document defaults applied when a CV or letter is first generated. */
 export const documentDefaults = z.object({
-  template: z.enum(templateIds).catch("classic").default("classic"),
+  template: z.enum(templateIds).catch("atlas").default("atlas"),
   design: designTokens.optional(),
   templateRef: z.string().uuid().optional(),
-  accent: z.string().regex(/^#[0-9a-f]{6}$/i).default("#2563eb"),
+  accent: z.string().regex(/^#[0-9a-f]{6}$/i).default("#1d4ed8"),
   showPhoto: z.boolean().default(false),
 })
 export type DocumentDefaults = z.infer<typeof documentDefaults>
