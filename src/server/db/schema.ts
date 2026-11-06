@@ -537,3 +537,45 @@ export const notificationLog = pgTable("notification_log", {
   key: text().primaryKey(),
   sentAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 })
+
+/* ------------------------------------------------------------------ */
+/* contacts: recruiters, HR, hiring managers, referrals                 */
+/* ------------------------------------------------------------------ */
+
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: id(),
+    name: text().notNull(),
+    /** Their role ("Talent acquisition", "Engineering manager"). */
+    title: text().notNull().default(""),
+    companyId: uuid().references(() => companies.id, { onDelete: "set null" }),
+    /** As written when no company is linked yet. */
+    companyName: text().notNull().default(""),
+    email: text().notNull().default(""),
+    /** Where the email came from: you, an import, an email they sent, or an email finder (with its confidence). */
+    emailSource: text().notNull().default(""),
+    linkedinUrl: text().notNull().default(""),
+    phone: text().notNull().default(""),
+    notes: text().notNull().default(""),
+    tags: text().array().notNull().default(sql`'{}'::text[]`),
+    /** manual, import, extension, email */
+    source: text().notNull().default("manual"),
+    lastContactedAt: timestamp({ withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.companyId), index().on(t.email), uniqueIndex().on(t.linkedinUrl).where(sql`${t.linkedinUrl} <> ''`)],
+)
+
+/** Who an application is with (the recruiter you wrote to, the manager who referred you). */
+export const applicationContacts = pgTable(
+  "application_contacts",
+  {
+    applicationId: uuid().notNull().references(() => applications.id, { onDelete: "cascade" }),
+    contactId: uuid().notNull().references(() => contacts.id, { onDelete: "cascade" }),
+    role: text().notNull().default(""),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex().on(t.applicationId, t.contactId), index().on(t.contactId)],
+)

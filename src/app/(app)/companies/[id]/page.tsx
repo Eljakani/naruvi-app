@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton"
 import { STATUS_LABEL } from "@/lib/stages"
 import { getCompany } from "@/server/companies/repository"
+import { contactsForCompany } from "@/server/contacts/repository"
 import type { CompanyResearch } from "@/server/research/brief"
 
 export const metadata = { title: "Company" }
@@ -31,7 +32,7 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
   await connection()
   const { id } = await params
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
-  const company = await getCompany(id)
+  const [company, people] = await Promise.all([getCompany(id), contactsForCompany(id)])
   if (!company) notFound()
   const research = company.research as CompanyResearch | null
   const sent = company.jobs.filter((job) => job.status && SENT.has(job.status))
@@ -100,6 +101,23 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
           </ul>
         </Card>
 
+        <div className="grid h-fit gap-4">
+        {people.length ? (
+          <Card className="gap-0 py-0">
+            <CardHeader className="border-b py-3">
+              <CardTitle className="text-sm">People at {company.name}</CardTitle>
+            </CardHeader>
+            <ul className="divide-y text-sm">
+              {people.map((person) => (
+                <li key={person.id} className="px-4 py-2">
+                  <p className="truncate font-medium">{person.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{[person.title, person.email].filter(Boolean).join(" · ") || "No details yet"}</p>
+                </li>
+              ))}
+            </ul>
+            <Link href="/contacts" className="border-t px-4 py-2 text-xs text-muted-foreground hover:text-foreground">All contacts</Link>
+          </Card>
+        ) : null}
         <Card className="h-fit">
           <CardHeader>
             <CardTitle className="text-sm">About {company.name}</CardTitle>
@@ -130,6 +148,7 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
             </CardContent>
           ) : null}
         </Card>
+        </div>
       </div>
     </div>
   )

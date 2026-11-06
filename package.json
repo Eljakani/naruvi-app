@@ -62,6 +62,7 @@
     "postgres": "^4.0.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "read-excel-file": "^9.3.14",
     "server-only": "^0.0.1",
     "shadcn": "^4.23.0",
     "sharp": "^0.35.5",

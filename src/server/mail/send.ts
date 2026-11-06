@@ -7,6 +7,7 @@ import { composeDraft, parseAddresses, type ComposeKind } from "@/lib/mail-templ
 import type { Status } from "@/lib/stages"
 import { db } from "@/server/db/client"
 import { applications, companies, documents, jobs, mailMessages, revisions } from "@/server/db/schema"
+import { contactsForApplication } from "@/server/contacts/repository"
 import { revisionPdf } from "@/server/documents/service"
 import { startRun } from "@/server/runs/tracer"
 import { moveApplication } from "@/server/tracking/service"
@@ -42,10 +43,12 @@ export async function composeContext(applicationId: string, kind: ComposeKind) {
     .orderBy(desc(mailMessages.sentAt))
     .limit(1)
   const draft = composeDraft(kind, app.language, { name, title: app.title, company: app.company ?? "", subject: kind === "apply" ? undefined : last?.subject })
+  // No thread yet: write to the person linked to this application.
+  const [person] = (await contactsForApplication(applicationId)).filter((contact) => contact.email)
   return {
     canSend: Boolean(account?.smtpHost),
     from: account ? `${account.displayName || name} <${account.email}>` : null,
-    to: kind === "apply" ? "" : (last?.fromAddress ?? ""),
+    to: (kind === "apply" ? "" : (last?.fromAddress ?? "")) || person?.email || "",
     replyTo: kind === "apply" ? null : (last?.id ?? null),
     subject: draft.subject,
     body: draft.body,

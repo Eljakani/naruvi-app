@@ -10,3 +10,4 @@ button { margin-top: 10px; width: 100%; padding: 8px; border: 0; border-radius: 
 button:disabled { opacity: 0.5; cursor: default; }
 .footer { margin-top: 10px; text-align: right; }
 a { color: inherit; }
+button.secondary { background: transparent; color: inherit; border: 1px solid #d1d5db; }

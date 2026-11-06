@@ -19,6 +19,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getApplication } from "@/server/applications/repository"
 import { ComposeEmail } from "@/components/mail/compose-email"
 import { MailThread } from "@/components/mail/mail-thread"
+import { ApplicationPeople } from "@/components/contacts/application-people"
+import { contactsForApplication, listContacts } from "@/server/contacts/repository"
 import { hasMailbox } from "@/server/mail/account"
 import { mailFor, markRead } from "@/server/mail/classify"
 import type { CompanyResearch as Research } from "@/server/research/brief"
@@ -37,7 +39,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
   await connection()
   const { id } = await params
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
-  const [application, events, mail, mailConnected] = await Promise.all([getApplication(id), listEvents(id), mailFor(id), hasMailbox()])
+  const [application, events, mail, mailConnected, people, contactOptions] = await Promise.all([getApplication(id), listEvents(id), mailFor(id), hasMailbox(), contactsForApplication(id), listContacts()])
   if (!application) notFound()
   // Opening the application counts as reading its emails.
   if (mail.some((message) => !message.readAt)) after(() => markRead(id))
@@ -78,8 +80,25 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
         </Alert>
       ) : null}
       <ApplicationNav applicationId={application.id} current="analysis" language={application.language} />
-      <MailThread messages={mail} />
-      {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
+      <div className={mail.length ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]" : "grid gap-4"}>
+        {mail.length ? (
+          <div className="grid min-w-0 content-start gap-4">
+            <MailThread messages={mail} />
+          </div>
+        ) : null}
+        <ApplicationPeople applicationId={application.id} people={people} options={contactOptions.map((contact) => ({ id: contact.id, name: contact.name, title: contact.title, company: contact.company }))} />
+      </div>
+      {job.board === "spontaneous" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Spontaneous application</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 text-sm text-muted-foreground">
+            <p>There’s no posting to match, so there’s no fit score. Your CV leads with your strongest verified entries, and the letter explains why you’d like to work at {job.company?.name ?? "this company"}.</p>
+            <p>Draft the CV and the letter, then send them by email to the person linked here, or note that you reached out on LinkedIn by moving the application to Sent.</p>
+          </CardContent>
+        </Card>
+      ) : application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
       {events.length ? (
         <Card>
           <CardHeader>

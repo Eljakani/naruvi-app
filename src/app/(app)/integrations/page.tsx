@@ -3,7 +3,9 @@ import { headers } from "next/headers"
 import { connection } from "next/server"
 import { ApiSettings } from "@/components/integrations/api-settings"
 import { CalendarSettings } from "@/components/integrations/calendar-settings"
+import { EmailFinderSettings } from "@/components/integrations/email-finder-settings"
 import { ExportSettings } from "@/components/integrations/export-settings"
+import { emailFinderStatus } from "@/server/contacts/repository"
 import { listApiKeys } from "@/server/integrations/api"
 import { MailSettings } from "@/components/integrations/mail-settings"
 import { OAuthResult } from "@/components/integrations/oauth-signin"
@@ -30,7 +32,7 @@ export default function IntegrationsPage() {
 
 async function Integrations() {
   await connection()
-  const [mail, token, upcoming, head, notifications, keys, reply, oauth] = await Promise.all([getMailOverview(), calendarToken(), datedNextSteps(), headers(), notificationOverview(), listApiKeys(), getReplySetting(), oauthClients()])
+  const [mail, token, upcoming, head, notifications, keys, reply, oauth, finder] = await Promise.all([getMailOverview(), calendarToken(), datedNextSteps(), headers(), notificationOverview(), listApiKeys(), getReplySetting(), oauthClients(), emailFinderStatus()])
   const host = head.get("x-forwarded-host") ?? head.get("host") ?? "localhost:3000"
   const origin = `${head.get("x-forwarded-proto") ?? (/^(localhost|127\.|\[::1\])/.test(host) ? "http" : "https")}://${host}`
   return (
@@ -39,6 +41,7 @@ async function Integrations() {
       <MailSettings overview={mail} reply={reply} oauth={oauth} origin={origin} />
       <CalendarSettings token={token} events={upcoming} origin={origin} />
       <NotificationSettings overview={notifications} />
+      <EmailFinderSettings configured={finder.configured} />
       <ApiSettings keys={keys} origin={origin} folder={process.cwd()} />
       <ExportSettings />
     </div>

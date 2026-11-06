@@ -25,6 +25,40 @@ async function main() {
     return
   }
   $("save").disabled = false
+  // On a LinkedIn profile: save the person (name, headline, current company) as a contact.
+  if (/linkedin\.com\/in\//.test(tab.url)) {
+    $("contact").hidden = false
+    $("save").textContent = "Save this page as a job lead"
+    $("contact").addEventListener("click", async () => {
+      $("contact").disabled = true
+      $("status").textContent = "Saving contact…"
+      try {
+        const [{ result: person }] = await api.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const text = (el) => (el?.innerText ?? "").trim()
+            const name = text(document.querySelector("main h1")) || document.title.split("|")[0].trim()
+            const title = text(document.querySelector("main .text-body-medium"))
+            const company = (document.querySelector('main [aria-label^="Current company"], main [aria-label^="Entreprise actuelle"]')?.getAttribute("aria-label") ?? "").replace(/^[^:]+:\s*/, "").replace(/\.\s*Click.*$/i, "").trim()
+            return { name, title: title.slice(0, 160), companyName: company.slice(0, 160) }
+          },
+        })
+        if (!person?.name) throw new Error("Couldn't read the name on this profile.")
+        const { server, key } = await settings()
+        const response = await fetch(`${server}/api/v1/contacts`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+          body: JSON.stringify({ ...person, linkedinUrl: tab.url }),
+        })
+        const body = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(body.error || `Naruvi answered ${response.status}`)
+        $("status").textContent = `Saved ${person.name}${person.companyName ? ` (${person.companyName})` : ""} to your contacts.`
+      } catch (error) {
+        $("status").textContent = error instanceof TypeError ? "Couldn't reach Naruvi. Is it running?" : error.message
+        $("contact").disabled = false
+      }
+    })
+  }
   $("save").addEventListener("click", async () => {
     $("save").disabled = true
     $("status").textContent = "Saving…"
@@ -47,6 +81,40 @@ async function main() {
     } catch (error) {
       $("status").textContent = error instanceof TypeError ? "Couldn't reach Naruvi. Is it running, and is the address right in Settings?" : error.message
       $("save").disabled = false
+  // On a LinkedIn profile: save the person (name, headline, current company) as a contact.
+  if (/linkedin\.com\/in\//.test(tab.url)) {
+    $("contact").hidden = false
+    $("save").textContent = "Save this page as a job lead"
+    $("contact").addEventListener("click", async () => {
+      $("contact").disabled = true
+      $("status").textContent = "Saving contact…"
+      try {
+        const [{ result: person }] = await api.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const text = (el) => (el?.innerText ?? "").trim()
+            const name = text(document.querySelector("main h1")) || document.title.split("|")[0].trim()
+            const title = text(document.querySelector("main .text-body-medium"))
+            const company = (document.querySelector('main [aria-label^="Current company"], main [aria-label^="Entreprise actuelle"]')?.getAttribute("aria-label") ?? "").replace(/^[^:]+:\s*/, "").replace(/\.\s*Click.*$/i, "").trim()
+            return { name, title: title.slice(0, 160), companyName: company.slice(0, 160) }
+          },
+        })
+        if (!person?.name) throw new Error("Couldn't read the name on this profile.")
+        const { server, key } = await settings()
+        const response = await fetch(`${server}/api/v1/contacts`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+          body: JSON.stringify({ ...person, linkedinUrl: tab.url }),
+        })
+        const body = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(body.error || `Naruvi answered ${response.status}`)
+        $("status").textContent = `Saved ${person.name}${person.companyName ? ` (${person.companyName})` : ""} to your contacts.`
+      } catch (error) {
+        $("status").textContent = error instanceof TypeError ? "Couldn't reach Naruvi. Is it running?" : error.message
+        $("contact").disabled = false
+      }
+    })
+  }
     }
   })
 }
