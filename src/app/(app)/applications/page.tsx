@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Suspense } from "react"
 import { connection } from "next/server"
-import { ArchiveIcon, ChevronRightIcon, FileTextIcon, KanbanIcon, ListIcon, PlusIcon } from "lucide-react"
+import { ArchiveIcon, ChevronRightIcon, DownloadIcon, FileTextIcon, KanbanIcon, ListIcon, PlusIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { FitRing } from "@/components/applications/fit-ring"
@@ -69,6 +69,9 @@ async function ViewSwitch({ searchParams }: { searchParams: Search }) {
           </Button>
         ))}
       </div>
+      <Button size="sm" variant="outline" nativeButton={false} render={<a href="/api/export/applications" download />} title="Download every application as a spreadsheet (CSV)">
+        <DownloadIcon /> Export
+      </Button>
       {show === "active" ? (
         <div className="flex gap-1">
           <Button size="sm" variant={view === "board" ? "secondary" : "ghost"} nativeButton={false} render={<Link href={link({ view: "board" })} />}>

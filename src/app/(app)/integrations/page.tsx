@@ -3,6 +3,7 @@ import { headers } from "next/headers"
 import { connection } from "next/server"
 import { ApiSettings } from "@/components/integrations/api-settings"
 import { CalendarSettings } from "@/components/integrations/calendar-settings"
+import { ExportSettings } from "@/components/integrations/export-settings"
 import { listApiKeys } from "@/server/integrations/api"
 import { MailSettings } from "@/components/integrations/mail-settings"
 import { NotificationSettings } from "@/components/integrations/notification-settings"
@@ -36,6 +37,7 @@ async function Integrations() {
       <CalendarSettings token={token} events={upcoming} origin={origin} />
       <NotificationSettings overview={notifications} />
       <ApiSettings keys={keys} origin={origin} folder={process.cwd()} />
+      <ExportSettings />
     </div>
   )
 }
