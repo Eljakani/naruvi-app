@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation"
 import { useRef, useState, useTransition } from "react"
-import { ChevronRightIcon, EllipsisIcon, FileUpIcon, Loader2Icon, MailIcon, MailSearchIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon, UsersIcon } from "lucide-react"
+import { ChevronRightIcon, ClipboardPasteIcon, EllipsisIcon, ExternalLinkIcon, FileUpIcon, Loader2Icon, MailIcon, MailSearchIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon, UsersIcon } from "lucide-react"
 import { toast } from "sonner"
-import { deleteContactAction, findEmailAction, importContactsAction, saveContactAction, startSpontaneousAction } from "@/app/(app)/contacts/actions"
+import { deleteContactAction, findEmailAction, importContactsAction, readProfileAction, saveContactAction, startSpontaneousAction } from "@/app/(app)/contacts/actions"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupTextarea } from "@/components/ui/input-group"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -178,7 +178,17 @@ function ContactDialog({ initial, onClose }: { initial: Editable; onClose: () =>
   const [reach, setReach] = useState(initial.email || initial.linkedinUrl)
   const [more, setMore] = useState(Boolean(initial.phone || initial.notes || (initial.email && initial.linkedinUrl)))
   const [pending, startTransition] = useTransition()
+  const [reading, startReading] = useTransition()
   const set = (key: keyof Editable, value: string) => setForm((current) => ({ ...current, [key]: value }))
+  const readProfile = (text: string) =>
+    startReading(async () => {
+      const result = await readProfileAction(text)
+      if (!result.ok) return void toast.error("Couldn’t read that", { description: result.message })
+      const found = Object.fromEntries(Object.entries(result.data).filter(([, value]) => value))
+      if (!Object.keys(found).length) return void toast("Nothing recognisable in that text", { description: "Copy from the name down to the current position." })
+      setForm((current) => ({ ...current, ...found }))
+      toast.success("Filled in from the profile", { description: "Check the details before saving." })
+    })
   const reachKind = isLinkedin(reach) ? "linkedin" : isEmail(reach) ? "email" : reach.includes("@") ? "email" : null
   const onReach = (value: string) => {
     setReach(value)
@@ -220,6 +230,18 @@ function ContactDialog({ initial, onClose }: { initial: Editable; onClose: () =>
                 <InputGroupInput id="contact-reach" autoFocus={!initial.id} value={reach} onChange={(event) => onReach(event.target.value)} onBlur={(event) => fillIn(event.target.value)} onPaste={(event) => fillIn(event.clipboardData.getData("text"))} placeholder="camille@dashlane.com or linkedin.com/in/…" {...NO_FILL} />
                 <InputGroupAddon>{reachKind === "linkedin" ? <LinkedinIcon className="size-4" /> : <MailIcon />}</InputGroupAddon>
               </InputGroup>
+              {reachKind === "linkedin" && !initial.id ? (
+                <div className="grid gap-2 rounded-lg border border-dashed p-3 text-sm">
+                  <p className="text-muted-foreground">
+                    To fill in the rest, <a href={reach.startsWith("http") ? reach : `https://${reach}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-foreground underline underline-offset-2">open the profile <ExternalLinkIcon className="size-3" /></a>, select from the name down to the current job, copy, and paste it here.
+                  </p>
+                  <InputGroup>
+                    <InputGroupTextarea aria-label="Paste text from the profile" rows={2} disabled={reading} placeholder="Paste here (Ctrl+V)" className="min-h-0 text-sm" value="" onChange={() => undefined} onPaste={(event) => { event.preventDefault(); readProfile(event.clipboardData.getData("text")) }} />
+                    <InputGroupAddon align="inline-end">{reading ? <Loader2Icon className="animate-spin" /> : <ClipboardPasteIcon />}</InputGroupAddon>
+                  </InputGroup>
+                  <p className="text-xs text-muted-foreground">Read by the AI model you connected; Naruvi never fetches anything from LinkedIn. With the browser extension, one click on the profile saves it all.</p>
+                </div>
+              ) : null}
             </Field>
             <Field>
               <FieldLabel htmlFor="contact-name">Name</FieldLabel>

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { contactsFromRows } from "@/lib/contact-import"
 import { parseCsv } from "@/lib/linkedin-export"
+import { completeJson } from "@/server/llm/client"
+import { readProfileText, type ProfileGuess } from "@/server/contacts/ai-profile"
 import { analyzeJob } from "@/server/applications/repository"
 import { deleteContact, findEmail, importContacts, linkContact, saveContact, saveEmailFinder, startSpontaneous, unlinkContact, type ContactInput } from "@/server/contacts/repository"
 
@@ -108,4 +110,14 @@ export async function unlinkContactAction(applicationId: string, contactId: stri
   revalidatePath(`/applications/${applicationId}`)
   refresh()
   return { ok: true, data: undefined }
+}
+
+/** Name, role and company from text copied off a profile page; only values found in that text. */
+export async function readProfileAction(text: string): Promise<Result<ProfileGuess>> {
+  try {
+    const input = z.string().trim().min(20, "Paste a bit more of the profile.").max(20000).parse(text)
+    return { ok: true, data: await readProfileText(input, completeJson) }
+  } catch (error) {
+    return fail(error)
+  }
 }
