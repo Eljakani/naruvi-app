@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ExternalLinkIcon, Loader2Icon, LogInIcon, SettingsIcon } from "lucide-react"
+import { ExternalLinkIcon, Loader2Icon, SettingsIcon } from "lucide-react"
+import { GoogleLogo, MicrosoftLogo } from "@/components/brand-logos"
+import { Badge } from "@/components/ui/badge"
+import { ButtonGroup } from "@/components/ui/button-group"
 import { toast } from "sonner"
 import { saveOAuthClientAction } from "@/app/(app)/integrations/actions"
 import { Button } from "@/components/ui/button"
@@ -17,27 +20,29 @@ type Clients = Record<OAuthProviderId, { configured: boolean; clientId: string; 
 export function OAuthSignIn({ clients, origin }: { clients: Clients; origin: string }) {
   const [setup, setSetup] = useState<OAuthProviderId | null>(null)
   return (
-    <div className="grid gap-2">
-      <p className="text-sm font-medium">Sign in instead of using an app password</p>
-      <div className="flex flex-wrap gap-2">
-        {(["google", "microsoft"] as const).map((provider) =>
-          clients[provider].configured ? (
-            <div key={provider} className="flex">
-              <Button variant="outline" className="rounded-r-none" nativeButton={false} render={<a href={`/api/oauth/${provider}/start`} />}>
-                <LogInIcon /> Sign in with {OAUTH_PROVIDERS[provider].name}
+    <div className="grid gap-3">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {(["google", "microsoft"] as const).map((provider) => {
+          const name = OAUTH_PROVIDERS[provider].name
+          const Logo = provider === "google" ? GoogleLogo : MicrosoftLogo
+          return clients[provider].configured ? (
+            <ButtonGroup key={provider} className="w-full">
+              <Button variant="outline" size="lg" className="flex-1" nativeButton={false} render={<a href={`/api/oauth/${provider}/start`} />}>
+                <Logo className="size-4" /> Continue with {name}
               </Button>
-              <Button variant="outline" size="icon" className="-ml-px rounded-l-none" aria-label={`${OAUTH_PROVIDERS[provider].name} app settings`} onClick={() => setSetup(provider)}>
+              <Button variant="outline" size="icon-lg" aria-label={`${name} app settings`} onClick={() => setSetup(provider)}>
                 <SettingsIcon />
               </Button>
-            </div>
+            </ButtonGroup>
           ) : (
-            <Button key={provider} variant="outline" onClick={() => setSetup(provider)}>
-              <SettingsIcon /> Set up {OAUTH_PROVIDERS[provider].name} sign-in
+            <Button key={provider} variant="outline" size="lg" className="w-full" onClick={() => setSetup(provider)}>
+              <Logo className="size-4" /> Continue with {name}
+              <Badge variant="secondary" className="ml-auto font-normal">Set up once</Badge>
             </Button>
-          ),
-        )}
+          )
+        })}
       </div>
-      <p className="text-xs text-muted-foreground">Naruvi runs on your computer, so it signs in through an app you register once with Google or Microsoft (about 10 minutes). Your mail never passes through anyone else’s server.</p>
+      <p className="text-xs text-muted-foreground">Naruvi runs on your computer, so the first time you register your own app with Google or Microsoft (about 10 minutes, guided). Your mail never passes through anyone else’s server.</p>
       {setup ? <SetupDialog provider={setup} current={clients[setup]} origin={origin} onClose={() => setSetup(null)} /> : null}
     </div>
   )
@@ -54,7 +59,7 @@ function SetupDialog({ provider, current, origin, onClose }: { provider: OAuthPr
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{info.name} sign-in</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">{provider === "google" ? <GoogleLogo className="size-5" /> : <MicrosoftLogo className="size-5" />} Set up {info.name} sign-in</DialogTitle>
           <DialogDescription>Register Naruvi as your own app, then paste its details here. The secret is stored encrypted.</DialogDescription>
         </DialogHeader>
         <ol className="grid list-decimal gap-1.5 pl-5 text-sm text-muted-foreground">

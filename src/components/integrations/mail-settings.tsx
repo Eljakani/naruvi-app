@@ -1,14 +1,19 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { CheckCircle2Icon, CircleAlertIcon, Loader2Icon, MailIcon, PlugZapIcon, RefreshCwIcon, ShieldCheckIcon, UnplugIcon } from "lucide-react"
+import { CheckCircle2Icon, ChevronDownIcon, CircleAlertIcon, KeyRoundIcon, Loader2Icon, MailIcon, PlugZapIcon, RefreshCwIcon, ServerIcon, ShieldCheckIcon, UnplugIcon } from "lucide-react"
 import { toast } from "sonner"
 import { disconnectMailAction, saveMailAction, syncMailAction, testMailAction } from "@/app/(app)/integrations/actions"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ProviderLogo } from "@/components/brand-logos"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { MAIL_PROVIDERS, OTHER_PROVIDER, providerFor } from "@/lib/mail-providers"
@@ -80,7 +85,7 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-4">
-            <Item label="Mailbox" value={account.email} />
+            <div className="flex min-w-0 items-center gap-2 sm:col-span-1"><ProviderLogo id={account.provider} className="size-5 shrink-0" /><Item label="Mailbox" value={account.email} /></div>
             <Item label="Provider" value={`${(MAIL_PROVIDERS.find((item) => item.id === account.provider) ?? OTHER_PROVIDER).name}${account.authType === "oauth" ? " (signed in)" : ""}`} />
             <Item label="Last checked" value={when(account.lastSyncAt)} />
             <Item label="Linked emails" value={account.matched.toLocaleString()} />
@@ -157,72 +162,103 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
         </CardTitle>
         <CardDescription>Connect the mailbox you apply from. Naruvi links replies to your applications and suggests what to do; it never changes anything or sends mail without your click.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-5">
-        <OAuthSignIn clients={oauth} origin={origin} />
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="h-px flex-1 bg-border" /> or with an app password <span className="h-px flex-1 bg-border" />
-        </div>
-        <form
-          autoComplete="off"
-          className="grid gap-5"
-          onSubmit={(event) => {
-            event.preventDefault()
-            save()
-          }}
-        >
-          <FieldGroup className="grid gap-4 sm:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="mail-email">Email address</FieldLabel>
-              <Input id="mail-email" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" type="email" required value={form.email} onChange={(event) => onEmail(event.target.value)} placeholder="you@example.com" />
-              {form.email.includes("@") ? <FieldDescription>{provider.name}</FieldDescription> : null}
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="mail-name">Your name (for sending)</FieldLabel>
-              <Input id="mail-name" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" value={form.displayName} onChange={(event) => set("displayName", event.target.value)} placeholder="Alex Morgan" />
-            </Field>
-            <Field className="sm:col-span-2">
-              <FieldLabel htmlFor="mail-password">App password</FieldLabel>
-              <Input id="mail-password" autoComplete="new-password" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" type="password" value={form.password} onChange={(event) => set("password", event.target.value)} placeholder={overview.connected ? "Leave empty to keep the saved password" : "Paste the app password"} />
-              <FieldDescription>{provider.help}</FieldDescription>
-            </Field>
-          </FieldGroup>
+      <CardContent>
+        <Tabs defaultValue={overview.connected ? "password" : "signin"}>
+          <TabsList className="w-full sm:w-fit">
+            <TabsTrigger value="signin">Sign in</TabsTrigger>
+            <TabsTrigger value="password">App password</TabsTrigger>
+          </TabsList>
+          <TabsContent value="signin" className="pt-3">
+            <OAuthSignIn clients={oauth} origin={origin} />
+          </TabsContent>
+          <TabsContent value="password" className="pt-3">
+            <form
+              autoComplete="off"
+              onSubmit={(event) => {
+                event.preventDefault()
+                save()
+              }}
+            >
+              <FieldGroup className="gap-5">
+                <FieldSet>
+                  <FieldLegend variant="label">Your mailbox</FieldLegend>
+                  <FieldDescription>Works with Gmail, Outlook, iCloud, Yahoo, Fastmail, Proton (Bridge) or any IMAP mailbox. Servers are filled in from your address.</FieldDescription>
+                  <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="mail-email">Email address</FieldLabel>
+                      <InputGroup>
+                        <InputGroupInput id="mail-email" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" type="email" required value={form.email} onChange={(event) => onEmail(event.target.value)} placeholder="you@example.com" />
+                        <InputGroupAddon>
+                          <ProviderLogo id={form.email.includes("@") ? provider.id : ""} className="size-4" />
+                        </InputGroupAddon>
+                      </InputGroup>
+                      {form.email.includes("@") ? <FieldDescription>{provider.name}</FieldDescription> : null}
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="mail-name">Your name <span className="font-normal text-muted-foreground">(shown when you send)</span></FieldLabel>
+                      <Input id="mail-name" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" value={form.displayName} onChange={(event) => set("displayName", event.target.value)} placeholder="Alex Morgan" />
+                    </Field>
+                    <Field className="sm:col-span-2">
+                      <FieldLabel htmlFor="mail-password">App password</FieldLabel>
+                      <InputGroup>
+                        <InputGroupInput id="mail-password" autoComplete="new-password" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" type="password" value={form.password} onChange={(event) => set("password", event.target.value)} placeholder={overview.connected ? "Leave empty to keep the saved password" : "Paste the app password"} />
+                        <InputGroupAddon>
+                          <KeyRoundIcon />
+                        </InputGroupAddon>
+                      </InputGroup>
+                      <FieldDescription>{provider.help}</FieldDescription>
+                    </Field>
+                  </FieldGroup>
+                </FieldSet>
 
-          <div className="grid gap-3">
-            <button type="button" className="w-fit text-sm font-medium underline-offset-2 hover:underline" onClick={() => setShowServers((value) => !value)} aria-expanded={showServers}>
-              {showServers ? "Hide server settings" : provider.id === "other" ? "Server settings" : `Server settings (filled in for ${provider.name})`}
-            </button>
-            {showServers ? (
-              <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
-                <Field className="sm:col-span-2">
-                  <FieldLabel htmlFor="mail-user">Username</FieldLabel>
-                  <Input id="mail-user" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" value={form.username} onChange={(event) => set("username", event.target.value)} placeholder="Usually your email address" />
-                </Field>
-                <ServerFields label="Incoming (IMAP)" prefix="imap" host={form.imapHost} port={form.imapPort} secure={form.imapSecure} onHost={(value) => set("imapHost", value)} onPort={(value) => set("imapPort", value)} onSecure={(value) => set("imapSecure", value)} />
-                <ServerFields label="Outgoing (SMTP)" prefix="smtp" host={form.smtpHost} port={form.smtpPort} secure={form.smtpSecure} onHost={(value) => set("smtpHost", value)} onPort={(value) => set("smtpPort", value)} onSecure={(value) => set("smtpSecure", value)} />
-              </div>
-            ) : null}
-          </div>
+                <Collapsible open={showServers} onOpenChange={setShowServers} className="rounded-lg border">
+                  <CollapsibleTrigger render={<button type="button" />} className="group/servers flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium">
+                    <ServerIcon className="size-4 text-muted-foreground" />
+                    <span className="flex-1">Server settings</span>
+                    <span className="text-xs font-normal text-muted-foreground">{provider.id === "other" ? "Needed for your provider" : `Filled in for ${provider.name}`}</span>
+                    <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-aria-expanded/servers:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="grid gap-4 border-t p-4 sm:grid-cols-2">
+                      <Field className="sm:col-span-2">
+                        <FieldLabel htmlFor="mail-user">Username</FieldLabel>
+                        <Input id="mail-user" autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" value={form.username} onChange={(event) => set("username", event.target.value)} placeholder="Usually your email address" />
+                      </Field>
+                      <ServerFields label="Incoming (IMAP)" prefix="imap" host={form.imapHost} port={form.imapPort} secure={form.imapSecure} onHost={(value) => set("imapHost", value)} onPort={(value) => set("imapPort", value)} onSecure={(value) => set("imapSecure", value)} />
+                      <ServerFields label="Outgoing (SMTP)" prefix="smtp" host={form.smtpHost} port={form.smtpPort} secure={form.smtpSecure} onHost={(value) => set("smtpHost", value)} onPort={(value) => set("smtpPort", value)} onSecure={(value) => set("smtpSecure", value)} />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
 
-          <p className="flex items-start gap-2 text-xs text-muted-foreground">
-            <ShieldCheckIcon className="mt-0.5 size-3.5 shrink-0" />
-            The password is encrypted on this computer and never shown again. Naruvi reads the inbox from 30 days ago on and keeps only emails about your applications.
-          </p>
-          {!overview.encryptionReady ? <p className="text-sm text-destructive">Set SETTINGS_ENCRYPTION_KEY first (run npm run settings:key), then restart Naruvi.</p> : null}
+                {!overview.encryptionReady ? (
+                  <Alert variant="destructive">
+                    <CircleAlertIcon />
+                    <AlertTitle>Secure storage isn’t set up</AlertTitle>
+                    <AlertDescription>Run <code>npm run settings:key</code>, then restart Naruvi.</AlertDescription>
+                  </Alert>
+                ) : null}
 
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={saving || testing || !form.email || !form.imapHost}>
-              {saving ? <Loader2Icon className="animate-spin" /> : <PlugZapIcon />} {overview.connected ? "Save" : "Connect"}
-            </Button>
-            <Button type="button" variant="outline" disabled={saving || testing || !form.email || !form.imapHost} onClick={test}>
-              {testing ? <Loader2Icon className="animate-spin" /> : null} Test connection
-            </Button>
-            {overview.connected ? (
-              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-                Cancel
-              </Button>
-            ) : null}
-          </div>
-        </form>
+                <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+                  <Button type="submit" disabled={saving || testing || !form.email || !form.imapHost}>
+                    {saving ? <Loader2Icon className="animate-spin" /> : <PlugZapIcon />} {overview.connected ? "Save" : "Connect"}
+                  </Button>
+                  <Button type="button" variant="outline" disabled={saving || testing || !form.email || !form.imapHost} onClick={test}>
+                    {testing ? <Loader2Icon className="animate-spin" /> : null} Test connection
+                  </Button>
+                  {overview.connected ? (
+                    <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                      Cancel
+                    </Button>
+                  ) : null}
+                  <p className="flex basis-full items-start gap-2 text-xs text-muted-foreground sm:ml-auto sm:basis-auto sm:max-w-80">
+                    <ShieldCheckIcon className="mt-0.5 size-3.5 shrink-0" />
+                    Encrypted on this computer. Only emails about your applications are kept.
+                  </p>
+                </div>
+              </FieldGroup>
+            </form>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   )
