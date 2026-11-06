@@ -1,9 +1,10 @@
 import "server-only"
 import { advanceAutomatically } from "@/server/tracking/service"
-import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm"
+import { and, desc, eq, inArray, isNotNull, isNull, sql, type SQL } from "drizzle-orm"
+import { likePattern, prefixQuery } from "@/lib/search"
 import { db } from "@/server/db/client"
-import { applications, entries, facts, jobs } from "@/server/db/schema"
-import { indexFacts, matchRequirement, summarize, type Analysis, type ProfileFact } from "@/server/analysis/match"
+import { applications, companies, entries, facts, jobs } from "@/server/db/schema"
+import { displayFitScore, indexFacts, matchRequirement, summarize, type Analysis, type ProfileFact } from "@/server/analysis/match"
 import { DECISION_REVIEW_VERSION, decideMatches, REVIEW_PROMPT_VERSION, reviewAllMatches } from "@/server/analysis/refine"
 import { decisionClient } from "@/server/settings/decisions"
 import { tracedDecide } from "@/server/runs/decisions"
@@ -107,14 +108,36 @@ export async function analyzeJob(jobId: string) {
   }
 }
 
-/** Active applications by default; `archived: true` lists only the archived ones, `"all"` both. */
-export async function listApplications(filter: { archived?: boolean | "all" } = {}) {
+export const APPLICATION_SORTS = { updated: "Recently updated", due: "Next step due", fit: "Best fit", company: "Company A–Z" } as const
+export type ApplicationSort = keyof typeof APPLICATION_SORTS
+
+/**
+ * Active applications by default; `archived: true` lists only the archived
+ * ones, `"all"` both. `q` searches the job (title, location, posting) and the
+ * company name.
+ */
+export async function listApplications(filter: { archived?: boolean | "all"; q?: string; sort?: ApplicationSort } = {}) {
   const archived = filter.archived ?? false
-  return db.query.applications.findMany({
-    where: archived === "all" ? undefined : archived ? isNotNull(applications.archivedAt) : isNull(applications.archivedAt),
-    with: { job: { with: { company: true } } },
-    orderBy: [desc(applications.updatedAt)],
+  const where: SQL[] = []
+  if (archived !== "all") where.push(archived ? isNotNull(applications.archivedAt) : isNull(applications.archivedAt))
+  const query = filter.q ? prefixQuery(filter.q) : null
+  if (query) {
+    // Matching jobs first: relational queries alias columns inside a raw sub-query.
+    const matches = await db.select({ id: jobs.id }).from(jobs).leftJoin(companies, eq(companies.id, jobs.companyId)).where(sql`${jobs.search} @@ to_tsquery('simple', ${query}) or ${companies.name} ilike ${likePattern(filter.q!)}`)
+    if (!matches.length) return []
+    where.push(inArray(applications.jobId, matches.map((row) => row.id)))
+  }
+  const rows = await db.query.applications.findMany({
+    where: where.length ? and(...where) : undefined,
+    with: { job: { columns: { search: false }, with: { company: true } } },
+    orderBy: filter.sort === "due" ? [sql`${applications.nextStepDue} asc nulls last`, desc(applications.updatedAt)] : [desc(applications.updatedAt)],
   })
+  if (filter.sort === "fit") {
+    const fit = (row: (typeof rows)[number]) => displayFitScore(row.analysis as StoredAnalysis | null) ?? -1
+    rows.sort((a, b) => fit(b) - fit(a))
+  }
+  if (filter.sort === "company") rows.sort((a, b) => (a.job.company?.name ?? "").localeCompare(b.job.company?.name ?? "", undefined, { sensitivity: "base" }))
+  return rows
 }
 
 export async function getApplication(id: string) {

@@ -16,7 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CLOSED } from "@/lib/attention"
 import { STATUS_LABEL } from "@/lib/stages"
 import { cn } from "@/lib/utils"
-import { listApplications, type StoredAnalysis } from "@/server/applications/repository"
+import { ClearFilters, SearchBox, UrlSelect } from "@/components/list-toolbar"
+import { APPLICATION_SORTS, listApplications, type ApplicationSort, type StoredAnalysis } from "@/server/applications/repository"
 import { displayFitScore } from "@/server/analysis/match"
 import { stageSince } from "@/server/tracking/service"
 
@@ -86,10 +87,22 @@ async function List({ searchParams }: { searchParams: Search }) {
   const params = await searchParams
   const show = showOf(params.show)
   const view = show === "active" && params.view !== "list" ? "board" : "list"
-  const [all, since] = await Promise.all([listApplications({ archived: show === "archived" }), stageSince()])
+  const q = typeof params.q === "string" ? params.q.slice(0, 200) : undefined
+  const sort = typeof params.sort === "string" && Object.hasOwn(APPLICATION_SORTS, params.sort) ? (params.sort as ApplicationSort) : undefined
+  const [all, since] = await Promise.all([listApplications({ archived: show === "archived", q, sort }), stageSince()])
   const applications = show === "archived" ? all : all.filter((application) => (show === "closed") === CLOSED.includes(application.status))
   const closedCount = show === "active" ? all.filter((application) => CLOSED.includes(application.status)).length : 0
-  if (!all.length && show === "active") {
+  const toolbar = (
+    <div className="flex flex-wrap items-center gap-2">
+      <SearchBox placeholder="Search role, company, location…" />
+      <ClearFilters names={["q"]} />
+      <div className="ml-auto flex items-center gap-2">
+        {q ? <span className="text-sm text-muted-foreground tabular-nums">{applications.length} match{applications.length === 1 ? "" : "es"}</span> : null}
+        {view === "list" ? <UrlSelect name="sort" label="Sort" options={Object.entries(APPLICATION_SORTS).map(([value, label]) => ({ value, label }))} className="w-44" /> : null}
+      </div>
+    </div>
+  )
+  if (!all.length && show === "active" && !q) {
     return (
       <Empty className="border">
         <EmptyHeader>
@@ -109,35 +122,57 @@ async function List({ searchParams }: { searchParams: Search }) {
   }
   if (view === "board") {
     return (
-      <Board
-        closedHref="/applications?show=closed"
-        items={all.map((application) => ({
-          id: application.id,
-          title: application.job.title,
-          company: application.job.company?.name ?? "",
-          logoPath: application.job.company?.logoPath ?? null,
-          status: application.status,
-          fit: displayFitScore(application.analysis as StoredAnalysis | null),
-          since: (since.get(application.id) ?? application.createdAt).toISOString(),
-          nextStep: application.nextStep,
-          nextStepDue: application.nextStepDue?.toISOString() ?? null,
-        }))}
-      />
+      <div className="grid gap-3">
+        {toolbar}
+        {q && !all.length ? <p className="text-sm text-muted-foreground">No application matches “{q}”.</p> : null}
+        <Board
+          closedHref="/applications?show=closed"
+          items={all.map((application) => ({
+            id: application.id,
+            title: application.job.title,
+            company: application.job.company?.name ?? "",
+            logoPath: application.job.company?.logoPath ?? null,
+            status: application.status,
+            fit: displayFitScore(application.analysis as StoredAnalysis | null),
+            since: (since.get(application.id) ?? application.createdAt).toISOString(),
+            nextStep: application.nextStep,
+            nextStepDue: application.nextStepDue?.toISOString() ?? null,
+          }))}
+        />
+      </div>
     )
   }
   if (!applications.length) {
     return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <ArchiveIcon />
-          </EmptyMedia>
-          <EmptyTitle>{show === "archived" ? "Nothing archived" : show === "closed" ? "No closed applications" : "No active applications"}</EmptyTitle>
-          <EmptyDescription>{show === "archived" ? "Archive applications you’re done with to keep the board short. They stay here and can be restored." : show === "closed" ? "Rejected and withdrawn applications show up here." : "Everything is closed or archived."}</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <div className="grid gap-3">
+        {toolbar}
+        <EmptyState show={show} q={q} />
+      </div>
     )
   }
+  return (
+    <div className="grid gap-3">
+      {toolbar}
+      <ApplicationTable applications={applications} show={show} closedCount={closedCount} />
+    </div>
+  )
+}
+
+function EmptyState({ show, q }: { show: Show; q?: string }) {
+  return (
+    <Empty className="border">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <ArchiveIcon />
+        </EmptyMedia>
+        <EmptyTitle>{show === "archived" ? "Nothing archived" : show === "closed" ? "No closed applications" : "No active applications"}</EmptyTitle>
+        <EmptyDescription>{q ? `Nothing matches “${q}” here.` : show === "archived" ? "Archive applications you’re done with to keep the board short. They stay here and can be restored." : show === "closed" ? "Rejected and withdrawn applications show up here." : "Everything is closed or archived."}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  )
+}
+
+function ApplicationTable({ applications, show, closedCount }: { applications: Awaited<ReturnType<typeof listApplications>>; show: Show; closedCount: number }) {
   return (
     <div className="grid gap-3">
       {show === "closed" ? (

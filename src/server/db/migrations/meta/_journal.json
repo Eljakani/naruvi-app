@@ -99,6 +99,13 @@
       "when": 1793979590905,
       "tag": "0013_application_organize",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793980032246,
+      "tag": "0014_job_search",
+      "breakpoints": true
     }
   ]
 }

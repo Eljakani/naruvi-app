@@ -1,0 +1,3 @@
+ALTER TABLE "jobs" ADD COLUMN "search" "tsvector" GENERATED ALWAYS AS (setweight(to_tsvector('simple', coalesce(title, '')), 'A') || setweight(to_tsvector('simple', coalesce(location, '')), 'B') || to_tsvector('simple', coalesce(raw_text, ''))) STORED;--> statement-breakpoint
+CREATE INDEX "jobs_search_index" ON "jobs" USING gin ("search");--> statement-breakpoint
+CREATE INDEX "jobs_created_at_index" ON "jobs" USING btree ("created_at");

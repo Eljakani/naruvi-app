@@ -107,7 +107,7 @@ export async function exportAll() {
     db.query.facts.findMany(),
     db.query.phrasings.findMany(),
     db.query.companies.findMany(),
-    db.query.jobs.findMany(),
+    db.query.jobs.findMany({ columns: { search: false } }),
     db.query.applications.findMany(),
     db.query.documents.findMany(),
     db.query.revisions.findMany(),

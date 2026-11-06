@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
+import { CommandMenu } from "@/components/command-menu"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -16,6 +17,9 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             <Suspense fallback={null}>
               <PageBreadcrumb />
             </Suspense>
+          </div>
+          <div className="ml-auto flex w-full max-w-64 justify-end px-4">
+            <CommandMenu />
           </div>
         </header>
         <div className="flex flex-1 flex-col p-4 md:p-6">{children}</div>

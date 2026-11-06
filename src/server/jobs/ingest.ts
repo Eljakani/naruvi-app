@@ -281,9 +281,9 @@ export async function saveJob(input: JobDraft) {
 }
 
 export async function listJobs() {
-  return db.query.jobs.findMany({ with: { company: true }, orderBy: (table, { desc }) => [desc(table.createdAt)] })
+  return db.query.jobs.findMany({ columns: { search: false }, with: { company: true }, orderBy: (table, { desc }) => [desc(table.createdAt)] })
 }
 
 export async function getJob(id: string) {
-  return db.query.jobs.findFirst({ where: eq(jobs.id, id), with: { company: true } })
+  return db.query.jobs.findFirst({ columns: { search: false }, where: eq(jobs.id, id), with: { company: true } })
 }
