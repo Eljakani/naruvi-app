@@ -5,6 +5,7 @@
  * short summary.
  */
 import { z } from "zod"
+import { CONTRACT_TYPES, contractOf, programmeOf, type Programme } from "@/lib/job-program"
 import { keywordsIn } from "@/server/analysis/keywords"
 import { extractNumbers } from "@/server/domain/grounding"
 import { choice, decideInChunks, type Decide } from "@/server/decisions/jev"
@@ -15,7 +16,7 @@ type Complete = (input: CompletionInput) => Promise<Completion>
 
 export const SENIORITY = { intern: "Internship or student job", junior: "Entry level, 0–2 years", mid: "Intermediate, about 2–5 years", senior: "Senior, about 5+ years, works independently", lead: "Lead/staff/principal: technical leadership or expert scope", manager: "Manages people or a team", executive: "Director, VP, C-level", unspecified: "The posting gives no signal" } as const
 export const WORK_MODE = { onsite: "Work at the office/site", hybrid: "Mix of office and remote", remote: "Fully remote", unspecified: "Not stated" } as const
-export const CONTRACT = { permanent: "Permanent / CDI / indefinite", fixed_term: "Fixed-term / CDD / temporary", freelance: "Freelance, contractor or consulting", internship: "Internship / stage", apprenticeship: "Apprenticeship / alternance / work-study", unspecified: "Not stated" } as const
+export const CONTRACT = CONTRACT_TYPES
 const SKILL = { required: "The posting requires this from the candidate", nice: "Listed as a plus / nice to have", mentioned: "Only mentioned (company stack, product, context), not asked of the candidate" } as const
 
 export type JobInsights = {
@@ -26,6 +27,8 @@ export type JobInsights = {
   seniority: keyof typeof SENIORITY
   workMode: keyof typeof WORK_MODE
   contract: keyof typeof CONTRACT
+  /** Duration, start and school rhythm for internships, alternance and other time-bound jobs. */
+  programme?: Programme
   confidence: { seniority?: number; workMode?: number; contract?: number }
   yearsRequired: number | null
   skills: { required: string[]; nice: string[]; mentioned: string[] }
@@ -34,7 +37,7 @@ export type JobInsights = {
 }
 
 const rulesWorkMode = (text: string): JobInsights["workMode"] => (/hybrid|hybride/i.test(text) ? "hybrid" : /full[- ]?remote|100 ?% remote|fully remote|télétravail complet|remote-first/i.test(text) ? "remote" : /on-?site|sur site|présentiel/i.test(text) ? "onsite" : "unspecified")
-const rulesContract = (text: string): JobInsights["contract"] => (/\bCDI\b|permanent|full[- ]time employee|unbefristet/i.test(text) ? "permanent" : /\bCDD\b|fixed[- ]term|temporary|befristet/i.test(text) ? "fixed_term" : /freelance|contractor|portage|\bfreelancer?\b/i.test(text) ? "freelance" : /alternance|apprenti|apprenticeship|work-study/i.test(text) ? "apprenticeship" : /\bstage\b|internship|\bintern\b|praktikum/i.test(text) ? "internship" : "unspecified")
+const rulesContract = (text: string): JobInsights["contract"] => contractOf(text)
 const rulesSeniority = (title: string): JobInsights["seniority"] => (/\b(intern|stagiaire|stage)\b/i.test(title) ? "intern" : /\b(junior|jr\.?|débutant|graduate)\b/i.test(title) ? "junior" : /\b(head|director|vp|chief|cto|ciso)\b/i.test(title) ? "executive" : /\b(manager|responsable d'équipe)\b/i.test(title) ? "manager" : /\b(staff|principal|lead|architect)\b/i.test(title) ? "lead" : /\b(senior|sr\.?|confirmé|expérimenté)\b/i.test(title) ? "senior" : "unspecified")
 
 /** "5+ years", "3 ans d'expérience", "at least 4 years": smallest stated minimum. */
@@ -110,14 +113,21 @@ export async function enrichJob(job: { title: string; company: string; text: str
     const known = new Set(extractNumbers(text))
     if (summary?.success && extractNumbers(summary.data.summary).every((value) => known.has(value))) base.summary = summary.data.summary
   }
+  // Time-bound jobs: keep the duration, start and school rhythm as the posting states them.
+  if (TIME_BOUND.has(base.contract)) {
+    const programme = programmeOf(text)
+    if (programme.duration || programme.start || programme.rhythm) base.programme = programme
+  }
   return base
 }
 
+const TIME_BOUND = new Set<JobInsights["contract"]>(["internship", "apprenticeship", "fixed_term", "volunteer", "temporary", "seasonal", "student_job"])
+
 const CONTRACT_LABEL: Record<string, Record<string, string>> = {
-  fr: { permanent: "CDI", fixed_term: "CDD", freelance: "Freelance", internship: "Stage", apprenticeship: "Alternance" },
-  de: { permanent: "Unbefristet", fixed_term: "Befristet", freelance: "Freiberuflich", internship: "Praktikum", apprenticeship: "Ausbildung" },
-  es: { permanent: "Indefinido", fixed_term: "Temporal", freelance: "Autónomo", internship: "Prácticas", apprenticeship: "Formación" },
-  en: { permanent: "Permanent", fixed_term: "Fixed-term", freelance: "Freelance", internship: "Internship", apprenticeship: "Apprenticeship" },
+  fr: { permanent: "CDI", fixed_term: "CDD", freelance: "Freelance", internship: "Stage", apprenticeship: "Alternance", student_job: "Job étudiant", volunteer: "Volontariat (VIE, service civique)", temporary: "Intérim", seasonal: "Saisonnier" },
+  de: { permanent: "Unbefristet", fixed_term: "Befristet", freelance: "Freiberuflich", internship: "Praktikum", apprenticeship: "Ausbildung / duales Studium", student_job: "Werkstudent", volunteer: "Freiwilligendienst", temporary: "Zeitarbeit", seasonal: "Saisonarbeit" },
+  es: { permanent: "Indefinido", fixed_term: "Temporal", freelance: "Autónomo", internship: "Prácticas", apprenticeship: "Formación dual", student_job: "Empleo para estudiantes", volunteer: "Voluntariado", temporary: "Trabajo temporal (ETT)", seasonal: "Temporada" },
+  en: { permanent: "Permanent", fixed_term: "Fixed-term", freelance: "Freelance", internship: "Internship", apprenticeship: "Apprenticeship", student_job: "Student job", volunteer: "Volunteer programme", temporary: "Temp agency", seasonal: "Seasonal" },
 }
 const REMOTE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
 

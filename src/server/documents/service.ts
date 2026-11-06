@@ -186,8 +186,9 @@ export async function generateLetter(applicationId: string, language?: string, a
   const lang = language ?? application.language
   const run = await startRun("letter.generate", { applicationId, language: lang }, applicationId)
   try {
+    const insights = application.job.insights as { contract?: string; programme?: { duration: string; start: string; rhythm: string } } | null
     let content = composeLetter(profile, [], null,
-      { title: application.job.title, company: application.job.company?.name ?? "", location: application.job.location },
+      { title: application.job.title, company: application.job.company?.name ?? "", location: application.job.location, contract: insights?.contract, programme: insights?.programme },
       { language: lang, maxHighlights: 0 },
     )
     content.authorNotes = authorNotes
@@ -227,6 +228,8 @@ function draftLetter(run: Awaited<ReturnType<typeof startRun>>, application: Non
     title: application.job.title,
     company: application.job.company?.name ?? "",
     description: application.job.rawText,
+    contract: (application.job.insights as { contract?: string } | null)?.contract,
+    programme: (application.job.insights as { programme?: { duration: string; start: string; rhythm: string } } | null)?.programme,
   }, researchSources(application.job.company?.research), completionForRun(run, "cover-letter drafting", LETTER_PROMPT_VERSION), instruction),
   (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} changes`)
 }

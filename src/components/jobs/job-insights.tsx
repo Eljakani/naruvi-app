@@ -12,7 +12,8 @@ import type { JobInsights as Insights } from "@/server/jobs/enrich"
 const LABEL: Record<string, string> = {
   intern: "Internship", junior: "Junior", mid: "Mid-level", senior: "Senior", lead: "Lead / staff", manager: "Manager", executive: "Executive",
   onsite: "On-site", hybrid: "Hybrid", remote: "Remote",
-  permanent: "Permanent", fixed_term: "Fixed-term", freelance: "Freelance", internship: "Internship", apprenticeship: "Apprenticeship",
+  permanent: "Permanent", fixed_term: "Fixed-term", freelance: "Freelance", internship: "Internship", apprenticeship: "Apprenticeship / alternance",
+  student_job: "Student job", volunteer: "Volunteer programme", temporary: "Temp agency", seasonal: "Seasonal",
 }
 const ENGINE: Record<Insights["engine"], string> = { decisions: "Decision model", "language-model": "Language model", rules: "Rules" }
 
@@ -46,13 +47,16 @@ export function JobInsights({ jobId, insights }: { jobId: string; insights: Insi
       {insights ? (
         <CardContent className="grid gap-4">
           {insights.summary ? <p className="text-sm">{insights.summary}</p> : null}
-          {facts.length || insights.yearsRequired || insights.visaSponsorship !== null ? (
+          {facts.length || insights.yearsRequired || insights.programme || insights.visaSponsorship !== null ? (
             <div className="flex flex-wrap gap-2">
               {facts.map(([label, value]) => (
                 <Badge key={label} variant="secondary">
                   {label}: {LABEL[value] ?? value}
                 </Badge>
               ))}
+              {insights.programme?.duration ? <Badge variant="secondary">Duration: {insights.programme.duration}</Badge> : null}
+              {insights.programme?.start ? <Badge variant="secondary">Starts: {insights.programme.start}</Badge> : null}
+              {insights.programme?.rhythm ? <Badge variant="secondary">Rhythm: {insights.programme.rhythm}</Badge> : null}
               {insights.yearsRequired ? <Badge variant="secondary">{insights.yearsRequired}+ years</Badge> : null}
               {insights.visaSponsorship === true ? <Badge variant="secondary">Visa / relocation support</Badge> : null}
               {insights.visaSponsorship === false ? <Badge variant="outline">No sponsorship</Badge> : null}

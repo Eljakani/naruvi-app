@@ -82,3 +82,11 @@ test("an emptied motivation paragraph also blocks ready", () => {
   letter.paragraphs[2] = { ...letter.paragraphs[2], text: "  " }
   assert.equal(checkLetter(letter, 1).checks.find((c) => c.id === "placeholders")?.status, "fail")
 })
+
+test("an alternance letter says so, with its rhythm and start", () => {
+  const letter = composeLetter(profile, [shop], analysis, { ...job, contract: "apprenticeship", programme: { duration: "24 mois", start: "septembre 2026", rhythm: "3 semaines / 1 semaine" } }, { language: "fr" })
+  assert.equal(letter.subject, `Candidature en alternance au poste de ${job.title}`)
+  assert.match(letter.paragraphs[0].text, /en alternance au sein de GreenGrocer, d’une durée de 24 mois, au rythme 3 semaines \/ 1 semaine, à partir de septembre 2026\.$/)
+  const permanent = composeLetter(profile, [shop], analysis, { ...job, contract: "permanent" }, { language: "fr" })
+  assert.match(permanent.paragraphs[0].text, /^Je vous adresse ma candidature au poste de/)
+})

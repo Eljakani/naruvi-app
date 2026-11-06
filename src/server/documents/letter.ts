@@ -129,6 +129,54 @@ export const LETTER_PHRASES: Record<string, Phrases> = {
   },
 }
 
+type Programme = { duration: string; start: string; rhythm: string }
+/**
+ * Apprenticeship, internship and other formats change how a letter opens:
+ * "en alternance, au rythme de …", "a 6-month internship from …". Null falls
+ * back to the plain opening.
+ */
+const FORMAT: Record<string, { subject: (role: string, contract?: string) => string | null; opening: (role: string, company: string, contract?: string, programme?: Programme) => string | null }> = {
+  fr: {
+    subject: (role, contract) => (contract === "apprenticeship" ? `Candidature en alternance au poste de ${role}` : contract === "internship" ? `Candidature pour un stage : ${role}` : null),
+    opening: (role, company, contract, programme) => {
+      const extras = [programme?.duration && `d’une durée de ${programme.duration}`, programme?.rhythm && `au rythme ${programme.rhythm}`, programme?.start && `à partir de ${programme.start}`].filter(Boolean).join(", ")
+      if (contract === "apprenticeship") return `Je vous adresse ma candidature pour le poste de ${role} en alternance au sein de ${company}${extras ? `, ${extras}` : ""}.`
+      if (contract === "internship") return `Je vous adresse ma candidature pour un stage de ${role} au sein de ${company}${extras ? `, ${extras}` : ""}.`
+      if (contract === "freelance") return `Je vous propose ma candidature pour la mission de ${role} chez ${company}.`
+      return null
+    },
+  },
+  en: {
+    subject: (role, contract) => (contract === "apprenticeship" ? `Application for the ${role} apprenticeship` : contract === "internship" ? `Application for the ${role} internship` : null),
+    opening: (role, company, contract, programme) => {
+      const extras = [programme?.duration && `for ${programme.duration}`, programme?.rhythm && `on a ${programme.rhythm} schedule`, programme?.start && `starting ${programme.start}`].filter(Boolean).join(", ")
+      if (contract === "apprenticeship") return `I am writing to apply for the ${role} apprenticeship at ${company}${extras ? `, ${extras}` : ""}.`
+      if (contract === "internship") return `I am writing to apply for the ${role} internship at ${company}${extras ? `, ${extras}` : ""}.`
+      if (contract === "freelance") return `I would like to put myself forward for the ${role} mission at ${company}.`
+      return null
+    },
+  },
+  de: {
+    subject: (role, contract) => (contract === "apprenticeship" ? `Bewerbung um einen Ausbildungsplatz als ${role}` : contract === "internship" ? `Bewerbung um ein Praktikum als ${role}` : contract === "student_job" ? `Bewerbung als Werkstudent: ${role}` : null),
+    opening: (role, company, contract, programme) => {
+      const extras = [programme?.duration && `für ${programme.duration}`, programme?.start && `ab ${programme.start}`].filter(Boolean).join(" ")
+      if (contract === "apprenticeship") return `hiermit bewerbe ich mich um die Ausbildung als ${role} bei ${company}${extras ? ` ${extras}` : ""}.`
+      if (contract === "internship") return `hiermit bewerbe ich mich um ein Praktikum als ${role} bei ${company}${extras ? ` ${extras}` : ""}.`
+      if (contract === "student_job") return `hiermit bewerbe ich mich als Werkstudent für die Position ${role} bei ${company}.`
+      return null
+    },
+  },
+  es: {
+    subject: (role, contract) => (contract === "apprenticeship" ? `Candidatura a la formación dual: ${role}` : contract === "internship" ? `Candidatura a prácticas: ${role}` : null),
+    opening: (role, company, contract, programme) => {
+      const extras = [programme?.duration && `de ${programme.duration}`, programme?.start && `a partir de ${programme.start}`].filter(Boolean).join(", ")
+      if (contract === "apprenticeship") return `Les escribo para presentar mi candidatura a la formación dual de ${role} en ${company}${extras ? `, ${extras}` : ""}.`
+      if (contract === "internship") return `Les escribo para presentar mi candidatura a las prácticas de ${role} en ${company}${extras ? `, ${extras}` : ""}.`
+      return null
+    },
+  },
+}
+
 export function phrasesFor(language: string): Phrases {
   return LETTER_PHRASES[language] ?? LETTER_PHRASES.en
 }
@@ -148,7 +196,7 @@ export function composeLetter(
   profile: ComposeProfile,
   entries: ComposeEntry[],
   analysis: (ComposeAnalysis & { requirements: { kind: string; status: string; factIds: string[]; text?: string }[] }) | null,
-  job: { title: string; company: string; location?: string },
+  job: { title: string; company: string; location?: string; contract?: string; programme?: { duration: string; start: string; rhythm: string } },
   options: { language: string; today?: Date; maxHighlights?: number },
 ): LetterDocument {
   const { language } = options
@@ -186,10 +234,10 @@ export function composeLetter(
     header: { name: profile.fullName, headline: profile.headlines[language] ?? "", photoPath: profile.photoPath ?? null, email: profile.email, phone: profile.phone, location: profile.location, links: profile.links },
     recipient: { company: job.company, location: job.location ?? "" },
     date: p.date(options.today ?? new Date()),
-    subject: p.subject(job.title),
+    subject: FORMAT[language]?.subject(job.title, job.contract) ?? p.subject(job.title),
     salutation: p.salutation(job.company),
     paragraphs: [
-      { id: "opening", kind: "opening", text: p.opening(job.title, job.company), placeholder: false, included: true },
+      { id: "opening", kind: "opening", text: FORMAT[language]?.opening(job.title, job.company, job.contract, job.programme) ?? p.opening(job.title, job.company), placeholder: false, included: true },
       ...(highlights.length ? [{ id: "highlights", kind: "highlights" as const, text: "", placeholder: false, included: true }] : []),
       // Ready to send without AI: interest in what the posting says the role involves, never invented
       // history. Still flagged as not yet the author's words, so AI drafting and the author can replace it.
