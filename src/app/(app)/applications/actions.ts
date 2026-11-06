@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 import { analyzeJob } from "@/server/applications/repository"
 import { scheduleResearch } from "@/server/research/auto"
-import { moveApplication } from "@/server/tracking/service"
+import { archiveMany, moveApplication, setArchived, setNextStep } from "@/server/tracking/service"
 
 /** Form action: analyze a job against the profile, then open the application. */
 export async function analyzeJobAction(formData: FormData) {
@@ -31,6 +31,45 @@ export async function moveApplicationAction(id: string, status: string, note = "
   }
   revalidatePath("/applications")
   revalidatePath(`/applications/${parsed.data.id}`)
+  revalidatePath("/")
+  return { ok: true }
+}
+
+function refresh(id: string) {
+  revalidatePath("/applications")
+  revalidatePath(`/applications/${id}`)
+  revalidatePath("/")
+}
+
+export async function archiveApplicationAction(id: string, archived: boolean): Promise<{ ok: boolean; message?: string }> {
+  const parsed = z.object({ id: z.string().uuid(), archived: z.boolean() }).safeParse({ id, archived })
+  if (!parsed.success) return { ok: false, message: "Invalid request." }
+  try {
+    await setArchived(parsed.data.id, parsed.data.archived)
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn’t update the application." }
+  }
+  refresh(parsed.data.id)
+  return { ok: true }
+}
+
+export async function setNextStepAction(id: string, nextStep: string, due: string | null): Promise<{ ok: boolean; message?: string }> {
+  const parsed = z.object({ id: z.string().uuid(), nextStep: z.string().max(200), due: z.string().datetime({ offset: true }).nullable() }).safeParse({ id, nextStep, due })
+  if (!parsed.success) return { ok: false, message: "Invalid next step." }
+  try {
+    await setNextStep(parsed.data.id, parsed.data.nextStep, parsed.data.due ? new Date(parsed.data.due) : null)
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn’t save the next step." }
+  }
+  refresh(parsed.data.id)
+  return { ok: true }
+}
+
+export async function archiveManyAction(ids: string[]): Promise<{ ok: boolean; message?: string }> {
+  const parsed = z.array(z.string().uuid()).max(500).safeParse(ids)
+  if (!parsed.success) return { ok: false, message: "Invalid request." }
+  await archiveMany(parsed.data)
+  revalidatePath("/applications")
   revalidatePath("/")
   return { ok: true }
 }

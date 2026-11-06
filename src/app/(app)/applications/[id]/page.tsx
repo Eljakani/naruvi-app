@@ -3,12 +3,14 @@ import { notFound } from "next/navigation"
 import { scheduleResearch } from "@/server/research/auto"
 import { Suspense } from "react"
 import { connection } from "next/server"
-import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react"
+import { ArchiveIcon, ArrowLeftIcon, ExternalLinkIcon } from "lucide-react"
 import { AnalysisView } from "@/components/applications/analysis-view"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
 import { ApplicationNav } from "@/components/applications/application-nav"
 import { EntryLogo } from "@/components/profile/entry-logo"
+import { ArchiveButton, NextStep } from "@/components/tracking/next-step"
 import { StatusControl } from "@/components/tracking/status-control"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { STATUS_LABEL } from "@/lib/stages"
 import { listEvents } from "@/server/tracking/service"
@@ -54,9 +56,20 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
             </Link>
           </p>
         </div>
-        <StatusControl id={application.id} status={application.status} />
-        <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />
+        <div className="flex flex-wrap items-center gap-2">
+          <NextStep id={application.id} nextStep={application.nextStep} due={application.nextStepDue?.toISOString() ?? null} />
+          <StatusControl id={application.id} status={application.status} />
+          <ArchiveButton id={application.id} archived={Boolean(application.archivedAt)} />
+          <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />
+        </div>
       </div>
+      {application.archivedAt ? (
+        <Alert>
+          <ArchiveIcon />
+          <AlertTitle>Archived on {application.archivedAt.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}</AlertTitle>
+          <AlertDescription>It’s hidden from the board and the dashboard. Restore it to work on it again.</AlertDescription>
+        </Alert>
+      ) : null}
       <ApplicationNav applicationId={application.id} current="analysis" language={application.language} />
       {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
       {events.length ? (

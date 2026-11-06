@@ -2,15 +2,16 @@
 
 import Link from "next/link"
 import { useOptimistic, useState, useTransition } from "react"
-import { EllipsisIcon } from "lucide-react"
+import { ArchiveIcon, CalendarClockIcon, EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
-import { moveApplicationAction } from "@/app/(app)/applications/actions"
+import { archiveApplicationAction, moveApplicationAction } from "@/app/(app)/applications/actions"
 import { FitRing } from "@/components/applications/fit-ring"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { dueLabel, dueTone } from "@/lib/attention"
 import { COLUMNS, columnOf, MANUAL_STATUSES, STATUS_LABEL, statusForColumn, type ColumnId, type Status } from "@/lib/stages"
 import { cn } from "@/lib/utils"
 
@@ -22,6 +23,8 @@ export type BoardItem = {
   status: Status
   fit: number | null
   since: string
+  nextStep: string
+  nextStepDue: string | null
 }
 
 function age(iso: string) {
@@ -29,8 +32,11 @@ function age(iso: string) {
   return days <= 0 ? "today" : days === 1 ? "1 day" : `${days} days`
 }
 
-export function Board({ items }: { items: BoardItem[] }) {
-  const [optimistic, applyMove] = useOptimistic(items, (state, move: { id: string; status: Status }) => state.map((item) => (item.id === move.id ? { ...item, status: move.status, since: new Date().toISOString() } : item)))
+/** The board shows work in progress; closed applications collapse into a link. */
+export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: string }) {
+  const [now] = useState(() => Date.now())
+  const [moved, applyMove] = useOptimistic(items, (state, move: { id: string; status: Status }) => state.map((item) => (item.id === move.id ? { ...item, status: move.status, since: new Date().toISOString() } : item)))
+  const [optimistic, applyHide] = useOptimistic(moved, (state, id: string) => state.filter((item) => item.id !== id))
   const [, startTransition] = useTransition()
   const [dragging, setDragging] = useState<string | null>(null)
   const [over, setOver] = useState<ColumnId | null>(null)
@@ -46,11 +52,28 @@ export function Board({ items }: { items: BoardItem[] }) {
     })
   }
 
+  const archive = (item: BoardItem) =>
+    startTransition(async () => {
+      applyHide(item.id)
+      const result = await archiveApplicationAction(item.id, true)
+      if (!result.ok) toast.error(result.message ?? "Couldn’t archive the application")
+      else toast(`${item.title} archived`, { action: { label: "Undo", onClick: () => void archiveApplicationAction(item.id, false) } })
+    })
+
   return (
     <div className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-6 md:px-6">
       <div className="grid auto-cols-[minmax(15rem,1fr)] grid-flow-col gap-3">
         {COLUMNS.map((column) => {
           const cards = optimistic.filter((item) => columnOf(item.status) === column.id)
+          if (column.id === "closed" && closedHref && !dragging) {
+            return (
+              <Link key={column.id} href={closedHref} className="flex min-h-64 flex-col items-center justify-center gap-1 rounded-xl border border-dashed p-3 text-center text-sm text-muted-foreground hover:bg-muted/40">
+                <ArchiveIcon className="size-4" />
+                <span className="font-medium text-foreground">{column.title}</span>
+                <span className="text-xs">{cards.length ? `${cards.length} application${cards.length === 1 ? "" : "s"}` : "None"}</span>
+              </Link>
+            )
+          }
           return (
             <section
               key={column.id}
@@ -112,9 +135,18 @@ export function Board({ items }: { items: BoardItem[] }) {
                           </DropdownMenuGroup>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem render={<Link href={`/applications/${item.id}`} />}>Open</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => archive(item)}>
+                            <ArchiveIcon /> Archive
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
+                    {item.nextStepDue || item.nextStep ? (
+                      <p className={cn("flex min-w-0 items-center gap-1 text-xs", item.nextStepDue && dueTone(new Date(item.nextStepDue), now) === "overdue" ? "text-destructive" : "text-muted-foreground")}>
+                        <CalendarClockIcon className="size-3 shrink-0" />
+                        <span className="truncate">{item.nextStep || "Next step"}{item.nextStepDue ? ` · ${dueLabel(new Date(item.nextStepDue), now)}` : ""}</span>
+                      </p>
+                    ) : null}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="secondary">{STATUS_LABEL[item.status]}</Badge>
                       <span>{age(item.since)}</span>

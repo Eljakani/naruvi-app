@@ -1,5 +1,6 @@
 import "server-only"
-import { desc, eq } from "drizzle-orm"
+import { and, desc, eq, inArray, isNull } from "drizzle-orm"
+import { dueIn } from "@/lib/attention"
 import { automaticStatus, type Status } from "@/lib/stages"
 import { db } from "@/server/db/client"
 import { applicationEvents, applications } from "@/server/db/schema"
@@ -7,10 +8,12 @@ import { applicationEvents, applications } from "@/server/db/schema"
 /** Set a status by hand (board, menu). Records the change. */
 export async function moveApplication(id: string, to: Status, note = "") {
   return db.transaction(async (tx) => {
-    const [current] = await tx.select({ status: applications.status }).from(applications).where(eq(applications.id, id)).for("update")
+    const [current] = await tx.select({ status: applications.status, nextStep: applications.nextStep, nextStepDue: applications.nextStepDue }).from(applications).where(eq(applications.id, id)).for("update")
     if (!current) throw new Error("Application not found.")
     if (current.status === to) return { changed: false }
-    await tx.update(applications).set({ status: to }).where(eq(applications.id, id))
+    // Sending without a plan: suggest a follow-up in a week (editable, clearable).
+    const followUp = to === "submitted" && !current.nextStep && !current.nextStepDue ? { nextStep: "Follow up if there is no reply", nextStepDue: dueIn(7, Date.now()) } : {}
+    await tx.update(applications).set({ status: to, ...followUp }).where(eq(applications.id, id))
     await tx.insert(applicationEvents).values({ applicationId: id, fromStatus: current.status, toStatus: to, actor: "user", note })
     return { changed: true }
   })
@@ -34,4 +37,21 @@ export async function listEvents(applicationId: string) {
 export async function stageSince() {
   const rows = await db.selectDistinctOn([applicationEvents.applicationId], { applicationId: applicationEvents.applicationId, at: applicationEvents.createdAt }).from(applicationEvents).orderBy(applicationEvents.applicationId, desc(applicationEvents.createdAt))
   return new Map(rows.map((row) => [row.applicationId, row.at]))
+}
+
+/** Put an application away (or bring it back). Nothing is deleted. */
+export async function setArchived(id: string, archived: boolean) {
+  const [row] = await db.update(applications).set({ archivedAt: archived ? new Date() : null }).where(eq(applications.id, id)).returning({ id: applications.id })
+  if (!row) throw new Error("Application not found.")
+}
+
+/** What to do next and when; an empty text and no date clears it. */
+export async function setNextStep(id: string, nextStep: string, due: Date | null) {
+  const [row] = await db.update(applications).set({ nextStep: nextStep.trim().slice(0, 200), nextStepDue: due }).where(eq(applications.id, id)).returning({ id: applications.id })
+  if (!row) throw new Error("Application not found.")
+}
+
+export async function archiveMany(ids: string[]) {
+  if (!ids.length) return
+  await db.update(applications).set({ archivedAt: new Date() }).where(and(inArray(applications.id, ids), isNull(applications.archivedAt)))
 }

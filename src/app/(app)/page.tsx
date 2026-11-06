@@ -4,6 +4,7 @@ import { ArrowRightIcon, BriefcaseBusinessIcon, CheckCircle2Icon, ChevronRightIc
 import { PageHeader } from "@/components/page-header"
 import { FitRing } from "@/components/applications/fit-ring"
 import { EntryLogo } from "@/components/profile/entry-logo"
+import { NeedsAttention } from "@/components/tracking/needs-attention"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -132,8 +133,10 @@ async function DashboardData() {
         </Card>
       ) : null}
 
+      {data.applications ? <NeedsAttention items={data.attention} upcoming={data.upcoming} now={data.now} /> : null}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat title="Active applications" value={active} hint="Not closed or withdrawn" href="/applications" />
+        <Stat title="Active applications" value={active} hint="Not closed, withdrawn or archived" href="/applications" />
         <Stat title="Ready to send" value={sum(["ready"])} hint="Passed every quality check" href="/applications" />
         <Stat title="Sent" value={sum(["submitted", "interviewing", "offer"])} hint={`${sum(["interviewing", "offer"])} in interviews`} href="/applications" />
         <Stat title="Verified facts" value={data.verifiedFacts} hint="What your documents can claim" href="/profile" />

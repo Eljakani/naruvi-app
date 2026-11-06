@@ -251,10 +251,15 @@ export const applications = pgTable(
     analysis: jsonb().$type<Record<string, unknown>>(),
     selectedFactIds: uuid().array().notNull().default(sql`'{}'::uuid[]`),
     notes: text().notNull().default(""),
+    /** Set when the application is put away; hidden from the board, never deleted. */
+    archivedAt: timestamp({ withTimezone: true }),
+    /** What to do next ("Follow up with the recruiter") and when. */
+    nextStep: text().notNull().default(""),
+    nextStepDue: timestamp({ withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index().on(t.status), index().on(t.profileId)],
+  (t) => [index().on(t.status), index().on(t.profileId), index().on(t.archivedAt), index().on(t.nextStepDue)],
 )
 
 export const documents = pgTable(

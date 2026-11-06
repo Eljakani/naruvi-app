@@ -1,6 +1,6 @@
 import "server-only"
 import { advanceAutomatically } from "@/server/tracking/service"
-import { and, desc, eq, inArray } from "drizzle-orm"
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm"
 import { db } from "@/server/db/client"
 import { applications, entries, facts, jobs } from "@/server/db/schema"
 import { indexFacts, matchRequirement, summarize, type Analysis, type ProfileFact } from "@/server/analysis/match"
@@ -107,8 +107,14 @@ export async function analyzeJob(jobId: string) {
   }
 }
 
-export async function listApplications() {
-  return db.query.applications.findMany({ with: { job: { with: { company: true } } }, orderBy: [desc(applications.updatedAt)] })
+/** Active applications by default; `archived: true` lists only the archived ones, `"all"` both. */
+export async function listApplications(filter: { archived?: boolean | "all" } = {}) {
+  const archived = filter.archived ?? false
+  return db.query.applications.findMany({
+    where: archived === "all" ? undefined : archived ? isNotNull(applications.archivedAt) : isNull(applications.archivedAt),
+    with: { job: { with: { company: true } } },
+    orderBy: [desc(applications.updatedAt)],
+  })
 }
 
 export async function getApplication(id: string) {
