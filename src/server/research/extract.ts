@@ -22,7 +22,7 @@ const FOUNDED = /\b(founded in|since|established in|fondée? en|créée? en|depu
 const VALUES_HEADING = /\b(our values|core values|values|principles|what we believe|nos valeurs|valeurs|valores|werte)\b/i
 
 /** Visible text; block elements become line breaks so headings never glue onto sentences. */
-const textOf = (html: string) =>
+export const visiblePageText = (html: string) =>
   decodeHtml(
     html
       .replace(/<head[\s\S]*?<\/head>/i, " ")
@@ -76,9 +76,9 @@ function valuesFrom(html: string): string[] {
   const out: string[] = []
   const pattern = /<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>([\s\S]{0,4000}?)(?=<h[1-3][^>]*>|$)/gi
   for (const match of html.matchAll(pattern)) {
-    if (!VALUES_HEADING.test(textOf(match[1]))) continue
+    if (!VALUES_HEADING.test(visiblePageText(match[1]))) continue
     for (const item of match[2].matchAll(/<(?:li|h[3-6]|strong|dt)[^>]*>([\s\S]*?)<\/(?:li|h[3-6]|strong|dt)>/gi)) {
-      const value = textOf(item[1])
+      const value = visiblePageText(item[1])
       if (value.length >= 3 && value.length <= 120 && !out.includes(value)) out.push(value)
     }
     if (out.length) break
@@ -103,8 +103,8 @@ export function extractPage(html: string, url: string): PageFacts {
   const source = String(html ?? "")
   const title = decodeHtml(source.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").replace(/\s+/g, " ").trim()
   const description = meta(source, "description") || meta(source, "og:description")
-  const headings = [...source.matchAll(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/gi)].map((m) => textOf(m[1])).filter((h) => h.length >= 3 && h.length <= 120).slice(0, 12)
-  const all = sentences(textOf(source))
+  const headings = [...source.matchAll(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/gi)].map((m) => visiblePageText(m[1])).filter((h) => h.length >= 3 && h.length <= 120).slice(0, 12)
+  const all = sentences(visiblePageText(source))
   const statements: PageFacts["statements"] = []
   const seen = new Set<string>()
   const push = (kind: PageFacts["statements"][number]["kind"], text: string) => {

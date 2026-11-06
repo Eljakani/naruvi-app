@@ -74,10 +74,10 @@ export function CommandMenu() {
 
   return (
     <>
-      <Button variant="outline" size="sm" className="w-full max-w-64 justify-start gap-2 text-muted-foreground" onClick={() => setOpen(true)}>
+      <Button variant="outline" size="sm" aria-label="Search" className="size-8 justify-center gap-2 text-muted-foreground @min-[30rem]/workspace:h-8 @min-[30rem]/workspace:w-64 @min-[30rem]/workspace:justify-start" onClick={() => setOpen(true)}>
         <SearchIcon />
-        <span className="flex-1 text-left">Search…</span>
-        <kbd className="hidden rounded border px-1 font-mono text-[11px] sm:inline">Ctrl K</kbd>
+        <span className="hidden flex-1 text-left @min-[30rem]/workspace:inline">Search…</span>
+        <kbd className="hidden rounded border px-1 font-mono text-[11px] @min-[30rem]/workspace:inline">Ctrl K</kbd>
       </Button>
       <CommandDialog className="sm:max-w-xl" open={open} onOpenChange={(value) => { setOpen(value); if (!value) setQuery("") }} title="Search" description="Jump to a page, job, application or company">
         <Command shouldFilter={false} value={selected} onValueChange={setSelected}>

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "src/app/globals.css"
+        ],
+        "createdAt": "2026-11-05T16:18:38.112Z",
+        "reason": "Codex review: cb-shimmer intentionally signals pending AI work in ai-progress, document-shell, and analyze-button; globals.css provides solid text with no shimmer under prefers-reduced-motion."
+      }
+    ]
+  }
+}

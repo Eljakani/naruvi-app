@@ -75,13 +75,13 @@ export default function DashboardPage() {
 function DashboardSkeleton() {
   return (
     <div className="grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 @min-[32rem]/workspace:grid-cols-2 @min-[64rem]/workspace:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
           <Skeleton key={i} className="h-28 rounded-xl" />
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Skeleton className="h-72 rounded-xl lg:col-span-2" />
+      <div className="grid gap-4 @min-[54rem]/workspace:grid-cols-3">
+        <Skeleton className="h-72 rounded-xl @min-[54rem]/workspace:col-span-2" />
         <Skeleton className="h-72 rounded-xl" />
       </div>
     </div>
@@ -147,17 +147,17 @@ async function DashboardData() {
         </Card>
       ) : null}
 
-      {data.applications ? <NeedsAttention items={data.attention} upcoming={data.upcoming} now={data.now} replies={data.replies} /> : null}
+      {data.applications ? <NeedsAttention items={data.attention} now={data.now} replies={data.replies} /> : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 @min-[32rem]/workspace:grid-cols-2 @min-[64rem]/workspace:grid-cols-4">
         <Stat title="Active applications" value={active} hint="Not closed, withdrawn or archived" href="/applications" />
         <Stat title="Ready to send" value={sum(["ready"])} hint="Passed every quality check" href="/applications" />
         <Stat title="Sent" value={sum(["submitted", "interviewing", "offer"])} hint={`${sum(["interviewing", "offer"])} in interviews`} href="/applications" />
         <Stat title="Verified facts" value={data.verifiedFacts} hint="What your documents can claim" href="/profile" />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="grid gap-4 @min-[54rem]/workspace:grid-cols-3">
+        <Card className="@min-[54rem]/workspace:col-span-2">
           <CardHeader>
             <CardTitle>Recent applications</CardTitle>
             <CardDescription>Pick up where you left off.</CardDescription>

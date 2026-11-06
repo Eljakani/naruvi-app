@@ -402,25 +402,36 @@ export async function entriesForMatching() {
 /**
  * Adds new facts and skills to an existing entry without touching what is
  * there (existing fact ids stay stable for analyses and documents). The entry
- * goes back to "needs review" when it gains facts, so unverified claims never
- * reach a CV unnoticed.
+ * goes back to "needs review" when it gains imported facts. An explicit user
+ * approval keeps an already verified entry verified.
  */
-export async function mergeIntoEntry(entryId: string, input: { facts: string[]; skills: string[]; display?: { language: string; role: string; organization: string; dates: string; location: string } }) {
+export async function mergeIntoEntry(entryId: string, input: { facts: string[]; skills: string[]; display?: { language: string; role: string; organization: string; dates: string; location: string } }, { approvedByUser = false } = {}) {
+  const profile = approvedByUser ? await getProfile() : null
   return db.transaction(async (tx) => {
     const [entry] = await tx.select().from(entries).where(eq(entries.id, entryId)).for("update")
-    if (!entry) throw new Error("Entry not found.")
+    if (!entry || (approvedByUser && (entry.profileId !== profile?.id || entry.status === "archived"))) {
+      throw new Error("Entry not found.")
+    }
     const existing = await tx.select({ statement: facts.statement, sortOrder: facts.sortOrder }).from(facts).where(eq(facts.entryId, entryId))
     const fresh = [...new Set(input.facts.map((fact) => fact.trim()).filter((fact) => fact.length >= 3 && !existing.some((known) => known.statement.trim().toLowerCase() === fact.toLowerCase())))]
     const start = existing.reduce((max, fact) => Math.max(max, fact.sortOrder), -1) + 1
     if (fresh.length) await tx.insert(facts).values(fresh.map((statement, index) => ({ entryId, statement, sortOrder: start + index })))
-    const skills = [...entry.skills, ...input.skills.filter((skill) => !entry.skills.some((known) => known.toLowerCase() === skill.toLowerCase()))]
+    const skills = [...entry.skills]
+    const knownSkills = new Set(skills.map((skill) => skill.trim().toLowerCase()))
+    for (const skill of input.skills) {
+      const key = skill.trim().toLowerCase()
+      if (knownSkills.has(key)) continue
+      knownSkills.add(key)
+      skills.push(skill)
+    }
     const display = { ...((entry.display ?? {}) as Record<string, Record<string, string>>) }
     if (input.display) {
       const current = display[input.display.language] ?? {}
       const filled = Object.fromEntries((["role", "organization", "dates", "location"] as const).map((key) => [key, current[key] || input.display![key] || ""]).filter(([, value]) => value))
       if (Object.keys(filled).length) display[input.display.language] = filled
     }
-    await tx.update(entries).set({ skills, display, ...(fresh.length && entry.status === "verified" ? { status: "needs_review" as const } : {}) }).where(eq(entries.id, entryId))
-    return { added: fresh.length, skills: skills.length - entry.skills.length, reverified: Boolean(fresh.length && entry.status === "verified") }
+    const needsReview = !approvedByUser && fresh.length > 0 && entry.status === "verified"
+    await tx.update(entries).set({ skills, display, ...(needsReview ? { status: "needs_review" as const } : {}) }).where(eq(entries.id, entryId))
+    return { added: fresh.length, skills: skills.length - entry.skills.length, reverified: needsReview, verified: entry.status === "verified" && !needsReview }
   })
 }

@@ -1,38 +1,106 @@
 "use client"
 
-import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useRef, useState, useTransition } from "react"
-import { ArrowRightIcon, BriefcaseBusinessIcon, CalendarClockIcon, CheckIcon, LoaderCircleIcon, SparklesIcon, SquarePenIcon, UserPlusIcon } from "lucide-react"
-import { toast } from "sonner"
-import { applyProposalAction, askAssistantAction } from "@/app/(app)/assistant/actions"
-import { AgentComposer } from "@/components/agent/agent-chat"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useChat } from "@ai-sdk/react"
+import { Collapsible } from "@animate-ui/react/primitives/base-ui/collapsible"
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, lastAssistantMessageIsCompleteWithToolCalls, type FileUIPart, type InferUITools, type UIMessage } from "ai"
+import { useReducedMotion } from "motion/react"
+import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import {
+  ArrowRightIcon, ArrowUpIcon, BanIcon, BriefcaseBusinessIcon, CalendarClockIcon, CheckIcon, ChevronDownIcon, CircleAlertIcon, FileTextIcon, GaugeIcon, GlobeIcon,
+  ImagePlusIcon, LinkIcon, MailIcon, MailSearchIcon, MessageCircleQuestionIcon, SendIcon, SparklesIcon, SquareIcon, SquarePenIcon, Trash2Icon, UserPenIcon, UserPlusIcon, UserRoundIcon, XIcon,
+  type LucideIcon,
+} from "lucide-react"
+import { FitRing } from "@/components/applications/fit-ring"
+import { EntryLogo } from "@/components/profile/entry-logo"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, InputGroupTextarea } from "@/components/ui/input-group"
 import { Kbd } from "@/components/ui/kbd"
+import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker"
 import { Message, MessageContent } from "@/components/ui/message"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { MessageScroller, MessageScrollerButton, MessageScrollerContent, MessageScrollerItem, MessageScrollerProvider, MessageScrollerViewport } from "@/components/ui/message-scroller"
 import { SidebarMenuButton } from "@/components/ui/sidebar"
-import { Trace, TraceIcon, TraceLine, TraceTitle } from "@/components/ui/trace"
-import type { Proposal } from "@/lib/assistant"
+import { Trace, TraceDescription, TraceIcon, TraceLine, TraceTitle } from "@/components/ui/trace"
+import { CHAT_IMAGE_BYTES, CHAT_IMAGE_TYPES, limitChatImages } from "@/lib/assistant-images"
 import { cn } from "@/lib/utils"
+import type { assistantTools } from "@/server/assistant/tools"
+import type { apiApplications } from "@/server/integrations/api-data"
+import "./assistant-activity.css"
 
-type Turn =
-  | { id: string; role: "user"; content: string }
-  | { id: string; role: "assistant"; content: string; steps: string[]; proposals: { proposal: Proposal; applied?: boolean }[]; error?: boolean }
-
-const STORAGE = "naruvi-assistant"
-const SUGGESTIONS = ["What should I do today?", "Which applications have had no news?", "Which saved jobs fit me best?", "How do I import my LinkedIn profile?"]
-const WORKING = ["Reading your question", "Looking through your data", "Writing an answer"]
-const id = () => Math.random().toString(36).slice(2)
+/* ───────────────────────────── entry points ───────────────────────────── */
 
 const OPEN_EVENT = "naruvi:assistant"
-/** Opens the assistant from anywhere (sidebar entry, header button, other pages). */
-export const openAssistant = () => window.dispatchEvent(new Event(OPEN_EVENT))
+/** Opens the assistant from anywhere, optionally with a question to send. */
+export const openAssistant = (prompt?: string) => window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: prompt }))
 
-/** Sidebar entry. */
+const PANEL_ID = "naruvi-assistant"
+const WIDTH_KEY = "naruvi-assistant-width"
+const MIN_WIDTH = 320
+const MAX_WIDTH = 560
+const DEFAULT_WIDTH = 400
+const clampWidth = (width: number, max = MAX_WIDTH) => Math.min(Math.max(width, MIN_WIDTH), max)
+
+const AssistantContext = createContext({
+  open: false,
+  visited: false,
+  queued: null as string | null,
+  toggle: () => {},
+  close: () => {},
+  clearQueue: () => {},
+})
+
+export function AssistantProvider({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const [visited, setVisited] = useState(false)
+  const [queued, setQueued] = useState<string | null>(null)
+  const returnFocus = useRef<HTMLElement | null>(null)
+
+  const show = () => {
+    returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setVisited(true)
+    setOpen(true)
+  }
+  const close = useCallback(() => {
+    setOpen(false)
+    requestAnimationFrame(() => {
+      const target = returnFocus.current
+      if (target?.isConnected && target.getClientRects().length) target.focus({ preventScroll: true })
+      else document.getElementById("assistant-toggle")?.focus({ preventScroll: true })
+    })
+  }, [])
+  const toggle = () => open ? close() : show()
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === "j" && (event.metaKey || event.ctrlKey) && !event.repeat) {
+        event.preventDefault()
+        toggle()
+      }
+    }
+    const onOpen = (event: Event) => {
+      if (!open) show()
+      const prompt = (event as CustomEvent<string | undefined>).detail
+      if (prompt) setQueued(prompt)
+    }
+    window.addEventListener("keydown", onKey)
+    window.addEventListener(OPEN_EVENT, onOpen)
+    return () => {
+      window.removeEventListener("keydown", onKey)
+      window.removeEventListener(OPEN_EVENT, onOpen)
+    }
+  })
+
+  return <AssistantContext.Provider value={{ open, visited, queued, toggle, close, clearQueue: () => setQueued(null) }}>{children}</AssistantContext.Provider>
+}
+
 export function AssistantSidebarItem() {
+  const { open, toggle } = useContext(AssistantContext)
   return (
-    <SidebarMenuButton tooltip="Ask Naruvi (Ctrl+J)" onClick={openAssistant}>
+    <SidebarMenuButton tooltip="Ask Naruvi (Ctrl+J)" aria-controls={PANEL_ID} aria-expanded={open} isActive={open} onClick={toggle}>
       <SparklesIcon />
       <span>Ask Naruvi</span>
       <Kbd className="ml-auto group-data-[collapsible=icon]:hidden">Ctrl J</Kbd>
@@ -40,228 +108,749 @@ export function AssistantSidebarItem() {
   )
 }
 
-/** Header button, for phones where the sidebar is tucked away. */
 export function AssistantHeaderButton() {
+  const { open, toggle } = useContext(AssistantContext)
   return (
-    <Button size="icon-sm" variant="ghost" aria-label="Ask Naruvi" className="md:hidden" onClick={openAssistant}>
+    <Button id="assistant-toggle" size="sm" variant={open ? "secondary" : "ghost"} aria-label="Ask Naruvi" aria-controls={PANEL_ID} aria-expanded={open} onClick={toggle}>
       <SparklesIcon />
+      <span className="hidden @min-[30rem]/workspace:inline">Ask Naruvi</span>
     </Button>
   )
 }
 
-/** The left-side panel, mounted once in the app layout. Ctrl/⌘+J toggles it. */
 export function AssistantPanel() {
-  const [open, setOpen] = useState(false)
+  const { visited } = useContext(AssistantContext)
+  return visited ? <DockedAssistant /> : <aside id={PANEL_ID} hidden />
+}
+
+function DockedAssistant() {
+  const { open, queued, close, clearQueue } = useContext(AssistantContext)
+  const [width, setWidth] = useState(() => {
+    const stored = Number(localStorage.getItem(WIDTH_KEY))
+    return stored > 0 && Number.isFinite(stored) ? clampWidth(stored) : DEFAULT_WIDTH
+  })
+  const panel = useRef<HTMLElement>(null)
+  const drag = useRef<{ startX: number; startWidth: number } | null>(null)
+
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() === "j" && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault()
-        setOpen((value) => !value)
-      }
-    }
-    const onOpen = () => setOpen(true)
-    window.addEventListener("keydown", onKey)
-    window.addEventListener(OPEN_EVENT, onOpen)
-    return () => {
-      window.removeEventListener("keydown", onKey)
-      window.removeEventListener(OPEN_EVENT, onOpen)
-    }
-  }, [])
+    if (open) panel.current?.focus({ preventScroll: true })
+  }, [open])
+
+  const resize = (value: number) => {
+    const max = Math.min(MAX_WIDTH, Math.floor(window.innerWidth * 0.42))
+    const next = clampWidth(value, max)
+    setWidth(next)
+    localStorage.setItem(WIDTH_KEY, String(next))
+  }
+
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetContent side="left" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
-        <Conversation onNavigate={() => setOpen(false)} />
-      </SheetContent>
-    </Sheet>
+    <aside
+      id={PANEL_ID}
+      ref={panel}
+      tabIndex={-1}
+      aria-labelledby="assistant-title"
+      data-assistant-open={open ? "" : undefined}
+      className={cn("sticky top-0 flex h-dvh w-full min-w-0 shrink-0 flex-col self-start bg-background outline-none lg:w-[min(var(--assistant-width),42vw)] lg:border-s", !open && "hidden")}
+      style={{ "--assistant-width": `${width}px` } as CSSProperties}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !event.defaultPrevented) {
+          event.stopPropagation()
+          close()
+        }
+      }}
+    >
+      <div
+        role="separator"
+        aria-label="Resize assistant panel"
+        aria-controls={PANEL_ID}
+        aria-orientation="vertical"
+        tabIndex={0}
+        className="group/resize absolute inset-y-0 -start-1.5 z-10 hidden w-3 cursor-col-resize touch-none select-none outline-none lg:block"
+        onPointerDown={(event) => {
+          if (event.button !== 0 || !panel.current) return
+          event.currentTarget.setPointerCapture(event.pointerId)
+          drag.current = { startX: event.clientX, startWidth: panel.current.offsetWidth }
+        }}
+        onPointerMove={(event) => {
+          if (drag.current) resize(drag.current.startWidth + drag.current.startX - event.clientX)
+        }}
+        onLostPointerCapture={() => { drag.current = null }}
+        onKeyDown={(event) => {
+          const current = panel.current?.offsetWidth ?? width
+          const step = event.shiftKey ? 64 : 16
+          const target = { ArrowLeft: current + step, ArrowRight: current - step, Home: MIN_WIDTH, End: MAX_WIDTH }[event.key]
+          if (target !== undefined) {
+            event.preventDefault()
+            resize(target)
+          }
+        }}
+      >
+        <span className="absolute inset-y-0 start-1/2 w-0.5 bg-transparent group-hover/resize:bg-ring group-focus-visible/resize:bg-ring group-active/resize:bg-ring" />
+      </div>
+      <Conversation queued={queued} onQueuedSent={clearQueue} onClose={close} />
+    </aside>
   )
 }
 
-function Conversation({ onNavigate }: { onNavigate: () => void }) {
-  const path = usePathname()
-  const [turns, setTurns] = useState<Turn[]>(() => {
-    if (typeof window === "undefined") return []
-    try {
-      return JSON.parse(sessionStorage.getItem(STORAGE) ?? "[]") as Turn[]
-    } catch {
-      return []
-    }
+/* ───────────────────────────── conversation ───────────────────────────── */
+
+const STORAGE = "naruvi-assistant-v2"
+const SUGGESTIONS = [
+  { icon: CalendarClockIcon, text: "What should I do today?" },
+  { icon: GaugeIcon, text: "Which saved jobs fit me best?" },
+  { icon: SendIcon, text: "Start a spontaneous application" },
+  { icon: UserPlusIcon, text: "Add a recruiter to my contacts" },
+]
+
+type Part = UIMessage["parts"][number]
+type ToolPart = Extract<Part, { toolCallId: string }> & { type: string; state: string; input?: Record<string, unknown>; output?: Record<string, unknown>; errorText?: string; approval?: { id: string; approved?: boolean } }
+const isTool = (part: Part): part is ToolPart => part.type.startsWith("tool-")
+const toolName = (part: ToolPart) => part.type.slice(5)
+
+function loadMessages(): UIMessage[] {
+  try {
+    return JSON.parse(sessionStorage.getItem(STORAGE) ?? "[]") as UIMessage[]
+  } catch {
+    return []
+  }
+}
+
+function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null; onQueuedSent: () => void; onClose: () => void }) {
+  const router = useRouter()
+  const [initial] = useState(loadMessages)
+  const transport = useMemo(() => new DefaultChatTransport({
+    api: "/api/assistant",
+    prepareSendMessagesRequest: ({ messages }) => ({ body: { messages: limitChatImages(messages.slice(-40)), path: window.location.pathname } }),
+  }), [])
+  const { messages, sendMessage, status, stop, error, clearError, setMessages, addToolOutput, addToolApprovalResponse } = useChat({
+    messages: initial,
+    transport,
+    throttle: 32,
+    sendAutomaticallyWhen: (options) => lastAssistantMessageIsCompleteWithApprovalResponses(options) || lastAssistantMessageIsCompleteWithToolCalls(options),
   })
+  const busy = status === "submitted" || status === "streaming"
   const [draft, setDraft] = useState("")
-  const [working, startWorking] = useTransition()
-  const end = useRef<HTMLDivElement>(null)
+  const [image, setImage] = useState<FileUIPart | null>(null)
+  const [imageError, setImageError] = useState("")
+  const [readingImage, setReadingImage] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    sessionStorage.setItem(STORAGE, JSON.stringify(turns.slice(-30)))
-    end.current?.scrollIntoView({ block: "end", behavior: "smooth" })
-  }, [turns, working])
+    if (status !== "ready" && status !== "error") return
+    try {
+      sessionStorage.setItem(STORAGE, JSON.stringify(limitChatImages(messages.slice(-40))))
+    } catch {
+      // The open conversation still works when browser storage is full.
+    }
+  }, [messages, status])
 
-  const send = (text: string) => {
-    const question = text.trim()
-    if (!question || working) return
-    const next: Turn[] = [...turns, { id: id(), role: "user", content: question }]
-    setTurns(next)
-    setDraft("")
-    startWorking(async () => {
-      const result = await askAssistantAction(next.map((turn) => ({ role: turn.role, content: turn.content })), path)
-      setTurns((current) => [
-        ...current,
-        result.ok
-          ? { id: id(), role: "assistant", content: result.data.text, steps: result.data.steps, proposals: result.data.proposals.map((proposal) => ({ proposal })) }
-          : { id: id(), role: "assistant", content: result.message, steps: [], proposals: [], error: true },
-      ])
-    })
+  // Something changed in Naruvi: refresh what's on screen behind the panel.
+  const finished = messages.flatMap((message) => message.parts.filter((part) => isTool(part) && ACTIONS[toolName(part)] && part.state === "output-available").map((part) => (part as ToolPart).toolCallId)).join()
+  const seen = useRef(finished)
+  useEffect(() => {
+    if (finished !== seen.current) {
+      seen.current = finished
+      router.refresh()
+    }
+  }, [finished, router])
+
+  const send = (text: string, attachment?: FileUIPart) => {
+    const value = text.trim()
+    if ((!value && !attachment) || busy) return
+    clearError()
+    void sendMessage(attachment ? { parts: [...(value ? [{ type: "text" as const, text: value }] : []), attachment] } : { text: value })
   }
+  const sendDraft = () => {
+    if (busy || readingImage || (!draft.trim() && !image)) return
+    send(draft, image ?? undefined)
+    setDraft("")
+    setImage(null)
+    setImageError("")
+  }
+  const attachImage = (file: File) => {
+    if (busy || readingImage) return
+    if (!CHAT_IMAGE_TYPES.some((type) => type === file.type) || file.size > CHAT_IMAGE_BYTES || !file.size) {
+      setImageError("Choose a PNG, JPEG, or WebP image up to 2 MB.")
+      return
+    }
+    setImageError("")
+    setReadingImage(true)
+    const reader = new FileReader()
+    reader.onload = () => setImage({ type: "file", mediaType: file.type, filename: file.name, url: String(reader.result) })
+    reader.onerror = () => setImageError("Couldn’t read the image. Try attaching it again.")
+    reader.onloadend = () => setReadingImage(false)
+    reader.readAsDataURL(file)
+  }
+  useEffect(() => {
+    if (!queued || busy) return
+    const timer = window.setTimeout(() => {
+      send(queued)
+      onQueuedSent()
+    }, 0)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- schedule once per queued prompt when idle
+  }, [queued, busy])
 
-  const markApplied = (turnId: string, index: number) =>
-    setTurns((current) => current.map((turn) => (turn.id === turnId && turn.role === "assistant" ? { ...turn, proposals: turn.proposals.map((item, i) => (i === index ? { ...item, applied: true } : item)) } : turn)))
+  const onNavigate = useCallback(() => {
+    if (!window.matchMedia("(min-width: 64rem)").matches) onClose()
+  }, [onClose])
+  const onAnswer = useCallback((toolCallId: string, choice: string) => {
+    void addToolOutput({ tool: "ask_user", toolCallId, output: { choice } } as never)
+  }, [addToolOutput])
+  const onApproval = useCallback((id: string, approved: boolean) => {
+    void addToolApprovalResponse({ id, approved })
+  }, [addToolApprovalResponse])
+
+  const last = messages.at(-1)
+  const thinking = status === "submitted" || (status === "streaming" && last?.role === "assistant" && !last.parts.some((part) => (part.type === "text" && part.text) || isTool(part)))
 
   return (
     <>
-      <SheetHeader className="flex-row items-center gap-2 border-b px-4 py-3">
-        <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      <header className="flex min-h-14 shrink-0 items-center gap-2.5 border-b px-4 py-2">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
           <SparklesIcon className="size-4" />
         </span>
-        <div className="grid flex-1 gap-0">
-          <SheetTitle className="text-sm">Ask Naruvi</SheetTitle>
-          <SheetDescription className="text-xs">Questions about your search or the app. Changes wait for your click.</SheetDescription>
+        <div className="min-w-0 flex-1">
+          <h2 id="assistant-title" className="text-sm font-semibold">Ask Naruvi</h2>
+          <p className="text-xs text-muted-foreground">Career assistant</p>
         </div>
-        {turns.length ? (
-          <Button size="icon-sm" variant="ghost" aria-label="New conversation" className="mr-8" onClick={() => setTurns([])} disabled={working}>
+        {messages.length ? (
+          <Button size="icon-sm" variant="ghost" aria-label="New conversation" title="New conversation" disabled={busy} onClick={() => { setMessages([]); sessionStorage.removeItem(STORAGE) }}>
             <SquarePenIcon />
           </Button>
         ) : null}
-      </SheetHeader>
+        <Button size="icon-sm" variant="ghost" aria-label="Close assistant" title="Close assistant" onClick={onClose}>
+          <XIcon />
+        </Button>
+      </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" aria-live="polite">
-        {turns.length ? (
-          <div className="grid gap-4">
-            {turns.map((turn) =>
-              turn.role === "user" ? (
-                <Message key={turn.id} align="end" className="cb-step">
-                  <MessageContent>
-                    <Bubble align="end" variant="muted">
-                      <BubbleContent className="whitespace-pre-wrap">{turn.content}</BubbleContent>
-                    </Bubble>
-                  </MessageContent>
-                </Message>
+      <MessageScrollerProvider>
+        <MessageScroller className="min-h-0 flex-1">
+          <MessageScrollerViewport aria-label="Conversation" tabIndex={0} className="focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
+            <MessageScrollerContent className="gap-5 px-4 py-5">
+              {messages.length ? (
+                messages.map((message) => (
+                  <TranscriptMessage key={message.id} message={message} onNavigate={onNavigate} onAnswer={onAnswer} onApproval={onApproval} busy={busy} />
+                ))
               ) : (
-                <Message key={turn.id} className="cb-step">
-                  <MessageContent className="grid gap-2">
-                    {turn.steps.length ? (
-                      <Trace>
-                        {turn.steps.map((step) => (
-                          <TraceLine key={step} className="text-xs">
-                            <TraceIcon><CheckIcon className="size-3.5" /></TraceIcon>
-                            <TraceTitle>{step}</TraceTitle>
-                          </TraceLine>
-                        ))}
-                      </Trace>
-                    ) : null}
-                    <p className={cn("text-sm leading-relaxed whitespace-pre-wrap", turn.error && "text-destructive")}>{turn.content}</p>
-                    {turn.proposals.length ? (
-                      <div className="cb-stagger grid gap-2">
-                        {turn.proposals.map((item, index) => (
-                          <ProposalCard key={index} proposal={item.proposal} applied={item.applied} onApplied={() => markApplied(turn.id, index)} onNavigate={onNavigate} />
-                        ))}
-                      </div>
-                    ) : null}
-                  </MessageContent>
-                </Message>
-              ),
-            )}
-            {working ? <Working /> : null}
-            <div ref={end} />
-          </div>
-        ) : (
-          <div className="grid h-full content-center justify-items-center gap-2 text-center">
-            <SparklesIcon className="size-6 text-muted-foreground" />
-            <p className="font-medium">How can I help?</p>
-            <p className="max-w-72 text-sm text-muted-foreground">Ask about your applications, jobs and contacts, or how to do something in Naruvi.</p>
-          </div>
-        )}
-      </div>
+                <Welcome onPick={send} />
+              )}
+              {thinking ? (
+                <MessageScrollerItem>
+                  <div role="status" className={cn("flex w-fit max-w-full items-center gap-2.5 rounded-xl border bg-muted/30 py-1.5 ps-1.5 pe-3 text-sm font-medium", "assistant-activity-entry")}>
+                    <ActivitySignal large />
+                    Preparing a reply
+                  </div>
+                </MessageScrollerItem>
+              ) : null}
+              {error ? (
+                <MessageScrollerItem>
+                  <Marker className="cb-step text-destructive">
+                    <MarkerIcon><CircleAlertIcon /></MarkerIcon>
+                    <MarkerContent>{friendlyError(error.message)}</MarkerContent>
+                  </Marker>
+                </MessageScrollerItem>
+              ) : null}
+            </MessageScrollerContent>
+          </MessageScrollerViewport>
+          <MessageScrollerButton />
+        </MessageScroller>
+      </MessageScrollerProvider>
 
-      <div className="border-t p-3">
-        <AgentComposer value={draft} onChange={setDraft} onSend={send} busy={working} placeholder="Ask anything…" suggestions={turns.length ? [] : SUGGESTIONS} label="Message Naruvi" />
-      </div>
+      <form
+        className="shrink-0 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        onSubmit={(event) => {
+          event.preventDefault()
+          sendDraft()
+        }}
+      >
+        <input
+          ref={fileInput}
+          type="file"
+          accept={CHAT_IMAGE_TYPES.join(",")}
+          hidden
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0]
+            if (file) attachImage(file)
+            event.currentTarget.value = ""
+          }}
+        />
+        {image ? (
+          <div className="mb-2 flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5">
+            <ChatImage part={image} className="size-9 shrink-0 rounded object-cover" />
+            <span className="min-w-0 flex-1 truncate text-xs">{image.filename || "Attached image"}</span>
+            <Button type="button" size="icon-xs" variant="ghost" aria-label="Remove image" onClick={() => { setImage(null); setImageError("") }}>
+              <XIcon />
+            </Button>
+          </div>
+        ) : null}
+        {imageError ? <p role="alert" className="mb-2 text-xs text-destructive">{imageError}</p> : null}
+        <InputGroup className="bg-background">
+          <InputGroupTextarea
+            aria-label="Message Naruvi"
+            value={draft}
+            maxLength={4000}
+            onChange={(event) => setDraft(event.target.value)}
+            onPaste={(event) => {
+              const file = Array.from(event.clipboardData.files).find((item) => item.type.startsWith("image/"))
+              if (file) attachImage(file)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault()
+                sendDraft()
+              }
+            }}
+            placeholder={messages.length ? "Reply, or ask something else…" : "Ask anything, or tell Naruvi what to do…"}
+            className="max-h-40 min-h-14 text-base sm:text-sm"
+          />
+          <InputGroupAddon align="block-end" className="justify-between">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <InputGroupButton type="button" size="icon-sm" aria-label="Attach image" title="Attach image" disabled={busy || readingImage} onClick={() => fileInput.current?.click()}>
+                <ImagePlusIcon />
+              </InputGroupButton>
+              <span className="text-xs text-muted-foreground">Changes wait for your approval</span>
+            </div>
+            {busy ? (
+              <InputGroupButton type="button" size="icon-sm" variant="secondary" className="rounded-full" aria-label="Stop" onClick={() => void stop()}>
+                <SquareIcon className="size-3 fill-current" />
+              </InputGroupButton>
+            ) : (
+              <InputGroupButton type="submit" size="icon-sm" variant="default" className="rounded-full" disabled={readingImage || (!draft.trim() && !image)} aria-label="Send">
+                <ArrowUpIcon />
+              </InputGroupButton>
+            )}
+          </InputGroupAddon>
+        </InputGroup>
+      </form>
     </>
   )
 }
 
-function Working() {
-  const [step, setStep] = useState(0)
-  useEffect(() => {
-    const timer = setInterval(() => setStep((value) => Math.min(value + 1, WORKING.length - 1)), 1600)
-    return () => clearInterval(timer)
-  }, [])
+function ChatImage({ part, className }: { part: FileUIPart; className: string }) {
+  // eslint-disable-next-line @next/next/no-img-element -- local attachment preview uses an inline data URL
+  return <img src={part.url} alt={part.filename || "Attached image"} className={className} />
+}
+
+function friendlyError(message: string) {
+  if (/image|vision|multimodal/i.test(message)) {
+    return "The AI model couldn’t process this image. Check that your model in Settings supports images."
+  }
+  if (/model|settings|api key/i.test(message)) return message
+  return "Something went wrong. Try again, or check your AI model in Settings."
+}
+
+function Welcome({ onPick }: { onPick: (text: string) => void }) {
   return (
-    <Trace role="status" className="cb-step">
-      <TraceLine status="running" className="text-xs">
-        <TraceIcon><LoaderCircleIcon className="size-3.5 animate-spin" /></TraceIcon>
-        <TraceTitle>{WORKING[step]}…</TraceTitle>
-      </TraceLine>
-    </Trace>
+    <div className="grid min-h-full content-center gap-5 py-6">
+      <div className="grid justify-items-center gap-2 text-center">
+        <span className="flex size-10 items-center justify-center rounded-xl border bg-muted/40">
+          <SparklesIcon className="size-5" />
+        </span>
+        <p className="font-medium">What can I do for you?</p>
+        <p className="max-w-64 text-sm text-muted-foreground">Find your best matches, prepare an application, or follow up with a recruiter.</p>
+      </div>
+      <div className="grid gap-1.5">
+        {SUGGESTIONS.map(({ icon: Icon, text }) => (
+          <button key={text} type="button" onClick={() => onPick(text)} className="group/suggestion flex min-h-11 items-center gap-2.5 rounded-lg border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring">
+            <Icon className="size-4 shrink-0 text-muted-foreground" />
+            <span className="flex-1">{text}</span>
+            <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground motion-safe:transition-transform motion-safe:duration-150 motion-safe:group-hover/suggestion:translate-x-0.5" />
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
-const STAGE: Record<string, string> = { submitted: "Sent", interviewing: "Interviewing", offer: "Offer", rejected: "Rejected", withdrawn: "Withdrawn" }
+/* ───────────────────────────── assistant turn ───────────────────────────── */
 
-function describe(proposal: Proposal): { icon: typeof SparklesIcon; title: string; lines: string[]; action: string } {
-  if (proposal.kind === "application") {
-    const lines = [
-      proposal.status ? `Stage → ${STAGE[proposal.status]}` : "",
-      proposal.nextStep ? `Next step → ${proposal.nextStep}` : "",
-      proposal.nextStepDue ? `Due → ${new Date(`${proposal.nextStepDue}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}` : "",
-      proposal.archived !== undefined ? (proposal.archived ? "Archive it" : "Restore it") : "",
-    ].filter(Boolean)
-    return { icon: CalendarClockIcon, title: proposal.label, lines, action: "Apply" }
-  }
-  if (proposal.kind === "contact") return { icon: UserPlusIcon, title: `Add ${proposal.name}`, lines: [[proposal.title, proposal.companyName].filter(Boolean).join(" · "), proposal.email || proposal.linkedinUrl].filter(Boolean), action: "Add contact" }
-  if (proposal.kind === "job") return { icon: BriefcaseBusinessIcon, title: "Save this job", lines: [proposal.url], action: "Save and review" }
-  return { icon: ArrowRightIcon, title: proposal.label, lines: [], action: "Open" }
+const READS: Record<string, [running: string, done: string]> = {
+  what_needs_attention: ["Checking what needs attention", "Checked what needs attention"],
+  list_applications: ["Looking through your applications", "Looked through your applications"],
+  get_application: ["Opening an application", "Opened an application"],
+  search_jobs: ["Searching your saved jobs", "Searched your saved jobs"],
+  get_job: ["Reading a job posting", "Read a job posting"],
+  list_companies: ["Looking through companies", "Looked through companies"],
+  get_company: ["Opening a company", "Opened a company"],
+  read_careers_page: ["Checking the careers link", "Checked the careers link"],
+  list_contacts: ["Looking through your contacts", "Looked through your contacts"],
+  profile_overview: ["Reading your profile", "Read your profile"],
+  find_profile_entries: ["Finding the profile entry", "Checked matching profile entries"],
 }
 
-function ProposalCard({ proposal, applied, onApplied, onNavigate }: { proposal: Proposal; applied?: boolean; onApplied: () => void; onNavigate: () => void }) {
-  const router = useRouter()
-  const [pending, startTransition] = useTransition()
-  const { icon: Icon, title, lines, action } = describe(proposal)
-  const run = () =>
-    startTransition(async () => {
-      const result = await applyProposalAction(proposal)
-      if (!result.ok) return void toast.error("Couldn’t apply that", { description: result.message })
-      if (proposal.kind === "open") {
-        onNavigate()
-        return router.push(result.data.href!)
-      }
-      onApplied()
-      toast.success(result.data.done, result.data.href ? { action: { label: "Open", onClick: () => { onNavigate(); router.push(result.data.href!) } } } : undefined)
-      if (proposal.kind === "job" && result.data.href) {
-        onNavigate()
-        router.push(result.data.href)
-      }
-    })
-
-  if (proposal.kind === "open") {
-    return (
-      <Button variant="outline" size="sm" className="w-fit" onClick={run} disabled={pending}>
-        {pending ? <LoaderCircleIcon className="animate-spin" /> : <ArrowRightIcon />} {title}
-      </Button>
-    )
-  }
+// The SDK keeps completed message objects stable while replacing the streaming one.
+const TranscriptMessage = memo(function TranscriptMessage(props: Parameters<typeof AssistantMessage>[0]) {
+  const { message } = props
   return (
-    <div className={cn("flex items-start gap-3 rounded-lg border bg-card p-3 text-sm transition-opacity", applied && "opacity-70")}>
-      <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-      <div className="grid min-w-0 flex-1 gap-0.5">
-        <span className="truncate font-medium">{title}</span>
-        {lines.map((line) => <span key={line} className="truncate text-xs text-muted-foreground">{line}</span>)}
+    <MessageScrollerItem scrollAnchor={message.role === "user"}>
+      {message.role === "user" ? (
+        <Message align="end" className="cb-step">
+          <MessageContent>
+            <Bubble align="end" variant="muted">
+              <BubbleContent className="grid gap-2 whitespace-pre-wrap wrap-anywhere">
+                {message.parts.map((part, index) => part.type === "text" ? (
+                  <span key={index}>{part.text}</span>
+                ) : part.type === "file" ? (
+                  <ChatImage key={index} part={part} className="max-h-64 max-w-full rounded-md object-contain" />
+                ) : null)}
+              </BubbleContent>
+            </Bubble>
+          </MessageContent>
+        </Message>
+      ) : <AssistantMessage {...props} />}
+    </MessageScrollerItem>
+  )
+})
+
+function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy }: { message: UIMessage; onNavigate: () => void; onAnswer: (toolCallId: string, choice: string) => void; onApproval: (id: string, approved: boolean) => void; busy: boolean }) {
+  // Consecutive look-ups collapse into one trace; everything else renders in order.
+  const blocks: ReactNode[] = []
+  let reads: ToolPart[] = []
+  const flush = () => {
+    if (reads.length) blocks.push(<ReadTrace key={`reads-${blocks.length}`} parts={reads} />)
+    reads = []
+  }
+  message.parts.forEach((part, index) => {
+    if (isTool(part) && READS[toolName(part)]) return void reads.push(part)
+    flush()
+    if (part.type === "text" && part.text.trim()) blocks.push(<Markdown key={index} text={part.text} onNavigate={onNavigate} streaming={busy && part.state === "streaming"} />)
+    else if (isTool(part) && toolName(part) === "ask_user") blocks.push(<AskCard key={index} part={part} onAnswer={onAnswer} disabled={busy && part.state !== "input-available"} />)
+    else if (isTool(part) && toolName(part) === "show_applications" && part.state === "output-available") {
+      const applications = part.output?.applications as Awaited<ReturnType<typeof apiApplications>>["applications"] | undefined
+      if (applications?.length) blocks.push(<ApplicationResults key={index} applications={applications} onNavigate={onNavigate} />)
+    } else if (isTool(part) && toolName(part) === "show_profile" && part.state === "output-available") {
+      const profile = part.output?.profile as ProfileResult | null | undefined
+      if (profile) blocks.push(<ProfileCard key={index} profile={profile} onNavigate={onNavigate} />)
+    }
+    else if (isTool(part) && toolName(part) === "open_page" && part.state === "output-available") blocks.push(<OpenButton key={index} path={String(part.input?.path ?? "/")} label={String(part.input?.label ?? "Open")} onNavigate={onNavigate} />)
+    else if (isTool(part) && ACTIONS[toolName(part)]) blocks.push(<ActionCard key={index} part={part} onApproval={onApproval} onNavigate={onNavigate} />)
+  })
+  flush()
+  return (
+    <Message className="cb-step">
+      <MessageContent className="grid w-full grid-cols-[minmax(0,1fr)] gap-2.5 wrap-anywhere">{blocks}</MessageContent>
+    </Message>
+  )
+}
+
+type ApplicationResult = Awaited<ReturnType<typeof apiApplications>>["applications"][number]
+type ProfileResult = NonNullable<InferUITools<typeof assistantTools>["show_profile"]["output"]["profile"]>
+
+function ProfileCard({ profile, onNavigate }: { profile: ProfileResult; onNavigate: () => void }) {
+  return (
+    <Link
+      href="/profile"
+      onClick={onNavigate}
+      className="group/result grid gap-3 rounded-xl border bg-card p-3 transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
+    >
+      <div className="flex items-start gap-3">
+        <Avatar size="lg">
+          {profile.photoPath ? <AvatarImage src={`/api/assets/${profile.photoPath}`} alt="" /> : null}
+          <AvatarFallback><UserRoundIcon aria-hidden className="size-4" /></AvatarFallback>
+        </Avatar>
+        <div className="grid min-w-0 flex-1 gap-0.5">
+          <span className="font-medium">{profile.name}</span>
+          {profile.headline ? <span className="text-sm text-muted-foreground">{profile.headline}</span> : null}
+          {profile.location ? <span className="text-xs text-muted-foreground">{profile.location}</span> : null}
+        </div>
       </div>
-      {applied ? (
-        <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"><CheckIcon className="cb-pop size-3.5 text-primary" /> Done</span>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t pt-2 text-xs">
+        <span className="text-muted-foreground">{profile.verified} of {profile.entries} {profile.entries === 1 ? "entry" : "entries"} verified</span>
+        <span className="inline-flex items-center gap-1 font-medium group-hover/result:underline">
+          Open profile <ArrowRightIcon aria-hidden className="size-3.5" />
+        </span>
+      </div>
+    </Link>
+  )
+}
+
+function ApplicationResults({ applications, onNavigate }: { applications: ApplicationResult[]; onNavigate: () => void }) {
+  return (
+    <ul aria-label="Applications" className="grid gap-2">
+      {applications.map((application) => (
+        <li key={application.id} className="min-w-0">
+          <Link
+            href={`/applications/${application.id}`}
+            onClick={onNavigate}
+            className="group/result flex items-start gap-2.5 rounded-xl border bg-card p-3 transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <EntryLogo path={application.logoPath} name={application.company ?? application.title} size={32} />
+            <div className="grid min-w-0 flex-1 gap-1">
+              <span className="text-sm leading-snug font-medium group-hover/result:underline">{application.title}</span>
+              {application.company || application.location ? (
+                <span className="text-xs text-muted-foreground">{[application.company, application.location].filter(Boolean).join(" · ")}</span>
+              ) : null}
+              <Badge variant={application.status === "ready" && !application.archived ? "default" : "secondary"} className="mt-1">
+                {application.archived ? "Archived" : application.stage}
+              </Badge>
+            </div>
+            {application.fit != null ? <FitRing score={application.fit} /> : null}
+            <ArrowRightIcon aria-hidden className="mt-2 size-4 shrink-0 text-muted-foreground" />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function ReadTrace({ parts }: { parts: ToolPart[] }) {
+  const reducedMotion = useReducedMotion()
+  const steps = parts.map((part) => {
+    const [running, done] = READS[toolName(part)]
+    const pending = part.state === "input-streaming" || part.state === "input-available"
+    const failed = part.state === "output-error" || Boolean(part.output?.error)
+    return { part, pending, failed, label: failed ? "Lookup failed" : pending ? running : done }
+  })
+  const active = steps.find((step) => step.pending)
+  const failed = steps.filter((step) => step.failed).length
+  const rows = (
+    <Trace>
+      {steps.map(({ part, pending, failed, label }) => (
+        <TraceLine key={part.toolCallId} status={failed ? "error" : undefined} className="text-xs">
+          <TraceIcon>{pending ? <ActivitySignal /> : failed ? <CircleAlertIcon className="size-3.5" /> : <CheckIcon className="size-3.5" />}</TraceIcon>
+          <TraceTitle>{label}</TraceTitle>
+          {!pending && !failed ? <TraceDescription>{countOf(part.output)}</TraceDescription> : null}
+        </TraceLine>
+      ))}
+    </Trace>
+  )
+  if (steps.length === 1) return rows
+
+  return (
+    <Collapsible.Root className="min-w-0 rounded-lg border bg-muted/25">
+      <Collapsible.Trigger className="group/activity flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+        {active ? <ActivitySignal /> : failed ? <CircleAlertIcon className="size-3.5 shrink-0 text-destructive" /> : <CheckIcon className="size-3.5 shrink-0" />}
+        <span className="min-w-0 flex-1 font-medium">{active ? active.label : failed ? `Lookups · ${failed} failed` : `${steps.length} lookups completed`}</span>
+        <ChevronDownIcon className="size-3.5 shrink-0 group-data-[panel-open]/activity:rotate-180 motion-safe:transition-transform motion-safe:duration-150" />
+      </Collapsible.Trigger>
+      <Collapsible.Panel transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.23, 1, 0.32, 1] }}>
+        <div className="border-t px-2.5 py-2">{rows}</div>
+      </Collapsible.Panel>
+    </Collapsible.Root>
+  )
+}
+
+function countOf(output: Record<string, unknown> | undefined) {
+  if (!output) return null
+  for (const key of ["applications", "jobs", "contacts", "companies", "entries", "attention"]) {
+    const value = output[key]
+    if (Array.isArray(value)) return `${value.length} ${key === "attention" ? "items" : key}`
+  }
+  return null
+}
+
+const Streamdown = lazy(() => import("streamdown").then(({ Streamdown }) => ({ default: Streamdown })))
+
+/** Streamed replies use the same renderer as AI Elements' MessageResponse. */
+function Markdown({ text, onNavigate, streaming }: { text: string; onNavigate: () => void; streaming: boolean }) {
+  const components = useMemo(() => ({
+    a: ({ href, children }: { href?: string; children?: ReactNode }) => {
+      const className = "font-medium underline underline-offset-2"
+      if (!href) return <span>{children}</span>
+      if (href.startsWith("/")) return <Link href={href} onClick={onNavigate} className={className}>{children}</Link>
+      return <a href={href} target="_blank" rel="noreferrer" className={className}>{children}</a>
+    },
+  }), [onNavigate])
+
+  return (
+    <Suspense fallback={<p className="text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">{text}</p>}>
+      <Streamdown
+        className="min-w-0 space-y-2 text-sm leading-relaxed wrap-anywhere [&_[data-streamdown=heading-1]]:text-base [&_[data-streamdown=heading-2]]:text-sm [&_[data-streamdown=heading-3]]:text-sm"
+        mode={streaming ? "streaming" : "static"}
+        isAnimating={streaming}
+        skipHtml
+        disallowedElements={["img"]}
+        urlTransform={(url) => /^(?:https?:\/\/|\/(?![\/\\]))/i.test(url) ? url : ""}
+        components={components}
+      >
+        {text}
+      </Streamdown>
+    </Suspense>
+  )
+}
+
+function OpenButton({ path, label, onNavigate }: { path: string; label: string; onNavigate: () => void }) {
+  return (
+    <Button variant="outline" size="sm" className="cb-step h-auto min-h-8 w-fit max-w-full py-1.5 text-left whitespace-normal wrap-anywhere" nativeButton={false} render={<Link href={path} onClick={onNavigate} />}>
+      {label} <ArrowRightIcon />
+    </Button>
+  )
+}
+
+/* ───────────────────────────── ask the user ───────────────────────────── */
+
+function AskCard({ part, onAnswer, disabled }: { part: ToolPart; onAnswer: (toolCallId: string, choice: string) => void; disabled: boolean }) {
+  const [other, setOther] = useState("")
+  const question = String(part.input?.question ?? "")
+  const options = (part.input?.options as string[] | undefined) ?? []
+  const answered = part.state === "output-available" ? String(part.output?.choice ?? "") : null
+  if (part.state === "input-streaming") return <PendingActivity label="Preparing a question" />
+  return (
+    <div className="cb-step grid gap-2.5 rounded-xl border bg-card p-3">
+      <p className="flex items-start gap-2 text-sm font-medium">
+        <MessageCircleQuestionIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" /> {question}
+      </p>
+      {answered !== null ? (
+        <p className="flex items-start gap-1.5 pl-6 text-sm text-muted-foreground"><CheckIcon className="cb-pop mt-0.5 size-3.5 shrink-0 text-primary" /> <span className="min-w-0 wrap-anywhere">{answered}</span></p>
       ) : (
-        <Button size="sm" className="shrink-0" onClick={run} disabled={pending}>
-          {pending ? <LoaderCircleIcon className="animate-spin" /> : null} {action}
-        </Button>
+        <>
+          {options.length ? <div className="cb-stagger flex min-w-0 flex-wrap gap-1.5 pl-6">
+            {options.map((option) => (
+              <Button key={option} size="sm" variant="outline" className="h-auto min-h-8 max-w-full py-1.5 text-left whitespace-normal wrap-anywhere" disabled={disabled} onClick={() => onAnswer(part.toolCallId, option)}>{option}</Button>
+            ))}
+          </div> : null}
+          {!options.length || part.input?.allowOther !== false ? (
+            <form className="pl-6" onSubmit={(event) => { event.preventDefault(); if (other.trim()) onAnswer(part.toolCallId, other.trim()) }}>
+              <InputGroup className="h-8">
+                <InputGroupInput value={other} onChange={(event) => setOther(event.target.value)} placeholder={options.length ? "Something else…" : "Type your answer…"} aria-label={options.length ? "Other answer" : question} disabled={disabled} />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton type="submit" size="icon-xs" disabled={!other.trim() || disabled} aria-label="Send answer"><ArrowUpIcon /></InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+            </form>
+          ) : null}
+        </>
       )}
+    </div>
+  )
+}
+
+function ActivitySignal({ large = false }: { large?: boolean }) {
+  return (
+    <span aria-hidden="true" className="assistant-activity-signal" data-large={large ? "" : undefined}>
+      {[0, 1, 2, 3].map((index) => <span key={index} className="assistant-activity-bar" />)}
+    </span>
+  )
+}
+
+function PendingActivity({ label, className }: { label: string; className?: string }) {
+  return (
+    <div role="status" className={cn("flex items-center gap-2 text-xs text-muted-foreground", className)}>
+      <ActivitySignal />
+      <span>{label}</span>
+    </div>
+  )
+}
+
+/* ───────────────────────────── actions ───────────────────────────── */
+
+type Input = Record<string, unknown>
+type Action = { icon: LucideIcon; title: (input: Input) => string; details: (input: Input) => string[]; approve: string; working: string; done: (output: Input) => string; destructive?: boolean; note?: string }
+const s = (value: unknown) => (typeof value === "string" ? value : "")
+const LANG: Record<string, string> = { en: "English", fr: "French", de: "German", es: "Spanish", it: "Italian", pt: "Portuguese", nl: "Dutch", ar: "Arabic" }
+const STAGE: Record<string, string> = { submitted: "Sent", interviewing: "Interviewing", offer: "Offer", rejected: "Rejected", withdrawn: "Withdrawn" }
+const day = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })
+
+const ACTIONS: Record<string, Action> = {
+  add_profile_fact: {
+    icon: UserPenIcon, title: (i) => `Add a fact to ${s(i.label)}`,
+    details: (i) => [s(i.statement), Array.isArray(i.skills) && i.skills.length ? `Skills: ${i.skills.join(", ")}` : ""],
+    approve: "Save fact", working: "Updating the profile",
+    done: (o) => o.added || o.skillsAdded ? o.verified ? "Profile updated" : "Saved. Entry needs verification." : "Already on this entry",
+  },
+  update_application: {
+    icon: CalendarClockIcon, title: (i) => s(i.label) || "Update application",
+    details: (i) => [i.status ? `Stage → ${STAGE[s(i.status)]}` : "", i.nextStep ? `Next step → ${s(i.nextStep)}` : "", i.nextStepDue ? `Due → ${day(s(i.nextStepDue))}` : "", i.archived === true ? "Archive it" : i.archived === false ? "Restore it" : ""],
+    approve: "Apply", working: "Updating", done: () => "Updated",
+  },
+  add_job_from_link: {
+    icon: BriefcaseBusinessIcon, title: () => "Add this job", details: (i) => [s(i.url) || "From the pasted posting"],
+    approve: "Read and save", working: "Reading the posting", done: (o) => (o.saved ? `Saved ${s(o.title)}${o.company ? ` at ${s(o.company)}` : ""}` : "Already saved, nothing added"),
+  },
+  start_application: {
+    icon: GaugeIcon, title: (i) => `Start application · ${s(i.label)}`, details: () => ["Analyzes your fit against your verified facts"],
+    approve: "Analyze fit", working: "Analyzing your fit", done: (o) => (typeof o.fit === "number" ? `Application started · fit ${o.fit}` : "Application started"),
+  },
+  draft_cv: {
+    icon: FileTextIcon, title: (i) => `Draft CV · ${s(i.label)}`, details: (i) => [LANG[s(i.language)] ?? s(i.language), "Only from verified facts"],
+    approve: "Draft CV", working: "Drafting the CV (about a minute)", done: () => "CV drafted",
+  },
+  draft_letter: {
+    icon: MailIcon, title: (i) => `Draft letter · ${s(i.label)}`, details: (i) => [LANG[s(i.language)] ?? s(i.language), s(i.notes)],
+    approve: "Draft letter", working: "Drafting the letter", done: () => "Letter drafted",
+  },
+  research_company: {
+    icon: GlobeIcon, title: (i) => `Research · ${s(i.label)}`, details: () => ["Reads the company’s public website"],
+    approve: "Research", working: "Reading their website", done: (o) => (o.researched ? "Research ready" : "Couldn’t find enough on their site"),
+  },
+  add_contact: {
+    icon: UserPlusIcon, title: (i) => `Add ${s(i.name)}`, details: (i) => [[s(i.title), s(i.companyName)].filter(Boolean).join(" · "), s(i.email) || s(i.linkedinUrl)],
+    approve: "Add contact", working: "Adding", done: () => "Added to contacts",
+  },
+  update_contact: {
+    icon: UserPenIcon, title: (i) => `Update ${s(i.name) || "contact"}`, details: (i) => Object.entries(i).filter(([key, value]) => key !== "id" && value).map(([key, value]) => `${key === "companyName" ? "Company" : key[0].toUpperCase() + key.slice(1)} → ${String(value)}`),
+    approve: "Save", working: "Saving", done: () => "Contact updated",
+  },
+  delete_contact: {
+    icon: Trash2Icon, title: (i) => `Delete ${s(i.name)}`, details: () => ["Removes them from Naruvi and their links to applications"],
+    approve: "Delete", working: "Deleting", done: () => "Deleted", destructive: true,
+  },
+  link_contact: {
+    icon: LinkIcon, title: (i) => s(i.label) || "Link contact", details: (i) => [s(i.role) ? `As ${s(i.role)}` : ""],
+    approve: "Link", working: "Linking", done: () => "Linked",
+  },
+  find_contact_email: {
+    icon: MailSearchIcon, title: (i) => `Find ${s(i.name)}’s email`, details: () => ["Sends their name and company domain to Hunter.io"],
+    approve: "Find email", working: "Looking it up", done: (o) => (o.email ? `Found ${s(o.email)}${typeof o.confidence === "number" ? ` · ${o.confidence}% confidence` : ""}` : "No email found"),
+  },
+  spontaneous_application: {
+    icon: SendIcon, title: (i) => `Spontaneous application · ${s(i.companyName)}`, details: (i) => [s(i.role) || "Open application", LANG[s(i.language)] ?? "", s(i.context), s(i.careersUrl)],
+    approve: "Create", working: "Creating the application", done: () => "Application created",
+  },
+}
+
+function ActionCard({ part, onApproval, onNavigate }: { part: ToolPart; onApproval: (id: string, approved: boolean) => void; onNavigate: () => void }) {
+  const action = ACTIONS[toolName(part)]
+  const input = part.input ?? {}
+  if (part.state === "input-streaming") return <PendingActivity label="Preparing a suggestion" />
+  const Icon = action.icon
+  const details = action.details(input).filter(Boolean)
+  const state = part.state
+  const asking = state === "approval-requested"
+  const running = state === "approval-responded" || state === "input-available"
+  const declined = state === "output-denied" || (state === "approval-responded" && part.approval?.approved === false)
+  const done = state === "output-available"
+  const failed = state === "output-error"
+  const href = done && typeof part.output?.href === "string" ? part.output.href : null
+
+  return (
+    <div className={cn("cb-step grid gap-2 rounded-xl border bg-card p-3 text-sm transition-[opacity,border-color]", asking && "border-foreground/25", declined && "opacity-60")}>
+      <div className="flex items-start gap-2.5">
+        <span className={cn("mt-px flex size-7 shrink-0 items-center justify-center rounded-md border bg-muted/40", action.destructive && "text-destructive")}>
+          <Icon className="size-3.5" />
+        </span>
+        <div className="grid min-w-0 flex-1 gap-0.5">
+          <span className="font-medium break-words">{action.title(input)}</span>
+          {details.map((line) => <span key={line} className="text-xs break-words text-muted-foreground">{line}</span>)}
+        </div>
+      </div>
+
+      {asking && part.approval ? (
+        <div className="flex flex-wrap items-center gap-1.5 border-t pt-2">
+          <Badge variant="secondary" className="me-auto">Needs approval</Badge>
+          <Button size="sm" variant="ghost" onClick={() => onApproval(part.approval!.id, false)}>Not now</Button>
+          <Button size="sm" variant={action.destructive ? "destructive" : "default"} onClick={() => onApproval(part.approval!.id, true)}>
+            <CheckIcon /> {action.approve}
+          </Button>
+        </div>
+      ) : null}
+
+      {running && !declined ? (
+        <PendingActivity label={action.working} className="ps-9.5" />
+      ) : null}
+      {declined ? <p className="flex items-center gap-1.5 pl-9.5 text-xs text-muted-foreground"><BanIcon className="size-3.5" /> Not done</p> : null}
+      {failed ? <p className="flex items-start gap-1.5 pl-9.5 text-xs text-destructive"><CircleAlertIcon className="mt-px size-3.5 shrink-0" /> {part.errorText || "That didn’t work."}</p> : null}
+      {done ? (
+        <div className="flex items-center gap-2 pl-9.5">
+          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground"><CheckIcon className="cb-pop size-3.5 shrink-0 text-primary" /> <span className="truncate">{action.done(part.output ?? {})}</span></span>
+          {href ? (
+            <Button size="xs" variant="outline" nativeButton={false} render={<Link href={href} onClick={onNavigate} />}>
+              Open <ArrowRightIcon />
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -6,7 +6,7 @@ import type { ContactRow } from "@/lib/contact-import"
 import { likePattern } from "@/lib/search"
 import { db } from "@/server/db/client"
 import { applicationContacts, applications, companies, contacts, jobs, settings } from "@/server/db/schema"
-import { slugify } from "@/server/jobs/ingest"
+import { companyBrandingFromLink, slugify } from "@/server/jobs/ingest"
 import { decryptSecret, encryptSecret, encryptionReady } from "@/server/settings/encryption"
 import { SettingsError } from "@/server/settings/errors"
 
@@ -137,19 +137,37 @@ export async function unlinkContact(applicationId: string, contactId: string) {
  * posting. It is a normal application (CV, letter, email, tracking) built on
  * a "spontaneous" job, and the contact you write to is linked to it.
  */
-export async function startSpontaneous(input: { companyName: string; role?: string; contactId?: string; language?: string }) {
+export async function startSpontaneous(input: { companyName: string; role?: string; contactId?: string; language?: string; careersUrl?: string; context?: string }) {
   const companyName = input.companyName.trim()
   if (!companyName) throw new Error("Choose a company first.")
   const role = input.role?.trim() || (input.language === "fr" ? "Candidature spontanée" : "Spontaneous application")
+  const slug = slugify(companyName)
+  const branding = input.careersUrl ? await companyBrandingFromLink(input.careersUrl).catch(() => null) : null
   const [company] = await db
     .insert(companies)
-    .values({ name: companyName, slug: slugify(companyName) })
-    .onConflictDoUpdate({ target: companies.slug, set: { slug: sql`excluded.slug` } })
+    .values({
+      name: companyName, slug, website: branding?.website,
+      websiteSource: branding ? "careers link" : undefined,
+      logoPath: branding?.logo?.path, logoSource: branding?.logo?.source,
+    })
+    .onConflictDoUpdate({
+      target: companies.slug,
+      set: {
+        website: sql`coalesce(${companies.website}, excluded.website)`,
+        websiteSource: sql`case when ${companies.website} is null then excluded.website_source else ${companies.websiteSource} end`,
+        logoPath: sql`coalesce(${companies.logoPath}, excluded.logo_path)`,
+        logoSource: sql`case when ${companies.logoPath} is null then excluded.logo_source else ${companies.logoSource} end`,
+      },
+    })
     .returning({ id: companies.id, name: companies.name })
   const text = input.language === "fr"
     ? `Candidature spontanée chez ${company.name}${input.role ? ` pour un poste de ${input.role}` : ""}.`
     : `Spontaneous application to ${company.name}${input.role ? ` for a ${input.role} role` : ""}.`
-  const [job] = await db.insert(jobs).values({ companyId: company.id, board: "spontaneous", title: role, rawText: text, language: input.language ?? "en", parseConfidence: 1 }).returning({ id: jobs.id })
+  const rawText = [text, input.context?.trim()].filter(Boolean).join("\n\n")
+  const [job] = await db.insert(jobs).values({
+    companyId: company.id, board: "spontaneous", title: role, rawText,
+    sourceUrl: input.careersUrl, language: input.language ?? "en", parseConfidence: 1,
+  }).returning({ id: jobs.id })
   if (input.contactId) await db.update(contacts).set({ companyId: company.id }).where(and(eq(contacts.id, input.contactId), sql`${contacts.companyId} is null`))
   return { jobId: job.id, companyId: company.id }
 }

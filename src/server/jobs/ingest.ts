@@ -52,11 +52,11 @@ async function fetchHtml(url: string) {
  * that will read best in a square slot: squareness matters more than source.
  * Stops early once a high-priority, near-square mark is found.
  */
-async function pickLogo(candidates: { url: string; source: string; priority?: number; strictShape?: boolean }[], employerLogo = false) {
+async function pickLogo(candidates: { url: string; source: string; priority?: number; strictShape?: boolean }[], employerLogo = false, timeoutMs?: number) {
   const scored: { buffer: Buffer; source: string; score: number }[] = []
   for (const candidate of candidates.slice(0, 10)) {
     try {
-      const fetched = await safeFetch(candidate.url, { maxBytes: MAX_IMAGE_BYTES, accept: "image/*" })
+      const fetched = await safeFetch(candidate.url, { maxBytes: MAX_IMAGE_BYTES, accept: "image/*", timeoutMs })
       if (fetched.status >= 400 || !sniffImage(fetched.buffer)) continue
       const trimmed = await trimLogo(fetched.buffer)
       if (!trimmed) continue
@@ -85,6 +85,21 @@ async function pickLogo(candidates: { url: string; source: string; priority?: nu
   if (!best) return null
   const stored = await storeLogo(best.buffer)
   return { path: stored.path, source: best.source }
+}
+
+/** Discover branding from a company link without importing it as a posting. */
+export async function companyBrandingFromLink(url: string) {
+  if (isJobHost(url)) return null
+  const page = await quickHtml(url)
+  const website = new URL(page?.finalUrl ?? url).origin
+  if (isJobHost(website)) return null
+  const home = page?.finalUrl === `${website}/` ? page : await quickHtml(website)
+  if (!page && !home) return null
+
+  const candidates = [home, page].flatMap((source) => source ? siteLogoCandidates(source.html, source.finalUrl) : [])
+  const unique = [...new Map(candidates.map((candidate) => [candidate.url, candidate])).values()]
+  const logo = await pickLogo(unique.sort((a, b) => b.priority - a.priority), false, 4000)
+  return { website, logo }
 }
 
 /**

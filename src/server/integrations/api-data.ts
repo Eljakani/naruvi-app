@@ -13,6 +13,7 @@ const summary = (application: Awaited<ReturnType<typeof listApplications>>[numbe
   id: application.id,
   title: application.job.title,
   company: application.job.company?.name ?? null,
+  logoPath: application.job.company?.logoPath ?? null,
   location: application.job.location || null,
   status: application.status,
   stage: STATUS_LABEL[application.status],
@@ -25,8 +26,8 @@ const summary = (application: Awaited<ReturnType<typeof listApplications>>[numbe
 
 export const listQuery = z.object({ q: z.string().max(200).optional(), show: z.enum(["active", "closed", "archived", "all"]).default("active") })
 
-export async function apiApplications(query: z.infer<typeof listQuery>) {
-  const rows = await listApplications({ archived: query.show === "archived" ? true : query.show === "all" ? "all" : false, q: query.q })
+export async function apiApplications(query: z.infer<typeof listQuery> & { sort?: "fit" }) {
+  const rows = await listApplications({ archived: query.show === "archived" ? true : query.show === "all" ? "all" : false, q: query.q, sort: query.sort })
   const filtered = query.show === "active" ? rows.filter((row) => !CLOSED.includes(row.status)) : query.show === "closed" ? rows.filter((row) => CLOSED.includes(row.status)) : rows
   return { applications: filtered.map(summary) }
 }

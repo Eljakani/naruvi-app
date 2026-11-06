@@ -3,37 +3,37 @@ import { getProfile } from "@/server/profile/repository"
 import { Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { CommandMenu } from "@/components/command-menu"
-import { AssistantHeaderButton, AssistantPanel } from "@/components/assistant/assistant-panel"
+import { AssistantHeaderButton, AssistantPanel, AssistantProvider } from "@/components/assistant/assistant-panel"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
-    <SidebarProvider>
-      <Suspense fallback={<AppSidebar user={emptyIdentity} />}>
-        <ProfileSidebar />
-      </Suspense>
-      <SidebarInset className="min-w-0">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 data-vertical:h-4 data-vertical:self-auto" />
-            <Suspense fallback={null}>
-              <PageBreadcrumb />
-            </Suspense>
-          </div>
-          <div className="ml-auto flex w-full max-w-64 items-center justify-end gap-1 px-4">
-            <AssistantHeaderButton />
-            <CommandMenu />
-          </div>
-        </header>
-        <div className="flex flex-1 flex-col p-4 md:p-6">{children}</div>
-        <Suspense fallback={null}>
-          <AssistantPanel />
+    <AssistantProvider>
+      <SidebarProvider className="group/workspace">
+        <Suspense fallback={<AppSidebar user={emptyIdentity} />}>
+          <ProfileSidebar />
         </Suspense>
-      </SidebarInset>
-    </SidebarProvider>
+        <SidebarInset className="@container/workspace min-w-0 max-lg:group-has-[[data-assistant-open]]/workspace:hidden">
+          <header className="flex h-14 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+            <div className="flex min-w-0 items-center gap-2 px-4">
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mr-2 data-vertical:h-4 data-vertical:self-auto" />
+              <Suspense fallback={null}>
+                <PageBreadcrumb />
+              </Suspense>
+            </div>
+            <div className="ml-auto flex min-w-0 items-center justify-end gap-1 px-4">
+              <AssistantHeaderButton />
+              <CommandMenu />
+            </div>
+          </header>
+          <div className="flex flex-1 flex-col p-4 md:p-6">{children}</div>
+        </SidebarInset>
+        <AssistantPanel />
+      </SidebarProvider>
+    </AssistantProvider>
   )
 }
 
