@@ -17,7 +17,9 @@ import { listEvents } from "@/server/tracking/service"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getApplication } from "@/server/applications/repository"
+import { ComposeEmail } from "@/components/mail/compose-email"
 import { MailThread } from "@/components/mail/mail-thread"
+import { hasMailbox } from "@/server/mail/account"
 import { mailFor, markRead } from "@/server/mail/classify"
 import type { CompanyResearch as Research } from "@/server/research/brief"
 
@@ -35,7 +37,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
   await connection()
   const { id } = await params
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
-  const [application, events, mail] = await Promise.all([getApplication(id), listEvents(id), mailFor(id)])
+  const [application, events, mail, mailConnected] = await Promise.all([getApplication(id), listEvents(id), mailFor(id), hasMailbox()])
   if (!application) notFound()
   // Opening the application counts as reading its emails.
   if (mail.some((message) => !message.readAt)) after(() => markRead(id))
@@ -62,6 +64,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <NextStep id={application.id} nextStep={application.nextStep} due={application.nextStepDue?.toISOString() ?? null} />
+          <ComposeEmail applicationId={application.id} connected={mailConnected} hasReplies={mail.some((message) => message.direction === "in")} />
           <StatusControl id={application.id} status={application.status} />
           <ArchiveButton id={application.id} archived={Boolean(application.archivedAt)} />
           <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />

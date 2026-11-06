@@ -92,3 +92,20 @@ export async function dismissMailSuggestionAction(messageId: string): Promise<{ 
   if (applicationId) refresh(applicationId)
   return { ok: true }
 }
+
+export async function composeContextAction(applicationId: string, kind: "apply" | "follow_up" | "thank_you" | "reply") {
+  if (!z.string().uuid().safeParse(applicationId).success || !["apply", "follow_up", "thank_you", "reply"].includes(kind)) return null
+  const { composeContext } = await import("@/server/mail/send")
+  return composeContext(applicationId, kind)
+}
+
+export async function sendMailAction(input: { applicationId: string; kind: "apply" | "follow_up" | "thank_you" | "reply"; to: string; cc: string; subject: string; body: string; attachCv: boolean; attachLetter: boolean; replyTo: string | null }): Promise<{ ok: boolean; message?: string }> {
+  try {
+    const { sendApplicationMail } = await import("@/server/mail/send")
+    await sendApplicationMail(input)
+    refresh(input.applicationId)
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, message: error instanceof z.ZodError ? (error.issues[0]?.message ?? "Check the form.") : error instanceof Error ? error.message : "Couldn’t send the email." }
+  }
+}

@@ -109,6 +109,11 @@ export async function getMailOverview() {
 }
 export type MailOverview = Awaited<ReturnType<typeof getMailOverview>>
 
+export async function hasMailbox() {
+  const [row] = await db.select({ id: mailAccounts.id }).from(mailAccounts).limit(1)
+  return Boolean(row)
+}
+
 /** Read with the password decrypted, for sync and sending only. */
 export async function getMailAccount() {
   const [account] = await db.select().from(mailAccounts).limit(1)

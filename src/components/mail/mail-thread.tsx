@@ -43,14 +43,14 @@ export function MailThread({ messages }: { messages: Message[] }) {
               <details className="group" open={index === 0}>
                 <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
                   <span className={cn("min-w-0 flex-1 truncate text-sm", !message.readAt && message.direction === "in" && "font-semibold")}>{message.subject || "(no subject)"}</span>
-                  {message.kind && message.kind !== "other" ? <Badge variant={TONE[message.kind as MailKind] ?? "secondary"}>{KIND_LABEL[message.kind as MailKind]}</Badge> : null}
+                  {message.direction === "out" ? <Badge variant="outline">Sent</Badge> : message.kind && message.kind !== "other" && Object.hasOwn(KIND_LABEL, message.kind) ? <Badge variant={TONE[message.kind as MailKind] ?? "secondary"}>{KIND_LABEL[message.kind as MailKind]}</Badge> : null}
                   <span className="w-full text-xs text-muted-foreground sm:w-auto">
                     {message.direction === "out" ? "You" : message.fromName || message.fromAddress} · {message.sentAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
                   </span>
                 </summary>
                 <div className="grid gap-2 border-t bg-muted/20 px-3 py-3">
                   <p className="text-xs text-muted-foreground">
-                    From {message.fromName ? `${message.fromName} <${message.fromAddress}>` : message.fromAddress} · {message.matchReason}
+                    {message.direction === "out" ? `To ${message.toAddresses.join(", ")}` : `From ${message.fromName ? `${message.fromName} <${message.fromAddress}>` : message.fromAddress} · ${message.matchReason}`}
                   </p>
                   <p className="max-h-96 overflow-y-auto text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{message.text || "(no text)"}</p>
                 </div>
