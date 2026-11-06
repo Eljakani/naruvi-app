@@ -57,3 +57,19 @@ export async function disconnectMailAction(): Promise<Result> {
     return fail(error)
   }
 }
+
+export async function calendarAction(change: "enable" | "reset" | "disable"): Promise<Result<{ token: string | null }>> {
+  try {
+    const { disableCalendar, newCalendarToken } = await import("@/server/integrations/calendar")
+    if (change === "disable") {
+      await disableCalendar()
+      revalidatePath("/integrations")
+      return { ok: true, data: { token: null } }
+    }
+    const token = await newCalendarToken()
+    revalidatePath("/integrations")
+    return { ok: true, data: { token } }
+  } catch (error) {
+    return fail(error)
+  }
+}
