@@ -3,6 +3,7 @@ import { getProfile } from "@/server/profile/repository"
 import { Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { CommandMenu } from "@/components/command-menu"
+import { AssistantHeaderButton, AssistantPanel } from "@/components/assistant/assistant-panel"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -22,11 +23,15 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
               <PageBreadcrumb />
             </Suspense>
           </div>
-          <div className="ml-auto flex w-full max-w-64 justify-end px-4">
+          <div className="ml-auto flex w-full max-w-64 items-center justify-end gap-1 px-4">
+            <AssistantHeaderButton />
             <CommandMenu />
           </div>
         </header>
         <div className="flex flex-1 flex-col p-4 md:p-6">{children}</div>
+        <Suspense fallback={null}>
+          <AssistantPanel />
+        </Suspense>
       </SidebarInset>
     </SidebarProvider>
   )

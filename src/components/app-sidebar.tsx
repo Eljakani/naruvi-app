@@ -6,6 +6,7 @@ import * as React from "react"
 import { Suspense } from "react"
 import { PlusIcon } from "lucide-react"
 import { AddJobDialog } from "@/components/jobs/job-reader"
+import { AssistantSidebarItem } from "@/components/assistant/assistant-panel"
 import { NaruviMark } from "@/components/naruvi-mark"
 import { navCountsAction } from "@/app/(app)/nav/actions"
 import { NAV_GROUPS, settingsItem } from "@/components/nav"
@@ -55,6 +56,9 @@ export function AppSidebar({
                   <span>Add a job</span>
                 </SidebarMenuButton>
               } />
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <AssistantSidebarItem />
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
