@@ -121,6 +121,20 @@ placeholder; a failed/invalid model response keeps the standard grounded draft.
 Existing document versions are unchanged. Use **Regenerate** on a CV or **Redraft**
 on a letter to create an AI-assisted revision; prior revisions remain restorable.
 
+### Integrations
+
+Everything lives on the **Integrations** page and runs on your machine.
+
+- **Email**: connect any mailbox over IMAP/SMTP with an app password (presets for Gmail, Outlook, iCloud, Fastmail, Yahoo, Proton Bridge), or sign in with Google or Microsoft through an app you register once. Naruvi checks it every 5 minutes, keeps only emails about your applications, classifies replies (rejection, interview, offer, request for information) and suggests the change; nothing moves without your click. Send applications, follow-ups and thank-you notes with your CV and letter attached. Optional per-application reply addresses (`you+nrv-…@` or your own domain via Cloudflare Email Routing) make every reply match.
+- **Job alerts**: postings in LinkedIn, Indeed, Welcome to the Jungle, Glassdoor and similar alert emails become job leads on the Jobs page.
+- **Calendar**: a private iCalendar link of your next steps.
+- **Notifications**: push to your phone or desktop through ntfy (ntfy.sh or self-hosted).
+- **Browser extension**: `extension/` sends the posting you're viewing (including pages behind a login) to Naruvi. See `extension/README.md`.
+- **API and MCP**: `/api/v1` with API keys (see `docs/API.md`), and `mcp/naruvi-mcp.mjs` (`npm run mcp`) for Claude and other MCP clients.
+- **Spreadsheets**: export all applications as CSV.
+
+Background tasks start with the app; set `NARUVI_BACKGROUND=off` to disable them and `NARUVI_URL` for links in notifications.
+
 ### Existing installations
 
 Naruvi was previously called CareerBuddy. The new Compose project and database
