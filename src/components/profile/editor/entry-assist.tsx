@@ -8,9 +8,22 @@ import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { DictateButton } from "@/components/dictation"
+import { cn } from "@/lib/utils"
 import { type Draft, type Lang, LANGS, newKey } from "./draft"
 
 const NAME: Record<Lang, string> = { en: "English", fr: "French" }
+
+/** One question at a time, the way a good recruiter or career coach would ask. Answers in any language. */
+const QUESTIONS: Record<string, string[]> = {
+  experience: ["What was your role, and at which company or organisation?", "When did it start and end, and where was it?", "What did you do day to day?", "What are you proudest of there? Numbers help: how many, how much, how fast, for whom.", "Which tools, methods or skills did you use?"],
+  education: ["What did you study, and at which school?", "When, and where?", "Which subjects, projects or thesis are worth mentioning?", "Any results, honours or responsibilities (student association, tutoring…)?"],
+  project: ["What is the project, and who was it for?", "What was your part in it?", "What came out of it? Users, results, numbers, links.", "Which tools or methods did you use?"],
+  certification: ["Which certification, and who issued it?", "When did you get it, and does it expire?", "What did you have to know or do to get it?"],
+  achievement: ["What did you achieve or win?", "When, and in what context?", "Why does it matter? Numbers or who recognised it."],
+}
+const questionsFor = (kind: string) => QUESTIONS[kind] ?? QUESTIONS.experience
 
 /**
  * AI help inside the entry editor: turn your own words into facts and fields,
@@ -19,6 +32,9 @@ const NAME: Record<Lang, string> = { en: "English", fr: "French" }
  */
 export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Partial<Draft>) => void }) {
   const [words, setWords] = useState("")
+  const [mode, setMode] = useState<"free" | "guided">("free")
+  const [step, setStep] = useState(0)
+  const [answers, setAnswers] = useState<string[]>([])
   // New or empty entries start open; filled ones keep the editor uncluttered.
   const [open, setOpen] = useState(() => draft.facts.length === 0)
   const [describing, startDescribing] = useTransition()
@@ -30,9 +46,11 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
   const from = LANGS.find(filled)
   const to = from ? LANGS.find((lang) => lang !== from && (!draft.display[lang].role || draft.bullets.filter((b) => b.language === lang).length < draft.bullets.filter((b) => b.language === from).length)) : undefined
 
-  const describe = () =>
+  const questions = questionsFor(draft.kind)
+  const guidedText = () => questions.flatMap((question, index) => (answers[index]?.trim() ? [`${question}\n${answers[index].trim()}`] : [])).join("\n\n")
+  const describe = (text = words) =>
     startDescribing(async () => {
-      const result = await describeEntryAction({ words, kind: draft.kind, existingFacts: draft.facts.map((fact) => fact.statement) })
+      const result = await describeEntryAction({ words: text, kind: draft.kind, existingFacts: draft.facts.map((fact) => fact.statement) })
       if (!result.ok) return void toast.error(result.message)
       const { entry, language } = result.data
       const lang: Lang = (LANGS as string[]).includes(language) ? (language as Lang) : "en"
@@ -46,6 +64,8 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
         skills: [...new Set([...draft.skills, ...entry.skills])],
       })
       setWords("")
+      setAnswers([])
+      setStep(0)
       toast.success(`Added ${entry.facts.length} fact${entry.facts.length === 1 ? "" : "s"}${entry.skills.length ? ` and ${entry.skills.length} skills` : ""}`, { description: entry.dropped ? `${entry.dropped} left out: their numbers weren’t in what you wrote.` : "Check them below, then suggest bullets." })
     })
 
@@ -105,7 +125,45 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
         ) : null}
       </CardHeader>
       <CardContent className="grid gap-3">
-        <Textarea value={words} onChange={(event) => setWords(event.target.value)} placeholder="e.g. From 2021 to 2024 I ran the night shift at a 40-bed hospital ward in Lyon, trained 6 new nurses and set up the medication double-check that cut errors in half…" className="min-h-24" disabled={describing} />
+        <ToggleGroup aria-label="How to describe it" variant="outline" size="sm" value={[mode]} onValueChange={(value) => value[0] && setMode(value[0] as "free" | "guided")} className="w-fit">
+          <ToggleGroupItem value="free">Tell it freely</ToggleGroupItem>
+          <ToggleGroupItem value="guided">Answer questions</ToggleGroupItem>
+        </ToggleGroup>
+        {mode === "free" ? (
+          <>
+            <Textarea value={words} onChange={(event) => setWords(event.target.value)} placeholder="e.g. From 2021 to 2024 I ran the night shift at a 40-bed hospital ward in Lyon, trained 6 new nurses and set up the medication double-check that cut errors in half…" className="min-h-24" disabled={describing} />
+            <DictateButton value={words} onChange={setWords} />
+          </>
+        ) : (
+          <div key={step} className="cb-step grid gap-2 rounded-lg border bg-muted/20 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">{questions[step]}</p>
+              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{step + 1} / {questions.length}</span>
+            </div>
+            <Textarea
+              autoFocus
+              value={answers[step] ?? ""}
+              onChange={(event) => setAnswers((current) => Object.assign([...current], { [step]: event.target.value }))}
+              placeholder="Type or dictate your answer. Skip what doesn’t apply."
+              className="min-h-20 bg-background"
+              disabled={describing}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <DictateButton value={answers[step] ?? ""} onChange={(value) => setAnswers((current) => Object.assign([...current], { [step]: value }))} />
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" disabled={step === 0 || describing} onClick={() => setStep(step - 1)}>Back</Button>
+                {step < questions.length - 1 ? (
+                  <Button size="sm" variant="outline" disabled={describing} onClick={() => setStep(step + 1)}>{answers[step]?.trim() ? "Next" : "Skip"}</Button>
+                ) : null}
+              </div>
+            </div>
+            <span className="flex gap-1" aria-hidden>
+              {questions.map((question, index) => (
+                <span key={question} className={cn("h-1 flex-1 rounded-full transition-colors", answers[index]?.trim() ? "bg-primary" : index === step ? "bg-foreground/30" : "bg-muted")} />
+              ))}
+            </span>
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-3">
           {describing ? <AiSteps steps={AI_STEPS.describe} step={describeStep} /> : translating ? <AiSteps steps={AI_STEPS.translate} step={translateStep} /> : <span />}
           <div className="flex gap-2">
@@ -114,7 +172,7 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
                 <LanguagesIcon /> Add {NAME[to]} version
               </Button>
             ) : null}
-            <Button onClick={describe} disabled={describing || words.trim().length < 20}>
+            <Button onClick={() => describe(mode === "guided" ? guidedText() : words)} disabled={describing || (mode === "guided" ? guidedText().length < 20 : words.trim().length < 20)}>
               <SparklesIcon className={describing ? "cb-breathe" : undefined} /> Fill from this
             </Button>
           </div>
