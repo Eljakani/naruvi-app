@@ -73,6 +73,8 @@ type Phrases = {
   opening: (role: string, company: string) => string
   highlightsIntro: string
   motivation: (company: string) => string
+  /** A complete, honest motivation when no AI is available: interest in what the role involves, no invented history. */
+  interest: (role: string, company: string, focus: string) => string
   closing: string
   signoff: string
   date: (d: Date) => string
@@ -87,6 +89,7 @@ export const LETTER_PHRASES: Record<string, Phrases> = {
     opening: (role, company) => `I am writing to apply for the ${role} position at ${company}.`,
     highlightsIntro: "Relevant highlights from my experience:",
     motivation: (company) => `[Why ${company}? In 2–3 sentences of your own, say what draws you to this team, product or mission. Only you can write this part.]`,
+    interest: (role, company, focus) => focus ? `What draws me to the ${role} role at ${company} is what it involves day to day: ${focus}. It is the kind of work I want to keep growing in, and I would bring the same care to your team.` : `The ${role} role at ${company} matches the responsibilities I want to take on next, and I would bring the same care to your team.`,
     closing: "I would welcome the opportunity to discuss how I can contribute to your team. Thank you for your time and consideration.",
     signoff: "Kind regards,",
     date: fmt("en-GB"),
@@ -97,6 +100,7 @@ export const LETTER_PHRASES: Record<string, Phrases> = {
     opening: (role, company) => `Je vous adresse ma candidature au poste de ${role} au sein de ${company}.`,
     highlightsIntro: "Quelques réalisations en lien avec le poste :",
     motivation: (company) => `[Pourquoi ${company} ? En 2 à 3 phrases, avec vos propres mots, expliquez ce qui vous attire dans cette équipe, ce produit ou cette mission. Vous seul pouvez écrire cette partie.]`,
+    interest: (role, company, focus) => focus ? `Ce qui m’attire dans le poste de ${role} chez ${company}, c’est ce qu’il implique au quotidien : ${focus}. C’est le type de mission dans laquelle je souhaite continuer à progresser, et j’y apporterai le même engagement au sein de votre équipe.` : `Le poste de ${role} chez ${company} correspond aux responsabilités que je souhaite prendre, et j’y apporterai le même engagement au sein de votre équipe.`,
     closing: "Je me tiens à votre disposition pour un entretien afin d’échanger sur ma contribution possible à votre équipe. Je vous remercie pour votre attention.",
     signoff: "Je vous prie d’agréer, Madame, Monsieur, l’expression de mes salutations distinguées.",
     date: fmt("fr-FR"),
@@ -107,6 +111,7 @@ export const LETTER_PHRASES: Record<string, Phrases> = {
     opening: (role, company) => `Les escribo para presentar mi candidatura al puesto de ${role} en ${company}.`,
     highlightsIntro: "Logros relevantes de mi experiencia:",
     motivation: (company) => `[¿Por qué ${company}? En 2–3 frases propias, explique qué le atrae de este equipo, producto o misión. Solo usted puede escribir esta parte.]`,
+    interest: (role, company, focus) => focus ? `Lo que me atrae del puesto de ${role} en ${company} es lo que implica en el día a día: ${focus}. Es el tipo de trabajo en el que quiero seguir creciendo, y aportaría el mismo compromiso a su equipo.` : `El puesto de ${role} en ${company} encaja con las responsabilidades que quiero asumir, y aportaría el mismo compromiso a su equipo.`,
     closing: "Me encantaría tener la oportunidad de conversar sobre cómo puedo contribuir a su equipo. Gracias por su tiempo y consideración.",
     signoff: "Atentamente,",
     date: fmt("es-ES"),
@@ -117,6 +122,7 @@ export const LETTER_PHRASES: Record<string, Phrases> = {
     opening: (role, company) => `hiermit bewerbe ich mich um die Position als ${role} bei ${company}.`,
     highlightsIntro: "Relevante Ergebnisse aus meiner Erfahrung:",
     motivation: (company) => `[Warum ${company}? Beschreiben Sie in 2–3 eigenen Sätzen, was Sie an diesem Team, Produkt oder dieser Mission reizt. Nur Sie können diesen Teil schreiben.]`,
+    interest: (role, company, focus) => focus ? `An der Position als ${role} bei ${company} reizt mich besonders, was sie im Alltag umfasst: ${focus}. In genau diesem Bereich möchte ich mich weiterentwickeln und mich mit vollem Einsatz in Ihr Team einbringen.` : `Die Position als ${role} bei ${company} entspricht genau den Aufgaben, die ich als Nächstes übernehmen möchte, und ich würde mich mit vollem Einsatz in Ihr Team einbringen.`,
     closing: "Über die Gelegenheit zu einem persönlichen Gespräch freue ich mich sehr. Vielen Dank für Ihre Zeit.",
     signoff: "Mit freundlichen Grüßen",
     date: fmt("de-DE"),
@@ -128,6 +134,15 @@ export function phrasesFor(language: string): Phrases {
 }
 
 const clean = (text: string) => text.replace(/\*\*(.+?)\*\*/g, "$1").trim()
+
+/** The first duty the posting lists, to follow a colon: short, lower-case start, no end punctuation. */
+export function focusOf(analysis: { requirements: { kind: string; text?: string }[] } | null): string {
+  const duty = analysis?.requirements.find((requirement) => requirement.kind === "responsibility" && requirement.text && requirement.text.length <= 140)?.text ?? ""
+  if (!duty) return ""
+  const trimmed = duty.replace(/[.;:!]+$/, "").trim()
+  // Keep acronyms and names ("AWS", "GitLab") as written; lower-case an ordinary first word.
+  return /^[A-ZÀ-Ý][a-zà-ÿ]/.test(trimmed) ? trimmed[0].toLowerCase() + trimmed.slice(1) : trimmed
+}
 
 export function composeLetter(
   profile: ComposeProfile,
@@ -176,7 +191,9 @@ export function composeLetter(
     paragraphs: [
       { id: "opening", kind: "opening", text: p.opening(job.title, job.company), placeholder: false, included: true },
       ...(highlights.length ? [{ id: "highlights", kind: "highlights" as const, text: "", placeholder: false, included: true }] : []),
-      { id: "motivation", kind: "motivation", text: p.motivation(job.company), placeholder: true, included: true },
+      // Ready to send without AI: interest in what the posting says the role involves, never invented
+      // history. Still flagged as not yet the author's words, so AI drafting and the author can replace it.
+      { id: "motivation", kind: "motivation", text: p.interest(job.title, job.company, focusOf(analysis)), placeholder: true, included: true },
       { id: "closing", kind: "closing", text: p.closing, placeholder: false, included: true },
     ],
     highlightsIntro: p.highlightsIntro,
@@ -212,7 +229,13 @@ export function checkLetter(doc: LetterDocument, pages: number | null) {
   const pending = paragraphs.filter((p) => p.kind !== "highlights" && (isPlaceholder(p.text) || (p.kind === "motivation" && !p.text.trim())))
   add("placeholders", pending.length ? "fail" : "pass", "Written in your own words", pending.length ? "Replace the bracketed instruction (why this company) with your own sentences." : "No placeholders left.")
   const text = letterText(doc)
-  const named = (value: string) => !value || text.toLowerCase().includes(value.toLowerCase())
+  // "Delia" counts for "Delia Technologies": generic endings aren't part of how people name a company.
+  const named = (value: string) => {
+    if (!value) return true
+    const lower = text.toLowerCase()
+    const core = value.toLowerCase().replace(/\b(?:technologies|technology|group|groupe|sas|sa|sarl|inc|ltd|llc|gmbh|ag|corp|corporation|company|co|labs?|software|solutions|consulting|france)\.?$/g, "").replace(/[\s,.-]+$/, "").trim()
+    return lower.includes(value.toLowerCase()) || (core.length >= 3 && lower.includes(core))
+  }
   add("company", named(doc.recipient.company) ? "pass" : "fail", "Names the company", named(doc.recipient.company) ? doc.recipient.company : `“${doc.recipient.company}” is not mentioned.`)
   const highlights = doc.highlights.filter((h) => h.included)
   const showsHighlights = paragraphs.some((p) => p.kind === "highlights") && highlights.length > 0

@@ -48,8 +48,17 @@ test("localized, and highlights stay in the letter's language", () => {
   assert.equal(letter.date, "5 novembre 2026")
 })
 
+test("a new letter is complete without AI: no bracketed instruction, a real motivation", () => {
+  const letter = composeLetter(profile, [shop], analysis, job, { language: "en" })
+  const motivation = letter.paragraphs.find((paragraph) => paragraph.kind === "motivation")!
+  assert.equal(isPlaceholder(motivation.text), false)
+  assert.match(motivation.text, /GreenGrocer/)
+  assert.equal(checkLetter(letter, 1).checks.find((c) => c.id === "placeholders")?.status, "pass")
+})
+
 test("placeholder blocks 'ready' until replaced", () => {
   const letter = composeLetter(profile, [shop], analysis, job, { language: "en" })
+  letter.paragraphs[2] = { ...letter.paragraphs[2], text: "[Why GreenGrocer? In 2–3 sentences of your own, say what draws you.]" }
   assert.equal(isPlaceholder(letter.paragraphs[2].text), true)
   const draft = checkLetter(letter, 1)
   assert.equal(draft.ready, false)
