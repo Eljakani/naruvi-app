@@ -103,7 +103,7 @@ async function runSync(): Promise<SyncResult> {
           const envelope = item.envelope
           if (!envelope?.messageId) continue
           const from = envelope.from?.[0]
-          const head = { fromAddress: from?.address ?? "", fromName: from?.name ?? "", subject: envelope.subject ?? "", text: "", inReplyTo: envelope.inReplyTo ?? null, references: [] as string[] }
+          const head = { fromAddress: from?.address ?? "", fromName: from?.name ?? "", subject: envelope.subject ?? "", text: "", inReplyTo: envelope.inReplyTo ?? null, references: [] as string[], toAddresses: [...(envelope.to ?? []), ...(envelope.cc ?? [])].map((to) => to.address ?? "").filter(Boolean) }
           // Cheap pass on the envelope; hiring-system mail often names the company only in the body.
           let match = matchMessage(head, apps)
           if (!match && isAlertSender(head.fromAddress)) {

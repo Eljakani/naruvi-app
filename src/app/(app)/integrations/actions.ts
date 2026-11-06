@@ -119,3 +119,14 @@ export async function revokeApiKeyAction(id: string): Promise<Result> {
   revalidatePath("/integrations")
   return { ok: true, data: undefined }
 }
+
+export async function saveReplySettingAction(value: { mode: "off" | "plus" | "domain"; domain?: string }): Promise<Result> {
+  try {
+    const { saveReplySetting } = await import("@/server/mail/account")
+    await saveReplySetting(value)
+    revalidatePath("/integrations")
+    return { ok: true, data: undefined }
+  } catch (error) {
+    return fail(error)
+  }
+}

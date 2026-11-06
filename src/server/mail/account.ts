@@ -6,7 +6,7 @@ import { z } from "zod"
 import { env } from "@/lib/env"
 import { MAIL_PROVIDERS } from "@/lib/mail-providers"
 import { db } from "@/server/db/client"
-import { mailAccounts, mailMessages } from "@/server/db/schema"
+import { mailAccounts, mailMessages, settings } from "@/server/db/schema"
 import { decryptSecret, encryptSecret, encryptionReady } from "@/server/settings/encryption"
 import { SettingsError } from "@/server/settings/errors"
 
@@ -149,4 +149,20 @@ export async function saveMailAccount(raw: MailAccountInput) {
 /** Disconnect: removes the account and every stored message. */
 export async function deleteMailAccount() {
   await db.delete(mailAccounts)
+}
+
+const REPLY_KEY = "integration.replyAddress"
+export const replySetting = z.object({ mode: z.enum(["off", "plus", "domain"]).default("off"), domain: z.string().trim().toLowerCase().regex(/^(?=.{3,253}$)([a-z0-9-]+\.)+[a-z]{2,}$/, "Enter a domain like jobs.example.org").optional() })
+export type ReplySetting = z.infer<typeof replySetting>
+
+export async function getReplySetting(): Promise<ReplySetting> {
+  const row = await db.query.settings.findFirst({ where: eq(settings.key, REPLY_KEY) })
+  return replySetting.safeParse(row?.value ?? {}).data ?? { mode: "off" }
+}
+
+export async function saveReplySetting(raw: unknown) {
+  const value = replySetting.parse(raw)
+  if (value.mode === "domain" && !value.domain) throw new SettingsError("Enter the domain that forwards to your mailbox.")
+  await db.insert(settings).values({ key: REPLY_KEY, value }).onConflictDoUpdate({ target: settings.key, set: { value } })
+  return value
 }

@@ -12,6 +12,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { MAIL_PROVIDERS, OTHER_PROVIDER, providerFor } from "@/lib/mail-providers"
+import { ReplyAddresses } from "@/components/integrations/reply-addresses"
 import type { MailOverview } from "@/server/mail/account"
 
 type Form = { email: string; displayName: string; provider: string; username: string; password: string; imapHost: string; imapPort: number; imapSecure: boolean; smtpHost: string; smtpPort: number; smtpSecure: boolean }
@@ -26,7 +27,7 @@ function when(iso: string | null) {
 }
 
 /** Connect any mailbox over IMAP/SMTP. The password is encrypted on the server and never sent back. */
-export function MailSettings({ overview }: { overview: MailOverview }) {
+export function MailSettings({ overview, reply }: { overview: MailOverview; reply: { mode: "off" | "plus" | "domain"; domain?: string } }) {
   const [editing, setEditing] = useState(!overview.connected)
   const [form, setForm] = useState<Form>(fromOverview(overview))
   const [testing, startTest] = useTransition()
@@ -85,6 +86,9 @@ export function MailSettings({ overview }: { overview: MailOverview }) {
           </dl>
           {error && account.lastError ? <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-destructive">{account.lastError}</p> : null}
           <p className="text-xs text-muted-foreground">Reads the inbox from {new Date(account.syncFrom).toLocaleDateString(undefined, { day: "numeric", month: "long" })} on. Sending uses {account.smtpHost || "nothing yet (no SMTP server)"}.</p>
+          <div className="text-muted-foreground">
+            <ReplyAddresses email={account.email} initial={reply} />
+          </div>
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2 border-t">
           <Button

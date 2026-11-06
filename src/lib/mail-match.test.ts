@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { baseDomain, matchMessage, mentions, type MatchCandidate } from "./mail-match"
+import { baseDomain, matchMessage, mentions, replyAddress, replyTag, tagIn, type MatchCandidate } from "./mail-match"
 import { providerFor } from "./mail-providers"
 
 const apps: MatchCandidate[] = [
@@ -37,4 +37,17 @@ test("names match as whole words only, and unrelated mail is ignored", () => {
 test("providers are detected from the address", () => {
   assert.equal(providerFor("me@gmail.com").id, "gmail")
   assert.equal(providerFor("me@company.io").id, "other")
+})
+
+test("per-application reply addresses match with certainty", () => {
+  const id = "62d491e8-11c8-47dc-9bcd-9edc5dd2ec6c"
+  assert.equal(replyTag(id), "nrv-62d491e811")
+  assert.equal(replyAddress(id, "me+old@gmail.com", { mode: "plus" }), "me+nrv-62d491e811@gmail.com")
+  assert.equal(replyAddress(id, "me@gmail.com", { mode: "domain", domain: "jobs.example.org" }), "nrv-62d491e811@jobs.example.org")
+  assert.equal(replyAddress(id, "me@gmail.com", { mode: "off" }), null)
+  assert.equal(tagIn("Me+NRV-62D491E811@gmail.com"), "nrv-62d491e811")
+  const candidates = [{ ...apps[2], applicationId: id }]
+  const match = matchMessage(msg({ fromAddress: "someone@gmail.com", toAddresses: ["me+nrv-62d491e811@gmail.com"] }), candidates)
+  assert.equal(match?.applicationId, id)
+  assert.equal(match?.confidence, 1)
 })

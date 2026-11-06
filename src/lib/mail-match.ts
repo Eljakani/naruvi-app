@@ -6,7 +6,7 @@
  */
 import { titleSimilarity } from "./similar"
 
-export type MatchMessage = { fromAddress: string; fromName: string; subject: string; text: string; inReplyTo?: string | null; references?: string[] }
+export type MatchMessage = { fromAddress: string; fromName: string; subject: string; text: string; inReplyTo?: string | null; references?: string[]; toAddresses?: string[] }
 export type MatchCandidate = { applicationId: string; company: string; website: string | null; title: string; sentMessageIds: string[]; active: boolean; updatedAt: number }
 export type Match = { applicationId: string; reason: string; confidence: number }
 
@@ -44,7 +44,31 @@ export function mentions(haystack: string, company: string): boolean {
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "u").test(normalize(haystack))
 }
 
+/** Short, stable tag for an application's reply address: "nrv-" + the first 10 hex digits of its id. */
+export const replyTag = (applicationId: string) => `nrv-${applicationId.replace(/-/g, "").slice(0, 10).toLowerCase()}`
+
+/** The tag in an address like you+nrv-1a2b3c4d5e@gmail.com or nrv-1a2b3c4d5e@your.domain. */
+export function tagIn(address: string): string | null {
+  return address.toLowerCase().match(/(?:^|[+.])(nrv-[a-f0-9]{10})@/)?.[1] ?? null
+}
+
+/** The reply address for an application, or null when the feature is off. */
+export function replyAddress(applicationId: string, mailbox: string, setting: { mode: "off" | "plus" | "domain"; domain?: string }): string | null {
+  const tag = replyTag(applicationId)
+  if (setting.mode === "plus") {
+    const [local, domain] = mailbox.split("@")
+    return local && domain ? `${local.split("+")[0]}+${tag}@${domain}` : null
+  }
+  if (setting.mode === "domain" && setting.domain) return `${tag}@${setting.domain}`
+  return null
+}
+
 export function matchMessage(message: MatchMessage, candidates: MatchCandidate[]): Match | null {
+  const tags = new Set((message.toAddresses ?? []).map(tagIn).filter(Boolean))
+  if (tags.size) {
+    const tagged = candidates.find((candidate) => tags.has(replyTag(candidate.applicationId)))
+    if (tagged) return { applicationId: tagged.applicationId, reason: "Sent to this application’s reply address", confidence: 1 }
+  }
   const threadIds = new Set([message.inReplyTo, ...(message.references ?? [])].filter(Boolean) as string[])
   const replied = candidates.find((candidate) => candidate.sentMessageIds.some((id) => threadIds.has(id)))
   if (replied) return { applicationId: replied.applicationId, reason: "Reply to an email you sent from Naruvi", confidence: 1 }

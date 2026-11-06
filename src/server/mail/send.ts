@@ -10,7 +10,8 @@ import { applications, companies, documents, jobs, mailMessages, revisions } fro
 import { revisionPdf } from "@/server/documents/service"
 import { startRun } from "@/server/runs/tracer"
 import { moveApplication } from "@/server/tracking/service"
-import { explainMailError, getMailAccount, imapClient, smtpTransport } from "./account"
+import { replyAddress } from "@/lib/mail-match"
+import { explainMailError, getMailAccount, getReplySetting, imapClient, smtpTransport } from "./account"
 
 const PREPARING: Status[] = ["draft", "parsed", "analyzed", "generated", "ready"]
 
@@ -94,6 +95,8 @@ export async function sendApplicationMail(raw: z.input<typeof sendInput>) {
   }
 
   const messageId = `<${randomUUID()}@${account.email.split("@")[1] ?? "naruvi.local"}>`
+  // Replies come back to this application's own address (it still lands in your inbox).
+  const replyTo = replyAddress(input.applicationId, account.email, await getReplySetting())
   const mail = {
     from: { name: account.displayName || context.from?.split(" <")[0] || "", address: account.email },
     to,
@@ -102,6 +105,7 @@ export async function sendApplicationMail(raw: z.input<typeof sendInput>) {
     text: input.body,
     attachments,
     messageId,
+    ...(replyTo ? { replyTo } : {}),
     ...threading,
   }
   const run = await startRun("mail.send", { kind: input.kind, recipients: to.length + cc.length, attachments: attachments.length }, input.applicationId)
