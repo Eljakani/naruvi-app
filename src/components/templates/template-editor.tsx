@@ -3,9 +3,10 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { startTransition, useEffect, useId, useRef, useState, useTransition } from "react"
-import { ArrowLeftIcon, BanIcon, CheckCircle2Icon, CircleDashedIcon, CopyIcon, EllipsisIcon, EyeIcon, FileTextIcon, HistoryIcon, MailIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, SparklesIcon, StarIcon, Trash2Icon, XIcon } from "lucide-react"
+import { ArrowLeftIcon, CheckCircle2Icon, CopyIcon, EllipsisIcon, EyeIcon, FileTextIcon, HistoryIcon, MailIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, SparklesIcon, StarIcon, Trash2Icon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { designIdeas } from "@/lib/design-ideas"
+import { AgentComposer, AgentThread } from "@/components/agent/agent-chat"
 import { toast } from "sonner"
 import type { AgentResult, DesignTurn } from "@/server/templates/design-agent"
 import { aiDesignAction, deleteTemplateAction, restoreTemplateVersionAction, saveTemplateAction, setDefaultDesignAction, templateVersionsAction } from "@/app/(app)/templates/actions"
@@ -13,7 +14,6 @@ import { PdfThumb } from "@/components/templates/pdf-thumb"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { TemplateVersion } from "@/server/templates/service"
-import { AiSteps, useStep } from "@/components/ai-progress"
 import { PdfPreview } from "@/components/documents/pdf-preview"
 import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
@@ -23,7 +23,6 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { affectedDocuments, designTokens, FONTS, ALL_PRESETS as PRESETS, type DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
@@ -46,32 +45,6 @@ function changeAreas(keys: string[]) {
     else areas.add("layout")
   }
   return [...areas].join(", ")
-}
-
-/** One line: what happened, with an icon. Rejections say why in a sentence and change nothing. */
-function AgentStatus({ result, onDismiss }: { result: AgentResult; onDismiss: () => void }) {
-  const applied = result.outcome === "applied"
-  const Icon = applied ? CheckCircle2Icon : result.outcome === "unchanged" ? CircleDashedIcon : BanIcon
-  return (
-    <div role="status" className="cb-step flex items-start gap-2 rounded-lg bg-background px-2.5 py-2 text-xs">
-      <Icon key={result.outcome} className={cn("cb-pop mt-px size-4 shrink-0", applied ? "text-primary" : "text-muted-foreground")} />
-      <div className="grid min-w-0 flex-1 gap-1">
-        <span className="font-medium">{applied ? result.summary : result.outcome === "unchanged" ? "Already looks like that" : "Can’t do that one"}</span>
-        {applied ? (
-          <span className="flex flex-wrap gap-1 text-muted-foreground">
-            <Badge variant="secondary" className="gap-1"><ShieldCheckIcon className="size-3" /> Verified</Badge>
-            <Badge variant="secondary" className="gap-1"><FileTextIcon className="size-3" /> {result.pages} page{result.pages === 1 ? "" : "s"}</Badge>
-            <Badge variant="secondary">{result.changed.length} setting{result.changed.length === 1 ? "" : "s"}</Badge>
-          </span>
-        ) : result.reason ? (
-          <span className="text-muted-foreground">{result.reason} Nothing was changed.</span>
-        ) : null}
-      </div>
-      <button type="button" onClick={onDismiss} aria-label="Dismiss" className="rounded p-0.5 text-muted-foreground hover:text-foreground">
-        <XIcon className="size-3.5" />
-      </button>
-    </div>
-  )
 }
 
 /** Keys the AI just changed glow briefly, so you can see what moved. */
@@ -131,6 +104,7 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
   const [attempt, setAttempt] = useState(0)
   const [fitGoal, setFitGoal] = useState(false)
   const [agentLog, setAgentLog] = useState<AgentResult | null>(null)
+  const [working, setWorking] = useState("")
   // Bumped after every request so suggestions rotate.
   const [ideaSeed, setIdeaSeed] = useState(0)
   // What was asked so far in this session, so follow-ups like "more" or "undo that" make sense.
@@ -138,7 +112,6 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
   const [mobilePreview, setMobilePreview] = useState(false)
   const [asking, startAsking] = useTransition()
   const [saving, startSaving] = useTransition()
-  const step = useStep(asking, DESIGN_STEPS.length)
   const [flash, setFlash] = useState<Set<string>>(new Set())
   const [panel, setPanel] = useState("design")
   const [versions, setVersions] = useState<TemplateVersion[] | null>(null)
@@ -250,11 +223,16 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
 
   const ask = (text = prompt) => {
     if (busy || text.trim().length < (history.length ? 1 : 3)) return
+    setWorking(text.trim())
+    setPrompt("")
     startAsking(async () => {
       try {
         const result = await aiDesignAction({ tokens, prompt: text, history, viewing: previewKind })
         if (!active.current) return
-        if (!result.ok) return void toast.error(result.message)
+        if (!result.ok) {
+          setPrompt(text)
+          return void toast.error(result.message)
+        }
         setAgentLog(result.data)
         setIdeaSeed((value) => value + 1)
         setHistory((turns) => [...turns, {
@@ -415,45 +393,49 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
           </TabsList>
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
             <TabsContent value="design" className="grid gap-4 p-4">
-              <div className="grid gap-2 rounded-xl border bg-muted/30 p-3">
+              <section aria-labelledby={promptLabel} className="grid gap-3 rounded-xl border bg-muted/30 p-3">
                 <div id={promptLabel} className="flex items-center gap-2 text-sm font-medium">
-                  <SparklesIcon className={cn("size-4", asking && "cb-breathe")} /> Describe what you want
+                  <SparklesIcon className={cn("size-4", asking && "cb-breathe")} /> Design agent
+                  <span className="font-normal text-muted-foreground">· {previewKind === "letter" ? "cover letter" : "CV"}</span>
                 </div>
-                <Textarea aria-labelledby={promptLabel} maxLength={500} value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && prompt.trim()) ask() }} placeholder="e.g. Make it look more premium, with a navy accent and a bit more space" className="min-h-16 bg-background text-base sm:text-sm" disabled={busy} />
-                {asking ? (
-                  <AiSteps steps={DESIGN_STEPS} step={step} />
-                ) : (
-                  <div key={ideaSeed} className="cb-stagger flex flex-wrap items-center gap-1.5">
-                    {designIdeas(tokens, { pages: preview?.pages, seed: ideaSeed, exclude: lastPrompt ? [lastPrompt] : [] }).map((idea) => (
-                      <Button key={idea} size="xs" variant="outline" onClick={() => ask(idea)} disabled={busy} className="bg-background text-muted-foreground">
-                        {idea}
-                      </Button>
-                    ))}
-                    <Button size="sm" className="ml-auto" onClick={() => ask()} disabled={busy || prompt.trim().length < (history.length ? 1 : 3)}>
-                      <SparklesIcon /> Apply
-                    </Button>
-                  </div>
-                )}
-                {pendingBoth && !asking ? (
-                  <div role="status" className="cb-step grid gap-2 rounded-lg border bg-background px-2.5 py-2 text-xs">
-                    <span className="flex items-start gap-2">
-                      <CopyIcon className="cb-pop mt-px size-4 shrink-0 text-primary" />
-                      <span className="grid gap-0.5">
-                        <span className="font-medium">{agentLog?.summary || "Ready to apply"}</span>
-                        <span className="text-muted-foreground">
-                          This also changes your {pendingBoth.other === "letter" ? "cover letter" : "CV"} ({changeAreas(pendingBoth.keys)}), because both share this template.
-                        </span>
-                      </span>
-                    </span>
-                    <span className="flex flex-wrap gap-1.5 pl-6">
-                      <Button size="xs" onClick={() => { applyChanges(pendingBoth.before, pendingBoth.changes, pendingBoth.keys, pendingBoth.text); setPendingBoth(null) }}>Apply to both</Button>
-                      <Button size="xs" variant="outline" onClick={() => { setPreviewKind(pendingBoth.other); applyChanges(pendingBoth.before, pendingBoth.changes, pendingBoth.keys, pendingBoth.text); setPendingBoth(null) }}>Apply and show the {pendingBoth.other === "letter" ? "letter" : "CV"}</Button>
-                      <Button size="xs" variant="ghost" onClick={() => { setPendingBoth(null); setAgentLog(null) }}>Cancel</Button>
-                    </span>
-                  </div>
-                ) : agentLog && !asking ? <AgentStatus result={agentLog} onDismiss={() => setAgentLog(null)} /> : null}
+                <AgentThread
+                  steps={DESIGN_STEPS}
+                  working={asking ? working : null}
+                  turns={history.map((turn, index) => {
+                    const last = index === history.length - 1
+                    const result = last ? agentLog : null
+                    return {
+                      id: `${index}-${turn.request}`,
+                      request: turn.request,
+                      outcome: turn.outcome === "applied" ? "applied" : turn.outcome === "unchanged" ? "unchanged" : "rejected",
+                      summary: turn.outcome === "applied" ? turn.summary : turn.outcome === "unchanged" ? "Already looks like that" : turn.summary || "Can’t do that one",
+                      detail: last && pendingBoth && !asking
+                        ? <>This also changes your {pendingBoth.other === "letter" ? "cover letter" : "CV"} ({changeAreas(pendingBoth.keys)}), because both share this template.</>
+                        : result && result.outcome === "applied"
+                          ? <span className="flex flex-wrap gap-1"><Badge variant="secondary" className="gap-1"><ShieldCheckIcon className="size-3" /> Verified</Badge><Badge variant="secondary" className="gap-1"><FileTextIcon className="size-3" /> {result.pages} page{result.pages === 1 ? "" : "s"}</Badge><Badge variant="secondary">{result.changed.length} setting{result.changed.length === 1 ? "" : "s"}</Badge></span>
+                          : result && result.outcome === "rejected" ? "Nothing was changed." : undefined,
+                      actions: last && pendingBoth && !asking ? (
+                        <>
+                          <Button size="xs" onClick={() => { applyChanges(pendingBoth.before, pendingBoth.changes, pendingBoth.keys, pendingBoth.text); setPendingBoth(null) }}>Apply to both</Button>
+                          <Button size="xs" variant="outline" onClick={() => { setPreviewKind(pendingBoth.other); applyChanges(pendingBoth.before, pendingBoth.changes, pendingBoth.keys, pendingBoth.text); setPendingBoth(null) }}>Apply and show the {pendingBoth.other === "letter" ? "letter" : "CV"}</Button>
+                          <Button size="xs" variant="ghost" onClick={() => setPendingBoth(null)}>Cancel</Button>
+                        </>
+                      ) : undefined,
+                    }
+                  })}
+                />
+                <AgentComposer
+                  label="Describe what you want"
+                  value={prompt}
+                  onChange={setPrompt}
+                  onSend={(text) => ask(text)}
+                  busy={busy}
+                  minLength={history.length ? 1 : 3}
+                  placeholder={history.length ? "Ask for a change, or say “more”, “undo that”…" : "e.g. Make it look more premium, with a navy accent and a bit more space"}
+                  suggestions={designIdeas(tokens, { pages: preview?.pages, seed: ideaSeed, exclude: lastPrompt ? [lastPrompt] : [] })}
+                />
                 {fitGoal ? <p role="status" className="text-xs text-muted-foreground">{failed ? "Couldn’t verify page fit. Retry the preview." : rendering ? "Checking page count…" : preview?.pages === 1 ? "Verified: the preview fits on one page." : `The preview still needs ${preview?.pages || "multiple"} pages. No content was removed.`}</p> : null}
-              </div>
+              </section>
 
               <fieldset disabled={saving || !draftReady} className="contents">
               <Accordion multiple defaultValue={["type", "colour", "layout"]} className="grid">

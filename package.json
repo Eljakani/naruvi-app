@@ -44,6 +44,7 @@
     "@fontsource/source-serif-4": "^5.3.1",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@react-pdf/renderer": "^4.9.0",
+    "@shadcn/react": "^0.3.1",
     "ai": "^7.0.163",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",

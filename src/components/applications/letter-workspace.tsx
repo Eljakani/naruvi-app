@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useCallback, useState, useTransition } from "react"
-import { ArrowDownIcon, ArrowUpIcon, LightbulbIcon, PenLineIcon, SparklesIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, LightbulbIcon, PenLineIcon } from "lucide-react"
 import { toast } from "sonner"
 import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction, suggestLetterAction } from "@/app/(app)/applications/[id]/cv/actions"
 import { CompanyResearch } from "@/components/applications/company-research"
@@ -15,6 +15,9 @@ import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import type { CompanyResearch as Research } from "@/server/research/brief"
 import { AI_STEPS } from "@/components/ai-progress"
 import { DocumentShell, VersionsPanel, type Quality } from "@/components/documents/document-shell"
+import { AgentComposer, AgentThread, type AgentTurn } from "@/components/agent/agent-chat"
+
+const LETTER_STEPS = ["Reading your letter and request", "Rewriting in your voice", "Checking it against your facts"] as const
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -90,16 +93,28 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
   const [pending, startTransition] = useTransition()
   const [asking, startAsking] = useTransition()
   const [direction, setDirection] = useState("")
+  const [working, setWorking] = useState("")
+  const [turns, setTurns] = useState<AgentTurn[]>([])
   const [previousDraft, setPreviousDraft] = useState<LetterDocument | null>(null)
 
-  const ask = () => startAsking(async () => {
-    const result = await suggestLetterAction(applicationId, draft, direction)
-    if (!result.ok) return void toast.error(result.error)
-    if (result.data.aiAssistance?.status === "unchanged") return void toast.info("AI kept your wording.")
-    setPreviousDraft(draft)
-    setDraft(result.data)
-    toast.success("Suggestion ready. Review it before saving.")
-  })
+  const ask = (request: string) => {
+    const text = request.trim() || "Improve this letter"
+    setWorking(text)
+    setDirection("")
+    startAsking(async () => {
+      const result = await suggestLetterAction(applicationId, draft, text)
+      if (!result.ok) {
+        setTurns((current) => [...current, { id: `${current.length}`, request: text, outcome: "error" as const, summary: result.error }].slice(-6))
+        return
+      }
+      const unchanged = result.data.aiAssistance?.status === "unchanged"
+      if (!unchanged) {
+        setPreviousDraft(draft)
+        setDraft(result.data)
+      }
+      setTurns((current) => [...current, { id: `${current.length}`, request: text, outcome: unchanged ? ("unchanged" as const) : ("applied" as const), summary: unchanged ? "AI kept your wording." : "Rewritten in the editor below.", detail: unchanged ? undefined : "Not saved yet: read it, then Save. Undo brings back your version." }].slice(-6))
+    })
+  }
   const dirty = JSON.stringify(draft) !== JSON.stringify(current.content)
   const instruction = (current.content.paragraphs.find((p) => p.kind === "motivation")?.text ?? "").replace(/^\s*\[|\]\s*$/g, "")
 
@@ -151,14 +166,14 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
         <Textarea id="letter-notes" value={draft.authorNotes ?? ""} maxLength={1500} rows={3}
           placeholder="What drew you to this role? A few words are enough."
           onChange={(event) => update((doc) => void (doc.authorNotes = event.target.value))} />
-        <Label htmlFor="letter-direction">What should AI change?</Label>
-        <Input id="letter-direction" value={direction} maxLength={600} onChange={(event) => setDirection(event.target.value)}
-          placeholder="For example, make it shorter and more conversational" />
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" size="sm" onClick={ask} disabled={pending || asking}><SparklesIcon /> {asking ? "Drafting…" : "Suggest a rewrite"}</Button>
-          {previousDraft ? <Button size="sm" variant="ghost" onClick={() => { setDraft(previousDraft); setPreviousDraft(null) }}>Undo suggestion</Button> : null}
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="letter-direction">Ask AI to change it</Label>
+          {previousDraft && !asking ? <Button size="xs" variant="ghost" onClick={() => { setDraft(previousDraft); setPreviousDraft(null) }}>Undo last change</Button> : null}
         </div>
-        <p className="text-xs text-muted-foreground">Suggestions stay in the editor until you save or approve them.</p>
+        <AgentThread turns={turns} working={asking ? working : null} steps={LETTER_STEPS} />
+        <AgentComposer label="What should AI change?" value={direction} onChange={setDirection} onSend={ask} busy={pending || asking}
+          placeholder="For example, make it shorter and more conversational"
+          suggestions={turns.length ? [] : ["Make it shorter", "More conversational", "Mention the company’s mission", "More formal"]} />
       </div>
       <AiReviewPanel assistance={draft.aiAssistance} pending={pending}
         changes={[
