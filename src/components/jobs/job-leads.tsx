@@ -12,7 +12,7 @@ type Lead = { id: string; url: string; title: string; board: string; source: str
 
 const BOARD: Record<string, string> = { linkedin: "LinkedIn", indeed: "Indeed", welcometothejungle: "Welcome to the Jungle", glassdoor: "Glassdoor", greenhouse: "Greenhouse", lever: "Lever", ashbyhq: "Ashby", smartrecruiters: "SmartRecruiters", myworkdayjobs: "Workday", workable: "Workable", teamtailor: "Teamtailor", recruitee: "Recruitee" }
 
-/** Postings found in your job-alert emails. Import reads the posting like any link; nothing is saved until you check it. */
+/** Postings found in job-alert emails or saved with the browser extension. Import reads the posting like any link; nothing is saved until you check it. */
 export function JobLeads({ leads }: { leads: Lead[] }) {
   const [visible, hide] = useOptimistic(leads, (state, id: string) => state.filter((lead) => lead.id !== id))
   const [, startTransition] = useTransition()
@@ -21,9 +21,9 @@ export function JobLeads({ leads }: { leads: Lead[] }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
-          <InboxIcon className="size-4" /> From your job alerts
+          <InboxIcon className="size-4" /> Job leads
         </CardTitle>
-        <CardDescription className="text-xs">{visible.length} posting{visible.length === 1 ? "" : "s"} found in alert emails and not saved yet. Import one to read and check it.</CardDescription>
+        <CardDescription className="text-xs">{visible.length} posting{visible.length === 1 ? "" : "s"} from your job alerts and browser, not saved yet. Import one to read and check it.</CardDescription>
       </CardHeader>
       <CardContent>
         <ul className="divide-y rounded-lg border">
@@ -37,7 +37,7 @@ export function JobLeads({ leads }: { leads: Lead[] }) {
               </div>
               <Badge variant="outline" className="font-normal">{BOARD[lead.board] ?? lead.board}</Badge>
               <div className="flex gap-1">
-                <Button size="sm" variant="outline" nativeButton={false} render={<Link href={`/jobs/new?url=${encodeURIComponent(lead.url)}`} />}>
+                <Button size="sm" variant="outline" nativeButton={false} render={<Link href={`/jobs/new?lead=${lead.id}`} />}>
                   <PlusIcon /> Import
                 </Button>
                 <Button

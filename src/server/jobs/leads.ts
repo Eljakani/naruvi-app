@@ -16,3 +16,18 @@ export async function markLeadImported(jobId: string, urls: (string | null | und
   const list = urls.filter(Boolean) as string[]
   if (list.length) await db.update(jobLeads).set({ state: "imported", jobId }).where(inArray(jobLeads.url, list))
 }
+
+/** A page captured by the browser extension; capturing the same page again refreshes it. */
+export async function saveCapture(input: { url: string; board: string; title: string; text: string }) {
+  const [row] = await db
+    .insert(jobLeads)
+    .values({ ...input, text: input.text || null, source: "Saved from your browser", foundAt: new Date() })
+    .onConflictDoUpdate({ target: jobLeads.url, set: { title: input.title, text: input.text || null, state: "new", foundAt: new Date() } })
+    .returning({ id: jobLeads.id })
+  return row.id
+}
+
+export async function getLead(id: string) {
+  const [row] = await db.select().from(jobLeads).where(eq(jobLeads.id, id))
+  return row ?? null
+}

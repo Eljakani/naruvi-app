@@ -53,11 +53,12 @@ function sourceLabel(source: string) {
   return `${SOURCE_LABEL[base] ?? base}${verified ? ", verified on the site" : ""}`
 }
 
-export function NewJobFlow({ initialUrl = "" }: { initialUrl?: string } = {}) {
+export function NewJobFlow({ initialUrl = "", initialText = "" }: { initialUrl?: string; initialText?: string } = {}) {
   const router = useRouter()
-  const [mode, setMode] = useState<"link" | "text">("link")
+  // A page saved from the browser comes with its text: read that, keep the link as the source.
+  const [mode, setMode] = useState<"link" | "text">(initialText ? "text" : "link")
   const [url, setUrl] = useState(initialUrl)
-  const [text, setText] = useState("")
+  const [text, setText] = useState(initialText)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [duplicates, setDuplicates] = useState<Duplicate[]>([])
   const [reading, startReading] = useTransition()
@@ -69,7 +70,7 @@ export function NewJobFlow({ initialUrl = "" }: { initialUrl?: string } = {}) {
     startReading(async () => {
       const result = await previewJobAction(mode === "link" ? { url } : { text })
       if (!result.ok) return void toast.error("Couldn't read that posting", { description: result.error })
-      setDraft(result.data.draft)
+      setDraft(mode === "text" && initialUrl && !result.data.draft.sourceUrl ? { ...result.data.draft, sourceUrl: initialUrl, canonicalUrl: initialUrl } : result.data.draft)
       setDuplicates(result.data.duplicates)
     })
 
@@ -100,7 +101,11 @@ export function NewJobFlow({ initialUrl = "" }: { initialUrl?: string } = {}) {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">Add a job</CardTitle>
-            <CardDescription>Paste the link to the posting. Naruvi reads it, finds the real company website and logo, and lets you check everything before saving.</CardDescription>
+            <CardDescription>
+              {initialText && initialUrl
+                ? `Saved from your browser · ${new URL(initialUrl).hostname.replace(/^www\./, "")}. Read the text, check the details, then save.`
+                : "Paste the link to the posting. Naruvi reads it, finds the real company website and logo, and lets you check everything before saving."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs value={mode} onValueChange={(value) => setMode(value as "link" | "text")}>

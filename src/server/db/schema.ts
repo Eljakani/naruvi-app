@@ -520,6 +520,8 @@ export const jobLeads = pgTable(
     board: text().notNull().default(""),
     /** Subject and sender of the alert it came from. */
     source: text().notNull().default(""),
+    /** Page text captured by the browser extension (pages behind a login). Untrusted input. */
+    text: text(),
     state: text().notNull().default("new"),
     jobId: uuid().references(() => jobs.id, { onDelete: "set null" }),
     foundAt: timestamp({ withTimezone: true }).notNull(),

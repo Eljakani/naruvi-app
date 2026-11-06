@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="options">
+    <h1>Save to Naruvi: settings</h1>
+    <label for="server">Naruvi address</label>
+    <input id="server" type="url" placeholder="http://localhost:3000" />
+    <label for="key">API key</label>
+    <input id="key" type="password" placeholder="nrv_…" autocomplete="off" />
+    <p class="muted">Create a key in Naruvi under Integrations → API &amp; browser extension. It stays in this browser only.</p>
+    <button id="save">Save</button>
+    <p id="status" role="status" class="muted"></p>
+    <script src="options.js"></script>
+  </body>
+</html>

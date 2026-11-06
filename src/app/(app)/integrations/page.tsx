@@ -1,7 +1,9 @@
 import { Suspense } from "react"
 import { headers } from "next/headers"
 import { connection } from "next/server"
+import { ApiSettings } from "@/components/integrations/api-settings"
 import { CalendarSettings } from "@/components/integrations/calendar-settings"
+import { listApiKeys } from "@/server/integrations/api"
 import { MailSettings } from "@/components/integrations/mail-settings"
 import { NotificationSettings } from "@/components/integrations/notification-settings"
 import { notificationOverview } from "@/server/integrations/notify"
@@ -25,7 +27,7 @@ export default function IntegrationsPage() {
 
 async function Integrations() {
   await connection()
-  const [mail, token, upcoming, head, notifications] = await Promise.all([getMailOverview(), calendarToken(), datedNextSteps(), headers(), notificationOverview()])
+  const [mail, token, upcoming, head, notifications, keys] = await Promise.all([getMailOverview(), calendarToken(), datedNextSteps(), headers(), notificationOverview(), listApiKeys()])
   const host = head.get("x-forwarded-host") ?? head.get("host") ?? "localhost:3000"
   const origin = `${head.get("x-forwarded-proto") ?? (/^(localhost|127\.|\[::1\])/.test(host) ? "http" : "https")}://${host}`
   return (
@@ -33,6 +35,7 @@ async function Integrations() {
       <MailSettings overview={mail} />
       <CalendarSettings token={token} events={upcoming} origin={origin} />
       <NotificationSettings overview={notifications} />
+      <ApiSettings keys={keys} origin={origin} />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { NewJobFlow } from "@/components/jobs/new-job-flow"
+import { getLead } from "@/server/jobs/leads"
 
 export const metadata = { title: "Add a job" }
 
@@ -11,9 +12,11 @@ export default function NewJobPage({ searchParams }: PageProps<"/jobs/new">) {
   )
 }
 
-/** `?url=` pre-fills the link (job leads, the browser extension). */
+/** `?url=` pre-fills the link; `?lead=` a job lead or a page saved by the browser extension (with its text). */
 async function WithLink({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const url = (await searchParams).url
-  const initial = typeof url === "string" && /^https?:\/\//.test(url) ? url.slice(0, 2000) : ""
-  return <NewJobFlow key={initial} initialUrl={initial} />
+  const params = await searchParams
+  const lead = typeof params.lead === "string" && /^[0-9a-f-]{36}$/i.test(params.lead) ? await getLead(params.lead) : null
+  if (lead) return <NewJobFlow key={lead.id} initialUrl={lead.url} initialText={lead.text ?? ""} />
+  const url = typeof params.url === "string" && /^https?:\/\//.test(params.url) ? params.url.slice(0, 2000) : ""
+  return <NewJobFlow key={url} initialUrl={url} />
 }

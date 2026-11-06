@@ -101,3 +101,21 @@ export async function disableNotificationsAction(): Promise<Result> {
   revalidatePath("/integrations")
   return { ok: true, data: undefined }
 }
+
+export async function createApiKeyAction(name: string): Promise<Result<{ token: string }>> {
+  try {
+    const { createApiKey } = await import("@/server/integrations/api")
+    const token = await createApiKey(z.string().max(60).parse(name))
+    revalidatePath("/integrations")
+    return { ok: true, data: { token } }
+  } catch (error) {
+    return fail(error)
+  }
+}
+
+export async function revokeApiKeyAction(id: string): Promise<Result> {
+  const { revokeApiKey } = await import("@/server/integrations/api")
+  await revokeApiKey(z.string().uuid().parse(id))
+  revalidatePath("/integrations")
+  return { ok: true, data: undefined }
+}
