@@ -120,6 +120,13 @@
       "when": 1793981343138,
       "tag": "0016_mail",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793982426706,
+      "tag": "0017_job_leads",
+      "breakpoints": true
     }
   ]
 }

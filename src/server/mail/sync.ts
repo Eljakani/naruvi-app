@@ -3,7 +3,8 @@ import { simpleParser } from "mailparser"
 import { desc, eq, sql } from "drizzle-orm"
 import { ATS_DOMAINS, baseDomain, matchMessage, type MatchCandidate } from "@/lib/mail-match"
 import { db } from "@/server/db/client"
-import { applications, companies, jobs, mailAccounts, mailMessages } from "@/server/db/schema"
+import { applications, companies, jobLeads, jobs, mailAccounts, mailMessages } from "@/server/db/schema"
+import { ALERT_SENDERS, extractJobLeads } from "@/lib/job-alerts"
 import { explainMailError, getMailAccount, imapClient } from "./account"
 
 const FIRST_SYNC_LIMIT = 400
@@ -37,7 +38,26 @@ const isAtsSender = (address: string) => {
   return ATS_DOMAINS.some((ats) => domain === baseDomain(ats))
 }
 
-export type SyncResult = { checked: number; stored: number; skipped?: string }
+export type SyncResult = { checked: number; stored: number; leads?: number; skipped?: string }
+
+const isAlertSender = (address: string) => {
+  const domain = baseDomain(address.split("@")[1] ?? "")
+  return ALERT_SENDERS.some((sender) => domain === baseDomain(sender))
+}
+
+/** Job links from an alert email, minus jobs already saved or leads already seen. */
+async function collectLeads(client: ReturnType<typeof imapClient>, uid: number, source: string, foundAt: Date) {
+  const download = await client.download(String(uid), undefined, { uid: true, maxBytes: MAX_SOURCE_BYTES })
+  const parsed = await simpleParser(download.content)
+  const found = extractJobLeads(typeof parsed.html === "string" ? parsed.html : "", parsed.text ?? "")
+  if (!found.length) return 0
+  const known = await db.select({ url: jobs.sourceUrl, canonical: jobs.canonicalUrl }).from(jobs)
+  const saved = new Set(known.flatMap((row) => [row.url, row.canonical]).filter(Boolean) as string[])
+  const fresh = found.filter((lead) => !saved.has(lead.url))
+  if (!fresh.length) return 0
+  const inserted = await db.insert(jobLeads).values(fresh.map((lead) => ({ ...lead, source: source.slice(0, 300), foundAt }))).onConflictDoNothing().returning({ id: jobLeads.id })
+  return inserted.length
+}
 
 /**
  * Read new mail from the inbox, keep only what matches an application.
@@ -63,6 +83,7 @@ async function runSync(): Promise<SyncResult> {
     await client.connect()
     let checked = 0
     let stored = 0
+    let leads = 0
     const lockBox = await client.getMailboxLock("INBOX")
     try {
       const box = client.mailbox
@@ -85,6 +106,10 @@ async function runSync(): Promise<SyncResult> {
           const head = { fromAddress: from?.address ?? "", fromName: from?.name ?? "", subject: envelope.subject ?? "", text: "", inReplyTo: envelope.inReplyTo ?? null, references: [] as string[] }
           // Cheap pass on the envelope; hiring-system mail often names the company only in the body.
           let match = matchMessage(head, apps)
+          if (!match && isAlertSender(head.fromAddress)) {
+            leads += await collectLeads(client, item.uid, `${head.fromName || head.fromAddress}: ${head.subject}`, envelope.date ?? new Date())
+            continue
+          }
           if (!match && !head.inReplyTo && !isAtsSender(head.fromAddress)) continue
           const download = await client.download(String(item.uid), undefined, { uid: true, maxBytes: MAX_SOURCE_BYTES })
           const parsed = await simpleParser(download.content)
@@ -126,7 +151,7 @@ async function runSync(): Promise<SyncResult> {
     }
     // Also picks up emails left unclassified earlier (no model then, or an error).
     await afterSync()
-    return { checked, stored }
+    return { checked, stored, leads }
   } catch (error) {
     if (accountId) await db.update(mailAccounts).set({ status: "error", lastError: explainMailError(error), lastSyncAt: new Date() }).where(eq(mailAccounts.id, accountId)).catch(() => {})
     throw error

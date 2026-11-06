@@ -509,3 +509,21 @@ export const mailMessages = pgTable(
   },
   (t) => [uniqueIndex().on(t.accountId, t.messageId), index().on(t.applicationId, t.sentAt), index().on(t.suggestionState)],
 )
+
+/** Job links found in job-alert emails, waiting for the person to import or dismiss them. */
+export const jobLeads = pgTable(
+  "job_leads",
+  {
+    id: id(),
+    url: text().notNull(),
+    title: text().notNull().default(""),
+    board: text().notNull().default(""),
+    /** Subject and sender of the alert it came from. */
+    source: text().notNull().default(""),
+    state: text().notNull().default("new"),
+    jobId: uuid().references(() => jobs.id, { onDelete: "set null" }),
+    foundAt: timestamp({ withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex().on(t.url), index().on(t.state, t.foundAt)],
+)

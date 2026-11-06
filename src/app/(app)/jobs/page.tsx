@@ -14,7 +14,9 @@ import { ClearFilters, SearchBox, UrlSelect } from "@/components/list-toolbar"
 import { CONTRACT_LABEL, SENIORITY_LABEL, WORK_MODE_LABEL } from "@/lib/job-labels"
 import { STATUS_LABEL } from "@/lib/stages"
 import { cn } from "@/lib/utils"
+import { JobLeads } from "@/components/jobs/job-leads"
 import { allTags } from "@/server/companies/repository"
+import { newLeads } from "@/server/jobs/leads"
 import { JOB_SORTS, JOB_STAGES, jobFacets, searchJobs } from "@/server/jobs/search"
 
 export const metadata = { title: "Jobs" }
@@ -62,10 +64,10 @@ async function JobList({ searchParams }: { searchParams: Search }) {
     sort: pick(one(params.sort), JOB_SORTS),
     page: Number(one(params.page)) || 1,
   }
-  const tags = await allTags()
+  const [tags, leads] = await Promise.all([allTags(), newLeads()])
   const tag = one(params.tag)
   const [result, facets] = await Promise.all([searchJobs({ ...filter, tag: tag && tags.some((item) => item.tag === tag) ? tag : undefined }), jobFacets()])
-  if (!facets.total) {
+  if (!facets.total && !leads.length) {
     return (
       <Empty className="border">
         <EmptyHeader>
@@ -92,6 +94,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
   }
   return (
     <div className="grid gap-3">
+      <JobLeads leads={leads} />
       <div className="flex flex-wrap items-center gap-2">
         <SearchBox placeholder="Search title, company, location, text…" />
         {tags.length ? <UrlSelect name="tag" label="Tag" options={[{ value: "all", label: "Any tag" }, ...tags.map((item) => ({ value: item.tag, label: `${item.tag} (${item.count})` }))]} /> : null}

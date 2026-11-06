@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { findDuplicates, setJobTags } from "@/server/companies/repository"
+import { dismissLead, markLeadImported } from "@/server/jobs/leads"
 import { previewJob, saveJob } from "@/server/jobs/ingest"
 import { cleanTags } from "@/lib/similar"
 import { refreshJobInsights } from "@/server/jobs/insights"
@@ -33,6 +34,7 @@ export async function previewJobAction(raw: { url?: string; text?: string }): Pr
 export async function saveJobAction(draft: JobDraft): Promise<ActionResult<{ id: string }>> {
   try {
     const job = await saveJob(draft)
+    await markLeadImported(job.id, [draft.sourceUrl, draft.canonicalUrl])
     await refreshJobInsights(job.id)
     scheduleResearch(job.id)
     revalidatePath("/jobs")
@@ -63,4 +65,11 @@ export async function setJobTagsAction(jobId: string, tags: string[]): Promise<A
   revalidatePath(`/jobs/${parsed.data.jobId}`)
   revalidatePath("/jobs")
   return { ok: true, data: clean }
+}
+
+export async function dismissLeadAction(id: string): Promise<ActionResult<null>> {
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: "Invalid lead." }
+  await dismissLead(id)
+  revalidatePath("/jobs")
+  return { ok: true, data: null }
 }

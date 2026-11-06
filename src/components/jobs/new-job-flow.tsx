@@ -53,10 +53,10 @@ function sourceLabel(source: string) {
   return `${SOURCE_LABEL[base] ?? base}${verified ? ", verified on the site" : ""}`
 }
 
-export function NewJobFlow() {
+export function NewJobFlow({ initialUrl = "" }: { initialUrl?: string } = {}) {
   const router = useRouter()
   const [mode, setMode] = useState<"link" | "text">("link")
-  const [url, setUrl] = useState("")
+  const [url, setUrl] = useState(initialUrl)
   const [text, setText] = useState("")
   const [draft, setDraft] = useState<Draft | null>(null)
   const [duplicates, setDuplicates] = useState<Duplicate[]>([])
