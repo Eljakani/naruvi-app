@@ -74,7 +74,7 @@ export function ProfileImport() {
         <Card>
           <CardHeader>
             <CardTitle>Start from your CV</CardTitle>
-            <CardDescription>Upload a PDF or paste your CV, LinkedIn profile or notes. AI sorts it into jobs, studies, projects and skills, and splits achievements into facts. It never adds anything you didn’t write, and nothing is used until you verify it.</CardDescription>
+            <CardDescription>Upload a PDF CV or your LinkedIn data export (ZIP), or paste your CV, LinkedIn profile or notes. AI sorts it into jobs, studies, projects and skills, and splits achievements into facts. It never adds anything you didn’t write, and nothing is used until you verify it.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <button
@@ -87,9 +87,9 @@ export function ProfileImport() {
             >
               <FileUpIcon className="size-6 text-muted-foreground" />
               <span className="text-sm font-medium">{file ? file.name : "Drop your CV here or click to choose"}</span>
-              <span className="text-xs text-muted-foreground">PDF or text, up to 8 MB</span>
+              <span className="text-xs text-muted-foreground">PDF, LinkedIn export (.zip) or text, up to 8 MB</span>
             </button>
-            <input ref={input} type="file" accept=".pdf,.txt,.md,application/pdf,text/plain" className="hidden" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+            <input ref={input} type="file" accept=".pdf,.txt,.md,.zip,.csv,application/pdf,text/plain,application/zip,text/csv" className="hidden" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" /> or paste text <span className="h-px flex-1 bg-border" />
             </div>

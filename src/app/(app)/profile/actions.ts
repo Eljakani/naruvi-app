@@ -12,6 +12,7 @@ import { completionForRun } from "@/server/llm/client"
 import { startRun } from "@/server/runs/tracer"
 import { getLlmOverview } from "@/server/settings/llm"
 import { describeEntry, importProfileText, IMPORT_PROMPT_VERSION, translateEntry } from "@/server/profile/ai-import"
+import { linkedinImport } from "@/lib/linkedin-export"
 import { pdfText } from "@/server/profile/pdf-text"
 import { entriesForMatching, mergeIntoEntry, saveImportedProfile } from "@/server/profile/repository"
 import { matchEntry } from "@/server/profile/import-match"
@@ -143,7 +144,22 @@ async function withModel<T>(workflow: string, task: string, version: string, fn:
   }
 }
 
-/** Reads a CV (PDF upload or pasted text) into proposed entries. Saves nothing. */
+async function readLinkedinExport(bytes: Uint8Array, csvName: string | null) {
+  const { unzipSync, strFromU8 } = await import("fflate")
+  let files: Record<string, string> = {}
+  try {
+    files = csvName ? { [csvName]: strFromU8(bytes) } : Object.fromEntries(Object.entries(unzipSync(bytes, { filter: (file) => /\.csv$/i.test(file.name) && file.originalSize < 5_000_000 })).map(([name, data]) => [name, strFromU8(data)]))
+  } catch {
+    return { ok: false as const, message: "Couldn’t open that ZIP file." }
+  }
+  const result = linkedinImport(files)
+  if (!result.found) return { ok: false as const, message: "No LinkedIn profile data found. Use the export from LinkedIn → Settings → Data privacy → Get a copy of your data." }
+  const existing = await entriesForMatching()
+  const entries = result.entries.map((entry) => ({ ...entry, match: matchEntry(entry, existing) }))
+  return { ok: true as const, data: { language: result.language, identity: result.identity, entries, model: "LinkedIn export (read directly, no AI)" } }
+}
+
+/** Reads a CV (PDF upload or pasted text) or a LinkedIn data export into proposed entries. Saves nothing. */
 export async function readCvAction(formData: FormData) {
   const file = formData.get("file")
   const pasted = String(formData.get("text") ?? "").trim()
@@ -151,6 +167,9 @@ export async function readCvAction(formData: FormData) {
   if (file instanceof File && file.size) {
     if (file.size > 8 * 1024 * 1024) return { ok: false as const, message: "That file is over 8 MB." }
     const bytes = new Uint8Array(await file.arrayBuffer())
+    // LinkedIn's data export (ZIP of CSVs, or one CSV): structured, so read exactly, without AI.
+    const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b
+    if (isZip || /\.csv$/i.test(file.name)) return readLinkedinExport(bytes, isZip ? null : file.name)
     if (String.fromCharCode(...bytes.slice(0, 5)) === "%PDF-") text = await pdfText(bytes).catch(() => "")
     else text = new TextDecoder().decode(bytes)
     if (text.trim().length < 80) return { ok: false as const, message: "Couldn’t read text from that file. If it’s a scanned PDF, paste the text instead." }
