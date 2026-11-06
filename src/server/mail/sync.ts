@@ -124,7 +124,8 @@ async function runSync(): Promise<SyncResult> {
       lockBox.release()
       await client.logout().catch(() => client.close())
     }
-    if (stored) await afterSync()
+    // Also picks up emails left unclassified earlier (no model then, or an error).
+    await afterSync()
     return { checked, stored }
   } catch (error) {
     if (accountId) await db.update(mailAccounts).set({ status: "error", lastError: explainMailError(error), lastSyncAt: new Date() }).where(eq(mailAccounts.id, accountId)).catch(() => {})
@@ -132,13 +133,10 @@ async function runSync(): Promise<SyncResult> {
   }
 }
 
-/** Hooks that run when new messages arrive (classification is added in the next step). */
-const listeners: (() => Promise<void>)[] = []
-export function onNewMail(listener: () => Promise<void>) {
-  listeners.push(listener)
-}
+/** New messages arrived: classify them and prepare suggestions. Never fails the sync. */
 async function afterSync() {
-  for (const listener of listeners) await listener().catch((error) => console.error("[mail]", error))
+  const { classifyNewMail } = await import("./classify")
+  await classifyNewMail().catch((error) => console.error("[mail] classification failed:", error instanceof Error ? error.message : error))
 }
 
 /** Latest matched messages, newest first. */

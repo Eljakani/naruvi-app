@@ -133,7 +133,7 @@ async function DashboardData() {
         </Card>
       ) : null}
 
-      {data.applications ? <NeedsAttention items={data.attention} upcoming={data.upcoming} now={data.now} /> : null}
+      {data.applications ? <NeedsAttention items={data.attention} upcoming={data.upcoming} now={data.now} replies={data.replies} /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat title="Active applications" value={active} hint="Not closed, withdrawn or archived" href="/applications" />

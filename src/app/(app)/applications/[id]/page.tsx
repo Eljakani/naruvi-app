@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { scheduleResearch } from "@/server/research/auto"
 import { Suspense } from "react"
-import { connection } from "next/server"
+import { after, connection } from "next/server"
 import { ArchiveIcon, ArrowLeftIcon, ExternalLinkIcon } from "lucide-react"
 import { AnalysisView } from "@/components/applications/analysis-view"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
@@ -17,6 +17,8 @@ import { listEvents } from "@/server/tracking/service"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getApplication } from "@/server/applications/repository"
+import { MailThread } from "@/components/mail/mail-thread"
+import { mailFor, markRead } from "@/server/mail/classify"
 import type { CompanyResearch as Research } from "@/server/research/brief"
 
 export const metadata = { title: "Application" }
@@ -33,8 +35,10 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
   await connection()
   const { id } = await params
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
-  const [application, events] = await Promise.all([getApplication(id), listEvents(id)])
+  const [application, events, mail] = await Promise.all([getApplication(id), listEvents(id), mailFor(id)])
   if (!application) notFound()
+  // Opening the application counts as reading its emails.
+  if (mail.some((message) => !message.readAt)) after(() => markRead(id))
   const { job } = application
   // No research yet: start it in the background; the card fills in when it lands.
   const researching = Boolean(job.company) && !job.company?.research
@@ -71,6 +75,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
         </Alert>
       ) : null}
       <ApplicationNav applicationId={application.id} current="analysis" language={application.language} />
+      <MailThread messages={mail} />
       {application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} cvHref={`/applications/${application.id}/cv?lang=${application.language}`} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
       {events.length ? (
         <Card>

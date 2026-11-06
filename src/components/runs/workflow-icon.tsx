@@ -1,4 +1,4 @@
-import { ActivityIcon, Building2Icon, DownloadIcon, FileTextIcon, FlaskConicalIcon, GaugeIcon, MailIcon, PaletteIcon, SparklesIcon, UserIcon, type LucideIcon } from "lucide-react"
+import { ActivityIcon, InboxIcon, Building2Icon, DownloadIcon, FileTextIcon, FlaskConicalIcon, GaugeIcon, MailIcon, PaletteIcon, SparklesIcon, UserIcon, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const ICONS: [RegExp, LucideIcon][] = [
@@ -6,6 +6,7 @@ const ICONS: [RegExp, LucideIcon][] = [
   [/^company\./, Building2Icon],
   [/^cv\./, FileTextIcon],
   [/^letter\./, MailIcon],
+  [/^mail\./, InboxIcon],
   [/^job\.preview/, DownloadIcon],
   [/^job\./, SparklesIcon],
   [/^profile\./, UserIcon],

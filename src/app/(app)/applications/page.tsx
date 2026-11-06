@@ -20,6 +20,7 @@ import { ClearFilters, SearchBox, UrlSelect } from "@/components/list-toolbar"
 import { APPLICATION_SORTS, listApplications, type ApplicationSort, type StoredAnalysis } from "@/server/applications/repository"
 import { displayFitScore } from "@/server/analysis/match"
 import { stageSince } from "@/server/tracking/service"
+import { mailInbox } from "@/server/mail/classify"
 
 export const metadata = { title: "Applications" }
 
@@ -89,7 +90,7 @@ async function List({ searchParams }: { searchParams: Search }) {
   const view = show === "active" && params.view !== "list" ? "board" : "list"
   const q = typeof params.q === "string" ? params.q.slice(0, 200) : undefined
   const sort = typeof params.sort === "string" && Object.hasOwn(APPLICATION_SORTS, params.sort) ? (params.sort as ApplicationSort) : undefined
-  const [all, since] = await Promise.all([listApplications({ archived: show === "archived", q, sort }), stageSince()])
+  const [all, since, inbox] = await Promise.all([listApplications({ archived: show === "archived", q, sort }), stageSince(), mailInbox()])
   const applications = show === "archived" ? all : all.filter((application) => (show === "closed") === CLOSED.includes(application.status))
   const closedCount = show === "active" ? all.filter((application) => CLOSED.includes(application.status)).length : 0
   const toolbar = (
@@ -137,6 +138,7 @@ async function List({ searchParams }: { searchParams: Search }) {
             since: (since.get(application.id) ?? application.createdAt).toISOString(),
             nextStep: application.nextStep,
             nextStepDue: application.nextStepDue?.toISOString() ?? null,
+            unread: inbox.unread.get(application.id) ?? 0,
           }))}
         />
       </div>

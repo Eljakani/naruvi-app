@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useOptimistic, useState, useTransition } from "react"
-import { ArchiveIcon, CalendarClockIcon, EllipsisIcon } from "lucide-react"
+import { ArchiveIcon, CalendarClockIcon, EllipsisIcon, InboxIcon } from "lucide-react"
 import { toast } from "sonner"
 import { archiveApplicationAction, moveApplicationAction } from "@/app/(app)/applications/actions"
 import { FitRing } from "@/components/applications/fit-ring"
@@ -25,6 +25,7 @@ export type BoardItem = {
   since: string
   nextStep: string
   nextStepDue: string | null
+  unread?: number
 }
 
 function age(iso: string) {
@@ -149,6 +150,11 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
                     ) : null}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="secondary">{STATUS_LABEL[item.status]}</Badge>
+                      {item.unread ? (
+                        <span className="inline-flex items-center gap-1 font-medium text-foreground" title={`${item.unread} new email${item.unread === 1 ? "" : "s"}`}>
+                          <InboxIcon className="size-3" /> {item.unread}
+                        </span>
+                      ) : null}
                       <span>{age(item.since)}</span>
                       {item.fit !== null ? <FitRing score={item.fit} size={28} className="ml-auto" /> : null}
                     </div>

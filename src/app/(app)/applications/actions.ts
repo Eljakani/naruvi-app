@@ -73,3 +73,22 @@ export async function archiveManyAction(ids: string[]): Promise<{ ok: boolean; m
   revalidatePath("/")
   return { ok: true }
 }
+
+export async function acceptMailSuggestionAction(messageId: string): Promise<{ ok: boolean; message?: string }> {
+  if (!z.string().uuid().safeParse(messageId).success) return { ok: false, message: "Invalid email." }
+  try {
+    const { acceptSuggestion } = await import("@/server/mail/classify")
+    refresh(await acceptSuggestion(messageId))
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn’t apply the suggestion." }
+  }
+}
+
+export async function dismissMailSuggestionAction(messageId: string): Promise<{ ok: boolean; message?: string }> {
+  if (!z.string().uuid().safeParse(messageId).success) return { ok: false, message: "Invalid email." }
+  const { dismissSuggestion } = await import("@/server/mail/classify")
+  const applicationId = await dismissSuggestion(messageId)
+  if (applicationId) refresh(applicationId)
+  return { ok: true }
+}

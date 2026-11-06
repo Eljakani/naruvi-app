@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { ArrowRightIcon, CalendarClockIcon, CheckCircle2Icon, FileTextIcon, HourglassIcon, SendIcon, type LucideIcon } from "lucide-react"
+import { ArrowRightIcon, CalendarClockIcon, InboxIcon, CheckCircle2Icon, FileTextIcon, HourglassIcon, SendIcon, type LucideIcon } from "lucide-react"
 import { EntryLogo } from "@/components/profile/entry-logo"
+import { SuggestionActions } from "@/components/mail/suggestion-actions"
 import { ArchiveButton } from "@/components/tracking/next-step"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,12 +18,16 @@ const REASON: Record<AttentionReason, { icon: LucideIcon; label: string }> = {
 const LIMIT = 6
 
 /** The short list of applications that need you today, most urgent first. */
-export function NeedsAttention({ items, upcoming, now }: { items: AttentionItem[]; upcoming: { id: string; title: string; company: string; nextStep: string; due: Date }[]; now: number }) {
+type Reply = { id: string; applicationId: string | null; subject: string; fromName: string; fromAddress: string; kind: string | null; suggestion: { summary?: string } | null; title: string; company: string | null; logoPath: string | null }
+
+export function NeedsAttention({ items, upcoming, now, replies = [] }: { items: AttentionItem[]; upcoming: { id: string; title: string; company: string; nextStep: string; due: Date }[]; now: number; replies?: Reply[] }) {
+  const repliedTo = new Set(replies.map((reply) => reply.applicationId))
+  items = items.filter((item) => !repliedTo.has(item.id))
   return (
     <Card>
       <CardHeader>
         <CardTitle>Needs attention</CardTitle>
-        <CardDescription>{items.length ? `${items.length} thing${items.length === 1 ? "" : "s"} to do: due next steps, documents waiting to go out and applications that went quiet.` : "Nothing is due. Set a next step on an application to be reminded here."}</CardDescription>
+        <CardDescription>{items.length + replies.length ? `${items.length + replies.length} thing${items.length + replies.length === 1 ? "" : "s"} to do: new replies, due next steps, documents waiting to go out and applications that went quiet.` : "Nothing is due. Set a next step on an application to be reminded here."}</CardDescription>
         {items.length > LIMIT ? (
           <CardAction>
             <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/applications?view=list" />}>
@@ -32,6 +37,27 @@ export function NeedsAttention({ items, upcoming, now }: { items: AttentionItem[
         ) : null}
       </CardHeader>
       <CardContent className="grid gap-4">
+        {replies.length ? (
+          <div className="grid gap-1.5">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <InboxIcon className="size-3.5" /> New replies
+            </p>
+            <ul className="divide-y rounded-lg border">
+              {replies.map((reply) => (
+                <li key={reply.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:flex-nowrap">
+                  <EntryLogo path={reply.logoPath} name={reply.company || "?"} size={32} />
+                  <Link href={`/applications/${reply.applicationId}`} className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium hover:underline">{reply.suggestion?.summary ?? reply.subject}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {reply.title} · “{reply.subject}” from {reply.fromName || reply.fromAddress}
+                    </span>
+                  </Link>
+                  <SuggestionActions messageId={reply.id} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {items.length ? (
           <ul className="divide-y rounded-lg border">
             {items.slice(0, LIMIT).map((item) => {
@@ -57,7 +83,7 @@ export function NeedsAttention({ items, upcoming, now }: { items: AttentionItem[
               )
             })}
           </ul>
-        ) : (
+        ) : replies.length ? null : (
           <div className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
             <CheckCircle2Icon className="size-4 text-primary" /> All caught up.
           </div>
