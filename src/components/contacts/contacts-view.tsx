@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useRef, useState, useTransition } from "react"
-import { EllipsisIcon, FileUpIcon, Loader2Icon, MailIcon, MailSearchIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon, UsersIcon } from "lucide-react"
+import { ChevronRightIcon, EllipsisIcon, FileUpIcon, Loader2Icon, MailIcon, MailSearchIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon, UsersIcon } from "lucide-react"
 import { toast } from "sonner"
 import { deleteContactAction, findEmailAction, importContactsAction, saveContactAction, startSpontaneousAction } from "@/app/(app)/contacts/actions"
 import { EntryLogo } from "@/components/profile/entry-logo"
@@ -12,7 +12,9 @@ import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -148,21 +150,59 @@ function ContactRow({ contact, finder, onEdit, onSpontaneous }: { contact: Conta
   )
 }
 
+const GENERIC_MAIL = /^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|icloud|me|mac|proton|protonmail|pm|aol|gmx|orange|free|wanadoo|laposte|sfr|web|t-online)\./i
+const titleCase = (words: string) => words.split(/\s+/).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase()).join(" ")
+const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+const isLinkedin = (value: string) => /linkedin\.com\/in\//i.test(value)
+
+/** What a pasted email or LinkedIn link tells us, shown as editable suggestions (never saved unseen). */
+function guessFrom(value: string): { name?: string; companyName?: string } {
+  const text = value.trim()
+  if (isLinkedin(text)) {
+    const slug = text.match(/linkedin\.com\/in\/([^/?#]+)/i)?.[1] ?? ""
+    const words = decodeURIComponent(slug).replace(/-[0-9a-z]*\d[0-9a-z]*$/i, "").replace(/[-_]+/g, " ")
+    return words.trim().includes(" ") ? { name: titleCase(words) } : {}
+  }
+  if (isEmail(text)) {
+    const [local, domain] = text.toLowerCase().split("@")
+    const parts = local.split(/[._-]+/).filter((part) => /^[a-z]{2,}$/.test(part))
+    const company = GENERIC_MAIL.test(domain) ? undefined : titleCase(domain.split(".").slice(-2, -1)[0] ?? "")
+    return { name: parts.length >= 2 ? titleCase(parts.slice(0, 2).join(" ")) : undefined, companyName: company || undefined }
+  }
+  return {}
+}
+
 function ContactDialog({ initial, onClose }: { initial: Editable; onClose: () => void }) {
   const [form, setForm] = useState(initial)
+  // One field for the main way to reach them; the other one, phone and notes wait under "More".
+  const [reach, setReach] = useState(initial.email || initial.linkedinUrl)
+  const [more, setMore] = useState(Boolean(initial.phone || initial.notes || (initial.email && initial.linkedinUrl)))
   const [pending, startTransition] = useTransition()
   const set = (key: keyof Editable, value: string) => setForm((current) => ({ ...current, [key]: value }))
+  const reachKind = isLinkedin(reach) ? "linkedin" : isEmail(reach) ? "email" : reach.includes("@") ? "email" : null
+  const onReach = (value: string) => {
+    setReach(value)
+    setForm((current) => ({
+      ...current,
+      ...(isLinkedin(value) ? { linkedinUrl: value.trim(), email: current.email === reach.trim() ? "" : current.email } : { email: value.trim(), linkedinUrl: current.linkedinUrl === reach.trim() ? "" : current.linkedinUrl }),
+    }))
+  }
+  // Fill empty fields once the address is complete (on leaving the field or pasting), not mid-typing.
+  const fillIn = (value: string) => {
+    const guess = guessFrom(value)
+    setForm((current) => ({ ...current, name: current.name || guess.name || "", companyName: current.companyName || guess.companyName || "" }))
+  }
+  const otherKey = reachKind === "linkedin" ? "email" : "linkedinUrl"
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{initial.id ? "Edit contact" : "Add a contact"}</DialogTitle>
-          <DialogDescription>A recruiter, an HR person, a hiring manager or someone who can refer you.</DialogDescription>
+          <DialogDescription>Only a name is needed. Paste an email or LinkedIn link and Naruvi fills in what it can.</DialogDescription>
         </DialogHeader>
         <form
           id="contact-form"
           autoComplete="off"
-          className="grid gap-3"
           onSubmit={(event) => {
             event.preventDefault()
             startTransition(async () => {
@@ -173,41 +213,57 @@ function ContactDialog({ initial, onClose }: { initial: Editable; onClose: () =>
             })
           }}
         >
-          <FieldGroup className="grid gap-3 sm:grid-cols-2">
-            <Field className="sm:col-span-2">
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="contact-reach">Email or LinkedIn</FieldLabel>
+              <InputGroup>
+                <InputGroupInput id="contact-reach" autoFocus={!initial.id} value={reach} onChange={(event) => onReach(event.target.value)} onBlur={(event) => fillIn(event.target.value)} onPaste={(event) => fillIn(event.clipboardData.getData("text"))} placeholder="camille@dashlane.com or linkedin.com/in/…" {...NO_FILL} />
+                <InputGroupAddon>{reachKind === "linkedin" ? <LinkedinIcon className="size-4" /> : <MailIcon />}</InputGroupAddon>
+              </InputGroup>
+            </Field>
+            <Field>
               <FieldLabel htmlFor="contact-name">Name</FieldLabel>
               <Input id="contact-name" required value={form.name} onChange={(event) => set("name", event.target.value)} placeholder="Camille Durand" {...NO_FILL} />
             </Field>
-            <Field>
-              <FieldLabel htmlFor="contact-title">Role</FieldLabel>
-              <Input id="contact-title" value={form.title} onChange={(event) => set("title", event.target.value)} placeholder="Talent acquisition" {...NO_FILL} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="contact-company">Company</FieldLabel>
-              <Input id="contact-company" value={form.companyName} onChange={(event) => set("companyName", event.target.value)} placeholder="Dashlane" {...NO_FILL} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="contact-email">Email</FieldLabel>
-              <Input id="contact-email" type="email" value={form.email} onChange={(event) => set("email", event.target.value)} placeholder="Optional" {...NO_FILL} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="contact-phone">Phone</FieldLabel>
-              <Input id="contact-phone" value={form.phone} onChange={(event) => set("phone", event.target.value)} placeholder="Optional" {...NO_FILL} />
-            </Field>
-            <Field className="sm:col-span-2">
-              <FieldLabel htmlFor="contact-linkedin">LinkedIn</FieldLabel>
-              <Input id="contact-linkedin" value={form.linkedinUrl} onChange={(event) => set("linkedinUrl", event.target.value)} placeholder="https://www.linkedin.com/in/…" {...NO_FILL} />
-            </Field>
-            <Field className="sm:col-span-2">
-              <FieldLabel htmlFor="contact-notes">Notes</FieldLabel>
-              <Textarea id="contact-notes" rows={3} value={form.notes} onChange={(event) => set("notes", event.target.value)} placeholder="Met at DevFest, introduced by Léa…" />
-            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="contact-company">Company</FieldLabel>
+                <Input id="contact-company" value={form.companyName} onChange={(event) => set("companyName", event.target.value)} placeholder="Dashlane" {...NO_FILL} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="contact-title">Role</FieldLabel>
+                <Input id="contact-title" value={form.title} onChange={(event) => set("title", event.target.value)} placeholder="Recruiter" {...NO_FILL} />
+              </Field>
+            </div>
+            <Collapsible open={more} onOpenChange={setMore}>
+              <CollapsibleTrigger render={<Button type="button" variant="ghost" size="sm" className="-ml-2 text-muted-foreground" />}>
+                <ChevronRightIcon className={more ? "rotate-90 transition-transform" : "transition-transform"} /> More details
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <FieldGroup className="gap-4 pt-3">
+                  {reachKind ? (
+                    <Field>
+                      <FieldLabel htmlFor="contact-other">{otherKey === "email" ? "Email" : "LinkedIn"}</FieldLabel>
+                      <Input id="contact-other" type={otherKey === "email" ? "email" : "url"} value={form[otherKey]} onChange={(event) => set(otherKey, event.target.value)} placeholder={otherKey === "email" ? "camille@dashlane.com" : "https://www.linkedin.com/in/…"} {...NO_FILL} />
+                    </Field>
+                  ) : null}
+                  <Field>
+                    <FieldLabel htmlFor="contact-phone">Phone</FieldLabel>
+                    <Input id="contact-phone" type="tel" value={form.phone} onChange={(event) => set("phone", event.target.value)} {...NO_FILL} />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="contact-notes">Notes</FieldLabel>
+                    <Textarea id="contact-notes" rows={2} value={form.notes} onChange={(event) => set("notes", event.target.value)} placeholder="Met at DevFest, introduced by Léa…" />
+                  </Field>
+                </FieldGroup>
+              </CollapsibleContent>
+            </Collapsible>
           </FieldGroup>
         </form>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button type="submit" form="contact-form" disabled={pending || !form.name.trim()}>
-            {pending ? <Loader2Icon className="animate-spin" /> : null} Save
+            {pending ? <Loader2Icon className="animate-spin" /> : null} {initial.id ? "Save" : "Add contact"}
           </Button>
         </DialogFooter>
       </DialogContent>
