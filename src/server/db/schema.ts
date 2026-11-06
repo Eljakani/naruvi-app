@@ -527,3 +527,9 @@ export const jobLeads = pgTable(
   },
   (t) => [uniqueIndex().on(t.url), index().on(t.state, t.foundAt)],
 )
+
+/** Notifications already sent, so each event is pushed once. */
+export const notificationLog = pgTable("notification_log", {
+  key: text().primaryKey(),
+  sentAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+})

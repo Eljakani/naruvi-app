@@ -162,6 +162,8 @@ async function runSync(): Promise<SyncResult> {
 async function afterSync() {
   const { classifyNewMail } = await import("./classify")
   await classifyNewMail().catch((error) => console.error("[mail] classification failed:", error instanceof Error ? error.message : error))
+  const { runNotifications } = await import("@/server/integrations/notify")
+  await runNotifications().catch((error) => console.error("[mail] notifications failed:", error instanceof Error ? error.message : error))
 }
 
 /** Latest matched messages, newest first. */

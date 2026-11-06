@@ -73,3 +73,31 @@ export async function calendarAction(change: "enable" | "reset" | "disable"): Pr
     return fail(error)
   }
 }
+
+export async function saveNotificationsAction(input: { server: string; topic: string; token: string; removeToken: boolean; private: boolean; events: { replies: boolean; due: boolean; leads: boolean } }): Promise<Result> {
+  try {
+    const { saveNotifications } = await import("@/server/integrations/notify")
+    await saveNotifications(input)
+    revalidatePath("/integrations")
+    return { ok: true, data: undefined }
+  } catch (error) {
+    return fail(error)
+  }
+}
+
+export async function testNotificationAction(): Promise<Result> {
+  try {
+    const { sendTestNotification } = await import("@/server/integrations/notify")
+    await sendTestNotification()
+    return { ok: true, data: undefined }
+  } catch (error) {
+    return fail(error)
+  }
+}
+
+export async function disableNotificationsAction(): Promise<Result> {
+  const { disableNotifications } = await import("@/server/integrations/notify")
+  await disableNotifications()
+  revalidatePath("/integrations")
+  return { ok: true, data: undefined }
+}
