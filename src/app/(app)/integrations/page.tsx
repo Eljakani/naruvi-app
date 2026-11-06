@@ -35,7 +35,7 @@ async function Integrations() {
       <MailSettings overview={mail} />
       <CalendarSettings token={token} events={upcoming} origin={origin} />
       <NotificationSettings overview={notifications} />
-      <ApiSettings keys={keys} origin={origin} />
+      <ApiSettings keys={keys} origin={origin} folder={process.cwd()} />
     </div>
   )
 }

@@ -14,7 +14,7 @@ type Key = { id: string; name: string; prefix: string; createdAt: string; lastUs
 const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "never")
 
 /** API keys for the browser extension, the MCP server and your own scripts. */
-export function ApiSettings({ keys, origin }: { keys: Key[]; origin: string }) {
+export function ApiSettings({ keys, origin, folder }: { keys: Key[]; origin: string; folder: string }) {
   const [name, setName] = useState("")
   const [created, setCreated] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -36,6 +36,16 @@ export function ApiSettings({ keys, origin }: { keys: Key[]; origin: string }) {
             <li>In Chrome, Edge or Brave open <code className="rounded bg-muted px-1">chrome://extensions</code>, turn on Developer mode, then Load unpacked and pick the <code className="rounded bg-muted px-1">extension</code> folder of Naruvi. Firefox: see extension/README.md.</li>
             <li>Create a key below and paste it, with <code className="rounded bg-muted px-1">{origin}</code>, in the extension’s options.</li>
           </ol>
+        </section>
+
+        <section className="grid gap-2">
+          <h3 className="font-medium">AI assistants (MCP)</h3>
+          <p className="text-muted-foreground">Ask Claude or another MCP client “what needs my attention?” or “move Dashlane to interviewing”. It reads and updates Naruvi through your API key and asks before changing anything.</p>
+          <p className="text-xs text-muted-foreground">Claude Code:</p>
+          <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs">{`claude mcp add naruvi -e NARUVI_URL=${origin} -e NARUVI_API_KEY=nrv_… -- node ${folder}/mcp/naruvi-mcp.mjs`}</pre>
+          <p className="text-xs text-muted-foreground">Claude Desktop and other clients (mcpServers in their config file):</p>
+          <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs">{JSON.stringify({ naruvi: { command: "node", args: [`${folder}/mcp/naruvi-mcp.mjs`], env: { NARUVI_URL: origin, NARUVI_API_KEY: "nrv_…" } } }, null, 2)}</pre>
+          <p className="text-xs text-muted-foreground">Your own scripts: send <code className="rounded bg-muted px-1">Authorization: Bearer nrv_…</code> to <code className="rounded bg-muted px-1">{origin}/api/v1</code> (see docs/API.md).</p>
         </section>
 
         <section className="grid gap-2">

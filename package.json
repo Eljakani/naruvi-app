@@ -24,7 +24,8 @@
     "evals": "tsx --test \"evals/**/*.test.ts\"",
     "ai:try": "tsx --conditions=react-server scripts/try-ai-steps.mts",
     "ai:try:analysis": "tsx --conditions=react-server scripts/try-ai-analysis.mts",
-    "jobs:enrich": "tsx --conditions=react-server scripts/enrich-jobs.mts"
+    "jobs:enrich": "tsx --conditions=react-server scripts/enrich-jobs.mts",
+    "mcp": "node mcp/naruvi-mcp.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.85",
@@ -41,6 +42,7 @@
     "@fontsource/noto-sans-thai": "^5.3.0",
     "@fontsource/roboto": "^5.3.0",
     "@fontsource/source-serif-4": "^5.3.1",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@react-pdf/renderer": "^4.9.0",
     "ai": "^7.0.163",
     "class-variance-authority": "^0.7.1",
