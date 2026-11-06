@@ -1,11 +1,13 @@
 import Link from "next/link"
 import { Suspense } from "react"
 import { connection } from "next/server"
-import { ChevronRightIcon } from "lucide-react"
+import { ChevronRightIcon, LoaderCircleIcon, XIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
-import { RefreshRuns } from "@/components/refresh-runs"
+import { LiveRefresh, RefreshRuns } from "@/components/refresh-runs"
 import { JobEvals } from "@/components/runs/job-evals"
-import { duration, workflowLabel } from "@/components/runs/labels"
+import { ago, compact, duration, workflowLabel } from "@/components/runs/labels"
+import { RunFilters } from "@/components/runs/run-filters"
+import { WorkflowIcon } from "@/components/runs/workflow-icon"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,7 +15,8 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { documentQuality, listRuns, runStats, workflows } from "@/server/runs/repository"
+import { cn } from "@/lib/utils"
+import { documentQuality, isRange, listRuns, RANGES, runStats, workflows, type Range } from "@/server/runs/repository"
 
 export const metadata = { title: "Runs" }
 
@@ -58,91 +61,176 @@ async function Content({ searchParams }: { searchParams: Search }) {
   await connection()
   const params = await searchParams
   if (one(params.tab) === "quality") return <Quality />
-  return <Traces workflow={one(params.workflow)} status={one(params.status)} />
+  const range = isRange(one(params.range)) ? (one(params.range) as Range) : "7d"
+  const beforeText = one(params.before)
+  const before = beforeText && !Number.isNaN(Date.parse(beforeText)) ? new Date(beforeText) : undefined
+  return <Traces workflow={one(params.workflow)} status={one(params.status)} range={range} before={before} />
 }
 
-function filterHref(next: { workflow?: string; status?: string }) {
-  const query = new URLSearchParams(Object.entries(next).filter(([, value]) => value) as [string, string][])
-  const text = query.toString()
-  return text ? `/runs?${text}` : "/runs"
+function href(params: Record<string, string | undefined>) {
+  const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value) as [string, string][]).toString()
+  return query ? `/runs?${query}` : "/runs"
 }
 
-async function Traces({ workflow, status }: { workflow?: string; status?: string }) {
-  const [stats, rows, names] = await Promise.all([runStats(7), listRuns({ workflow, status }), workflows()])
-  const failureRate = stats.total ? Math.round((stats.failed / stats.total) * 100) : 0
+function dayLabel(date: Date) {
+  const today = new Date()
+  const start = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const diff = Math.round((start(today) - start(date)) / 86_400_000)
+  if (diff === 0) return "Today"
+  if (diff === 1) return "Yesterday"
+  return date.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })
+}
+
+async function Traces({ workflow, status, range, before }: { workflow?: string; status?: string; range: Range; before?: Date }) {
+  const [stats, list, names] = await Promise.all([runStats({ workflow, range }), listRuns({ workflow, status, range, before }), workflows()])
+  const rows = list.runs
+  const successRate = stats.total ? Math.round(((stats.total - stats.failed - stats.running) / stats.total) * 100) : null
+  const slowest = Math.max(1, ...rows.map((run) => run.durationMs ?? 0))
+  const groups = new Map<string, typeof rows>()
+  for (const run of rows) groups.set(dayLabel(run.createdAt), [...(groups.get(dayLabel(run.createdAt)) ?? []), run])
+  const rangeName = range === "all" ? "All time" : range === "24h" ? "Last 24 hours" : `Last ${RANGES[range]} days`
+  const options = names.map((name) => ({ value: name, label: workflowLabel(name) }))
+  const now = stats.now
+
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat title="Runs" value={String(stats.total)} hint="Last 7 days" />
-        <Stat title="Failure rate" value={`${failureRate}%`} hint={`${stats.failed} failed`} />
-        <Stat title="Median time" value={duration(stats.p50)} hint={`p95 ${duration(stats.p95)}`} />
-        <Stat title="Model tokens" value={stats.tokens.toLocaleString()} hint="0 when no model is configured" />
+      <LiveRefresh active={rows.some((run) => run.status === "running")} />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <Stat title="Runs" value={stats.total.toLocaleString()} hint={rangeName}>
+          <Spark daily={stats.daily} days={stats.days} now={now} />
+        </Stat>
+        <Stat title="Success rate" value={successRate === null ? "—" : `${successRate}%`} hint={stats.failed ? `${stats.failed} failed${stats.running ? ` · ${stats.running} running` : ""}` : stats.running ? `${stats.running} running` : "No failures"} tone={successRate !== null && successRate < 90 ? "warn" : undefined} />
+        <Stat title="Median time" value={duration(stats.p50)} hint={`95% finish within ${duration(stats.p95)}`} />
+        <Stat title="AI usage" value={compact(stats.tokens)} hint={stats.aiCalls ? `tokens · ${stats.aiCalls.toLocaleString()} model requests` : "No model requests"} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1">
-        <Button size="sm" variant={!workflow ? "secondary" : "ghost"} nativeButton={false} render={<Link href={filterHref({ status })} />}>
-          All workflows
-        </Button>
-        {names.map((name) => (
-          <Button key={name} size="sm" variant={workflow === name ? "secondary" : "ghost"} nativeButton={false} render={<Link href={filterHref({ workflow: name, status })} />}>
-            {workflowLabel(name)}
-          </Button>
-        ))}
-        <span className="mx-1 h-4 w-px bg-border" />
-        <Button size="sm" variant={status === "failed" ? "secondary" : "ghost"} nativeButton={false} render={<Link href={filterHref({ workflow, status: status === "failed" ? undefined : "failed" })} />}>
-          Failed only
-        </Button>
-      </div>
-
-      {rows.length ? (
-        <Card className="py-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-4">Workflow</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Steps</TableHead>
-                <TableHead className="text-right">Time</TableHead>
-                <TableHead className="hidden text-right md:table-cell">Tokens</TableHead>
-                <TableHead className="text-right">Started</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((run) => (
-                <TableRow key={run.id}>
-                  <TableCell className="pl-4">
-                    <Link href={`/runs/${run.id}`} className="font-medium hover:underline">
-                      {workflowLabel(run.workflow)}
-                    </Link>
-                    {run.error ? <p className="max-w-md truncate text-xs text-destructive">{run.error}</p> : null}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={run.status === "failed" ? "destructive" : "secondary"}>{run.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{run.steps}</TableCell>
-                  <TableCell className="text-right tabular-nums">{duration(run.durationMs)}</TableCell>
-                  <TableCell className="hidden text-right tabular-nums md:table-cell">{run.tokens ? run.tokens.toLocaleString() : "—"}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{run.createdAt.toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}</TableCell>
-                  <TableCell>
-                    <Button size="icon-sm" variant="ghost" aria-label="Open trace" nativeButton={false} render={<Link href={`/runs/${run.id}`} />}>
-                      <ChevronRightIcon />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <Card className="gap-0 py-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
+            <RunFilters workflows={options} range={range} workflow={workflow} status={status} />
+            {workflow || status ? (
+              <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={href({ range: range === "7d" ? undefined : range })} />}>
+                <XIcon /> Clear filters
+              </Button>
+            ) : null}
+          </div>
+          {rows.length ? (
+            <div>
+              {[...groups.entries()].map(([day, runs]) => (
+                <section key={day} aria-label={day}>
+                  <h2 className="sticky top-0 z-10 border-b bg-muted/60 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">{day}</h2>
+                  <ul className="divide-y">
+                    {runs.map((run) => (
+                      <li key={run.id}>
+                        <Link href={`/runs/${run.id}`} className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none md:grid-cols-[auto_minmax(0,1fr)_9rem_5rem_5.5rem_auto]">
+                          <WorkflowIcon workflow={run.workflow} />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-sm font-medium">{workflowLabel(run.workflow)}</span>
+                              <StatusMark status={run.status} />
+                            </div>
+                            <p className={cn("truncate text-xs", run.error ? "text-destructive" : "text-muted-foreground")}>
+                              {run.error ?? ([run.job, run.company].filter(Boolean).join(" · ") || `${run.steps} steps${run.aiCalls ? ` · ${run.aiCalls} model requests` : ""}`)}
+                            </p>
+                          </div>
+                          <div className="hidden min-w-0 md:block">
+                            {run.models.length ? (
+                              <span className="flex min-w-0 items-center gap-1">
+                                <Badge variant="outline" className="max-w-32 truncate font-normal">{run.models[0]}</Badge>
+                                {run.models.length > 1 ? <span className="text-xs text-muted-foreground">+{run.models.length - 1}</span> : null}
+                              </span>
+                            ) : <span className="text-xs text-muted-foreground">No model</span>}
+                          </div>
+                          <div className="hidden text-right text-xs text-muted-foreground tabular-nums md:block">{run.tokens ? compact(run.tokens) : "—"}</div>
+                          <div className="hidden md:block">
+                            <div className="text-right text-xs tabular-nums">{run.status === "running" ? "running…" : duration(run.durationMs)}</div>
+                            <div className="mt-1 h-1 rounded-full bg-muted">
+                              <div className={cn("h-1 rounded-full", run.status === "failed" ? "bg-destructive" : "bg-foreground/40")} style={{ width: `${Math.max(3, ((run.durationMs ?? 0) / slowest) * 100)}%` }} />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs whitespace-nowrap text-muted-foreground">
+                            <time dateTime={run.createdAt.toISOString()} title={run.createdAt.toLocaleString()}>{ago(run.createdAt, now)}</time>
+                            <ChevronRightIcon className="size-4 opacity-40 group-hover:opacity-100" />
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ))}
-            </TableBody>
-          </Table>
+              {list.more || before ? (
+                <div className="flex justify-between gap-2 border-t p-3">
+                  {before ? <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={href({ workflow, status, range: range === "7d" ? undefined : range })} />}>Newest</Button> : <span />}
+                  {list.more ? (
+                    <Button variant="outline" size="sm" nativeButton={false} render={<Link href={href({ workflow, status, range: range === "7d" ? undefined : range, before: rows.at(-1)!.createdAt.toISOString() })} />}>
+                      Older runs <ChevronRightIcon />
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <Empty className="m-3 border">
+              <EmptyHeader>
+                <EmptyTitle>No runs</EmptyTitle>
+                <EmptyDescription>{workflow || status || range !== "all" ? "Nothing matches these filters. Try a longer time range." : "Import a job, analyze your fit or generate a document to see its trace here."}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
         </Card>
-      ) : (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyTitle>No runs</EmptyTitle>
-            <EmptyDescription>{workflow || status ? "Nothing matches these filters." : "Import a job, analyze your fit or generate a document to see its trace here."}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      )}
+
+        <Card className="h-fit gap-0 py-0">
+          <CardHeader className="border-b py-3">
+            <CardTitle className="text-sm">By workflow</CardTitle>
+            <CardDescription className="text-xs">{rangeName}. Pick one to filter.</CardDescription>
+          </CardHeader>
+          <ul className="divide-y">
+            {stats.byWorkflow.map((row) => {
+              const active = workflow === row.workflow
+              return (
+                <li key={row.workflow}>
+                  <Link href={href({ workflow: active ? undefined : row.workflow, status, range: range === "7d" ? undefined : range })} aria-current={active || undefined} className={cn("flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/40", active && "bg-muted")}>
+                    <span className="min-w-0 flex-1 truncate">{workflowLabel(row.workflow)}</span>
+                    {row.failed ? <span className="text-xs text-destructive tabular-nums">{row.failed} failed</span> : null}
+                    <span className="w-12 text-right text-xs text-muted-foreground tabular-nums">{duration(row.p50)}</span>
+                    <span className="w-8 text-right font-medium tabular-nums">{row.total}</span>
+                  </Link>
+                </li>
+              )
+            })}
+            {!stats.byWorkflow.length ? <li className="px-4 py-3 text-sm text-muted-foreground">No runs in this period.</li> : null}
+          </ul>
+          <p className="border-t px-4 py-2 text-xs text-muted-foreground">Median time · runs</p>
+        </Card>
+      </div>
     </>
+  )
+}
+
+function StatusMark({ status }: { status: string }) {
+  if (status === "failed") return <Badge variant="destructive" className="h-5">Failed</Badge>
+  if (status === "running" || status === "queued") return <Badge variant="secondary" className="h-5"><LoaderCircleIcon className="animate-spin" /> Running</Badge>
+  return null
+}
+
+/** Runs per day; failed runs in red. */
+function Spark({ daily, days, now }: { daily: { day: string; total: number; failed: number }[]; days: number; now: number }) {
+  const byDay = new Map(daily.map((row) => [row.day, row]))
+  const series = Array.from({ length: Math.min(days, 30) }, (_, i) => {
+    const date = new Date(now - (Math.min(days, 30) - 1 - i) * 86_400_000)
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+    return { key, date, ...(byDay.get(key) ?? { total: 0, failed: 0 }) }
+  })
+  const max = Math.max(1, ...series.map((point) => point.total))
+  return (
+    <div className="flex h-8 items-end gap-px" aria-hidden>
+      {series.map((point) => (
+        <div key={point.key} title={`${point.date.toLocaleDateString()}: ${point.total} runs${point.failed ? `, ${point.failed} failed` : ""}`} className="flex flex-1 flex-col justify-end overflow-hidden rounded-[2px] bg-muted" style={{ height: "100%" }}>
+          <div className="bg-destructive" style={{ height: `${(point.failed / max) * 100}%` }} />
+          <div className="bg-foreground/35" style={{ height: `${((point.total - point.failed) / max) * 100}%` }} />
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -200,14 +288,15 @@ async function Quality() {
   )
 }
 
-function Stat({ title, value, hint }: { title: string; value: string; hint: string }) {
+function Stat({ title, value, hint, tone, children }: { title: string; value: string; hint: string; tone?: "warn"; children?: React.ReactNode }) {
   return (
-    <Card>
+    <Card className="gap-3">
       <CardHeader>
         <CardDescription>{title}</CardDescription>
-        <CardTitle className="text-3xl tabular-nums">{value}</CardTitle>
+        <CardTitle className={cn("text-3xl tabular-nums", tone === "warn" && "text-destructive")}>{value}</CardTitle>
       </CardHeader>
-      <CardFooter className="text-sm text-muted-foreground">{hint}</CardFooter>
+      {children ? <CardContent>{children}</CardContent> : null}
+      <CardFooter className="mt-auto text-sm text-muted-foreground">{hint}</CardFooter>
     </Card>
   )
 }
