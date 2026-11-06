@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header"
 import { FitRing } from "@/components/applications/fit-ring"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { NeedsAttention } from "@/components/tracking/needs-attention"
+import { DashboardCalendar } from "@/components/tracking/dashboard-calendar"
 import { AddJobDialog } from "@/components/jobs/job-reader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -230,6 +231,7 @@ async function DashboardData() {
 
         <div className="grid min-w-0 content-start gap-4">
           <LiveRefresh active every={busy ? 5000 : 20000} />
+          <DashboardCalendar events={data.events} now={data.now} />
           <Card size="sm">
             <CardHeader>
               <CardTitle><h2>Pipeline</h2></CardTitle>

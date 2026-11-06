@@ -49,6 +49,10 @@ export async function getDashboard() {
     .sort((a, b) => a.nextStepDue!.getTime() - b.nextStepDue!.getTime())
     .slice(0, 4)
     .map((application) => ({ id: application.id, title: application.job.title, company: application.job.company?.name ?? "", nextStep: application.nextStep, due: application.nextStepDue! }))
+  // Every dated next step on an open application, for the dashboard calendar.
+  const events = active
+    .filter((application) => application.nextStepDue && !application.archivedAt && !CLOSED.includes(application.status))
+    .map((application) => ({ id: application.id, title: application.job.title, company: application.job.company?.name ?? "", logoPath: application.job.company?.logoPath ?? null, nextStep: application.nextStep, due: application.nextStepDue!.toISOString() }))
   const statusCounts: Record<string, number> = {}
   for (const application of active) statusCounts[application.status] = (statusCounts[application.status] ?? 0) + 1
   return {
@@ -61,6 +65,7 @@ export async function getDashboard() {
     recent,
     attention,
     upcoming,
+    events,
     replies: inbox.suggestions,
     now,
   }
