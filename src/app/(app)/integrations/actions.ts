@@ -130,3 +130,15 @@ export async function saveReplySettingAction(value: { mode: "off" | "plus" | "do
     return fail(error)
   }
 }
+
+export async function saveOAuthClientAction(provider: "google" | "microsoft", input: { clientId: string; clientSecret: string; tenant: string }): Promise<Result> {
+  try {
+    if (provider !== "google" && provider !== "microsoft") return { ok: false, message: "Unknown provider." }
+    const { saveOAuthClient } = await import("@/server/mail/oauth")
+    await saveOAuthClient(provider, input)
+    revalidatePath("/integrations")
+    return { ok: true, data: undefined }
+  } catch (error) {
+    return fail(error)
+  }
+}

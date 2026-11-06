@@ -31,14 +31,14 @@ export type MailAccountInput = z.input<typeof mailAccountInput>
 const isLocal = (name: string) => /^(127\.0\.0\.1|localhost|::1)$/i.test(name)
 const context = (email: string) => `mail:${email.toLowerCase()}`
 
-type Connection = Pick<z.infer<typeof mailAccountInput>, "imapHost" | "imapPort" | "imapSecure" | "smtpHost" | "smtpPort" | "smtpSecure"> & { username: string; password: string }
+type Connection = Pick<z.infer<typeof mailAccountInput>, "imapHost" | "imapPort" | "imapSecure" | "smtpHost" | "smtpPort" | "smtpSecure"> & { username: string; password: string; accessToken?: string | null }
 
 export function imapClient(account: Connection) {
   return new ImapFlow({
     host: account.imapHost,
     port: account.imapPort,
     secure: account.imapSecure,
-    auth: { user: account.username, pass: account.password },
+    auth: account.accessToken ? { user: account.username, accessToken: account.accessToken } : { user: account.username, pass: account.password },
     logger: false,
     connectionTimeout: 15_000,
     greetingTimeout: 15_000,
@@ -53,7 +53,7 @@ export function smtpTransport(account: Connection) {
     port: account.smtpPort,
     secure: account.smtpSecure,
     requireTLS: !account.smtpSecure && !isLocal(account.smtpHost),
-    auth: { user: account.username, pass: account.password },
+    auth: account.accessToken ? { type: "OAuth2" as const, user: account.username, accessToken: account.accessToken } : { user: account.username, pass: account.password },
     connectionTimeout: 15_000,
     tls: { rejectUnauthorized: !isLocal(account.smtpHost) },
   })
@@ -99,7 +99,7 @@ export async function getMailOverview() {
     encryptionReady: encryptionReady(env.SETTINGS_ENCRYPTION_KEY),
     providers: MAIL_PROVIDERS.map(({ id, name }) => ({ id, name })),
     account: {
-      email: account.email, displayName: account.displayName, provider: account.provider, username: account.username,
+      email: account.email, displayName: account.displayName, provider: account.provider, username: account.username, authType: account.authType,
       imapHost: account.imapHost, imapPort: account.imapPort, imapSecure: account.imapSecure,
       smtpHost: account.smtpHost, smtpPort: account.smtpPort, smtpSecure: account.smtpSecure,
       status: account.status, lastError: account.lastError, lastSyncAt: account.lastSyncAt?.toISOString() ?? null, syncFrom: account.syncFrom.toISOString(),
@@ -118,7 +118,13 @@ export async function hasMailbox() {
 export async function getMailAccount() {
   const [account] = await db.select().from(mailAccounts).limit(1)
   if (!account) return null
-  return { ...account, password: decryptSecret(account.encryptedPassword, env.SETTINGS_ENCRYPTION_KEY, context(account.email)) }
+  const secret = decryptSecret(account.encryptedPassword, env.SETTINGS_ENCRYPTION_KEY, context(account.email))
+  if (account.authType === "oauth") {
+    // Signed in with Google or Microsoft: the secret is a refresh token; connect with a short-lived access token.
+    const { accessToken } = await import("./oauth")
+    return { ...account, password: "", accessToken: await accessToken({ id: account.id, email: account.email, provider: account.provider, refreshToken: secret }) }
+  }
+  return { ...account, password: secret, accessToken: null }
 }
 
 /** Test, then save. A new connection only reads mail from now on (plus the last 30 days). */
@@ -126,7 +132,7 @@ export async function saveMailAccount(raw: MailAccountInput) {
   const input = mailAccountInput.parse(raw)
   if (!encryptionReady(env.SETTINGS_ENCRYPTION_KEY)) throw new SettingsError("Set SETTINGS_ENCRYPTION_KEY first (npm run settings:key), then restart Naruvi.")
   const existing = await getMailAccount().catch(() => null)
-  const password = input.password || (existing && existing.email.toLowerCase() === input.email.toLowerCase() ? existing.password : "")
+  const password = input.password || (existing && existing.authType === "password" && existing.email.toLowerCase() === input.email.toLowerCase() ? existing.password : "")
   if (!password) throw new SettingsError("Enter the password (an app password for most providers).")
   const username = input.username || input.email
   await testMailConnection({ ...input, username, password })
@@ -135,7 +141,7 @@ export async function saveMailAccount(raw: MailAccountInput) {
     encryptedPassword: encryptSecret(password, env.SETTINGS_ENCRYPTION_KEY, context(input.email)),
     imapHost: input.imapHost, imapPort: input.imapPort, imapSecure: input.imapSecure,
     smtpHost: input.smtpHost, smtpPort: input.smtpPort, smtpSecure: input.smtpSecure,
-    status: "ok", lastError: null,
+    authType: "password", status: "ok", lastError: null,
   }
   if (existing) {
     const changedMailbox = existing.email.toLowerCase() !== input.email.toLowerCase() || existing.imapHost !== input.imapHost

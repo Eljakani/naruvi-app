@@ -12,6 +12,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { MAIL_PROVIDERS, OTHER_PROVIDER, providerFor } from "@/lib/mail-providers"
+import { OAuthSignIn } from "@/components/integrations/oauth-signin"
 import { ReplyAddresses } from "@/components/integrations/reply-addresses"
 import type { MailOverview } from "@/server/mail/account"
 
@@ -27,7 +28,7 @@ function when(iso: string | null) {
 }
 
 /** Connect any mailbox over IMAP/SMTP. The password is encrypted on the server and never sent back. */
-export function MailSettings({ overview, reply }: { overview: MailOverview; reply: { mode: "off" | "plus" | "domain"; domain?: string } }) {
+export function MailSettings({ overview, reply, oauth, origin }: { overview: MailOverview; reply: { mode: "off" | "plus" | "domain"; domain?: string }; oauth: React.ComponentProps<typeof OAuthSignIn>["clients"]; origin: string }) {
   const [editing, setEditing] = useState(!overview.connected)
   const [form, setForm] = useState<Form>(fromOverview(overview))
   const [testing, startTest] = useTransition()
@@ -80,7 +81,7 @@ export function MailSettings({ overview, reply }: { overview: MailOverview; repl
         <CardContent className="grid gap-3 text-sm">
           <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-4">
             <Item label="Mailbox" value={account.email} />
-            <Item label="Provider" value={(MAIL_PROVIDERS.find((item) => item.id === account.provider) ?? OTHER_PROVIDER).name} />
+            <Item label="Provider" value={`${(MAIL_PROVIDERS.find((item) => item.id === account.provider) ?? OTHER_PROVIDER).name}${account.authType === "oauth" ? " (signed in)" : ""}`} />
             <Item label="Last checked" value={when(account.lastSyncAt)} />
             <Item label="Linked emails" value={account.matched.toLocaleString()} />
           </dl>
@@ -104,9 +105,15 @@ export function MailSettings({ overview, reply }: { overview: MailOverview; repl
           >
             {syncing ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} Check now
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-            Edit settings
-          </Button>
+          {account.authType === "oauth" ? (
+            <Button size="sm" variant="outline" nativeButton={false} render={<a href={`/api/oauth/${account.provider === "gmail" ? "google" : "microsoft"}/start?hint=${encodeURIComponent(account.email)}`} />}>
+              Sign in again
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              Edit settings
+            </Button>
+          )}
           <AlertDialog>
             <AlertDialogTrigger render={<Button size="sm" variant="ghost" className="ml-auto text-muted-foreground" disabled={disconnecting} />}>
               <UnplugIcon /> Disconnect
@@ -150,7 +157,11 @@ export function MailSettings({ overview, reply }: { overview: MailOverview; repl
         </CardTitle>
         <CardDescription>Connect the mailbox you apply from. Naruvi links replies to your applications and suggests what to do; it never changes anything or sends mail without your click.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="grid gap-5">
+        <OAuthSignIn clients={oauth} origin={origin} />
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="h-px flex-1 bg-border" /> or with an app password <span className="h-px flex-1 bg-border" />
+        </div>
         <form
           className="grid gap-5"
           onSubmit={(event) => {

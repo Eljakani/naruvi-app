@@ -75,9 +75,12 @@ export async function syncMail(): Promise<SyncResult> {
 async function runSync(): Promise<SyncResult> {
   let accountId: string | null = null
   try {
+    const [row] = await db.select({ id: mailAccounts.id }).from(mailAccounts).limit(1)
+    if (!row) return { checked: 0, stored: 0, skipped: "No mailbox connected." }
+    // Known before signing in, so a failed token refresh is shown on the account.
+    accountId = row.id
     const account = await getMailAccount()
     if (!account) return { checked: 0, stored: 0, skipped: "No mailbox connected." }
-    accountId = account.id
     const apps = await candidates()
     const client = imapClient(account)
     await client.connect()

@@ -455,7 +455,9 @@ export const mailAccounts = pgTable("mail_accounts", {
   displayName: text().notNull().default(""),
   provider: text().notNull().default("other"),
   username: text().notNull(),
-  /** AES-256-GCM, same scheme as the model API key; never sent to the browser. */
+  /** "password" (app password) or "oauth" (Google / Microsoft sign-in). */
+  authType: text().notNull().default("password"),
+  /** AES-256-GCM, same scheme as the model API key; never sent to the browser. For OAuth: the refresh token. */
   encryptedPassword: text().notNull(),
   imapHost: text().notNull(),
   imapPort: integer().notNull().default(993),

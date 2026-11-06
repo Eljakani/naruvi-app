@@ -1,0 +1,1 @@
+ALTER TABLE "mail_accounts" ADD COLUMN "auth_type" text DEFAULT 'password' NOT NULL;
