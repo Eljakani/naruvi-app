@@ -184,7 +184,7 @@ function BulletRow({ bullet, label, first, last, onToggle, onEdit, onUndo, onUp,
       </div>
       {reworded && !editing ? (
         <div className="flex items-center gap-1 pl-6.5">
-          <Badge variant="outline" className="px-1 py-0 text-[10px]">AI</Badge>
+          <Badge variant="outline" className="px-1 py-0 text-[11px]">AI</Badge>
           <Button type="button" variant="ghost" size="xs" className="text-muted-foreground" onClick={onUndo} title={bullet.originalText}>
             Undo AI wording
           </Button>

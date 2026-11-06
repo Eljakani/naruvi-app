@@ -68,7 +68,7 @@ export function SearchBox({ placeholder, className }: { placeholder: string; cla
         </InputGroupAddon>
       ) : (
         <InputGroupAddon align="inline-end" className="hidden sm:flex">
-          <kbd className="rounded border px-1 font-mono text-[10px] text-muted-foreground">/</kbd>
+          <kbd className="rounded border px-1 font-mono text-[11px] text-muted-foreground">/</kbd>
         </InputGroupAddon>
       )}
     </InputGroup>

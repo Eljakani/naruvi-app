@@ -201,7 +201,7 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
         <div className="grid gap-2">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase">
             <CircleAlertIcon className="size-3.5 text-amber-500" /> Bullet without proof
-            <Badge variant="outline" className="font-mono text-[10px]">
+            <Badge variant="outline" className="font-mono text-[11px]">
               {bullet.language}
             </Badge>
             <span className="normal-case">· {bullet.group}</span>
@@ -224,7 +224,7 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
                       <Checkbox checked={on} onCheckedChange={() => toggle(fact.id)} className="mt-0.5" disabled={newFact !== null} />
                       <span className="flex-1 text-sm">{fact.statement}</span>
                       {suggestion && suggestion.score >= 0.34 ? (
-                        <Badge variant="secondary" className="shrink-0 text-[10px]">
+                        <Badge variant="secondary" className="shrink-0 text-[11px]">
                           {suggestion.sharedNumbers.length ? `shares ${suggestion.sharedNumbers.join(", ")}` : "suggested"}
                         </Badge>
                       ) : null}
@@ -369,7 +369,7 @@ function HighlightNumbers({ text, missing }: { text: string; missing: string[] }
 }
 
 function Kbd({ children }: { children: React.ReactNode }) {
-  return <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border bg-muted px-1 font-mono text-[10px] text-muted-foreground">{children}</kbd>
+  return <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border bg-muted px-1 font-mono text-[11px] text-muted-foreground">{children}</kbd>
 }
 
 function useShortcuts({ onNumber, onEnter, onSkip, disabled }: { onNumber?: (n: number) => void; onEnter: () => void; onSkip: () => void; disabled: boolean }) {

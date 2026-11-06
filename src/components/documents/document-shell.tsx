@@ -154,7 +154,7 @@ export function DocumentShell({
             <TabsTrigger value="design">Look</TabsTrigger>
             <TabsTrigger value="checks" className="gap-1.5">
               Checks
-              {issues ? <Badge variant={quality.checks.some((c) => c.status === "fail") ? "destructive" : "secondary"} className="h-4 px-1.5 text-[10px] tabular-nums">{issues}</Badge> : null}
+              {issues ? <Badge variant={quality.checks.some((c) => c.status === "fail") ? "destructive" : "secondary"} className="h-4 px-1.5 text-[11px] tabular-nums">{issues}</Badge> : null}
             </TabsTrigger>
             <TabsTrigger value="versions">History</TabsTrigger>
           </TabsList>
@@ -252,7 +252,7 @@ export function VersionsPanel({ revisions, currentId, pending, onRestore }: { re
                   {revision.pages ?? "—"}p · {revision.quality?.score ?? "—"}
                 </span>
                 {isCurrent ? (
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-[11px]">
                     current
                   </Badge>
                 ) : (

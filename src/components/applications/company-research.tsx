@@ -219,7 +219,7 @@ export function CompanyResearch({
         <ol className="cb-stagger grid gap-2.5">
           {visibleAngles.map((angle, index) => (
             <li key={angle.text} className="flex min-w-0 gap-2.5">
-              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium tabular-nums">{index + 1}</span>
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium tabular-nums">{index + 1}</span>
               <div className="grid min-w-0 gap-0.5">
                 <p className={cn("text-sm leading-5", !showAll && "line-clamp-3")}>{angle.text}</p>
                 <Sources sources={angle.sources} />

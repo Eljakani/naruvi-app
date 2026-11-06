@@ -68,7 +68,7 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
                 <chip.icon className="size-3" /> {chip.text}
               </Badge>
             ))}
-            <Badge variant="outline" className="font-mono text-[10px] uppercase">
+            <Badge variant="outline" className="font-mono text-[11px] uppercase">
               {job.language}
             </Badge>
           </div>

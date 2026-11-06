@@ -89,7 +89,7 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
                         {job.location ? <span>{job.location}</span> : null}
                         <span>Added {job.createdAt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
                         {job.nextStep && !closed ? <span>· Next: {job.nextStep}</span> : null}
-                        {job.tags.map((tag) => <Badge key={tag} variant="outline" className="h-4 px-1 text-[10px] font-normal">{tag}</Badge>)}
+                        {job.tags.map((tag) => <Badge key={tag} variant="outline" className="h-4 px-1 text-[11px] font-normal">{tag}</Badge>)}
                       </div>
                     </div>
                     {job.applicationId ? <Badge variant={closed ? "outline" : job.status === "ready" ? "default" : "secondary"}>{job.archivedAt ? "Archived" : STATUS_LABEL[job.status!]}</Badge> : <Badge variant="outline" className="font-normal text-muted-foreground">Not analyzed</Badge>}

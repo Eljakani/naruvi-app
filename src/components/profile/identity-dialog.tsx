@@ -57,7 +57,7 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
             <div className="grid gap-2">
               {(["en", "fr"] as const).map((lang) => (
                 <div key={lang} className="flex items-center gap-2">
-                  <span className="w-7 shrink-0 rounded border px-1 text-center font-mono text-[10px] uppercase text-muted-foreground">{lang}</span>
+                  <span className="w-7 shrink-0 rounded border px-1 text-center font-mono text-[11px] uppercase text-muted-foreground">{lang}</span>
                   <Input
                     aria-label={`Headline ${lang}`}
                     value={form.headlines[lang]}
@@ -74,7 +74,7 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
             <div className="grid gap-2">
               {(["en", "fr"] as const).map((lang) => (
                 <div key={lang} className="flex items-start gap-2">
-                  <span className="mt-2 w-7 shrink-0 rounded border px-1 text-center font-mono text-[10px] uppercase text-muted-foreground">{lang}</span>
+                  <span className="mt-2 w-7 shrink-0 rounded border px-1 text-center font-mono text-[11px] uppercase text-muted-foreground">{lang}</span>
                   <Textarea
                     aria-label={`Summary ${lang}`}
                     value={form.summaries[lang]}

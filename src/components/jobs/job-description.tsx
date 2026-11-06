@@ -52,9 +52,9 @@ function ListItem({ text }: { text: string }) {
 function BlockView({ block }: { block: Block }) {
   if (block.type === "heading") {
     return (
-      <h3 id={block.id} className="mt-7 mb-2 scroll-mt-24 text-[15px] font-semibold tracking-tight text-foreground first:mt-0">
+      <h2 id={block.id} className="mt-7 mb-2 scroll-mt-24 text-[15px] font-semibold tracking-tight text-foreground first:mt-0">
         {displayHeading(block.text)}
-      </h3>
+      </h2>
     )
   }
   if (block.type === "list") {
@@ -108,7 +108,7 @@ export function JobDescription({ text, collapsible = true, className }: { text: 
         </nav>
       ) : null}
       <div className="relative">
-        <article className={cn("max-w-[72ch] text-sm leading-7 text-foreground/85 [overflow-wrap:anywhere]", !expanded && "max-h-[28rem] overflow-hidden")}>
+        <article className={cn("max-w-[32rem] text-sm leading-7 text-foreground/85 [overflow-wrap:anywhere]", !expanded && "max-h-[28rem] overflow-hidden")}>
           {blocks.map((block, index) => (
             <BlockView key={index} block={block} />
           ))}

@@ -226,7 +226,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
         ) : null}
         <Button onClick={() => save()} disabled={pending || (!dirty && Boolean(entry))}>
           {pending ? "Saving…" : entry ? "Save" : "Create entry"}
-          <kbd className="ml-1 hidden rounded bg-primary-foreground/15 px-1 font-mono text-[10px] sm:inline">⌘S</kbd>
+          <kbd className="ml-1 hidden rounded bg-primary-foreground/15 px-1 font-mono text-[11px] sm:inline">⌘S</kbd>
         </Button>
       </div>
 
@@ -595,7 +595,7 @@ function BulletCard({
       )}
     >
       <div className="flex items-start gap-1.5">
-        <Badge variant="outline" className="mt-2 shrink-0 font-mono text-[10px] uppercase">
+        <Badge variant="outline" className="mt-2 shrink-0 font-mono text-[11px] uppercase">
           {bullet.language}
         </Badge>
         <GrowText value={bullet.text} onChange={(event) => onChange({ text: event.target.value })} placeholder={isLabel ? "Section label" : "Approved bullet wording…"} className="border-transparent shadow-none hover:border-input" />

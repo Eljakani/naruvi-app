@@ -50,9 +50,9 @@ export function AppSidebar({
           <SidebarMenu>
             <SidebarMenuItem>
               <AddJobDialog trigger={
-                <SidebarMenuButton tooltip="New job" aria-label="New job" className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground">
+                <SidebarMenuButton tooltip="Add a job" aria-label="Add a job" className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground">
                   <PlusIcon />
-                  <span>New job</span>
+                  <span>Add a job</span>
                 </SidebarMenuButton>
               } />
             </SidebarMenuItem>

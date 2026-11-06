@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header"
 import { FitRing } from "@/components/applications/fit-ring"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { NeedsAttention } from "@/components/tracking/needs-attention"
+import { AddJobDialog } from "@/components/jobs/job-reader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -60,9 +61,7 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Where your applications stand and what to do next."
         actions={
-          <Button nativeButton={false} render={<Link href="/jobs" />}>
-            <PlusIcon /> New application
-          </Button>
+          <AddJobDialog trigger={<Button><PlusIcon /> Add a job</Button>} />
         }
       />
       <Suspense fallback={<DashboardSkeleton />}>

@@ -74,7 +74,7 @@ export function ProfileImport() {
         <Card>
           <CardHeader>
             <CardTitle>Start from your CV</CardTitle>
-            <CardDescription>Upload a PDF CV or your LinkedIn data export (ZIP), or paste your CV, LinkedIn profile or notes. AI sorts it into jobs, studies, projects and skills, and splits achievements into facts. It never adds anything you didn’t write, and nothing is used until you verify it.</CardDescription>
+            <CardDescription className="max-w-[30rem]">Upload a PDF CV or your LinkedIn data export (ZIP), or paste your CV, LinkedIn profile or notes. AI sorts it into jobs, studies, projects and skills, and splits achievements into facts. It never adds anything you didn’t write, and nothing is used until you verify it.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <button

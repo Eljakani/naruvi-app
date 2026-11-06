@@ -56,7 +56,7 @@ function FitRing({ score }: { score: number }) {
       </svg>
       <div className="absolute inset-0 grid place-content-center text-center">
         <span className="text-2xl font-semibold tabular-nums">{score}</span>
-        <span className="-mt-1 text-[10px] tracking-wide text-muted-foreground uppercase">fit</span>
+        <span className="-mt-1 text-[11px] tracking-wide text-muted-foreground uppercase">fit</span>
       </div>
     </div>
   )
@@ -200,9 +200,9 @@ export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: 
             {groups.length ? (
               groups.map((group) => (
                 <section key={group.kind}>
-                  <h3 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  <h2 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                     {KIND_TITLE[group.kind]} · {group.items.length}
-                  </h3>
+                  </h2>
                   <ul>
                     {group.items.map((match) => (
                       <Requirement key={match.id} match={match} facts={facts} />

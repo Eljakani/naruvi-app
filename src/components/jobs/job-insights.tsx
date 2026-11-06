@@ -46,7 +46,7 @@ export function JobInsights({ jobId, insights }: { jobId: string; insights: Insi
       </CardHeader>
       {insights ? (
         <CardContent className="grid gap-4">
-          {insights.summary ? <p className="text-sm">{insights.summary}</p> : null}
+          {insights.summary ? <p className="max-w-[32rem] text-sm">{insights.summary}</p> : null}
           {facts.length || insights.yearsRequired || insights.programme || insights.visaSponsorship !== null ? (
             <div className="flex flex-wrap gap-2">
               {facts.map(([label, value]) => (

@@ -77,7 +77,7 @@ export function CommandMenu() {
       <Button variant="outline" size="sm" className="w-full max-w-64 justify-start gap-2 text-muted-foreground" onClick={() => setOpen(true)}>
         <SearchIcon />
         <span className="flex-1 text-left">Search…</span>
-        <kbd className="hidden rounded border px-1 font-mono text-[10px] sm:inline">Ctrl K</kbd>
+        <kbd className="hidden rounded border px-1 font-mono text-[11px] sm:inline">Ctrl K</kbd>
       </Button>
       <CommandDialog className="sm:max-w-xl" open={open} onOpenChange={(value) => { setOpen(value); if (!value) setQuery("") }} title="Search" description="Jump to a page, job, application or company">
         <Command shouldFilter={false} value={selected} onValueChange={setSelected}>

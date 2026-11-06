@@ -140,7 +140,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
                   <div className="hidden items-center gap-2 sm:flex">
                     {job.applicationId ? <Badge variant={closed ? "outline" : job.status === "ready" ? "default" : "secondary"}>{job.archivedAt ? "Archived" : STATUS_LABEL[job.status!]}</Badge> : <Badge variant="outline" className="font-normal text-muted-foreground">Not analyzed</Badge>}
                     {job.fit !== null ? <FitRing score={job.fit} size={32} /> : null}
-                    <Badge variant="outline" className="font-mono text-[10px] uppercase">
+                    <Badge variant="outline" className="font-mono text-[11px] uppercase">
                       {job.language}
                     </Badge>
                     <span className="hidden w-36 truncate text-right text-xs whitespace-nowrap text-muted-foreground lg:inline">{BOARD_LABEL[job.board] ?? job.board} · {job.createdAt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>

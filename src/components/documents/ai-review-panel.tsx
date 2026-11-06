@@ -30,7 +30,7 @@ export function AiReviewPanel({ assistance, changes, pending, onApprove }: {
           </Button>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">Read the lines marked <Badge variant="outline" className="px-1 py-0 text-[10px]">AI</Badge> before you send it. You can edit or undo each one.</p>
+      <p className="text-xs text-muted-foreground">Read the lines marked <Badge variant="outline" className="px-1 py-0 text-[11px]">AI</Badge> before you send it. You can edit or undo each one.</p>
       {changes.length ? (
         <details className="text-xs">
           <summary className="cursor-pointer text-muted-foreground hover:text-foreground">See every change side by side</summary>

@@ -179,7 +179,7 @@ async function Traces({ workflow, status, range, before }: { workflow?: string; 
           )}
         </Card>
 
-        <Card className="h-fit gap-0 py-0">
+        <Card className="h-fit gap-0 py-0 xl:sticky xl:top-4">
           <CardHeader className="border-b py-3">
             <CardTitle className="text-sm">By workflow</CardTitle>
             <CardDescription className="text-xs">{rangeName}. Pick one to filter.</CardDescription>

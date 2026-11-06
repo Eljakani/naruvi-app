@@ -176,6 +176,9 @@
   from { opacity: 0; }
 }
 .cb-page > * { animation: cb-rise 180ms var(--ease-out) both; }
+/* Grid children default to min-width:auto, so one wide table or long word
+   pushes a whole column past a phone screen. Let page content shrink; scroll inside. */
+.cb-page > *, .cb-page :where(.grid) > * { min-width: 0; }
 .cb-page > *:nth-child(n+2) { animation-delay: 30ms; }
 /* Content that streams in after a skeleton fades rather than popping. */
 

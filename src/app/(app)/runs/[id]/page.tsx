@@ -137,7 +137,7 @@ async function Trace({ params }: { params: Promise<{ id: string }> }) {
                         <span className="w-5 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{index + 1}</span>
                         <Icon className={cn("size-3.5 shrink-0", failed ? "text-destructive" : "text-muted-foreground")} aria-label={STEP_KIND_LABEL[step.kind]} />
                         <span className={cn("truncate", failed && "text-destructive")}>{stepName(step.name)}</span>
-                        {slowest?.id === step.id && steps.length > 2 ? <Badge variant="outline" className="h-4 shrink-0 px-1 text-[10px] font-normal">slowest</Badge> : null}
+                        {slowest?.id === step.id && steps.length > 2 ? <Badge variant="outline" className="h-4 shrink-0 px-1 text-[11px] font-normal">slowest</Badge> : null}
                       </span>
                       <span className="col-span-2 row-start-2 md:col-span-1 md:row-start-auto">
                         <span className="relative block h-3 rounded-sm bg-muted">
