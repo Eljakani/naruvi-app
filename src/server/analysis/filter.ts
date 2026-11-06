@@ -49,7 +49,8 @@ const CATEGORY_CRITERIA = {
 /** Decision-model path (Jev): one calibrated choice per item; low-confidence exclusions keep the item. */
 async function filterWithDecisions(extraction: RequirementExtraction, jobText: string, decide: Decide) {
   const items = extraction.candidates.slice(0, MAX_REVIEW)
-  const questions = Object.fromEntries(items.map((item) => [item.id, choice({ task: "What this job-posting item is", item: item.text.slice(0, 1200), section: item.section || null, originalKind: item.kind }, CATEGORY_CRITERIA)]))
+  const ruled = new Map(extraction.excluded.map((item) => [item.requirement.id, item.category]))
+  const questions = Object.fromEntries(items.map((item) => [item.id, choice({ task: "What this job-posting item is", item: item.text.slice(0, 1200), section: item.section || null, introducedBy: item.lead ?? null, ...(ruled.has(item.id) ? { structureSuggests: ruled.get(item.id) } : { originalKind: item.kind }) }, CATEGORY_CRITERIA)]))
   return decideInChunks(decide, { posting: jobText.slice(0, 20_000) }, questions, 60)
 }
 
@@ -66,7 +67,12 @@ export async function filterRequirements(extraction: RequirementExtraction, jobT
         if (answer?.type !== "choice") continue
         summary.reviewed += 1
         const category = answer.choice as keyof typeof CATEGORY_CRITERIA
+        const ruled = excluded.get(requirement.id)
+        // The posting's own structure (a perks list, the company's practices, the hiring steps)
+        // is strong evidence: only a confident answer turns such an item into a requirement.
+        const structural = ruled?.source === "rules" && ruled.category !== "other"
         if (category === "must" || category === "nice" || category === "responsibility") {
+          if (structural && answer.confidence < 0.85) continue
           kept.set(requirement.id, { ...requirement, kind: category })
           excluded.delete(requirement.id)
         } else if (answer.confidence >= 0.6) {

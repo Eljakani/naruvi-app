@@ -104,3 +104,59 @@ test("large postings are batched and unreviewed overflow is preserved", async ()
   assert.equal(result.requirements.length, 125)
   assert.equal(result.summary.status, "partial")
 })
+
+// A posting where values and perks sit inside "what we expect from you", and the real skills are in a sentence.
+const culturePosting = `2 - Ce que nous vous proposons
+Pour un client bancaire, vos tâches seraient les suivantes:
+
+- Maintenance de l’infrastructure cloud
+
+- Support DevOps aux équipes projet
+
+Côté compétences, vous maitrisez GitLab et AWS. Vous avez une connaissance avancée de Python.
+
+3 - Ce que nous attendons de vous et nos engagements envers vous:
+Nos valeurs.
+
+[1 - Construire sur une confiance mutuelle]
+L’entreprise croit en ses collaborateurs. Cela se traduit par exemple par:
+
+- Un point hebdo pour partager les informations clés.
+
+- Le chien de l'équipe s'appelle Rex
+
+Pour résumer, pour vous épanouir chez nous vous devez:
+
+- Avoir envie d’apprendre et de partager votre expérience.`
+
+test("skills written in a sentence are found, and a company's practices are not requirements", () => {
+  const extracted = extractRequirementCandidates(culturePosting)
+  const kept = extracted.requirements.map((item) => item.text)
+  assert.ok(kept.includes("Côté compétences, vous maitrisez GitLab et AWS."))
+  assert.ok(kept.includes("Vous avez une connaissance avancée de Python."))
+  assert.ok(!kept.some((text) => /point hebdo|chien/.test(text)))
+  const practice = extracted.excluded.find((item) => /point hebdo/.test(item.requirement.text))
+  assert.equal(practice?.category, "company_information")
+  assert.equal(practice?.requirement.section, "1 - Construire sur une confiance mutuelle")
+  assert.match(practice?.requirement.lead ?? "", /se traduit par exemple par/)
+})
+
+test("an unsure model can't turn a structurally excluded perk into a requirement, but can rescue real duties", async () => {
+  const extraction = extractRequirementCandidates(culturePosting)
+  const byText = (pattern: RegExp) => extraction.candidates.find((item) => pattern.test(item.text))!.id
+  const decide = async () => ({
+    model: "jev-test",
+    usage: { input_tokens: 0, output_tokens: 0 },
+    answers: {
+      [byText(/point hebdo/)]: { type: "choice" as const, choice: "must", confidence: 0.62, probabilities: {} },
+      [byText(/chien/)]: { type: "choice" as const, choice: "must", confidence: 0.9, probabilities: {} },
+      [byText(/Maintenance/)]: { type: "choice" as const, choice: "responsibility", confidence: 0.7, probabilities: {} },
+    },
+  })
+  const result = await filterRequirements(extraction, culturePosting, undefined, decide)
+  const kept = result.requirements.map((item) => item.text)
+  assert.ok(!kept.some((text) => /point hebdo/.test(text)), "62% is not enough to override the perks structure")
+  assert.ok(kept.some((text) => /chien/.test(text)), "a confident answer still wins")
+  assert.ok(kept.some((text) => /Maintenance/.test(text)), "weak 'outside a section' exclusions are rescued")
+  assert.ok(kept.some((text) => /GitLab/.test(text)))
+})

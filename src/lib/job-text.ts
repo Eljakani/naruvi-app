@@ -75,12 +75,14 @@ export function normalizeText(raw: string): string {
 }
 
 function stripMarkdownHeading(line: string) {
-  return line.replace(/^#{1,6}\s+/, "").replace(/^\*\*(.+)\*\*:?$/, "$1").replace(/^__(.+)__:?$/, "$1")
+  return line.replace(/^\[([^\]]{3,100})\]$/, "$1").replace(/^#{1,6}\s+/, "").replace(/^\*\*(.+)\*\*:?$/, "$1").replace(/^__(.+)__:?$/, "$1")
 }
 
 function isHeading(line: string, next: string | undefined): boolean {
   if (!line || BULLET.test(line)) return false
   if (/^#{1,6}\s+\S/.test(line)) return true
+  // "[2 - Construire sur une confiance mutuelle]": a bracketed subsection title.
+  if (/^\[[^\]]{3,100}\]$/.test(line)) return true
   if (/^(\*\*|__)[^*_]{2,80}(\*\*|__):?$/.test(line)) return true
   if (line.length > 80) return false
   const words = line.split(/\s+/).length

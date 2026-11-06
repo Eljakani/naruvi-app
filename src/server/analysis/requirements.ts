@@ -7,7 +7,7 @@ import { parseJobText } from "@/lib/job-text"
 import { keywordsIn, termsIn } from "./keywords"
 
 export type RequirementKind = "must" | "nice" | "responsibility"
-export type Requirement = { id: string; text: string; kind: RequirementKind; section: string; keywords: string[]; terms?: string[]; years: number | null }
+export type Requirement = { id: string; text: string; kind: RequirementKind; section: string; keywords: string[]; terms?: string[]; years: number | null; /** The sentence just before a list ("Cela se traduit par exemple par :"), as context. */ lead?: string }
 
 const NICE = /nice to have|bonus|\bplus\b|preferred|desirable|ideally|un plus|appréci|souhait|optionnel|would be great/i
 const MUST = /require|qualification|looking for|what you bring|you (?:have|bring)|must|profil|expertise|compétences|skills|experience|about you|who you are|your background|ce que nous recherchons|vous (?:avez|êtes)|critical competencies|meet you if|ideal candidate|you are|you'll need|what we're looking for|nous recherchons|candidat idéal/i
@@ -54,6 +54,21 @@ const EXCLUDED_REASONS: Record<ExclusionCategory, string> = {
   other: "Outside a recognized requirements or responsibilities section.",
 }
 
+/**
+ * A paragraph that introduces examples of how the company works ("Cela se traduit
+ * par exemple par :", "This means:"): the list after it describes the company.
+ */
+const INTRODUCES_PRACTICES = /(?:se traduit (?:notamment |concrètement )?par(?: exemple)?(?: par)?|concrètement|this (?:means|translates (?:into|to))|in practice|for example|par exemple|zum beispiel|en la práctica)\s*:\s*$/i
+
+/**
+ * A sentence in running text that states what the candidate must know or have
+ * ("Côté compétences, vous maîtrisez GitLab et AWS.", "You have 5+ years of
+ * experience with Go"). Lists are not the only place postings put requirements.
+ */
+const REQUIREMENT_SENTENCE = /\b(?:vous ma[iî]trisez|vous (?:avez|possédez|disposez d['’]) (?:une |un |de l['’]|des |d['’])?(?:bonne |solide |excellente |réelle |première )?(?:connaissance|expérience|maîtrise|expertise|pratique)|(?:maîtrise|connaissance (?:avancée |approfondie )?) (?:de|d['’]|du|des)|\d+\s*\+?\s*(?:ans|années) d['’]expérience|you (?:have|bring|know|are fluent|master)\b|(?:hands-on |strong |solid |proven )?experience (?:with|in|using|of)|\d+\s*\+?\s*years? of (?:professional |relevant )?experience|proficien(?:t|cy) (?:in|with)|knowledge of|(?:is |are )?(?:required|a must)|must have|sie (?:haben|verfügen über|beherrschen)|(?:erfahrung|kenntnisse) (?:mit|in|im)|experiencia (?:en|con)|años de experiencia|conocimientos? de)/i
+
+const sentences = (text: string) => text.split(/(?<=[.!?])\s+(?=\p{Lu})/u).map((sentence) => sentence.trim()).filter(Boolean)
+
 /** Keep all source candidates for AI classification, with a conservative rules-only baseline. */
 export function extractRequirementCandidates(rawText: string): RequirementExtraction {
   const blocks = parseJobText(rawText)
@@ -64,19 +79,37 @@ export function extractRequirementCandidates(rawText: string): RequirementExtrac
   let heading = ""
   let kind: RequirementKind | null = null
   let sectionExclusion: ExclusionCategory | null = null
+  let practices = false
+  let lead = ""
   for (const block of blocks) {
     if (block.type === "heading") {
       heading = block.text
       kind = classify(heading)
       sectionExclusion = excludedSection(heading)
+      practices = false
+      lead = ""
+      continue
+    }
+    if (block.type === "paragraph") {
+      practices = INTRODUCES_PRACTICES.test(block.text)
+      lead = (sentences(block.text).at(-1) ?? "").slice(0, 200)
+      if (sectionExclusion) continue
+      for (const sentence of sentences(block.text)) {
+        if (sentence.length > 400 || !REQUIREMENT_SENTENCE.test(sentence)) continue
+        const requirement: Requirement = { id: `r${candidates.length + 1}`, text: sentence, kind: NICE.test(sentence) ? "nice" : "must", section: heading, keywords: keywordsIn(sentence), terms: termsIn(sentence), years: years(sentence) }
+        candidates.push(requirement)
+        preferred.push(requirement)
+      }
       continue
     }
     if (block.type !== "list") continue
+    const listExclusion = sectionExclusion ?? (practices ? "company_information" : null)
+    practices = false
     for (const item of block.items) {
       const itemKind: RequirementKind = kind !== "responsibility" && /\b(a plus|un plus|bonus|nice to have|preferred|idéalement|appréci)/i.test(item) ? "nice" : kind ?? "must"
-      const requirement: Requirement = { id: `r${candidates.length + 1}`, text: item, kind: itemKind, section: heading, keywords: keywordsIn(item), terms: termsIn(item), years: years(item) }
+      const requirement: Requirement = { id: `r${candidates.length + 1}`, text: item, kind: itemKind, section: heading, keywords: keywordsIn(item), terms: termsIn(item), years: years(item), ...(lead ? { lead } : {}) }
       candidates.push(requirement)
-      const category = isRecruitmentStep(item) ? "recruitment_process" : sectionExclusion
+      const category = isRecruitmentStep(item) ? "recruitment_process" : listExclusion
       if (category) excluded.push({ requirement, category, source: "rules", reason: EXCLUDED_REASONS[category] })
       else if (kind) preferred.push(requirement)
       else fallback.push(requirement)
