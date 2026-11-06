@@ -230,6 +230,31 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
 @keyframes cb-scan { from { transform: translateY(-2.5rem); } to { transform: translateY(14rem); } }
 .cb-scan { animation: cb-scan 1.8s var(--ease-in-out) infinite; }
 
+/* Page changes (React ViewTransition in app/(app)/template.tsx).
+   The sidebar and header stay put; only the page area hands over:
+   old page leaves fast (90ms), new one fades in right behind it. */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; }
+::view-transition-old(.page-exit) { animation: 90ms var(--ease-out) both cb-fade-out; }
+::view-transition-new(.page-enter) { animation: 180ms var(--ease-out) 40ms both cb-fade-in; }
+@keyframes cb-fade-out { to { opacity: 0; } }
+/* A company logo glides from a list row to the detail page header (and back). */
+::view-transition-group(.morph) { animation-duration: 280ms; animation-timing-function: var(--ease-out); }
+::view-transition-image-pair(.morph) { animation-name: cb-via-blur; }
+@keyframes cb-via-blur { 40% { filter: blur(1.5px); } }
+
+/* Collapsibles open and close by height instead of snapping. */
+[data-slot="collapsible-content"] {
+  height: var(--collapsible-panel-height);
+  overflow: hidden;
+  transition: height 200ms var(--ease-out), opacity 150ms var(--ease-out);
+}
+[data-slot="collapsible-content"][data-starting-style],
+[data-slot="collapsible-content"][data-ending-style] { height: 0; opacity: 0; }
+/* Switching tabs: the new panel fades in rather than cutting. */
+[data-slot="tabs-content"] { animation: cb-fade-in 160ms var(--ease-out); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition-property: opacity, color, background-color, border-color !important;
@@ -243,6 +268,9 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
   .cb-step { animation-name: cb-fade-in; }
   .cb-pop { animation-name: cb-fade-in; }
   svg.animate-spin { animation-duration: 1.5s, 0ms; }
+  ::view-transition-group(.morph) { animation-duration: 0ms; }
+  ::view-transition-image-pair(.morph) { animation: none; }
+  [data-slot="collapsible-content"] { transition: opacity 150ms var(--ease-out); }
 }
 
 @layer base {

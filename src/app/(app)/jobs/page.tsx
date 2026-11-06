@@ -113,7 +113,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
             return (
               <Link key={job.id} href={`/jobs/${job.id}`} className="group block rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                 <Card className={cn("flex flex-row items-center gap-4 px-5 py-3.5 transition-colors group-hover:bg-muted/40", closed && "opacity-70")}>
-                  <EntryLogo path={job.logoPath} name={job.company ?? "?"} size={40} />
+                  <EntryLogo path={job.logoPath} name={job.company ?? "?"} size={40} morph={`job-${job.id}`} />
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className="truncate font-medium">{job.title}</span>

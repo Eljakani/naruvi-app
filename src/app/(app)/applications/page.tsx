@@ -216,7 +216,7 @@ function ApplicationTable({ applications, show, closedCount }: { applications: A
                 <TableRow key={application.id}>
                   <TableCell className="pl-4">
                     <Link href={`/applications/${application.id}`} className="flex min-w-0 items-center gap-3">
-                      <EntryLogo path={application.job.company?.logoPath} name={application.job.company?.name ?? "?"} size={32} />
+                      <EntryLogo path={application.job.company?.logoPath} name={application.job.company?.name ?? "?"} size={32} morph={`application-${application.id}`} />
                       <div className="min-w-0">
                         <div className="truncate font-medium">{application.job.title}</div>
                         <div className="truncate text-xs text-muted-foreground">{application.job.company?.name}</div>

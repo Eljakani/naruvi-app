@@ -1,4 +1,6 @@
-/** Remounts on every navigation, so each page gets a short, quiet entrance. */
+import { PageTransition } from "@/components/page-transition"
+
+/** Page hand-off between routes (see PageTransition). */
 export default function AppTemplate({ children }: { children: React.ReactNode }) {
-  return <div className="cb-page flex min-w-0 flex-1 flex-col gap-6">{children}</div>
+  return <PageTransition>{children}</PageTransition>
 }

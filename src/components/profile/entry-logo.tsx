@@ -1,7 +1,9 @@
+import { ViewTransition } from "react"
 import { cn } from "@/lib/utils"
 
 /** Entry logo on a neutral tile, or a monogram when there is none. */
-export function EntryLogo({ path, name, size = 40, className }: { path: string | null | undefined; name: string; size?: number; className?: string }) {
+/** `morph`: a key shared by the same logo on a list and its detail page, so it glides between them. */
+export function EntryLogo({ path, name, size = 40, className, morph }: { path: string | null | undefined; name: string; size?: number; className?: string; morph?: string }) {
   const initials =
     name
       .replace(/[^\p{L}\p{N}\s&]/gu, " ")
@@ -10,7 +12,7 @@ export function EntryLogo({ path, name, size = 40, className }: { path: string |
       .slice(0, 2)
       .map((word) => word[0]!.toUpperCase())
       .join("") || "?"
-  return (
+  const tile = (
     <span
       className={cn("inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-white", !path && "bg-muted", className)}
       style={{ width: size, height: size }}
@@ -25,5 +27,12 @@ export function EntryLogo({ path, name, size = 40, className }: { path: string |
         </span>
       )}
     </span>
+  )
+  return morph ? (
+    <ViewTransition name={`logo-${morph}`} share="morph" default="none">
+      {tile}
+    </ViewTransition>
+  ) : (
+    tile
   )
 }

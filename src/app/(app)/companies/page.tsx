@@ -38,7 +38,7 @@ async function CompanyList({ searchParams }: { searchParams: Promise<Record<stri
         <Card className="gap-0 divide-y py-0">
           {rows.map((company) => (
             <Link key={company.id} href={`/companies/${company.id}`} className="group flex items-center gap-4 px-4 py-3 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none">
-              <EntryLogo path={company.logoPath} name={company.name} size={36} />
+              <EntryLogo path={company.logoPath} name={company.name} size={36} morph={`company-${company.id}`} />
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{company.name}</div>
                 <div className="truncate text-xs text-muted-foreground">{company.website ? new URL(company.website).hostname : "No website yet"}</div>

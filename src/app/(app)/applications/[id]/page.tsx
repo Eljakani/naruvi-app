@@ -53,7 +53,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
         <ArrowLeftIcon /> Applications
       </Button>
       <div className="flex flex-wrap items-center gap-4">
-        <EntryLogo path={job.company?.logoPath} name={job.company?.name ?? "?"} size={56} />
+        <EntryLogo path={job.company?.logoPath} name={job.company?.name ?? "?"} size={56} morph={`application-${id}`} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-2xl font-semibold tracking-tight">{job.title}</h1>
           <p className="text-sm text-muted-foreground">

@@ -44,7 +44,7 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
         <ArrowLeftIcon /> Companies
       </Button>
       <div className="flex flex-wrap items-center gap-4">
-        <EntryLogo path={company.logoPath} name={company.name} size={56} />
+        <EntryLogo path={company.logoPath} name={company.name} size={56} morph={`company-${company.id}`} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-2xl font-semibold tracking-tight">{company.name}</h1>
           <p className="text-sm text-muted-foreground">
