@@ -30,26 +30,7 @@ export function ApiSettings({ keys, origin, folder }: { keys: Key[]; origin: str
       </CardHeader>
       <CardContent className="grid gap-5 text-sm">
         <section className="grid gap-2">
-          <h2 className="font-medium">Browser extension</h2>
-          <p className="text-muted-foreground">One click sends the posting you’re looking at (including LinkedIn and other pages behind a login) to Job leads, then opens it here to check and save.</p>
-          <ol className="grid list-decimal gap-1 pl-5 text-muted-foreground">
-            <li>In Chrome, Edge or Brave open <code className="rounded bg-muted px-1">chrome://extensions</code>, turn on Developer mode, then Load unpacked and pick the <code className="rounded bg-muted px-1">extension</code> folder of Naruvi. Firefox: see extension/README.md.</li>
-            <li>Create a key below and paste it, with <code className="rounded bg-muted px-1">{origin}</code>, in the extension’s options.</li>
-          </ol>
-        </section>
-
-        <section className="grid gap-2">
-          <h2 className="font-medium">AI assistants (MCP)</h2>
-          <p className="text-muted-foreground">Ask Claude or another MCP client “what needs my attention?” or “move Dashlane to interviewing”. It reads and updates Naruvi through your API key and asks before changing anything.</p>
-          <p className="text-xs text-muted-foreground">Claude Code:</p>
-          <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs">{`claude mcp add naruvi -e NARUVI_URL=${origin} -e NARUVI_API_KEY=nrv_… -- node ${folder}/mcp/naruvi-mcp.mjs`}</pre>
-          <p className="text-xs text-muted-foreground">Claude Desktop and other clients (mcpServers in their config file):</p>
-          <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs">{JSON.stringify({ naruvi: { command: "node", args: [`${folder}/mcp/naruvi-mcp.mjs`], env: { NARUVI_URL: origin, NARUVI_API_KEY: "nrv_…" } } }, null, 2)}</pre>
-          <p className="text-xs text-muted-foreground">Your own scripts: send <code className="rounded bg-muted px-1">Authorization: Bearer nrv_…</code> to <code className="rounded bg-muted px-1">{origin}/api/v1</code> (see docs/API.md).</p>
-        </section>
-
-        <section className="grid gap-2">
-          <h2 className="font-medium">API keys</h2>
+          <h2 className="font-medium">Your keys</h2>
           {created ? (
             <Alert>
               <KeyRoundIcon />
@@ -121,6 +102,31 @@ export function ApiSettings({ keys, origin, folder }: { keys: Key[]; origin: str
             </Button>
           </form>
         </section>
+        <div className="grid gap-2">
+        <details className="group grid gap-2 rounded-lg border px-3 py-2 [&[open]]:pb-3">
+          <summary className="cursor-pointer font-medium marker:text-muted-foreground">Set up the browser extension</summary>
+          <div className="mt-2 grid gap-2">
+          <p className="text-muted-foreground">One click sends the posting you’re looking at (including LinkedIn and other pages behind a login) to Job leads, then opens it here to check and save.</p>
+          <ol className="grid list-decimal gap-1 pl-5 text-muted-foreground">
+            <li>In Chrome, Edge or Brave open <code className="rounded bg-muted px-1">chrome://extensions</code>, turn on Developer mode, then Load unpacked and pick the <code className="rounded bg-muted px-1">extension</code> folder of Naruvi. Firefox: see extension/README.md.</li>
+            <li>Create a key below and paste it, with <code className="rounded bg-muted px-1">{origin}</code>, in the extension’s options.</li>
+          </ol>
+          </div>
+        </details>
+
+        <details className="group grid gap-2 rounded-lg border px-3 py-2 [&[open]]:pb-3">
+          <summary className="cursor-pointer font-medium marker:text-muted-foreground">Connect an AI assistant (MCP) or your scripts</summary>
+          <div className="mt-2 grid gap-2">
+          <p className="text-muted-foreground">Ask Claude or another MCP client “what needs my attention?” or “move Dashlane to interviewing”. It reads and updates Naruvi through your API key and asks before changing anything.</p>
+          <p className="text-xs text-muted-foreground">Claude Code:</p>
+          <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs">{`claude mcp add naruvi -e NARUVI_URL=${origin} -e NARUVI_API_KEY=nrv_… -- node ${folder}/mcp/naruvi-mcp.mjs`}</pre>
+          <p className="text-xs text-muted-foreground">Claude Desktop and other clients (mcpServers in their config file):</p>
+          <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs">{JSON.stringify({ naruvi: { command: "node", args: [`${folder}/mcp/naruvi-mcp.mjs`], env: { NARUVI_URL: origin, NARUVI_API_KEY: "nrv_…" } } }, null, 2)}</pre>
+          <p className="text-xs text-muted-foreground">Your own scripts: send <code className="rounded bg-muted px-1">Authorization: Bearer nrv_…</code> to <code className="rounded bg-muted px-1">{origin}/api/v1</code> (see docs/API.md).</p>
+          </div>
+        </details>
+
+        </div>
       </CardContent>
     </Card>
   )
