@@ -136,6 +136,14 @@ function DockedAssistant() {
   })
   const panel = useRef<HTMLElement>(null)
   const drag = useRef<{ startX: number; startWidth: number } | null>(null)
+  const [resizing, setResizing] = useState(false)
+  // Visual state trails `open` by a frame, so the very first open (when this
+  // mounts) still animates from closed instead of appearing fully formed.
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setShown(open))
+    return () => cancelAnimationFrame(frame)
+  }, [open])
 
   useEffect(() => {
     if (open) panel.current?.focus({ preventScroll: true })
@@ -148,15 +156,30 @@ function DockedAssistant() {
     localStorage.setItem(WIDTH_KEY, String(next))
   }
 
+  // The dock opens by growing from zero width, so the page eases aside instead
+  // of jumping; the panel inside keeps its width and glides in. Closed, it is
+  // inert: out of the tab order and hidden from screen readers.
   return (
+    <div
+      inert={!open}
+      className={cn(
+        "sticky top-0 h-dvh shrink-0 self-start overflow-hidden max-lg:w-full lg:w-[var(--dock-width)]",
+        !resizing && "lg:transition-[width] lg:duration-300 lg:ease-[var(--ease-drawer)] motion-reduce:transition-none",
+        !open && "max-lg:hidden",
+      )}
+      style={{ "--dock-width": shown ? `min(${width}px, 42vw)` : "0px", "--assistant-width": `${width}px` } as CSSProperties}
+    >
     <aside
       id={PANEL_ID}
       ref={panel}
       tabIndex={-1}
       aria-labelledby="assistant-title"
       data-assistant-open={open ? "" : undefined}
-      className={cn("sticky top-0 flex h-dvh w-full min-w-0 shrink-0 flex-col self-start bg-background outline-none lg:w-[min(var(--assistant-width),42vw)] lg:border-s", !open && "hidden")}
-      style={{ "--assistant-width": `${width}px` } as CSSProperties}
+      className={cn(
+        "flex h-dvh w-full min-w-0 flex-col bg-background outline-none lg:w-[min(var(--assistant-width),42vw)] lg:border-s",
+        "transition-[opacity,translate] duration-300 ease-[var(--ease-drawer)] motion-reduce:translate-x-0 motion-reduce:transition-opacity",
+        shown ? "translate-x-0 opacity-100" : "translate-x-8 opacity-0",
+      )}
       onKeyDown={(event) => {
         if (event.key === "Escape" && !event.defaultPrevented && event.target instanceof Node && event.currentTarget.contains(event.target)) {
           event.stopPropagation()
@@ -175,11 +198,12 @@ function DockedAssistant() {
           if (event.button !== 0 || !panel.current) return
           event.currentTarget.setPointerCapture(event.pointerId)
           drag.current = { startX: event.clientX, startWidth: panel.current.offsetWidth }
+          setResizing(true)
         }}
         onPointerMove={(event) => {
           if (drag.current) resize(drag.current.startWidth + drag.current.startX - event.clientX)
         }}
-        onLostPointerCapture={() => { drag.current = null }}
+        onLostPointerCapture={() => { drag.current = null; setResizing(false) }}
         onKeyDown={(event) => {
           const current = panel.current?.offsetWidth ?? width
           const step = event.shiftKey ? 64 : 16
@@ -194,6 +218,7 @@ function DockedAssistant() {
       </div>
       <Conversation queued={queued} onQueuedSent={clearQueue} onClose={close} />
     </aside>
+    </div>
   )
 }
 
