@@ -1,5 +1,6 @@
 "use client"
 
+import { PresenceItem, PresenceList } from "@/components/presence"
 import { useRef, useState, useTransition } from "react"
 import { ImageUpIcon, Loader2Icon, PlusIcon, TrashIcon, UserRoundIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -40,6 +41,8 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
       onOpenChange(false)
     })
   const [lang, setLang] = useState<"en" | "fr">("en")
+  // Stable keys so removing a link folds that row away, not the last one.
+  const [linkKeys, setLinkKeys] = useState(() => form.links.map(() => crypto.randomUUID()))
   const other = lang === "en" ? "fr" : "en"
   const setText = (key: "headlines" | "summaries", value: string) => setForm((current) => ({ ...current, [key]: { ...current[key], [lang]: value } }))
   return (
@@ -96,16 +99,18 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
 
           <section className="grid gap-2" aria-labelledby="identity-links">
             <h3 id="identity-links" className="text-sm font-medium">Links</h3>
+            <PresenceList>
             {form.links.map((link, index) => (
-              <div key={index} className="cb-enter flex gap-2">
+              <PresenceItem key={linkKeys[index] ?? index} className="flex gap-2">
                 <Input aria-label="Label" className="w-32" value={link.label} placeholder="LinkedIn" onChange={(event) => setForm({ ...form, links: form.links.map((item, i) => (i === index ? { ...item, label: event.target.value } : item)) })} />
                 <Input aria-label="URL" type="url" value={link.url} onChange={(event) => setForm({ ...form, links: form.links.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)) })} />
-                <Button size="icon" variant="ghost" aria-label="Remove link" onClick={() => setForm({ ...form, links: form.links.filter((_, i) => i !== index) })}>
+                <Button size="icon" variant="ghost" aria-label="Remove link" onClick={() => { setForm({ ...form, links: form.links.filter((_, i) => i !== index) }); setLinkKeys((keys) => keys.filter((_, i) => i !== index)) }}>
                   <TrashIcon />
                 </Button>
-              </div>
+              </PresenceItem>
             ))}
-            <Button size="sm" variant="outline" className="w-fit" onClick={() => setForm({ ...form, links: [...form.links, { label: "", url: "https://" }] })}>
+            </PresenceList>
+            <Button size="sm" variant="outline" className="w-fit" onClick={() => { setForm({ ...form, links: [...form.links, { label: "", url: "https://" }] }); setLinkKeys((keys) => [...keys, crypto.randomUUID()]) }}>
               <PlusIcon /> Add link
             </Button>
           </section>

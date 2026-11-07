@@ -1,5 +1,6 @@
 "use client"
 
+import { PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
 import { useRef, useState, useTransition } from "react"
 import { ChevronRightIcon, EllipsisIcon,  FileUpIcon, Loader2Icon, MailIcon, MailSearchIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon, UsersIcon } from "lucide-react"
@@ -53,9 +54,11 @@ export function ContactsView({ contacts, finder }: { contacts: ContactListItem[]
       </div>
       {contacts.length ? (
         <Card className="gap-0 divide-y py-0">
+          <PresenceList>
           {contacts.map((contact) => (
-            <ContactRow key={contact.id} contact={contact} finder={finder} onEdit={() => setEditing({ id: contact.id, name: contact.name, title: contact.title, companyName: contact.company ?? "", email: contact.email, linkedinUrl: contact.linkedinUrl, phone: contact.phone, notes: contact.notes })} onSpontaneous={() => setSpontaneous(contact)} />
+            <PresenceItem key={contact.id}><ContactRow contact={contact} finder={finder} onEdit={() => setEditing({ id: contact.id, name: contact.name, title: contact.title, companyName: contact.company ?? "", email: contact.email, linkedinUrl: contact.linkedinUrl, phone: contact.phone, notes: contact.notes })} onSpontaneous={() => setSpontaneous(contact)} /></PresenceItem>
           ))}
+          </PresenceList>
         </Card>
       ) : (
         <Empty className="border">

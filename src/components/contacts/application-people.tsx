@@ -1,5 +1,6 @@
 "use client"
 
+import { PresenceItem, PresenceList } from "@/components/presence"
 import Link from "next/link"
 import { useState, useTransition } from "react"
 import { Loader2Icon, PlusIcon, UsersIcon, XIcon } from "lucide-react"
@@ -50,8 +51,9 @@ export function ApplicationPeople({ applicationId, people, options }: { applicat
         </CardAction>
       </CardHeader>
       <CardContent className="grid gap-2 text-sm">
+        <PresenceList>
         {people.map((person) => (
-          <div key={person.id} className="flex items-center gap-2">
+          <PresenceItem key={person.id} className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{person.name}</p>
               <p className="truncate text-xs text-muted-foreground">{[person.title, person.email || "no email yet"].filter(Boolean).join(" · ")}</p>
@@ -59,8 +61,9 @@ export function ApplicationPeople({ applicationId, people, options }: { applicat
             <Button size="icon-xs" variant="ghost" aria-label={`Remove ${person.name}`} disabled={pending} onClick={() => startTransition(async () => void (await unlinkContactAction(applicationId, person.id)))}>
               <XIcon />
             </Button>
-          </div>
+          </PresenceItem>
         ))}
+        </PresenceList>
         {adding ? (
           choices.length ? (
             <Select

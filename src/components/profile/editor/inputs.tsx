@@ -1,5 +1,7 @@
 "use client"
 
+import { motion } from "motion/react"
+import { PresenceItem, PresenceList } from "@/components/presence"
 import { useRef, useState } from "react"
 import { CheckIcon, LinkIcon, PlusIcon, XIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -54,8 +56,9 @@ export function LineList({
   }
   return (
     <div className="grid gap-1.5">
+      <PresenceList>
       {items.map((item, index) => (
-        <div key={item.key} className="group flex items-start gap-2" onMouseEnter={() => onHover?.(item.key)} onMouseLeave={() => onHover?.(null)}>
+        <PresenceItem key={item.key} className="group flex items-start gap-2" onMouseEnter={() => onHover?.(item.key)} onMouseLeave={() => onHover?.(null)}>
           {numbered ? <span className="mt-2 w-5 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{index + 1}</span> : <span className="mt-4 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />}
           <div className="min-w-0 flex-1">
             <GrowText
@@ -97,8 +100,9 @@ export function LineList({
           <Button size="icon-sm" variant="ghost" className="mt-1 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100" aria-label="Remove" onClick={() => onChange(items.filter((current) => current.key !== item.key))}>
             <XIcon />
           </Button>
-        </div>
+        </PresenceItem>
       ))}
+      </PresenceList>
       <Button variant="ghost" size="sm" className="w-fit text-muted-foreground" onClick={() => add()}>
         <PlusIcon /> {addLabel}
       </Button>
@@ -119,14 +123,18 @@ export function ChipInput({ values, onChange, placeholder }: { values: string[];
   }
   return (
     <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-input px-2 py-1.5 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+      <PresenceList>
       {values.map((value) => (
-        <Badge key={value} variant="secondary" className="gap-1 pr-1">
+        <motion.span key={value} layout="position" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }} className="inline-flex">
+        <Badge variant="secondary" className="gap-1 pr-1">
           {value}
           <button type="button" aria-label={`Remove ${value}`} className="rounded-sm opacity-60 hover:opacity-100" onClick={() => onChange(values.filter((item) => item !== value))}>
             <XIcon className="size-3" />
           </button>
         </Badge>
+        </motion.span>
       ))}
+      </PresenceList>
       <Input
         value={text}
         onChange={(event) => setText(event.target.value)}

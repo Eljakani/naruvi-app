@@ -1,5 +1,6 @@
 "use client"
 
+import { PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import {
@@ -358,12 +359,14 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                     <span className="ml-auto text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{LANGUAGE_NAMES[lang]}</span>
                   </div>
                   <div key={lang} className="cb-fade grid gap-3">
+                    <PresenceList>
                     {rows.map((row, index) => {
                       const bullet = row[lang]
                       const sibling = row[lang === "en" ? "fr" : "en"]
-                      return bullet ? (
+                      return (
+                        <PresenceItem key={bullet?.key ?? sibling?.key ?? `missing-${index}`}>
+                        {bullet ? (
                         <BulletCard
-                          key={bullet.key}
                           bullet={bullet}
                           facts={draft.facts}
                           check={grounding[bullet.key]}
@@ -373,7 +376,6 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                         />
                       ) : (
                         <button
-                          key={`missing-${index}`}
                           type="button"
                           onClick={() => patch({ bullets: [...draft.bullets, { key: newKey(), group, role: sibling?.role ?? "bullet", language: lang, text: "", factKeys: sibling?.factKeys ?? [] }] })}
                           className="grid gap-1 rounded-lg border border-dashed p-3 text-left text-xs text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
@@ -381,8 +383,11 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                           <span className="flex items-center gap-1.5 font-medium"><PlusIcon className="size-3.5" /> Add the {LANGUAGE_NAMES[lang]} version</span>
                           {sibling?.text ? <span className="line-clamp-2">{sibling.text}</span> : null}
                         </button>
+                        )}
+                        </PresenceItem>
                       )
                     })}
+                    </PresenceList>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => patch({ bullets: [...draft.bullets, ...LANGS.map((language) => ({ key: newKey(), group, role: "bullet" as const, language, text: "", factKeys: [] }))] })}>

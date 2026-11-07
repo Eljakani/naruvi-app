@@ -256,11 +256,28 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
 /* Switching tabs: the new panel fades in rather than cutting. */
 [data-slot="tabs-content"] { animation: cb-fade-in 160ms var(--ease-out); }
 
+/* Nothing pops in. Any of these appearing after the page has loaded (a new row,
+   an error, a card that streams in, a badge) fades and rises a few pixels.
+   An animation only plays when the element is inserted, never on re-render. */
+@keyframes cb-appear { from { opacity: 0; transform: translateY(4px); } }
+:where(
+  [data-slot="card"], [data-slot="alert"], [data-slot="empty"], [data-slot="field-error"],
+  [data-slot="badge"], [data-slot="item"], [data-slot="table-body"] > tr, [role="alert"],
+  [data-slot="message"], [data-slot="marker"], [data-slot="field-description"]
+):not([data-slot="skeleton"]) {
+  animation: cb-appear 220ms var(--ease-out) both;
+}
+/* Badges and inline hints are small: no rise, just a quick fade. */
+:where([data-slot="badge"], [data-slot="field-description"], [data-slot="field-error"]):not([data-slot="skeleton"]) { animation-name: cb-fade-in; animation-duration: 160ms; }
+/* Skeletons hand over to real content with a fade instead of a cut. */
+[data-slot="skeleton"] { transition: opacity 150ms var(--ease-out); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition-property: opacity, color, background-color, border-color !important;
   }
   .cb-enter, .cb-stagger > *, .cb-page > * { animation-name: cb-fade-in; }
+  :where([data-slot="card"], [data-slot="alert"], [data-slot="empty"], [data-slot="item"], [data-slot="table-body"] > tr, [role="alert"], [data-slot="message"], [data-slot="marker"]) { animation-name: cb-fade-in; }
   [data-slot="button"]:active { transform: none !important; }
   .cb-working-bar > div { animation: none; width: 100%; opacity: 0.5; }
   .cb-shimmer { animation: none; color: var(--foreground); background: none; }
