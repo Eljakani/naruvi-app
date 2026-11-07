@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { AddWebsiteButton } from "@/components/companies/company-dialogs"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { connection } from "next/server"
@@ -56,7 +57,9 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
                   {host} <ExternalLinkIcon className="size-3" />
                 </a>
               </>
-            ) : null}
+            ) : (
+              <span className="ms-2 inline-flex align-middle"><AddWebsiteButton companyId={company.id} companyName={company.name} /></span>
+            )}
           </p>
         </div>
         <AddJobDialog trigger={<Button variant="outline"><PlusIcon /> Add a job</Button>} />

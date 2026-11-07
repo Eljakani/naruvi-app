@@ -11,7 +11,7 @@ import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect
 import {
   ArrowRightIcon, ArrowUpIcon, BanIcon, BriefcaseBusinessIcon, CalendarClockIcon, CheckIcon, ChevronDownIcon, CircleAlertIcon, FileTextIcon, GaugeIcon, GlobeIcon,
   ExternalLinkIcon, LinkIcon, MailIcon, MailSearchIcon, MessageCircleQuestionIcon, SendIcon, SparklesIcon, SquarePenIcon, Trash2Icon, UserPenIcon, UserPlusIcon, UserRoundIcon, XIcon,
-  type LucideIcon,
+  Building2Icon, type LucideIcon,
 } from "lucide-react"
 import { FitRing } from "@/components/applications/fit-ring"
 import AIPrompt from "@/components/kokonutui/ai-prompt"
@@ -877,8 +877,16 @@ const ACTIONS: Record<string, Action> = {
     approve: "Link", working: "Linking", done: () => "Linked",
   },
   find_contact_email: {
-    icon: MailSearchIcon, title: (i) => `Find ${s(i.name)}’s email`, details: () => ["Sends their name and company domain to Hunter.io"],
-    approve: "Find email", working: "Looking it up", done: (o) => (o.email ? `Found ${s(o.email)}${typeof o.confidence === "number" ? ` · ${o.confidence}% confidence` : ""}` : "No email found"),
+    icon: MailSearchIcon, title: (i) => `Find ${s(i.name)}’s email`, details: (i) => [s(i.website) ? `Website → ${s(i.website)}` : "", "Sends their name and company domain to Hunter.io"],
+    approve: "Find email", working: "Looking it up", done: (o) => (o.needsWebsite ? `Needs ${s(o.company)}’s website first` : o.email ? `Found ${s(o.email)}${typeof o.confidence === "number" ? ` · ${o.confidence}% confidence` : ""}` : "No email found"),
+  },
+  add_company: {
+    icon: Building2Icon, title: (i) => `Add ${s(i.name)}`, details: (i) => [s(i.website) ? `Website → ${s(i.website)}` : "No website yet"],
+    approve: "Add company", working: "Adding the company", done: () => "Company added",
+  },
+  set_company_website: {
+    icon: GlobeIcon, title: (i) => `${s(i.name)}’s website`, details: (i) => [`Website → ${s(i.website)}`],
+    approve: "Save website", working: "Saving", done: (o) => `Saved ${s(o.website)}`,
   },
   spontaneous_application: {
     icon: SendIcon, title: (i) => `Spontaneous application · ${s(i.companyName)}`, details: (i) => [s(i.role) || "Open application", LANG[s(i.language)] ?? "", s(i.context), s(i.careersUrl)],

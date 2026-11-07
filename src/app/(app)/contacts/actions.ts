@@ -5,7 +5,7 @@ import { z } from "zod"
 import { contactsFromRows } from "@/lib/contact-import"
 import { parseCsv } from "@/lib/linkedin-export"
 import { analyzeJob } from "@/server/applications/repository"
-import { deleteContact, findEmail, importContacts, linkContact, saveContact, saveEmailFinder, startSpontaneous, unlinkContact, type ContactInput } from "@/server/contacts/repository"
+import { MissingWebsite, deleteContact, findEmail, importContacts, linkContact, saveContact, saveEmailFinder, startSpontaneous, unlinkContact, type ContactInput } from "@/server/contacts/repository"
 
 type Result<T = undefined> = { ok: true; data: T } | { ok: false; message: string }
 const fail = (error: unknown): { ok: false; message: string } => ({ ok: false, message: error instanceof z.ZodError ? (error.issues[0]?.message ?? "Check the form.") : error instanceof Error ? error.message : String(error) })
@@ -57,13 +57,18 @@ export async function importContactsAction(formData: FormData): Promise<Result<{
   }
 }
 
-export async function findEmailAction(id: string): Promise<Result<{ email: string; confidence: number }>> {
+/** `needsWebsite` means the company has no website yet: ask for it, then call again with `website`. */
+export async function findEmailAction(id: string, website?: string): Promise<Result<{ email: string; confidence: number }> | { ok: false; message: string; needsWebsite: string }> {
   if (!z.string().uuid().safeParse(id).success) return { ok: false, message: "Invalid contact." }
   try {
-    const result = await findEmail(id)
+    const result = await findEmail(id, fetch, website?.trim() || undefined)
     refresh()
     return { ok: true, data: result }
   } catch (error) {
+    if (error instanceof MissingWebsite) {
+      refresh()
+      return { ok: false, message: error.message, needsWebsite: error.companyName }
+    }
     return fail(error)
   }
 }

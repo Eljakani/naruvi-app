@@ -2,7 +2,8 @@ import "server-only"
 import { asc, desc, eq, sql } from "drizzle-orm"
 import { likePattern } from "@/lib/search"
 import { SAME_ROLE, titleSimilarity } from "@/lib/similar"
-import { slugify } from "@/server/jobs/ingest"
+import { companyBrandingFromLink, slugify } from "@/server/jobs/ingest"
+import { normalizeWebsite } from "@/lib/company-input"
 import { displayFitScore, type Analysis } from "@/server/analysis/match"
 import { db } from "@/server/db/client"
 import { applications, companies, jobs } from "@/server/db/schema"
@@ -84,4 +85,42 @@ export async function allTags() {
 export async function setJobTags(jobId: string, tags: string[]) {
   const [row] = await db.update(jobs).set({ tags }).where(eq(jobs.id, jobId)).returning({ id: jobs.id })
   if (!row) throw new Error("Job not found.")
+}
+
+/**
+ * Create a company (or return the existing one with the same name) without
+ * needing a job from it. A website, when given, also brings its logo.
+ */
+export async function saveCompany(input: { name: string; website?: string }) {
+  const name = input.name.trim()
+  if (!name) throw new Error("Enter the company’s name.")
+  const website = input.website ? normalizeWebsite(input.website) : ""
+  if (input.website?.trim() && !website) throw new Error("Use the company’s own website, like dashlane.com (not LinkedIn or a job board).")
+  const branding = website ? await companyBrandingFromLink(website).catch(() => null) : null
+  const [company] = await db
+    .insert(companies)
+    .values({ name, slug: slugify(name), website: website || undefined, websiteSource: website ? "you" : undefined, logoPath: branding?.logo?.path, logoSource: branding?.logo?.source })
+    .onConflictDoUpdate({
+      target: companies.slug,
+      set: {
+        website: sql`coalesce(excluded.website, ${companies.website})`,
+        websiteSource: sql`case when excluded.website is not null then excluded.website_source else ${companies.websiteSource} end`,
+        logoPath: sql`coalesce(${companies.logoPath}, excluded.logo_path)`,
+        logoSource: sql`case when ${companies.logoPath} is null then excluded.logo_source else ${companies.logoSource} end`,
+        updatedAt: sql`now()`,
+      },
+    })
+    .returning({ id: companies.id, name: companies.name, website: companies.website })
+  return company
+}
+
+/** Set (or correct) a company's website; fetches its logo if it has none. */
+export async function setCompanyWebsite(id: string, value: string) {
+  const website = normalizeWebsite(value)
+  if (!website) throw new Error("Use the company’s own website, like dashlane.com (not LinkedIn or a job board).")
+  const [current] = await db.select({ logoPath: companies.logoPath }).from(companies).where(eq(companies.id, id))
+  if (!current) throw new Error("Company not found.")
+  const branding = current.logoPath ? null : await companyBrandingFromLink(website).catch(() => null)
+  await db.update(companies).set({ website, websiteSource: "you", ...(branding?.logo ? { logoPath: branding.logo.path, logoSource: branding.logo.source } : {}) }).where(eq(companies.id, id))
+  return website
 }

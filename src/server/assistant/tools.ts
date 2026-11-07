@@ -4,8 +4,8 @@ import { tool } from "ai"
 import { z } from "zod"
 import { analyzeJob } from "@/server/applications/repository"
 import { safeFetch } from "@/server/assets/safe-fetch"
-import { getCompany, listCompanies, findDuplicates } from "@/server/companies/repository"
-import { deleteContact, findEmail, getContact, linkContact, listContacts, saveContact, startSpontaneous } from "@/server/contacts/repository"
+import { getCompany, listCompanies, findDuplicates , saveCompany, setCompanyWebsite } from "@/server/companies/repository"
+import { MissingWebsite, deleteContact, findEmail, getContact, linkContact, listContacts, saveContact, startSpontaneous } from "@/server/contacts/repository"
 import { generateCv, generateLetter } from "@/server/documents/service"
 import { apiApplication, apiApplications, apiUpdateApplication } from "@/server/integrations/api-data"
 import { getJob, previewJob, saveJob } from "@/server/jobs/ingest"
@@ -349,13 +349,38 @@ export const assistantTools = {
     },
   }),
   find_contact_email: tool({
-    description: "Look up a contact's work email with the email finder (Hunter.io, if set up in Integrations). Sends only their name and company domain.",
-    inputSchema: z.object({ contactId: uuid, name: z.string().max(120) }),
+    description: "Look up a contact's work email with the email finder (Hunter.io, if set up in Integrations). Sends only their name and the company's domain. If the company has no website yet, the result says so: ask the user for it (or use one they gave), then call again with `website`.",
+    inputSchema: z.object({ contactId: uuid, name: z.string().max(120), website: z.string().max(300).optional().describe("The company's own website, e.g. dashlane.com, when it isn't saved yet") }),
     needsApproval: true,
-    execute: async ({ contactId }) => {
-      const found = await findEmail(contactId)
+    execute: async ({ contactId, website }) => {
+      try {
+        const found = await findEmail(contactId, fetch, website)
+        refresh()
+        return found
+      } catch (error) {
+        if (error instanceof MissingWebsite) return { needsWebsite: true, company: error.companyName, note: `Ask the user for ${error.companyName}'s website (not LinkedIn), then call again with it.` }
+        throw error
+      }
+    },
+  }),
+  add_company: tool({
+    description: "Add a company on its own (no job needed), from its name and optionally its website. A LinkedIn company link only gives the name; never treat linkedin.com as the website.",
+    inputSchema: z.object({ name: z.string().min(1).max(160), website: z.string().max(300).optional() }),
+    needsApproval: true,
+    execute: async (input) => {
+      const company = await saveCompany(input)
       refresh()
-      return found
+      return { companyId: company.id, website: company.website, href: `/companies/${company.id}` }
+    },
+  }),
+  set_company_website: tool({
+    description: "Save or correct a company's own website (used for emails, research and its logo).",
+    inputSchema: z.object({ companyId: uuid, name: z.string().max(160), website: z.string().max(300) }),
+    needsApproval: true,
+    execute: async ({ companyId, website }) => {
+      const saved = await setCompanyWebsite(companyId, website)
+      refresh()
+      return { website: saved, href: `/companies/${companyId}` }
     },
   }),
   spontaneous_application: tool({

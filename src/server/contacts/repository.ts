@@ -7,6 +7,7 @@ import { likePattern } from "@/lib/search"
 import { db } from "@/server/db/client"
 import { applicationContacts, applications, companies, contacts, jobs, settings } from "@/server/db/schema"
 import { companyBrandingFromLink, slugify } from "@/server/jobs/ingest"
+import { setCompanyWebsite } from "@/server/companies/repository"
 import { decryptSecret, encryptSecret, encryptionReady } from "@/server/settings/encryption"
 import { SettingsError } from "@/server/settings/errors"
 
@@ -23,10 +24,16 @@ export const contactInput = z.object({
 export type ContactInput = z.input<typeof contactInput>
 
 /** A known company for this name (by slug), so contacts and jobs meet on the same company page. */
+/** The company for this name, created if it's new, so every contact with a company is linked to one. */
 async function companyFor(name: string) {
-  if (!name.trim()) return null
-  const [row] = await db.select({ id: companies.id }).from(companies).where(eq(companies.slug, slugify(name)))
-  return row?.id ?? null
+  const trimmed = name.trim()
+  if (!trimmed) return null
+  const [row] = await db
+    .insert(companies)
+    .values({ name: trimmed, slug: slugify(trimmed) })
+    .onConflictDoUpdate({ target: companies.slug, set: { slug: sql`excluded.slug` } })
+    .returning({ id: companies.id })
+  return row.id
 }
 
 export async function listContacts(q?: string) {
@@ -196,14 +203,25 @@ export async function saveEmailFinder(apiKey: string) {
  * Ask Hunter.io for a professional email from a name and the company's own
  * domain. Runs only when you click "Find email" for one contact.
  */
-export async function findEmail(contactId: string, fetcher: typeof fetch = fetch) {
+export class MissingWebsite extends Error {
+  constructor(readonly companyName: string) {
+    super(`Naruvi needs ${companyName}’s website to find a work email.`)
+  }
+}
+
+export async function findEmail(contactId: string, fetcher: typeof fetch = fetch, websiteHint?: string) {
   const row = await db.query.settings.findFirst({ where: eq(settings.key, FINDER_KEY) })
   const stored = finderStored.safeParse(row?.value)
   if (!stored.success) throw new SettingsError("Add an email finder key on the Integrations page first.")
   const contact = await getContact(contactId)
   if (!contact) throw new Error("Contact not found.")
-  const website = contact.company?.website
-  if (!website) throw new Error("Add the company’s website first (open a job from this company, or set it on the company), so the finder knows the domain.")
+  if (!contact.company && !contact.companyName.trim()) throw new Error(`Add ${contact.name}’s company first.`)
+  // Older contacts may have a company name but no company yet: create it now.
+  const companyId = contact.company?.id ?? await companyFor(contact.companyName)
+  if (companyId && !contact.companyId) await db.update(contacts).set({ companyId }).where(eq(contacts.id, contactId))
+  let website = contact.company?.website ?? null
+  if (!website && websiteHint && companyId) website = await setCompanyWebsite(companyId, websiteHint)
+  if (!website) throw new MissingWebsite(contact.company?.name ?? contact.companyName)
   const domain = new URL(website).hostname.replace(/^www\./, "")
   const [first, ...rest] = contact.name.split(/\s+/)
   const url = new URL("https://api.hunter.io/v2/email-finder")

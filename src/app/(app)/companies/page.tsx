@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { AddCompanyDialog } from "@/components/companies/company-dialogs"
 import { Suspense } from "react"
 import { connection } from "next/server"
 import { Building2Icon, ChevronRightIcon } from "lucide-react"
@@ -15,7 +16,7 @@ export const metadata = { title: "Companies" }
 export default function CompaniesPage({ searchParams }: PageProps<"/companies">) {
   return (
     <>
-      <PageHeader title="Companies" description="Every company you’ve looked at, with all its jobs and your applications there." />
+      <PageHeader title="Companies" description="Every company you’ve looked at, with all its jobs and your applications there." actions={<AddCompanyDialog />} />
       <Suspense fallback={<Skeleton className="h-80 rounded-xl" />}>
         <CompanyList searchParams={searchParams} />
       </Suspense>

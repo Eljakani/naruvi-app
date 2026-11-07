@@ -1,5 +1,6 @@
 "use client"
 
+import { WebsiteDialog } from "@/components/companies/company-dialogs"
 import { PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
 import { useRef, useState, useTransition } from "react"
@@ -88,6 +89,7 @@ export function ContactsView({ contacts, finder }: { contacts: ContactListItem[]
 
 function ContactRow({ contact, finder, onEdit, onSpontaneous }: { contact: ContactListItem; finder: boolean; onEdit: () => void; onSpontaneous: () => void }) {
   const [pending, startTransition] = useTransition()
+  const [needsWebsite, setNeedsWebsite] = useState<string | null>(null)
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <EntryLogo path={contact.logoPath} name={contact.company || contact.name} size={32} />
@@ -123,9 +125,8 @@ function ContactRow({ contact, finder, onEdit, onSpontaneous }: { contact: Conta
               onClick={() =>
                 startTransition(async () => {
                   const result = await findEmailAction(contact.id)
-                  if (!result.ok) toast.error("Couldn’t find an email", { description: result.message })
-                  else if (!result.data.email) toast("No email found for this person")
-                  else toast.success(`Found ${result.data.email}`, { description: `${result.data.confidence}% confidence. Check it before writing.` })
+                  if (!result.ok && "needsWebsite" in result) setNeedsWebsite(result.needsWebsite)
+                  else announceFound(result)
                 })
               }
             >
@@ -149,8 +150,29 @@ function ContactRow({ contact, finder, onEdit, onSpontaneous }: { contact: Conta
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <WebsiteDialog
+        open={needsWebsite !== null}
+        onOpenChange={(open) => !open && setNeedsWebsite(null)}
+        companyName={needsWebsite ?? ""}
+        reason={`The email finder looks up ${contact.name} by the company’s domain.`}
+        onSubmit={async (website) => {
+          const result = await findEmailAction(contact.id, website)
+          if (!result.ok && !("needsWebsite" in result)) {
+            toast.error("Couldn’t find an email", { description: result.message })
+            return false
+          }
+          announceFound(result)
+          return true
+        }}
+      />
     </div>
   )
+}
+
+function announceFound(result: Awaited<ReturnType<typeof findEmailAction>>) {
+  if (!result.ok) return void toast.error("Couldn’t find an email", { description: result.message })
+  if (!result.data.email) return void toast("No email found for this person", { description: "The finder had no match at that domain." })
+  toast.success(`Found ${result.data.email}`, { description: `${result.data.confidence}% confidence. Check it before writing.` })
 }
 
 const GENERIC_MAIL = /^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|icloud|me|mac|proton|protonmail|pm|aol|gmx|orange|free|wanadoo|laposte|sfr|web|t-online)\./i
