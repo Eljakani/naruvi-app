@@ -7,6 +7,7 @@ import { ArchiveIcon, ArrowLeftIcon, ScanSearchIcon } from "lucide-react"
 import { JobOverview } from "@/components/jobs/job-overview"
 import { AnalysisView } from "@/components/applications/analysis-view"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
+import { ApplicationJourney } from "@/components/applications/application-journey"
 import { ApplicationProgress } from "@/components/applications/application-progress"
 import { ApplicationDocuments } from "@/components/applications/application-documents"
 import { db } from "@/server/db/client"
@@ -17,7 +18,6 @@ import { ArchiveButton, NextStep } from "@/components/tracking/next-step"
 import { StatusControl } from "@/components/tracking/status-control"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { STATUS_LABEL } from "@/lib/stages"
 import { listEvents } from "@/server/tracking/service"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -78,6 +78,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
         <StatusControl id={application.id} status={application.status} company={job.company?.name ?? ""} title={job.title} />
         <NextStep id={application.id} nextStep={application.nextStep} due={application.nextStepDue?.toISOString() ?? null} />
         <ComposeEmail applicationId={application.id} connected={mailConnected} hasReplies={mail.some((message) => message.direction === "in")} />
+        {people.length ? null : <ApplicationPeople applicationId={application.id} people={people} options={contactOptions.map((contact) => ({ id: contact.id, name: contact.name, title: contact.title, company: contact.company }))} />}
         <div className="ms-auto flex flex-wrap items-center gap-2">
           {job.board === "spontaneous" || !application.analysis ? null : <AnalyzeButton jobId={job.id} label="Check again" variant="outline" />}
           <ArchiveButton id={application.id} archived={Boolean(application.archivedAt)} />
@@ -99,14 +100,19 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
         cv={drafts.find((doc) => doc.kind === "cv" && doc.current && doc.language === application.language) ?? null}
         letter={drafts.find((doc) => doc.kind === "cover_letter" && doc.current && doc.language === application.language) ?? null}
       />
-      <div className={mail.length ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]" : "grid gap-4"}>
-        {mail.length ? (
-          <div className="grid min-w-0 content-start gap-4">
-            <MailThread messages={mail} applicationId={application.id} connected={mailConnected} status={application.status} />
-          </div>
-        ) : null}
-        <ApplicationPeople applicationId={application.id} people={people} options={contactOptions.map((contact) => ({ id: contact.id, name: contact.name, title: contact.title, company: contact.company }))} />
-      </div>
+      {mail.length || people.length ? (
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          {mail.length ? (
+            <div className="min-w-0">
+              <MailThread messages={mail} applicationId={application.id} connected={mailConnected} status={application.status} />
+            </div>
+          ) : null}
+          <aside className={mail.length ? "grid content-start gap-4 lg:sticky lg:top-4" : "grid gap-4 sm:grid-cols-2 lg:col-span-2"}>
+            {people.length ? <ApplicationPeople applicationId={application.id} people={people} options={contactOptions.map((contact) => ({ id: contact.id, name: contact.name, title: contact.title, company: contact.company }))} /> : null}
+            <ApplicationJourney createdAt={application.createdAt} events={events} />
+          </aside>
+        </div>
+      ) : null}
       {job.board === "spontaneous" ? null : (
         <nav className="flex w-fit rounded-lg bg-muted p-0.5" aria-label="Application sections">
           {([["overview", "Job posting"], ["analysis", application.analysis ? "Fit check" : "Fit check · not run yet"]] as const).map(([value, label]) => (
@@ -146,30 +152,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
         </Card>
       ) : application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} /> : null
       )}
-      {events.length ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ol className="relative grid gap-3 ps-5 before:absolute before:inset-y-1.5 before:start-[5px] before:w-px before:bg-border">
-              {events.map((event, index) => (
-                <li key={event.id} className="relative flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
-                  <span className={index === 0 ? "absolute -start-5 top-1.5 size-[11px] rounded-full border-2 border-background bg-primary" : "absolute -start-5 top-1.5 size-[11px] rounded-full border-2 border-background bg-muted-foreground/40"} aria-hidden />
-                  <span>
-                    {event.fromStatus ? <span className="text-muted-foreground">{STATUS_LABEL[event.fromStatus]} → </span> : null}
-                    <span className="font-medium">{STATUS_LABEL[event.toStatus]}</span>
-                    {event.actor === "system" ? <span className="text-muted-foreground"> · automatic</span> : null}
-                  </span>
-                  <time className="text-xs text-muted-foreground tabular-nums" dateTime={event.createdAt.toISOString()}>
-                    {event.createdAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
-                  </time>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-      ) : null}
+      {!mail.length && !people.length ? <ApplicationJourney createdAt={application.createdAt} events={events} className="max-w-md" /> : null}
     </div>
   )
 }

@@ -84,7 +84,7 @@ export async function draftApplicationMail(raw: DraftMailInput) {
     if (!parent) throw new Error("That email is no longer available on this application.")
     through = parent.sentAt
   }
-  const recent = await db.select({ direction: mailMessages.direction, sender: mailMessages.fromName, subject: mailMessages.subject, text: mailMessages.text, sentAt: mailMessages.sentAt })
+  const recent = await db.select({ direction: mailMessages.direction, kind: mailMessages.kind, sender: mailMessages.fromName, subject: mailMessages.subject, text: mailMessages.text, sentAt: mailMessages.sentAt })
     .from(mailMessages).where(and(eq(mailMessages.applicationId, input.applicationId), ...(through ? [lte(mailMessages.sentAt, through)] : []))).orderBy(desc(mailMessages.sentAt)).limit(8)
   const thread = recent.filter((message) => !through || message.sentAt <= through).slice(0, 8).reverse().map((message) => ({ ...message, date: message.sentAt.toISOString() }))
   const verified = await db.select({ statement: facts.statement, restrictions: entries.doNotClaim }).from(facts).innerJoin(entries, eq(entries.id, facts.entryId))

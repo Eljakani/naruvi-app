@@ -3,10 +3,12 @@
 import { PresenceItem, PresenceList } from "@/components/presence"
 import Link from "next/link"
 import { useState, useTransition } from "react"
-import { Loader2Icon, PlusIcon, UsersIcon, XIcon } from "lucide-react"
+import { Loader2Icon, PlusIcon, UserPlusIcon, UsersIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 import { linkContactAction, unlinkContactAction } from "@/app/(app)/contacts/actions"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -16,25 +18,54 @@ type Option = { id: string; name: string; title: string; company: string | null 
 /** The people this application is with: who you write to, who referred you. */
 export function ApplicationPeople({ applicationId, people, options }: { applicationId: string; people: Person[]; options: Option[] }) {
   const [adding, setAdding] = useState(false)
+  const [query, setQuery] = useState("")
   const [pending, startTransition] = useTransition()
   const linked = new Set(people.map((person) => person.id))
   const choices = options.filter((option) => !linked.has(option.id)).map((option) => ({ value: option.id, label: [option.name, option.title, option.company].filter(Boolean).join(" · ") }))
-  // Nobody linked yet: one quiet line instead of a full card above the analysis.
-  if (!people.length && !adding) {
+  // Nobody linked yet: a small button among the actions, not a row of empty space.
+  if (!people.length) {
+    const matches = choices.filter((choice) => choice.label.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 8)
     return (
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
-        <UsersIcon className="size-4" />
-        <span className="flex-1">No contact linked. Link the recruiter or manager you’re in touch with to write to them from here.</span>
-        {choices.length ? (
-          <Button size="xs" variant="outline" onClick={() => setAdding(true)}>
-            <PlusIcon /> Link a contact
+      <Popover open={adding} onOpenChange={(open) => { setAdding(open); if (!open) setQuery("") }}>
+        <PopoverTrigger render={<Button variant="outline" />}>
+          <UserPlusIcon /> Add contact
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-80 gap-2 p-2">
+          <div className="grid gap-0.5 px-1.5 pt-1">
+            <p className="text-sm font-medium">Who are you in touch with?</p>
+            <p className="text-xs text-muted-foreground">Emails you write here will go to them.</p>
+          </div>
+          {choices.length ? (
+            <>
+              <Input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your contacts" aria-label="Search your contacts" className="h-8 text-sm" />
+              <ul className="grid max-h-60 overflow-y-auto">
+                {matches.map((choice) => (
+                  <li key={choice.value}>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        startTransition(async () => {
+                          const result = await linkContactAction(applicationId, choice.value, "recipient")
+                          if (!result.ok) return void toast.error(result.message)
+                          setAdding(false)
+                        })
+                      }
+                      className="w-full truncate rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-muted disabled:opacity-50"
+                    >
+                      {choice.label}
+                    </button>
+                  </li>
+                ))}
+                {!matches.length ? <li className="px-2 py-1.5 text-xs text-muted-foreground">No contact matches “{query}”.</li> : null}
+              </ul>
+            </>
+          ) : null}
+          <Button size="sm" variant="ghost" className="justify-start" nativeButton={false} render={<Link href="/contacts" />}>
+            <PlusIcon /> New contact
           </Button>
-        ) : (
-          <Button size="xs" variant="outline" nativeButton={false} render={<Link href="/contacts" />}>
-            <PlusIcon /> Add a contact
-          </Button>
-        )}
-      </div>
+        </PopoverContent>
+      </Popover>
     )
   }
   return (
@@ -91,8 +122,7 @@ export function ApplicationPeople({ applicationId, people, options }: { applicat
             <p className="text-xs text-muted-foreground">No other contacts. <Link href="/contacts" className="underline">Add one</Link>.</p>
           )
         ) : null}
-        {!people.length && !adding ? <Link href="/contacts" className="text-xs text-muted-foreground underline underline-offset-2">Manage contacts</Link> : null}
-      </CardContent>
+              </CardContent>
     </Card>
   )
 }
