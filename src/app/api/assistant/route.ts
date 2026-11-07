@@ -1,6 +1,6 @@
 import { z } from "zod"
 import type { UIMessage } from "ai"
-import { CHAT_IMAGE_BYTES, CHAT_IMAGE_HISTORY, CHAT_IMAGE_TYPES } from "@/lib/assistant-images"
+import { CHAT_IMAGE_BYTES, CHAT_IMAGE_MAX, CHAT_IMAGE_TYPES } from "@/lib/assistant-images"
 import { streamAssistant } from "@/server/assistant/agent"
 
 const body = z.object({ messages: z.array(z.any()).min(1).max(80), path: z.string().max(300).catch("/") })
@@ -24,8 +24,8 @@ export async function POST(request: Request) {
       if (message.role !== "user" || !CHAT_IMAGE_TYPES.some((type) => type === part.mediaType) ||
           typeof part.url !== "string" || !part.url.startsWith(prefix) ||
           part.url.length > prefix.length + 4 * Math.ceil(CHAT_IMAGE_BYTES / 3) ||
-          !/^[a-z0-9+/]+={0,2}$/i.test(part.url.slice(prefix.length)) || ++images > CHAT_IMAGE_HISTORY) {
-        return Response.json({ error: "Attach one PNG, JPEG, or WebP image up to 2 MB." }, { status: 400 })
+          !/^[a-z0-9+/]+={0,2}$/i.test(part.url.slice(prefix.length)) || ++images > CHAT_IMAGE_MAX) {
+        return Response.json({ error: `Attach up to ${CHAT_IMAGE_MAX} PNG, JPEG or WebP images, 2 MB each.` }, { status: 400 })
       }
     }
   }

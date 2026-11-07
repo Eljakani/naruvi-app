@@ -29,6 +29,9 @@ interface AIPromptProps {
   canSend: boolean;
   attachment?: ReactNode;
   attachmentError?: string;
+  /** Images attached so far, and how many fit in one message. */
+  attachmentCount?: number;
+  attachmentLimit?: number;
 }
 
 function SendButton({
@@ -86,11 +89,20 @@ function SendButton({
 export default function AIPrompt({
   value, onChange, onSubmit, onStop, onAttach, accept, placeholder,
   responding, readingAttachment, canSend, attachment, attachmentError,
+  attachmentCount = 0, attachmentLimit = 1,
 }: AIPromptProps) {
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 56, maxHeight: 160 });
   const [isDragging, setIsDragging] = useState(false);
   const dragDepth = useRef(0);
-  const attachmentDisabled = responding || readingAttachment;
+  const full = attachmentCount >= attachmentLimit;
+  const attachmentDisabled = responding || readingAttachment || full;
+  const hint = readingAttachment
+    ? "Reading images…"
+    : attachmentCount
+      ? `${attachmentCount} of ${attachmentLimit} image${attachmentLimit === 1 ? "" : "s"}${full ? " · that’s the limit" : ""}`
+      : value.trim()
+        ? "Enter to send · Shift+Enter for a new line"
+        : "Paste or drop images · changes wait for your approval";
 
   useEffect(() => {
     adjustHeight(!value);
@@ -132,7 +144,7 @@ export default function AIPrompt({
             event.preventDefault();
             dragDepth.current = 0;
             setIsDragging(false);
-            if (!attachmentDisabled) onAttach(Array.from(event.dataTransfer.files));
+            if (!(responding || readingAttachment)) onAttach(Array.from(event.dataTransfer.files));
           }}
         >
           {attachment && <div className="min-w-0 px-3 pt-3">{attachment}</div>}
@@ -150,7 +162,9 @@ export default function AIPrompt({
             }}
             onPaste={(event) => {
               const images = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
-              if (images.length && !attachmentDisabled) onAttach(images);
+              if (!images.length) return;
+              event.preventDefault();
+              if (!(responding || readingAttachment)) onAttach(images);
             }}
             placeholder={placeholder}
             ref={textareaRef}
@@ -160,10 +174,11 @@ export default function AIPrompt({
             <label className={cn(
               "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground ring-1 ring-border hover:bg-muted has-focus-visible:ring-2 has-focus-visible:ring-ring",
               attachmentDisabled && "cursor-not-allowed opacity-50",
-            )} title="Attach image">
+            )} title={full ? `Up to ${attachmentLimit} images` : "Add images"}>
               <input
                 accept={accept}
-                aria-label="Attach image"
+                aria-label="Add images"
+                multiple={attachmentLimit > 1}
                 className="sr-only"
                 disabled={attachmentDisabled}
                 onChange={(event) => {
@@ -174,14 +189,14 @@ export default function AIPrompt({
               />
               <Plus aria-hidden="true" className="size-4" />
             </label>
-            <span role="status" className="min-w-0 flex-1 text-xs text-muted-foreground">
-              {readingAttachment ? "Reading image…" : "Changes wait for your approval"}
+            <span role="status" key={hint} className="cb-fade min-w-0 flex-1 truncate text-xs text-muted-foreground">
+              {hint}
             </span>
             <SendButton canSend={canSend} onStop={onStop} responding={responding} />
           </div>
           {isDragging && (
             <div className="pointer-events-none absolute inset-0 z-10 grid place-content-center rounded-[inherit] bg-background/95 text-center text-sm font-medium">
-              {responding ? "Wait for the reply to finish" : readingAttachment ? "Reading the current image" : "Drop an image to attach"}
+              {responding ? "Wait for the reply to finish" : readingAttachment ? "Reading the images" : full ? `Up to ${attachmentLimit} images per message` : "Drop images to attach"}
             </div>
           )}
         </div>

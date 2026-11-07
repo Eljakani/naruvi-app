@@ -1,11 +1,12 @@
 "use client"
 
+import { PresenceList } from "@/components/presence"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useChat } from "@ai-sdk/react"
 import { Collapsible } from "@animate-ui/react/primitives/base-ui/collapsible"
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, lastAssistantMessageIsCompleteWithToolCalls, type FileUIPart, type InferUITools, type UIMessage } from "ai"
-import { useReducedMotion } from "motion/react"
+import { motion, useReducedMotion } from "motion/react"
 import { useSyncExternalStore } from "react"
 import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import {
@@ -32,7 +33,7 @@ import { Message, MessageContent } from "@/components/ui/message"
 import { MessageScroller, MessageScrollerButton, MessageScrollerContent, MessageScrollerItem, MessageScrollerProvider, MessageScrollerViewport } from "@/components/ui/message-scroller"
 import { SidebarMenuButton } from "@/components/ui/sidebar"
 import { TraceDescription, TraceIcon, TraceLine, TraceTitle } from "@/components/ui/trace"
-import { CHAT_IMAGE_BYTES, CHAT_IMAGE_TYPES, limitChatImages } from "@/lib/assistant-images"
+import { CHAT_IMAGE_BYTES, CHAT_IMAGE_MAX, CHAT_IMAGE_TYPES, limitChatImages } from "@/lib/assistant-images"
 import { cn } from "@/lib/utils"
 import type { assistantTools } from "@/server/assistant/tools"
 import type { apiApplications } from "@/server/integrations/api-data"
@@ -284,7 +285,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
   })
   const busy = status === "submitted" || status === "streaming"
   const [draft, setDraft] = useState("")
-  const [image, setImage] = useState<FileUIPart | null>(null)
+  const [images, setImages] = useState<FileUIPart[]>([])
   const [imageError, setImageError] = useState("")
   const [readingImage, setReadingImage] = useState(false)
 
@@ -307,32 +308,42 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
     }
   }, [finished, router])
 
-  const send = (text: string, attachment?: FileUIPart) => {
+  const send = (text: string, attachments: FileUIPart[] = []) => {
     const value = text.trim()
-    if ((!value && !attachment) || busy) return
+    if ((!value && !attachments.length) || busy) return
     clearError()
-    void sendMessage(attachment ? { parts: [...(value ? [{ type: "text" as const, text: value }] : []), attachment] } : { text: value })
+    void sendMessage(attachments.length ? { parts: [...(value ? [{ type: "text" as const, text: value }] : []), ...attachments] } : { text: value })
   }
   const sendDraft = () => {
-    if (busy || readingImage || (!draft.trim() && !image)) return
-    send(draft, image ?? undefined)
+    if (busy || readingImage || (!draft.trim() && !images.length)) return
+    send(draft, images)
     setDraft("")
-    setImage(null)
+    setImages([])
     setImageError("")
   }
-  const attachImage = (file: File) => {
-    if (busy || readingImage) return
-    if (!CHAT_IMAGE_TYPES.some((type) => type === file.type) || file.size > CHAT_IMAGE_BYTES || !file.size) {
-      setImageError("Choose a PNG, JPEG, or WebP image up to 2 MB.")
-      return
-    }
-    setImageError("")
-    setReadingImage(true)
+  const readImage = (file: File) => new Promise<FileUIPart>((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => setImage({ type: "file", mediaType: file.type, filename: file.name, url: String(reader.result) })
-    reader.onerror = () => setImageError("Couldn’t read the image. Try attaching it again.")
-    reader.onloadend = () => setReadingImage(false)
+    reader.onload = () => resolve({ type: "file", mediaType: file.type, filename: file.name, url: String(reader.result) })
+    reader.onerror = () => reject(reader.error)
     reader.readAsDataURL(file)
+  })
+  /** Adds what fits (up to the limit), skips what doesn't, and says why. */
+  const attachImages = (files: File[]) => {
+    if (busy || readingImage || !files.length) return
+    const valid = files.filter((file) => CHAT_IMAGE_TYPES.some((type) => type === file.type) && file.size > 0 && file.size <= CHAT_IMAGE_BYTES)
+    const room = CHAT_IMAGE_MAX - images.length
+    const accepted = valid.slice(0, Math.max(0, room))
+    const problems = [
+      valid.length < files.length ? "Only PNG, JPEG or WebP images up to 2 MB" : "",
+      valid.length > accepted.length ? `Up to ${CHAT_IMAGE_MAX} images per message` : "",
+    ].filter(Boolean)
+    setImageError(problems.join(". "))
+    if (!accepted.length) return
+    setReadingImage(true)
+    Promise.all(accepted.map(readImage))
+      .then((parts) => setImages((current) => [...current, ...parts].slice(0, CHAT_IMAGE_MAX)))
+      .catch(() => setImageError("Couldn’t read an image. Try attaching it again."))
+      .finally(() => setReadingImage(false))
   }
   useEffect(() => {
     if (!queued || busy) return
@@ -426,24 +437,34 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
         onChange={setDraft}
         onSubmit={sendDraft}
         onStop={() => void stop()}
-        onAttach={([file, extra]) => {
-          if (extra) setImageError("Attach one image at a time.")
-          else if (file) attachImage(file)
-        }}
+        onAttach={attachImages}
+        attachmentCount={images.length}
+        attachmentLimit={CHAT_IMAGE_MAX}
         accept={CHAT_IMAGE_TYPES.join(",")}
         placeholder={messages.length ? "Reply, or ask something else…" : "Ask anything, or tell Naruvi what to do…"}
         responding={busy}
         readingAttachment={readingImage}
-        canSend={!readingImage && Boolean(draft.trim() || image)}
+        canSend={!readingImage && Boolean(draft.trim() || images.length)}
         attachmentError={imageError}
-        attachment={image ? (
-          <div className="flex w-fit max-w-full min-w-0 items-center gap-2 rounded-lg border bg-muted/25 px-2 py-1.5">
-            <ChatImage part={image} className="size-9 shrink-0 rounded object-cover" />
-            <span className="min-w-0 flex-1 truncate text-xs">{image.filename || "Attached image"}</span>
-            <Button type="button" size="icon-xs" variant="ghost" aria-label="Remove image" onClick={() => { setImage(null); setImageError("") }}>
-              <XIcon />
-            </Button>
-          </div>
+        attachment={images.length ? (
+          <ul className="flex flex-wrap gap-2" aria-label="Attached images">
+            <PresenceList>
+              {images.map((part, index) => (
+                <motion.li key={part.url.slice(-48) + index} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }} className="group/thumb relative">
+                  <ChatImage part={part} className="size-14 rounded-lg border object-cover" />
+                  <button
+                    type="button"
+                    aria-label={`Remove ${part.filename || `image ${index + 1}`}`}
+                    title="Remove"
+                    onClick={() => { setImages((current) => current.filter((_, i) => i !== index)); setImageError("") }}
+                    className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    <XIcon className="size-3" />
+                  </button>
+                </motion.li>
+              ))}
+            </PresenceList>
+          </ul>
         ) : null}
       />
     </>
