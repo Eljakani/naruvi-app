@@ -15,7 +15,7 @@ export async function getDashboard() {
   const [[jobCount], [factCount], [profileCount], recentRuns, active, since, inbox] = await Promise.all([
     db.select({ n: count() }).from(jobs),
     db.select({ n: count() }).from(facts).innerJoin(entries, eq(facts.entryId, entries.id)).where(eq(entries.status, "verified")),
-    db.select({ n: count() }).from(profiles),
+    db.select({ n: count(), name: sql<string>`min(${profiles.fullName})` }).from(profiles),
     db.select({
       id: latest.id, workflow: latest.workflow, status: latest.status, createdAt: latest.createdAt,
       title: sql<string | null>`coalesce(${jobs.title}, ${latest.output}->>'title')`,
@@ -61,6 +61,7 @@ export async function getDashboard() {
     jobs: jobCount.n,
     verifiedFacts: factCount.n,
     hasProfile: profileCount.n > 0,
+    firstName: (profileCount.name ?? "").trim().split(/\s+/)[0] ?? "",
     recentRuns,
     recent,
     attention,

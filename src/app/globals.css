@@ -269,6 +269,8 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
 }
 /* Badges and inline hints are small: no rise, just a quick fade. */
 :where([data-slot="badge"], [data-slot="field-description"], [data-slot="field-error"]):not([data-slot="skeleton"]) { animation-name: cb-fade-in; animation-duration: 160ms; }
+/* Rows sit in a scrolling box: a rise would flash a scrollbar, so they only fade. */
+:where([data-slot="table-body"] > tr):not([data-slot="skeleton"]) { animation-name: cb-fade-in; }
 /* Skeletons hand over to real content with a fade instead of a cut. */
 [data-slot="skeleton"] { transition: opacity 150ms var(--ease-out); }
 

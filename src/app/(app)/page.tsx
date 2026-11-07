@@ -10,7 +10,7 @@ import { DashboardCalendar } from "@/components/tracking/dashboard-calendar"
 import { AddJobDialog } from "@/components/jobs/job-reader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { LiveRefresh } from "@/components/refresh-runs"
 import { ago, workflowLabel } from "@/components/runs/labels"
@@ -58,14 +58,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default function DashboardPage() {
   return (
     <>
-      <PageHeader
-        title="Dashboard"
-        description="Where your applications stand and what to do next."
-        actions={
-          <AddJobDialog trigger={<Button><PlusIcon /> Add a job</Button>} />
-        }
-      />
-      <Suspense fallback={<DashboardSkeleton />}>
+      <Suspense fallback={<><PageHeader title="Dashboard" description="Where your applications stand and what to do next." /><DashboardSkeleton /></>}>
         <DashboardData />
       </Suspense>
     </>
@@ -112,8 +105,22 @@ async function DashboardData() {
   ]
   const setupDone = setup.filter((step) => step.done).length
 
+  const hour = new Date(data.now).getHours()
+  const greeting = hour < 5 ? "Working late" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
+  const due = data.attention.length
+  const upcoming = data.events.filter((event) => new Date(event.due).getTime() >= data.now).length
+  const summary = [
+    due ? `${due} thing${due === 1 ? "" : "s"} need${due === 1 ? "s" : ""} you` : "Nothing needs you right now",
+    upcoming ? `${upcoming} upcoming next step${upcoming === 1 ? "" : "s"}` : "",
+  ].filter(Boolean).join(" · ")
+
   return (
     <>
+      <PageHeader
+        title={data.firstName ? `${greeting}, ${data.firstName}` : greeting}
+        description={data.applications ? `${summary}.` : "Where your applications stand and what to do next."}
+        actions={<AddJobDialog trigger={<Button><PlusIcon /> Add a job</Button>} />}
+      />
       {setupDone < setup.length ? (
         <Card>
           <CardHeader>
@@ -149,15 +156,17 @@ async function DashboardData() {
 
       {data.applications ? <NeedsAttention items={data.attention} now={data.now} replies={data.replies} /> : null}
 
-      <div className="grid gap-4 @min-[32rem]/workspace:grid-cols-2 @min-[64rem]/workspace:grid-cols-4">
-        <Stat title="Active applications" value={active} hint="Not closed, withdrawn or archived" href="/applications" />
-        <Stat title="Ready to send" value={sum(["ready"])} hint="Passed every quality check" href="/applications" />
-        <Stat title="Sent" value={sum(["submitted", "interviewing", "offer"])} hint={`${sum(["interviewing", "offer"])} in interviews`} href="/applications" />
-        <Stat title="Verified facts" value={data.verifiedFacts} hint="What your documents can claim" href="/profile" />
-      </div>
+      {/* One strip, four numbers: each opens the list behind it. */}
+      <Card className="grid grid-cols-2 gap-0 overflow-hidden py-0 @min-[48rem]/workspace:grid-cols-4">
+        <Stat title="Active" value={active} hint="applications in progress" href="/applications" />
+        <Stat title="Ready to send" value={sum(["ready"])} hint="passed every check" href="/applications?view=list&stage=documents" />
+        <Stat title="Sent" value={sum(["submitted", "interviewing", "offer"])} hint={`${sum(["interviewing", "offer"])} in interviews`} href="/applications?view=list&stage=sent" />
+        <Stat title="Verified facts" value={data.verifiedFacts} hint="your documents can use" href="/profile" />
+      </Card>
 
       <div className="grid gap-4 @min-[54rem]/workspace:grid-cols-3">
-        <Card className="@min-[54rem]/workspace:col-span-2">
+        <div className="grid min-w-0 content-start gap-4 @min-[54rem]/workspace:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle>Recent applications</CardTitle>
             <CardDescription>Pick up where you left off.</CardDescription>
@@ -228,10 +237,6 @@ async function DashboardData() {
             )}
           </CardContent>
         </Card>
-
-        <div className="grid min-w-0 content-start gap-4">
-          <LiveRefresh active every={busy ? 5000 : 20000} />
-          <DashboardCalendar events={data.events} now={data.now} />
           <Card size="sm">
             <CardHeader>
               <CardTitle><h2>Pipeline</h2></CardTitle>
@@ -246,7 +251,7 @@ async function DashboardData() {
                   <span key={stage.id} className={STAGE_COLOR[stage.id]} style={{ flexGrow: stage.count, flexBasis: 0 }} />
                 ))}
               </div> : null}
-              <ul className="grid grid-cols-2 gap-x-2">
+              <ul className="grid grid-cols-2 gap-x-2 @min-[40rem]/workspace:grid-cols-5">
                 {pipeline.map((stage) => (
                   <li key={stage.id}>
                     <Link href={`/applications?view=list&stage=${stage.id}`} className="flex min-h-8 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2">
@@ -259,6 +264,11 @@ async function DashboardData() {
               </ul>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="grid min-w-0 content-start gap-4">
+          <LiveRefresh active every={busy ? 5000 : 20000} />
+          <DashboardCalendar events={data.events} now={data.now} />
 
           <Card size="sm">
             <CardHeader>
@@ -297,17 +307,13 @@ async function DashboardData() {
 
 function Stat({ title, value, hint, href }: { title: string; value: number; hint: string; href: string }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardDescription>{title}</CardDescription>
-        <CardTitle className="text-3xl tabular-nums">{value}</CardTitle>
-        <CardAction>
-          <Button size="icon-sm" variant="ghost" aria-label={`Open ${title}`} nativeButton={false} render={<Link href={href} />}>
-            <ArrowRightIcon />
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardFooter className="text-sm text-muted-foreground">{hint}</CardFooter>
-    </Card>
+    <Link href={href} className="group/stat grid gap-0.5 border-b border-e p-4 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none @min-[48rem]/workspace:border-b-0 [&:nth-child(2n)]:border-e-0 @min-[48rem]/workspace:[&:nth-child(2n)]:border-e @min-[48rem]/workspace:last:border-e-0">
+      <span className="flex items-center justify-between text-sm text-muted-foreground">
+        {title}
+        <ArrowRightIcon className="size-3.5 opacity-0 transition-[opacity,translate] group-hover/stat:translate-x-0.5 group-hover/stat:opacity-100" aria-hidden />
+      </span>
+      <span className="text-3xl font-semibold tabular-nums tracking-tight">{value}</span>
+      <span className="text-xs text-muted-foreground">{hint}</span>
+    </Link>
   )
 }
