@@ -3,7 +3,9 @@
 import { PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react"
 import {
+  ChevronDownIcon,
   AlertTriangleIcon,
   ArrowLeftIcon,
   AwardIcon,
@@ -132,7 +134,6 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
     { label: ungrounded.length ? `${ungrounded.length} CV line${ungrounded.length === 1 ? "" : "s"} without a fact` : "Every CV line has a fact", done: ungrounded.length === 0, section: "bullets" },
     { label: "Checked by you", done: draft.status === "verified", section: "basics" },
   ]
-  const ready = readiness.filter((item) => item.done).length
 
   /* ---------- save / delete / leave ---------- */
   const save = useCallback(
@@ -446,52 +447,10 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
         </div>
 
         {/* aside */}
-        <aside className="grid content-start gap-4 xl:sticky xl:top-20 xl:max-h-[calc(100svh-6rem)] xl:overflow-y-auto">
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-sm">
-                Ready for CVs
-                <Badge variant={ready === readiness.length ? "default" : "secondary"} className="tabular-nums">
-                  {ready}/{readiness.length}
-                </Badge>
-              </CardTitle>
-              <CardDescription>CVs and letters use this entry once every step is done.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="grid gap-0.5">
-                {readiness.map((item) => (
-                  <li key={item.label}>
-                    <button type="button" onClick={() => jump(item.section)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted">
-                      {item.done ? <CheckCircle2Icon className="size-4 text-emerald-500" /> : item.section === "bullets" ? <AlertTriangleIcon className="size-4 text-amber-500" /> : <CircleDashedIcon className="size-4 text-muted-foreground" />}
-                      <span className={cn(item.done && "text-muted-foreground")}>{item.label}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-1.5">
-                  <BookOpenIcon className="size-4" /> CV preview
-                </span>
-                <span className="text-xs font-normal text-muted-foreground">{LANGUAGE_NAMES[lang]}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div key={lang} className="cb-fade"><Preview draft={draft} lang={lang} grounding={grounding} /></div>
-            </CardContent>
-          </Card>
-
-          <nav className="hidden gap-0.5 xl:grid" aria-label="Sections">
-            {SECTIONS.map((section, index) => (
-              <button key={section.id} type="button" onClick={() => jump(section.id)} className="rounded-md px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
-                {index + 1}. {section.label}
-              </button>
-            ))}
-          </nav>
+        <aside className="grid content-start gap-4 xl:sticky xl:top-20 xl:max-h-[calc(100svh-6rem)] xl:overflow-y-auto xl:[scrollbar-width:none]">
+          <Readiness items={readiness} onJump={jump} />
+          <PreviewCard draft={draft} lang={lang} onLang={setLang} grounding={grounding} />
+          <SectionIndex sections={SECTIONS} incomplete={new Set(readiness.filter((item) => !item.done).map((item) => item.section))} onJump={jump} />
         </aside>
       </div>
 
@@ -662,5 +621,142 @@ function Preview({ draft, lang, grounding }: { draft: Draft; lang: Lang; groundi
       ) : null}
       {bullets.some((bullet) => !grounding[bullet.key]?.grounded) ? <p className="text-[10.5px] text-amber-700">Wavy underline: not backed by a fact yet; generation will skip it.</p> : null}
     </div>
+  )
+}
+
+/* ---------------------------------- aside ---------------------------------- */
+
+const EASE = [0.23, 1, 0.32, 1] as const
+type Check = { label: string; done: boolean; section: string }
+
+function ProgressRing({ value, total }: { value: number; total: number }) {
+  const reduce = useReducedMotion()
+  const r = 15
+  const c = 2 * Math.PI * r
+  const complete = value === total
+  return (
+    <div className="relative size-10 shrink-0">
+      <svg viewBox="0 0 36 36" className="size-full -rotate-90">
+        <circle cx="18" cy="18" r={r} className="fill-none stroke-muted" strokeWidth="3.5" />
+        <motion.circle
+          cx="18" cy="18" r={r} strokeWidth="3.5" strokeLinecap="round" strokeDasharray={c}
+          className={cn("fill-none", complete ? "stroke-emerald-500" : "stroke-amber-500")}
+          initial={reduce ? false : { strokeDashoffset: c }}
+          animate={{ strokeDashoffset: c * (1 - value / total) }}
+          transition={{ duration: 0.6, ease: EASE }}
+        />
+      </svg>
+      <span className="absolute inset-0 grid place-content-center">
+        {complete ? <CheckCircle2Icon className="size-4 text-emerald-500" /> : <span className="text-[11px] font-semibold tabular-nums">{value}/{total}</span>}
+      </span>
+    </div>
+  )
+}
+
+/** All good: one calm line. Something missing: the missing steps first, each a shortcut to its section. */
+function Readiness({ items, onJump }: { items: Check[]; onJump: (id: string) => void }) {
+  const done = items.filter((item) => item.done).length
+  const complete = done === items.length
+  const [open, setOpen] = useState(!complete)
+  const todo = items.filter((item) => !item.done)
+  const finished = items.filter((item) => item.done)
+  return (
+    <Card size="sm" className={cn("gap-0 overflow-hidden transition-colors", complete && "border-emerald-200/70 bg-gradient-to-b from-emerald-50/60 to-transparent dark:border-emerald-900/50 dark:from-emerald-950/20")}>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-1 text-start">
+        <ProgressRing value={done} total={items.length} />
+        <span className="grid min-w-0 flex-1 gap-0.5">
+          <span className="text-sm font-medium">{complete ? "Ready for CVs" : `${items.length - done} step${items.length - done === 1 ? "" : "s"} before CVs can use it`}</span>
+          <span className="text-xs text-muted-foreground">{complete ? `All ${items.length} checks pass` : "CVs and letters skip it until then"}</span>
+        </span>
+        <ChevronDownIcon className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-200", open && "rotate-180")} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22, ease: EASE }} className="overflow-hidden">
+            <ul className="grid gap-0.5 px-2 pt-2 pb-1">
+              {[...todo, ...finished].map((item) => (
+                <li key={item.label}>
+                  <button type="button" onClick={() => onJump(item.section)} className={cn("group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-muted", !item.done && "bg-amber-50/70 dark:bg-amber-950/20")}>
+                    {item.done ? <CheckCircle2Icon className="size-4 shrink-0 text-emerald-500" /> : item.section === "bullets" ? <AlertTriangleIcon className="size-4 shrink-0 text-amber-500" /> : <CircleDashedIcon className="size-4 shrink-0 text-amber-500" />}
+                    <span className={cn("min-w-0 flex-1", item.done ? "text-muted-foreground" : "font-medium")}>{item.label}</span>
+                    {!item.done ? <span className="text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">Fix</span> : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </Card>
+  )
+}
+
+function PreviewCard({ draft, lang, onLang, grounding }: { draft: Draft; lang: Lang; onLang: (lang: Lang) => void; grounding: Record<string, ReturnType<typeof verifySupport>> }) {
+  return (
+    <Card size="sm" className="gap-3">
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <CardTitle className="flex items-center gap-1.5 text-sm">
+          <BookOpenIcon className="size-4" /> On your CV
+        </CardTitle>
+        <LayoutGroup id="preview-lang">
+          <div role="tablist" aria-label="Preview language" className="flex rounded-md bg-muted p-0.5">
+            {(["en", "fr"] as const).map((code) => (
+              <button key={code} role="tab" type="button" aria-selected={lang === code} onClick={() => onLang(code)} className={cn("relative rounded px-2 py-0.5 text-[11px] font-medium uppercase transition-colors", lang === code ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                {lang === code ? <motion.span layoutId="preview-lang-pill" className="absolute inset-0 rounded bg-background shadow-xs" transition={{ type: "spring", duration: 0.3, bounce: 0.15 }} /> : null}
+                <span className="relative">{code}</span>
+              </button>
+            ))}
+          </div>
+        </LayoutGroup>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-lg bg-muted/50 p-2">
+          <div key={lang} className="cb-fade"><Preview draft={draft} lang={lang} grounding={grounding} /></div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/** "On this page": follows your scroll, with a dot on sections that still need something. */
+function SectionIndex({ sections, incomplete, onJump }: { sections: readonly { id: string; label: string }[]; incomplete: Set<string>; onJump: (id: string) => void }) {
+  const [active, setActive] = useState<string>(sections[0]?.id ?? "")
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
+        if (visible) setActive(visible.target.id)
+      },
+      { rootMargin: "-80px 0px -55% 0px" },
+    )
+    for (const section of sections) {
+      const element = document.getElementById(section.id)
+      if (element) observer.observe(element)
+    }
+    return () => observer.disconnect()
+  }, [sections])
+  return (
+    <nav className="hidden xl:grid" aria-label="Sections">
+      <p className="mb-1.5 px-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">On this page</p>
+      <LayoutGroup id="entry-sections">
+        <ol className="relative grid border-s">
+          {sections.map((section, index) => (
+            <li key={section.id} className="relative">
+              {active === section.id ? <motion.span layoutId="entry-section-marker" className="absolute inset-y-1 -start-px w-0.5 rounded-full bg-foreground" transition={{ type: "spring", duration: 0.35, bounce: 0.1 }} /> : null}
+              <button
+                type="button"
+                onClick={() => onJump(section.id)}
+                aria-current={active === section.id ? "location" : undefined}
+                className={cn("flex w-full items-center gap-2 px-3 py-1 text-start text-xs transition-colors", active === section.id ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground")}
+              >
+                <span className="w-3 text-muted-foreground tabular-nums">{index + 1}</span>
+                <span className="min-w-0 flex-1 truncate">{section.label}</span>
+                {incomplete.has(section.id) ? <span className="size-1.5 rounded-full bg-amber-500" aria-label="Needs something" /> : null}
+              </button>
+            </li>
+          ))}
+        </ol>
+      </LayoutGroup>
+    </nav>
   )
 }
