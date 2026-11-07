@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils"
 import { documentQuality, isRange, listRuns, RANGES, runStats, workflows, type Range } from "@/server/runs/repository"
 
-export const metadata = { title: "Runs" }
+export const metadata = { title: "AI activity" }
 
 type Search = Promise<Record<string, string | string[] | undefined>>
 const one = (value: string | string[] | undefined) => (typeof value === "string" ? value : undefined)
@@ -27,7 +27,7 @@ export default function RunsPage({ searchParams }: PageProps<"/runs">) {
   return (
     <>
       <PageHeader
-        title="Runs"
+        title="AI activity"
         description="What every workflow did, how long it took, and how good the output is."
         actions={
           <Suspense fallback={null}>

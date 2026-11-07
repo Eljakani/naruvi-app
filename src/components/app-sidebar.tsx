@@ -9,7 +9,8 @@ import { AddJobDialog } from "@/components/jobs/job-reader"
 import { AssistantSidebarItem } from "@/components/assistant/assistant-panel"
 import { NaruviMark } from "@/components/naruvi-mark"
 import { navCountsAction } from "@/app/(app)/nav/actions"
-import { NAV_GROUPS, settingsItem } from "@/components/nav"
+import { NAV_GROUPS, settingsItem, type NavItem } from "@/components/nav"
+import { motion } from "motion/react"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -114,10 +115,7 @@ function NavGroups({ pathname }: { pathname: string | null }) {
           const count = counts[item.url] ?? 0
           return (
             <SidebarMenuItem key={item.url}>
-              <SidebarMenuButton tooltip={count ? `${item.title} · ${count}` : item.title} isActive={isActive(pathname, item.url)} render={<Link href={item.url} />}>
-                <item.icon />
-                <span>{item.title}</span>
-              </SidebarMenuButton>
+              <NavLink item={item} active={isActive(pathname, item.url)} tooltip={count ? `${item.title} · ${count}` : item.title} />
               {count ? (
                 <SidebarMenuBadge className="rounded-full bg-primary px-1.5 text-primary-foreground" aria-label={`${count} ${BADGE_LABEL[item.url]}`}>
                   {count > 99 ? "99+" : count}
@@ -135,11 +133,29 @@ function SettingsLink({ pathname }: { pathname: string | null }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton tooltip={settingsItem.title} isActive={isActive(pathname, settingsItem.url)} render={<Link href={settingsItem.url} />}>
-          <settingsItem.icon />
-          <span>{settingsItem.title}</span>
-        </SidebarMenuButton>
+        <NavLink item={settingsItem} active={isActive(pathname, settingsItem.url)} tooltip={settingsItem.title} />
       </SidebarMenuItem>
     </SidebarMenu>
+  )
+}
+
+/**
+ * One nav entry. The current page reads clearly (full-strength text, a bar on
+ * the edge that glides from item to item); others stay quieter, and hover is
+ * lighter than "current" so the two never look the same.
+ */
+function NavLink({ item, active, tooltip }: { item: NavItem; active: boolean; tooltip: string }) {
+  return (
+    <SidebarMenuButton
+      tooltip={tooltip}
+      isActive={active}
+      aria-current={active ? "page" : undefined}
+      className="relative text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent/60 data-active:text-sidebar-foreground [&_svg]:text-muted-foreground [&_svg]:transition-colors hover:[&_svg]:text-sidebar-foreground data-active:[&_svg]:text-sidebar-foreground"
+      render={<Link href={item.url} />}
+    >
+      {active ? <motion.span layoutId="nav-current" transition={{ type: "spring", duration: 0.35, bounce: 0.15 }} className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-sidebar-foreground group-data-[collapsible=icon]:inset-y-2" aria-hidden /> : null}
+      <item.icon />
+      <span>{item.title}</span>
+    </SidebarMenuButton>
   )
 }

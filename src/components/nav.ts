@@ -22,10 +22,10 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
-    label: "Connections",
+    label: "Workspace",
     items: [
       { title: "Integrations", url: "/integrations", icon: PlugIcon, description: "Email, calendar and other connections" },
-      { title: "Runs", url: "/runs", icon: ScrollTextIcon, description: "Agent traces and decisions" },
+      { title: "AI activity", url: "/runs", icon: ScrollTextIcon, description: "What the AI did, step by step" },
     ],
   },
 ]

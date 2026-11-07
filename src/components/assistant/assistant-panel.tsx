@@ -6,6 +6,7 @@ import { useChat } from "@ai-sdk/react"
 import { Collapsible } from "@animate-ui/react/primitives/base-ui/collapsible"
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, lastAssistantMessageIsCompleteWithToolCalls, type FileUIPart, type InferUITools, type UIMessage } from "ai"
 import { useReducedMotion } from "motion/react"
+import { useSyncExternalStore } from "react"
 import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import {
   ArrowRightIcon, ArrowUpIcon, BanIcon, BriefcaseBusinessIcon, CalendarClockIcon, CheckIcon, ChevronDownIcon, CircleAlertIcon, FileTextIcon, GaugeIcon, GlobeIcon,
@@ -102,13 +103,20 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   return <AssistantContext.Provider value={{ open, visited, queued, toggle, close, clearQueue: () => setQueued(null) }}>{children}</AssistantContext.Provider>
 }
 
+const subscribeNever = () => () => {}
+/** "⌘J" on a Mac, "Ctrl J" elsewhere. */
+function useShortcutLabel() {
+  return useSyncExternalStore(subscribeNever, () => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘J" : "Ctrl J"), () => "Ctrl J")
+}
+
 export function AssistantSidebarItem() {
   const { open, toggle } = useContext(AssistantContext)
+  const shortcut = useShortcutLabel()
   return (
-    <SidebarMenuButton tooltip="Ask Naruvi (Ctrl+J)" aria-controls={PANEL_ID} aria-expanded={open} isActive={open} onClick={toggle}>
+    <SidebarMenuButton tooltip={`Ask Naruvi (${shortcut})`} aria-controls={PANEL_ID} aria-expanded={open} isActive={open} onClick={toggle}>
       <SparklesIcon />
       <span>Ask Naruvi</span>
-      <Kbd className="ml-auto group-data-[collapsible=icon]:hidden">Ctrl J</Kbd>
+      <Kbd className="ml-auto opacity-70 group-data-[collapsible=icon]:hidden">{shortcut}</Kbd>
     </SidebarMenuButton>
   )
 }
