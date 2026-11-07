@@ -6,6 +6,7 @@ import { ArrowDownToLineIcon, DatabaseIcon, FileTextIcon, Loader2Icon, PaletteIc
 import { toast } from "sonner"
 import { downloadFontsAction, saveDocumentPhotoDefaultAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
 import { DecisionSettings } from "./decision-settings"
+import { SectionLayout, SectionNav, SettingsSection } from "@/components/section-nav"
 import { ModelSettings } from "./model-settings"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,14 +33,6 @@ const sections = [
   { id: "data", title: "Data & storage", icon: DatabaseIcon },
 ] as const
 
-function SectionHeading({ id, title, icon: Icon }: (typeof sections)[number]) {
-  return (
-    <h2 id={`${id}-heading`} className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-      <Icon className="size-4 text-muted-foreground @4xl/workspace:hidden" aria-hidden />
-      {title}
-    </h2>
-  )
-}
 
 export function SettingsView({ overview, defaults: initialDefaults }: { overview: Overview; defaults: DocumentDefaults }) {
   const [showPhoto, setShowPhoto] = useState(initialDefaults.showPhoto)
@@ -73,31 +66,13 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
   const missingFonts = overview.fonts.filter((font) => !font.downloaded)
 
   return (
-    <div className="grid min-w-0 items-start gap-6 @4xl/workspace:grid-cols-[10rem_minmax(0,1fr)] @4xl/workspace:gap-8">
-      <nav aria-label="Settings sections" className="flex flex-wrap gap-1 border-b pb-3 @4xl/workspace:sticky @4xl/workspace:top-4 @4xl/workspace:flex-col @4xl/workspace:border-b-0 @4xl/workspace:pb-0">
-        {sections.map(({ id, title, icon: Icon }) => (
-          <a key={id} href={`#${id}`} className="flex min-h-10 items-center gap-2 rounded-md px-2 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">
-            <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-            {id === "data" ? <><span className="@md/workspace:hidden">Data</span><span className="hidden @md/workspace:inline">Data &amp; storage</span></> : title}
-          </a>
-        ))}
-      </nav>
-
-      <div className="@container/settings grid min-w-0 gap-8">
-        <section id="ai" aria-labelledby="ai-heading" className="grid min-w-0 scroll-mt-5 gap-3">
-          <div className="space-y-1">
-            <SectionHeading {...sections[0]} />
-            <p className="max-w-prose text-sm text-muted-foreground">AI features send relevant job text, verified profile facts, and available company research to the configured provider.</p>
-          </div>
-          <div className="grid min-w-0 items-start gap-4 @3xl/settings:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+    <SectionLayout nav={<SectionNav label="Settings sections" items={sections.map(({ id, title, icon: Icon }) => ({ id, label: title, icon: <Icon /> }))} />}>
+        <SettingsSection id="ai" title="AI models" description="AI features send relevant job text, verified profile facts, and available company research to the provider you choose.">
             <ModelSettings initial={overview.llm} />
             <DecisionSettings initial={overview.decisions} />
-          </div>
-        </section>
+        </SettingsSection>
 
-        <section id="documents" aria-labelledby="documents-heading" className="grid min-w-0 scroll-mt-5 gap-3 border-t pt-6">
-          <SectionHeading {...sections[1]} />
-          <div className="grid min-w-0 items-start gap-4 @3xl/settings:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <SettingsSection id="documents" title="Documents" description="Defaults for new CVs and letters, and fonts for other writing systems.">
             <Card>
               <CardHeader>
                 <CardTitle><h3>Document defaults</h3></CardTitle>
@@ -180,11 +155,9 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
                 )}
               </CardContent>
             </Card>
-          </div>
-        </section>
+        </SettingsSection>
 
-        <section id="data" aria-labelledby="data-heading" className="grid min-w-0 scroll-mt-5 gap-3 border-t pt-6">
-          <SectionHeading {...sections[2]} />
+        <SettingsSection id="data" title="Data & storage" description="Everything stays on this computer. Export a copy whenever you like.">
           <Card>
             <CardHeader className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
@@ -221,8 +194,7 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
               </details>
             </CardContent>
           </Card>
-        </section>
-      </div>
-    </div>
+        </SettingsSection>
+    </SectionLayout>
   )
 }
