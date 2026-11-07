@@ -140,6 +140,7 @@ async function List({ searchParams }: { searchParams: Search }) {
         <Board
           closedHref="/applications?show=closed"
           items={all.map((application) => ({
+            jobId: application.job.id,
             id: application.id,
             title: application.job.title,
             company: application.job.company?.name ?? "",

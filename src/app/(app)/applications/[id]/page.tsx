@@ -7,6 +7,7 @@ import { ArchiveIcon, ArrowLeftIcon, ScanSearchIcon } from "lucide-react"
 import { JobOverview } from "@/components/jobs/job-overview"
 import { AnalysisView } from "@/components/applications/analysis-view"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
+import { ApplicationProgress } from "@/components/applications/application-progress"
 import { ApplicationDocuments } from "@/components/applications/application-documents"
 import { db } from "@/server/db/client"
 import { documents } from "@/server/db/schema"
@@ -89,6 +90,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
           <AlertDescription>It’s hidden from the board and the dashboard. Restore it to work on it again.</AlertDescription>
         </Alert>
       ) : null}
+      <ApplicationProgress applicationId={application.id} jobId={job.id} status={application.status} language={application.language} spontaneous={job.board === "spontaneous"} sourceUrl={job.sourceUrl} cvDraft={drafts.some((doc) => doc.kind === "cv" && Boolean(doc.current))} />
       <ApplicationDocuments
         applicationId={application.id}
         language={application.language}

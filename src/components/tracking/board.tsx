@@ -1,5 +1,9 @@
 "use client"
 
+import { useFormStatus } from "react-dom"
+import { ScanSearchIcon, SparklesIcon } from "lucide-react"
+import { analyzeJobAction } from "@/app/(app)/applications/actions"
+
 import Link from "next/link"
 import { useOptimistic, useState, useTransition } from "react"
 import { ArchiveIcon, CalendarClockIcon, EllipsisIcon, InboxIcon } from "lucide-react"
@@ -17,6 +21,7 @@ import { cn } from "@/lib/utils"
 
 export type BoardItem = {
   id: string
+  jobId?: string
   title: string
   company: string
   logoPath: string | null
@@ -148,6 +153,12 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
                         <span className="truncate">{item.nextStep || "Next step"}{item.nextStepDue ? ` · ${dueLabel(new Date(item.nextStepDue), now)}` : ""}</span>
                       </p>
                     ) : null}
+                    {(item.status === "draft" || item.status === "parsed") && item.jobId ? (
+                      <form action={analyzeJobAction} onClick={(event) => event.stopPropagation()}>
+                        <input type="hidden" name="jobId" value={item.jobId} />
+                        <AnalyzeCardButton />
+                      </form>
+                    ) : null}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="secondary">{STATUS_LABEL[item.status]}</Badge>
                       {item.unread ? (
@@ -167,5 +178,14 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
         })}
       </div>
     </div>
+  )
+}
+
+function AnalyzeCardButton() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" size="xs" variant="outline" disabled={pending} className="w-full border-primary/30 text-primary hover:bg-primary/5" draggable={false}>
+      {pending ? <SparklesIcon className="cb-breathe" /> : <ScanSearchIcon />} {pending ? "Checking fit…" : "Check my fit"}
+    </Button>
   )
 }
