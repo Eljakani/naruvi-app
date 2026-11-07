@@ -111,22 +111,23 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
             <p>Draft the CV and the letter, then send them by email to the person linked here, or note that you reached out on LinkedIn by moving the application to Sent.</p>
           </CardContent>
         </Card>
-      ) : application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
+      ) : application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
       {events.length ? (
         <Card>
           <CardHeader>
-            <CardTitle>History</CardTitle>
+            <CardTitle className="text-sm">History</CardTitle>
           </CardHeader>
           <CardContent>
-            <ol className="grid gap-2">
-              {events.map((event) => (
-                <li key={event.id} className="flex items-center justify-between gap-3 text-sm">
+            <ol className="relative grid gap-3 ps-5 before:absolute before:inset-y-1.5 before:start-[5px] before:w-px before:bg-border">
+              {events.map((event, index) => (
+                <li key={event.id} className="relative flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
+                  <span className={index === 0 ? "absolute -start-5 top-1.5 size-[11px] rounded-full border-2 border-background bg-primary" : "absolute -start-5 top-1.5 size-[11px] rounded-full border-2 border-background bg-muted-foreground/40"} aria-hidden />
                   <span>
-                    {event.fromStatus ? `${STATUS_LABEL[event.fromStatus]} → ` : ""}
-                    {STATUS_LABEL[event.toStatus]}
+                    {event.fromStatus ? <span className="text-muted-foreground">{STATUS_LABEL[event.fromStatus]} → </span> : null}
+                    <span className="font-medium">{STATUS_LABEL[event.toStatus]}</span>
                     {event.actor === "system" ? <span className="text-muted-foreground"> · automatic</span> : null}
                   </span>
-                  <time className="text-muted-foreground" dateTime={event.createdAt.toISOString()}>
+                  <time className="text-xs text-muted-foreground tabular-nums" dateTime={event.createdAt.toISOString()}>
                     {event.createdAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
                   </time>
                 </li>

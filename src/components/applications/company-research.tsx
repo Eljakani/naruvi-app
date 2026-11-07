@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
-import { BuildingIcon, ExternalLinkIcon, Loader2Icon, MessageCircleQuestionIcon, PlusIcon, RefreshCwIcon, SearchIcon, SparklesIcon } from "lucide-react"
+import { BuildingIcon, CheckIcon, CopyIcon, ExternalLinkIcon, Loader2Icon, MessageCircleQuestionIcon, PlusIcon, RefreshCwIcon, SearchIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 import { researchCompanyAction } from "@/app/(app)/applications/[id]/research/actions"
 import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
@@ -27,7 +27,7 @@ function Sources({ sources }: { sources: string[] }) {
   return (
     <span className="flex min-w-0 flex-wrap gap-x-2">
       {[...byHost].map(([host, url]) => (url.startsWith("http") ? (
-        <a key={host} href={url} target="_blank" rel="noopener noreferrer nofollow" title={url} className="inline-flex min-w-0 items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground">
+        <a key={host} href={url} target="_blank" rel="noopener noreferrer nofollow" title={url} className="inline-flex min-w-0 items-center gap-1 rounded-full border bg-background px-1.5 py-px text-[11px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground">
           <span className="truncate">{host}</span> <ExternalLinkIcon className="size-2.5 shrink-0" />
         </a>
       ) : (
@@ -50,6 +50,37 @@ function SourceLink({ source }: { source: string }) {
     <a href={source} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex max-w-full items-center gap-0.5 truncate text-[11px] text-muted-foreground hover:text-foreground">
       {label} <ExternalLinkIcon className="size-2.5 shrink-0" />
     </a>
+  )
+}
+
+/** One thing to mention: tap to read it whole, copy it into your notes or letter. */
+function TalkingPoint({ index, text, sources }: { index: number; text: string; sources: string[] }) {
+  const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  return (
+    <li className="group relative grid min-w-0 gap-1.5 rounded-lg border bg-muted/30 p-2.5 transition-colors hover:bg-muted/60">
+      <div className="flex min-w-0 gap-2">
+        <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-md bg-background text-[11px] font-medium tabular-nums shadow-xs">{index + 1}</span>
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={cn("min-w-0 flex-1 text-start text-sm leading-5", !open && "line-clamp-3")}>
+          {text}
+        </button>
+      </div>
+      <div className="flex items-center gap-2 ps-7">
+        <Sources sources={sources} />
+        <button
+          type="button"
+          aria-label="Copy"
+          onClick={() => {
+            void navigator.clipboard.writeText(text)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1400)
+          }}
+          className="ms-auto inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-[opacity,color] group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+        >
+          {copied ? <CheckIcon className="size-3.5 text-emerald-600" /> : <CopyIcon className="size-3.5" />}
+        </button>
+      </div>
+    </li>
   )
 }
 
@@ -216,15 +247,9 @@ export function CompanyResearch({
         </p>
       ))}
       {angles.length ? (
-        <ol className="cb-stagger grid gap-2.5">
+        <ol className="cb-stagger grid gap-2">
           {visibleAngles.map((angle, index) => (
-            <li key={angle.text} className="flex min-w-0 gap-2.5">
-              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium tabular-nums">{index + 1}</span>
-              <div className="grid min-w-0 gap-0.5">
-                <p className={cn("text-sm leading-5", !showAll && "line-clamp-3")}>{angle.text}</p>
-                <Sources sources={angle.sources} />
-              </div>
-            </li>
+            <TalkingPoint key={angle.text} index={index} text={angle.text} sources={angle.sources} />
           ))}
         </ol>
       ) : null}
@@ -264,11 +289,11 @@ export function CompanyResearch({
         </dl>
       ) : null}
       {empty && !angles.length && !research.notes?.length ? <p className="text-xs text-muted-foreground">Nothing quotable found on {research.website || "the company site"}. Check the website on the job page.</p> : null}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-2 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1"><BuildingIcon className="size-3" /> {research.sources.length} page{research.sources.length === 1 ? "" : "s"} read</span>
         {angles.length > 3 || extra ? (
-          <button type="button" className="hover:text-foreground" onClick={() => setShowAll(!showAll)}>
-            · {showAll ? "Show less" : "Show more"}
+          <button type="button" className="font-medium text-foreground/80 hover:text-foreground" onClick={() => setShowAll(!showAll)}>
+            {showAll ? "Show less" : angles.length > 3 ? `${angles.length - 3} more` : "Mission & values"}
           </button>
         ) : null}
         <button type="button" onClick={() => run(true)} disabled={pending} className="ml-auto inline-flex items-center gap-1 hover:text-foreground">
