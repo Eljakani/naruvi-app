@@ -1,12 +1,76 @@
-# Naruvi
+<p align="center">
+  <img src="docs/assets/naruvi-banner.png" alt="Naruvi — Your career. Your workspace. A self-hosted, AI-assisted career workspace with Naruvi the otter." width="100%" />
+</p>
 
-Truthful, tailored, verified job applications — locally. Naruvi turns job postings
-and verified profile facts into tailored CVs and cover letters, with application
-tracking in one local workspace. Connecting an AI model is optional.
+<p align="center">
+  <strong>A calmer way to find your next role.</strong><br />
+  Save opportunities, understand your fit, tailor your documents, and keep every conversation in one place.
+</p>
 
-## Local development
+<p align="center">
+  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-a95832?style=flat-square" /></a>
+  <img alt="Self-hosted" src="https://img.shields.io/badge/self--hosted-your_workspace-6c7864?style=flat-square" />
+  <img alt="Node.js 24" src="https://img.shields.io/badge/Node.js-24-353535?style=flat-square" />
+  <a href="CONTRIBUTING.md"><img alt="Contributions welcome" src="https://img.shields.io/badge/contributions-welcome-a95832?style=flat-square" /></a>
+</p>
 
-Requires Node.js 24 and Docker Compose.
+<p align="center">
+  <a href="#what-you-can-do">Features</a> ·
+  <a href="#get-started">Get started</a> ·
+  <a href="docs/SELF-HOSTING.md">Self-hosting guide</a> ·
+  <a href="CONTRIBUTING.md">Contribute</a> ·
+  <a href="https://github.com/Eljakani/careerbuddy/issues">Issues</a>
+</p>
+
+## Meet Naruvi
+
+Job searching leaves a trail of tabs, documents, spreadsheets, and emails. Naruvi brings that work together in a workspace you run yourself, with an otter companion to help you take the next step.
+
+Start with your experience and verified facts. Save a role, see where your evidence fits, then prepare a CV, cover letter, or email for review. Track the application through interviews and offers without losing the conversation.
+
+**AI is optional.** Connect your own model when you want help with analysis and writing. You control the drafts, the credentials, and the next action.
+
+> Naruvi is under active development. Back up your database, uploaded assets, and encryption key before upgrading. The default setup is intended for a trusted local environment.
+
+## What you can do
+
+| From opportunity to offer | In your workspace |
+| :--- | :--- |
+| **Capture opportunities** | Import a job URL, paste a posting, or save a page with the browser extension. Turn job-alert emails into leads. |
+| **Check your fit** | Compare requirements with verified profile evidence, inspect gaps, and distinguish real qualifications from benefits or interview instructions. |
+| **Tell your story** | Tailor CVs and cover letters from your existing facts. Review AI rewrites, restore earlier wording, and export documents. |
+| **Keep applications moving** | Track stages, next steps, interviews, and offers. See what needs attention on the dashboard and export applications as CSV. |
+| **Handle the conversation** | Match application emails using company names, domains, roles, recruiters, and thread history. Draft replies and follow-ups in context. |
+| **Plan the next step** | Save interview appointments or tentative holds, download `.ics` events, and subscribe to your private calendar feed. |
+| **Build relationships** | Manage recruiters and contacts, import CSV/Excel or LinkedIn connections, and start spontaneous applications. |
+| **Ask Naruvi** | Work with an assistant that understands your workspace and presents proposed actions for review. |
+
+### Your model, your workflow
+
+- **Bring your model:** native Anthropic support and OpenAI-compatible endpoints, including local Ollama setups.
+- **Evidence before eloquence:** verified facts and document checks help keep drafts grounded; you still review every claim.
+- **A visible process:** inspect AI workflow status, attempts, latency, and available token usage in Runs.
+- **Connect what you use:** IMAP/SMTP, Google or Microsoft OAuth with your registered app, calendar feeds, ntfy, a browser extension, REST API, and MCP.
+
+Mailbox authentication depends on the provider. Some accounts require OAuth or provider-specific app passwords; IMAP/SMTP access must be enabled. See the [integration details](docs/SELF-HOSTING.md#integrations).
+
+## Get started
+
+### Docker
+
+Requires **Git, Node.js 24, and Docker Compose**. Node is used to generate the local encryption key; the app runs in containers.
+
+```bash
+git clone https://github.com/Eljakani/careerbuddy.git
+cd careerbuddy
+npm ci
+npm run settings:key -- .env
+docker compose --profile full up --build -d
+```
+
+Open **[localhost:3000](http://localhost:3000)** and follow the setup guide. Compose starts PostgreSQL, applies migrations, and launches the app and worker. Data and uploaded assets persist in named volumes.
+
+### Local development
 
 ```bash
 npm ci
@@ -18,166 +82,45 @@ npm run db:migrate
 npm run dev
 ```
 
-Open [Naruvi](http://localhost:3000). A new install starts with the **setup guide** (`/setup`): secure storage, an AI model, your profile (import a CV or LinkedIn export, or answer guided questions by typing or dictating), a look, and your first job. Run `npm run worker` in another terminal
-for background jobs. Configure optional model access in **Settings → Language model**.
+Run `npm run worker` in a second terminal for queued background jobs. Configure your model in **Settings → Language model**.
 
-URL imports try structured job-board APIs and direct HTTP first. If the extracted
-posting is incomplete or needs JavaScript, Naruvi retries it in headless Chromium
-and keeps the better result. Browser rendering has time, request, and size limits;
-private addresses are blocked for pages and subresources. Login walls and CAPTCHAs
-may still require pasting the job description. Chromium runs in a temporary session
-without your browser's cookies and only makes GET requests.
+For browser dependencies, credentials, backups, and existing CareerBuddy installations, read the [self-hosting guide](docs/SELF-HOSTING.md).
 
-On Linux, if Chromium reports missing system libraries, install them with
-`npx playwright install --with-deps chromium` (see the
-[Playwright browser setup](https://playwright.dev/docs/browsers)). Docker images
-include Chromium and its system dependencies.
+## Data and control
 
-## Run with Docker
+Your workspace is stored in your own PostgreSQL database and asset storage. Saved model credentials are encrypted with AES-256-GCM; keep `SETTINGS_ENCRYPTION_KEY` backed up separately and shared between the app and worker.
 
-```bash
-npm run settings:key -- .env
-docker compose --profile full up --build -d
-```
+Self-hosting does not make external services offline: configured model providers receive the context needed for the requested workflow, and connected email or notification services receive their relevant data. Local models can reduce dependence on hosted AI services.
 
-This starts PostgreSQL, runs migrations, and starts the app and worker. Database
-and uploaded assets are stored in named volumes.
+The default Compose ports bind to localhost. Before exposing an instance beyond your machine, put appropriate authentication and network protections in front of it. See [security guidance](SECURITY.md).
 
-## Model credentials
+## Built with
 
-In **Settings → Language model**, choose a provider, follow its API key or local
-setup link, and load its model list or enter a model ID. Test the connection and
-save the model to make it active. For a custom OpenAI-compatible endpoint,
-enter its URL and model ID, then save before testing. Naruvi uses one model at
-a time; saved changes apply to the next model call. Leaving the key blank keeps
-it when the endpoint stays the same.
+**Next.js · React · TypeScript · PostgreSQL / pgvector · Drizzle · Vercel AI SDK · pg-boss · Tailwind CSS**
 
-API keys are encrypted with AES-256-GCM before being written to the existing
-`settings` table. Only the server decrypts them, immediately before a model call.
-The UI receives key status only; JSON exports omit the model credential setting,
-including its ciphertext. No database migration is needed.
+| Documentation | What you’ll find |
+| :--- | :--- |
+| [Self-hosting](docs/SELF-HOSTING.md) | Installation, model configuration, integrations, and migration notes |
+| [Architecture](docs/ARCHITECTURE.md) | Design principles and implementation context |
+| [REST API](docs/API.md) | API keys and programmatic access |
+| [Browser extension](extension/README.md) | Save postings and contacts from your browser |
+| [Document generation](docs/adr/0001-cv-rendering-and-generation.md) | Rendering and generation decisions |
+| [Naruvi’s voice](docs/NARUVI-VOICE.md) | The companion’s tone and product identity |
 
-`SETTINGS_ENCRYPTION_KEY` must contain 32 random bytes as 64 hex characters.
-`npm run settings:key` creates it in `.env.local` without printing it or replacing
-an existing key; use `npm run settings:key -- .env` for Docker Compose. Restart
-once after adding this environment secret. The app and any workers must use the
-same value. Back it up separately from the database: if it is lost or changed,
-restore the original or replace the saved API key in Settings. This protects a
-database-only leak; the running server still needs access to the decryption key.
+## Make Naruvi better
 
-Existing `LLM_API_KEY` environment values remain a fallback until you first save
-model settings, which moves the key into encrypted storage. You can then remove
-`LLM_API_KEY` from your environment. `LLM_BASE_URL` and `LLM_MODEL` are initial
-defaults; saved settings take precedence. Local Ollama endpoints can run without
-an API key. Model reviews send relevant requirements and verified facts to the
-configured provider.
-
-All model calls use Vercel AI SDK (`ai`), with its native Anthropic provider for
-Claude and its OpenAI-compatible provider for the other endpoints.
-The shared runtime reads encrypted settings at call time, requests JSON output,
-validates each workflow's Zod schema, enforces a timeout, and retries a transient
-failure once. It calls your configured endpoint directly; it does not require
-Vercel hosting or an AI Gateway account.
-
-**Runs** now shows each workflow and its steps, including separate running,
-succeeded or failed AI requests with model, token counts, request attempts and
-latency. Document fallback messages explain why output was rejected or why a
-request failed. Prompts, provider response bodies and API keys are not shown in
-the run history. Refresh the page to see current steps.
-
-DeepSeek's JSON editing tasks use non-thinking mode by default so the bounded
-output budget is available for the document. Future workflows can explicitly
-request low/high reasoning through the shared runtime. Failed structured-output
-requests retain available token counts and finish reason, including output-limit
-failures.
-
-### AI requirement filtering
-
-Analysis classifies posting items before matching them to your profile. With a
-configured model, AI distinguishes candidate qualifications and duties from
-interview stages, application instructions, benefits and company background.
-The classifier sees the posting only, so it cannot hide a genuine requirement
-because your profile does not meet it. A separate AI pass can still review
-uncertain evidence matches afterward.
-
-Excluded lines are listed under **Excluded posting details** with their reasons.
-They do not count toward skill gaps, fit scores, or keyword coverage. Actual HR,
-sales and recruitment duties remain eligible requirements. If AI is unavailable
-or returns invalid output, rules provide a fallback and the analysis shows which
-items were reviewed. Re-run existing analyses to apply the filter.
-
-### AI-assisted documents
-
-With a configured model, generating a CV also tailors the selection and wording
-of existing verified bullets to the job. Cover-letter generation drafts an
-opening, evidence highlights, a source-linked company motivation when evidence
-is available, and a closing. Prompts use relevant verified evidence, job text and
-cached company research; contact details and photos are not included.
-
-Each AI rewrite retains its original wording and fact links. The editors show
-comparisons and allow editing; CV bullets can be restored to their original
-wording. AI drafts require your review before the quality checks mark them ready.
-Review matters: identifier, number and skill checks cannot establish every
-sentence's meaning or the truth of personal motivation. Regenerating preserves
-motivation you already wrote or reviewed. Missing evidence leaves the original
-placeholder; a failed/invalid model response keeps the standard grounded draft.
-
-Existing document versions are unchanged. Use **Regenerate** on a CV or **Redraft**
-on a letter to create an AI-assisted revision; prior revisions remain restorable.
-
-### Integrations
-
-Everything lives on the **Integrations** page and runs on your machine.
-
-- **Email**: connect any mailbox over IMAP/SMTP with an app password (presets for Gmail, Outlook, iCloud, Fastmail, Yahoo, Proton Bridge), or sign in with Google or Microsoft through an app you register once. Naruvi checks it every 5 minutes, keeps only emails about your applications, classifies replies (rejection, interview, offer, request for information) and suggests the change; nothing moves without your click. Send applications, follow-ups and thank-you notes with your CV and letter attached. Optional per-application reply addresses (`you+nrv-…@` or your own domain via Cloudflare Email Routing) make every reply match.
-- **Job alerts**: postings in LinkedIn, Indeed, Welcome to the Jungle, Glassdoor and similar alert emails become job leads on the Jobs page.
-- **Calendar**: a private iCalendar link of your next steps.
-- **Notifications**: push to your phone or desktop through ntfy (ntfy.sh or self-hosted).
-- **Email matching** combines company names (including small spelling differences when the role and application wording agree), sender and signature domains, linked recruiters, role titles, and email-thread history. It reads the message body before deciding whether it matches; uncertain matches between different companies are left unlinked. **Check now** retries unmatched mail from the last 30 days (up to the latest 400 inbox messages for IMAP), without duplicating linked emails. Background checks continue processing new mail in order.
-- **Email writing**: draft or refine a reply, follow-up, thank-you note, or application email with the configured AI model. Drafts use the selected conversation, application stage, verified non-confidential facts, and your instructions; tone, language, attachments, and wording remain editable. The assistant's email tool opens the same review flow and does not generate a cover-letter document or send anything. After an interview reply is sent, Naruvi offers to save a confirmed appointment or tentative hold with an explicit time, time zone and duration. Saved interviews appear on the dashboard, in the private calendar feed, and as downloadable timed `.ics` events.
-- **Browser extension**: `extension/` sends the posting you're viewing (including pages behind a login) to Naruvi. See `extension/README.md`.
-- **API and MCP**: `/api/v1` with API keys (see `docs/API.md`), and `mcp/naruvi-mcp.mjs` (`npm run mcp`) for Claude and other MCP clients.
-- **Spreadsheets**: export all applications as CSV.
-- **Contacts**: recruiters, HR and managers; import from Excel/CSV or LinkedIn's Connections export, save LinkedIn profiles with the extension, find work emails with Hunter.io (your key), and start spontaneous applications without a posting.
-
-Background tasks start with the app; set `NARUVI_BACKGROUND=off` to disable them and `NARUVI_URL` for links in notifications.
-
-### Existing installations
-
-Naruvi was previously called CareerBuddy. The new Compose project and database
-defaults are `naruvi`. Existing databases and uploaded assets are not renamed or
-moved automatically. To reuse the previous volumes and database credentials,
-create a `.env` file for Docker Compose with your existing values:
-
-```dotenv
-COMPOSE_PROJECT_NAME=careerbuddy
-POSTGRES_USER=careerbuddy
-POSTGRES_PASSWORD=careerbuddy
-POSTGRES_DB=careerbuddy
-```
-
-These are the previous defaults; use your actual project name and credentials
-if you customized them. Keep your existing `DATABASE_URL` in `.env.local` for
-local development. Do not remove existing volumes. The UI, PDFs, and new JSON
-exports use the Naruvi name regardless of the database's internal name.
-
-## Checks
+Bug reports, documentation fixes, accessibility improvements, integration work, and tests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), or [open an issue](https://github.com/Eljakani/careerbuddy/issues/new/choose) with a focused problem or proposal.
 
 ```bash
-npm run lint
 npm run typecheck
+npm run lint
 npm test
-npm run test:browser
-npm run test:settings
-npm run build
 ```
 
-See [the architecture](docs/ARCHITECTURE.md) and
-[document generation decisions](docs/adr/0001-cv-rendering-and-generation.md)
-for implementation details.
+Please use synthetic profiles and sanitized emails in reports and fixtures. Never share real credentials, private CVs, or mailbox exports.
 
-`test:settings` uses a disposable PostgreSQL schema and a local fixture model
-endpoint to verify encrypted storage and live configuration changes. It does not
-write the app's actual model settings.
+## License and credits
 
-The assistant uses [Rare UI](https://www.rareui.com/) Inline AI Status. See [its license](licenses/rare-ui.txt).
+Naruvi is licensed under [Apache License 2.0](LICENSE). Third-party components and assets retain their own licenses, including [Rare UI](licenses/rare-ui.txt) and [provider logos](public/provider-logos/LICENSE.txt).
+
+The Naruvi otter is the project’s visual companion. The README banner uses the app’s **Geist** typeface and existing logo; its background was generated with AI. [Asset notes](docs/assets/README.md).
