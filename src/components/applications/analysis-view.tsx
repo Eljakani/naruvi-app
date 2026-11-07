@@ -8,17 +8,13 @@ import {
   CheckCircle2Icon,
   CircleDashedIcon,
   CircleHelpIcon,
-  FileTextIcon,
-  MailIcon,
   ShieldAlertIcon,
-  SparklesIcon,
   XCircleIcon,
 } from "lucide-react"
 import { CompanyResearch } from "@/components/applications/company-research"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import type { CompanyResearch as Research } from "@/server/research/brief"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -37,12 +33,6 @@ const STATUS = {
 
 const KIND_TITLE = { must: "Must-haves", responsibility: "What you'd do", nice: "Nice to have" } as const
 
-const COVER = {
-  required: { label: "Cover letter required", tone: "text-rose-700" },
-  optional: { label: "Cover letter optional", tone: "text-amber-700" },
-  not_requested: { label: "No cover letter needed", tone: "text-muted-foreground" },
-  not_mentioned: { label: "Cover letter not mentioned", tone: "text-muted-foreground" },
-} as const
 
 function FitRing({ score }: { score: number }) {
   const r = 34
@@ -121,7 +111,7 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
 
 type Filter = "all" | "attention" | "proven"
 
-export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: StoredAnalysis; facts: FactRow[]; cvHref: string; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null; researching?: boolean } }) {
+export function AnalysisView({ analysis, facts, research }: { analysis: StoredAnalysis; facts: FactRow[]; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null; researching?: boolean } }) {
   const [filter, setFilter] = useState<Filter>("all")
   const groups = useMemo(() => {
     const visible = analysis.requirements.filter((match) =>
@@ -129,7 +119,6 @@ export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: 
     )
     return (["must", "responsibility", "nice"] as const).map((kind) => ({ kind, items: visible.filter((match) => match.kind === kind) })).filter((group) => group.items.length)
   }, [analysis.requirements, filter])
-  const cover = COVER[analysis.coverLetter.decision as keyof typeof COVER] ?? COVER.not_mentioned
   const counts = analysis.counts
   const score = displayFitScore(analysis)
   const reviewStatus = analysis.requirementFilter?.status
@@ -308,33 +297,6 @@ export function AnalysisView({ analysis, facts, cvHref, research }: { analysis: 
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className={cn("flex items-center gap-2 text-sm", cover.tone)}>
-              <MailIcon className="size-4" /> {cover.label}
-            </CardTitle>
-            {analysis.coverLetter.evidence ? <CardDescription className="italic">“{analysis.coverLetter.evidence.slice(0, 220)}”</CardDescription> : null}
-          </CardHeader>
-          <CardContent>
-            <Button variant={analysis.coverLetter.decision === "required" ? "default" : "outline"} className="w-full" nativeButton={false} render={<Link href={cvHref.replace("/cv?", "/letter?")} />}>
-              <MailIcon /> {analysis.coverLetter.decision === "not_requested" ? "Write one anyway" : "Open cover letter"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <SparklesIcon className="size-4" /> Your tailored CV
-            </CardTitle>
-            <CardDescription>Built only from your verified entries and approved bullets, ordered for this job, then quality-checked.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full" nativeButton={false} render={<Link href={cvHref} />}>
-              <FileTextIcon /> Open CV
-            </Button>
-          </CardContent>
-        </Card>
       </aside>
     </div>
   )
