@@ -6,6 +6,9 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react"
 import {
   ChevronDownIcon,
+  CheckIcon,
+  ArchiveIcon,
+  ShieldCheckIcon,
   AlertTriangleIcon,
   ArrowLeftIcon,
   AwardIcon,
@@ -34,6 +37,9 @@ import { BulletSuggestions } from "@/components/profile/editor/bullet-suggestion
 import { EntryAssist } from "@/components/profile/editor/entry-assist"
 import { ChipInput, FactPicker, GrowText, LineList, StringLineList } from "@/components/profile/editor/inputs"
 import { LanguageSwitch, LANGUAGE_NAMES } from "@/components/profile/language-switch"
+import ParticleButton from "@/components/kokonutui/particle-button"
+import { DateRangeField } from "@/components/profile/editor/date-range-field"
+import { Segmented } from "@/components/ui/segmented"
 import { type Draft, type DraftBullet, type Lang, LANGS, newKey, pairRows, toDraft, toInput } from "@/components/profile/editor/draft"
 import { KIND_SINGULAR, STATUS_LABELS } from "@/components/profile/labels"
 import {
@@ -103,6 +109,17 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [pending, startTransition] = useTransition()
 
+  const [saveStatus, setSaveStatus] = useState<"idle" | "pending" | "success">("idle")
+  const [wasPending, setWasPending] = useState(false)
+  if (pending !== wasPending) {
+    setWasPending(pending)
+    setSaveStatus(pending ? "pending" : "success")
+  }
+  useEffect(() => {
+    if (saveStatus !== "success") return
+    const timer = setTimeout(() => setSaveStatus("idle"), 1400)
+    return () => clearTimeout(timer)
+  }, [saveStatus])
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(initial), [draft, initial])
   const patch = useCallback((value: Partial<Draft>) => setDraft((current) => ({ ...current, ...value })), [])
   const copy = FIELD_COPY[draft.kind]
@@ -195,45 +212,78 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   return (
     <div className="-mx-4 -mt-4 md:-mx-6 md:-mt-6">
       {/* sticky action bar */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-background/85 px-4 py-3 backdrop-blur md:px-6">
-        <Button variant="ghost" size="sm" onClick={() => leave("/profile")}>
-          <ArrowLeftIcon /> Profile
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background/85 px-4 py-2.5 backdrop-blur md:px-6">
+        <Button variant="ghost" size="icon-sm" onClick={() => leave("/profile")} aria-label="Back to profile" title="Back to profile">
+          <ArrowLeftIcon />
         </Button>
-        {LOGO_KINDS.has(draft.kind) ? <EntryLogo path={draft.logoPath} name={draft.display.en.organization || title} size={32} /> : null}
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold">{title}</div>
-          <div className="text-xs text-muted-foreground">
-            {KIND_SINGULAR[draft.kind]} · {dirty ? <span className="text-amber-600">Unsaved changes</span> : entry ? "All changes saved" : "Not saved yet"}
+        {LOGO_KINDS.has(draft.kind) ? <EntryLogo path={draft.logoPath} name={draft.display.en.organization || title} size={36} className="rounded-lg" /> : null}
+        <div className="min-w-48 flex-1 basis-64">
+          <div className="truncate font-semibold" title={title}>{title}</div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>{KIND_SINGULAR[draft.kind]}</span>
+            <span aria-hidden>·</span>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={dirty ? "dirty" : pending ? "saving" : "saved"}
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -3 }}
+                transition={{ duration: 0.15 }}
+                className={cn("inline-flex items-center gap-1", dirty && "text-amber-600 dark:text-amber-400")}
+              >
+                {dirty ? <span className="size-1.5 rounded-full bg-amber-500" aria-hidden /> : entry ? <CheckIcon className="size-3 text-emerald-600" aria-hidden /> : null}
+                {dirty ? "Unsaved changes" : entry ? "All changes saved" : "Not saved yet"}
+              </motion.span>
+            </AnimatePresence>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="hidden text-xs text-muted-foreground lg:inline">Writing in</span>
+        <div className="ms-auto flex flex-wrap items-center gap-2">
           <LanguageSwitch value={lang} onChange={setLang} languages={LANGS} filled={(code) => Boolean(draft.display[code].role.trim())} label="Language you're writing in" />
+          <span className="hidden h-5 w-px bg-border sm:block" aria-hidden />
+          <Segmented
+            value={draft.status}
+            onChange={(status) => patch({ status })}
+            label="Status"
+            options={entryStatuses.map((status) => ({
+              value: status,
+              label: (
+                <>
+                  {status === "verified" ? <ShieldCheckIcon /> : status === "needs_review" ? <CircleDashedIcon /> : <ArchiveIcon />}
+                  {STATUS_LABELS[status]}
+                </>
+              ),
+              ...(status === "verified"
+                ? { thumbClassName: "bg-emerald-50 ring-1 ring-emerald-200 dark:bg-emerald-950/60 dark:ring-emerald-900", activeClassName: "text-emerald-700 dark:text-emerald-400" }
+                : status === "needs_review"
+                  ? { thumbClassName: "bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-950/60 dark:ring-amber-900", activeClassName: "text-amber-700 dark:text-amber-400" }
+                  : {}),
+            }))}
+          />
+          {entry ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="More actions" />}>
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
+                  <TrashIcon /> Delete entry
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          <ParticleButton
+            size="sm"
+            status={saveStatus}
+            onClick={() => save()}
+            disabled={!pending && !dirty && Boolean(entry)}
+            pendingLabel="Saving"
+            successLabel="Saved"
+            className="min-w-20"
+          >
+            {entry ? "Save" : "Create entry"}
+            <kbd className="ms-1 hidden rounded bg-primary-foreground/15 px-1 font-mono text-[10px] sm:inline">⌘S</kbd>
+          </ParticleButton>
         </div>
-        <ToggleGroup value={[draft.status]} onValueChange={(value) => value[0] && patch({ status: value[0] as Draft["status"] })} variant="outline" size="sm" aria-label="Status">
-          {entryStatuses.map((status) => (
-            <ToggleGroupItem key={status} value={status} className="px-2.5 text-xs aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background">
-              {status === "verified" ? <CheckCircle2Icon /> : null}
-              {STATUS_LABELS[status]}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        {entry ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="More actions" />}>
-              <MoreHorizontalIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
-                <TrashIcon /> Delete entry
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-        <Button onClick={() => save()} disabled={pending || (!dirty && Boolean(entry))}>
-          {pending ? "Saving…" : entry ? "Save" : "Create entry"}
-          <kbd className="ml-1 hidden rounded bg-primary-foreground/15 px-1 font-mono text-[11px] sm:inline">⌘S</kbd>
-        </Button>
       </div>
 
       <div className="grid gap-6 p-4 md:p-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -272,10 +322,20 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             description={`Title, place and dates in ${LANGUAGE_NAMES[lang]}. Switch language at the top.`}
           >
             <div key={lang} className="cb-fade grid gap-4 sm:grid-cols-2">
-              <Field id={`${lang}-role`} label={copy.role} value={draft.display[lang].role} placeholder={copy.rolePlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], role: value } } })} />
+              <div className="sm:col-span-2">
+                <Field id={`${lang}-role`} label={copy.role} value={draft.display[lang].role} placeholder={copy.rolePlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], role: value } } })} />
+              </div>
               <Field id={`${lang}-org`} label={copy.organization} value={draft.display[lang].organization} placeholder={copy.orgPlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], organization: value } } })} />
-              <Field id={`${lang}-dates`} label="Dates" value={draft.display[lang].dates} placeholder={lang === "en" ? "Feb. 2024 – Present" : "Février 2024 – aujourd’hui"} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], dates: value } } })} />
               <Field id={`${lang}-location`} label="Location" value={draft.display[lang].location} placeholder={lang === "en" ? "Paris, France" : "Paris, France"} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], location: value } } })} />
+              <div className="sm:col-span-2">
+                <DateRangeField
+                  key={lang}
+                  id={`${lang}-dates`}
+                  lang={lang}
+                  value={draft.display[lang].dates}
+                  onChange={(text) => patch({ display: { en: { ...draft.display.en, dates: text.en ?? draft.display.en.dates }, fr: { ...draft.display.fr, dates: text.fr ?? draft.display.fr.dates } } })}
+                />
+              </div>
             </div>
             {(() => {
               const other = LANGS.find((code) => code !== lang)!
