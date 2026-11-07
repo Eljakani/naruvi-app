@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { prepareFonts } from "@/server/documents/fonts"
 import { saveDocumentPhotoDefault, setDefaultLanguage, testLlm } from "@/server/settings/service"
-import { saveLlmSettings, type LlmOverview } from "@/server/settings/llm"
-import { llmSettingsInput } from "@/server/settings/llm-schema"
+import { resolveDraftConnection, saveLlmSettings, type LlmOverview } from "@/server/settings/llm"
+import { llmConnectionInput, llmSettingsInput } from "@/server/settings/llm-schema"
+import { listProviderModels } from "@/server/settings/model-catalog"
 import { SettingsError } from "@/server/settings/errors"
 import { saveDecisionSettings, testDecisionModel, type DecisionOverview } from "@/server/settings/decisions"
 
@@ -35,8 +36,20 @@ export async function setDefaultLanguageAction(language: string): Promise<Result
   }
 }
 
-export async function testLlmAction(): Promise<Result> {
-  return testLlm()
+export async function testLlmAction(input?: unknown): Promise<Result> {
+  return testLlm(input)
+}
+
+export async function listLlmModelsAction(input: unknown) {
+  const parsed = llmConnectionInput.safeParse(input)
+  if (!parsed.success) return { ok: false as const, message: parsed.error.issues[0]?.message ?? "Check the provider settings." }
+  try {
+    const models = await listProviderModels(await resolveDraftConnection(parsed.data))
+    if (!models.length) return { ok: false as const, message: "No models were returned. Load a model on your server or enter its ID manually." }
+    return { ok: true as const, models }
+  } catch (error) {
+    return { ok: false as const, message: error instanceof SettingsError ? error.message : "Could not load models. Check the connection or enter a model ID manually." }
+  }
 }
 
 export async function saveLlmSettingsAction(input: unknown): Promise<{ ok: true; overview: LlmOverview } | { ok: false; message: string }> {

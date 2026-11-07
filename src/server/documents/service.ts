@@ -19,6 +19,7 @@ import { composeCv } from "./compose"
 import { cvDocument, type CvDocument } from "./model"
 import { checkQuality, type QualityReport } from "./quality"
 import { checkLetter, composeLetter, isPlaceholder, letterDocument, type LetterDocument } from "./letter"
+import { contactVersion, getLiveContact } from "./live-contact"
 import { renderCvPdf, renderLetterPdf } from "./render"
 
 type Kind = "cv" | "cover_letter"
@@ -279,22 +280,24 @@ async function getWorkspace(applicationId: string, language: string, kind: Kind)
   const [current] = doc.currentRevisionId ? await db.select().from(revisions).where(eq(revisions.id, doc.currentRevisionId)) : []
   return {
     document: doc,
+    contactVersion: contactVersion(await getLiveContact()),
     current: current ? { ...current, content: current.content as unknown as CvDocument, quality: current.quality as unknown as QualityReport } : null,
     history: history.map((item) => ({ ...item, quality: item.quality as unknown as QualityReport | null })),
   }
 }
 
-export async function revisionPdf(revisionId: string) {
+export async function revisionPdf(revisionId: string, live = false) {
   const [revision] = await db.select().from(revisions).where(eq(revisions.id, revisionId))
   if (!revision?.content) return null
   const raw = revision.content as { kind?: string }
+  const contact = live ? await getLiveContact() : null
   if (raw.kind === "cover_letter") {
     const letter = letterDocument.parse(raw)
-    const { buffer } = await renderLetterPdf(letter)
+    const { buffer } = await renderLetterPdf({ ...letter, header: { ...letter.header, ...contact } })
     return { buffer, name: `${letter.header.name.replace(/[^\p{L}\p{N}]+/gu, "-")}-Cover-letter-${letter.language}.pdf` }
   }
   const content = cvDocument.parse(raw)
-  const { buffer } = await renderCvPdf(content)
+  const { buffer } = await renderCvPdf({ ...content, header: { ...content.header, ...contact } })
   return { buffer, name: `${content.header.name.replace(/[^\p{L}\p{N}]+/gu, "-")}-CV-${content.language}.pdf` }
 }
 

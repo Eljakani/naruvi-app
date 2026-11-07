@@ -2,7 +2,7 @@
 
 Truthful, tailored, verified job applications — locally. Naruvi turns job postings
 and verified profile facts into tailored CVs and cover letters, with application
-tracking in one local workspace. An OpenAI-compatible model is optional.
+tracking in one local workspace. Connecting an AI model is optional.
 
 ## Local development
 
@@ -45,9 +45,12 @@ and uploaded assets are stored in named volumes.
 
 ## Model credentials
 
-Set the API base URL, model name and API key in **Settings → Language model**,
-save, then test the connection. Saved changes apply to the next model call without
-restarting. Leaving the key blank keeps it; removal is an explicit action.
+In **Settings → Language model**, choose a provider, follow its API key or local
+setup link, and load its model list or enter a model ID. Test the connection and
+save the model to make it active. For a custom OpenAI-compatible endpoint,
+enter its URL and model ID, then save before testing. Naruvi uses one model at
+a time; saved changes apply to the next model call. Leaving the key blank keeps
+it when the endpoint stays the same.
 
 API keys are encrypted with AES-256-GCM before being written to the existing
 `settings` table. Only the server decrypts them, immediately before a model call.
@@ -69,7 +72,8 @@ defaults; saved settings take precedence. Local Ollama endpoints can run without
 an API key. Model reviews send relevant requirements and verified facts to the
 configured provider.
 
-All model calls use Vercel AI SDK (`ai`) with its OpenAI-compatible provider.
+All model calls use Vercel AI SDK (`ai`), with its native Anthropic provider for
+Claude and its OpenAI-compatible provider for the other endpoints.
 The shared runtime reads encrypted settings at call time, requests JSON output,
 validates each workflow's Zod schema, enforces a timeout, and retries a transient
 failure once. It calls your configured endpoint directly; it does not require
@@ -173,3 +177,5 @@ for implementation details.
 `test:settings` uses a disposable PostgreSQL schema and a local fixture model
 endpoint to verify encrypted storage and live configuration changes. It does not
 write the app's actual model settings.
+
+The assistant uses [Rare UI](https://www.rareui.com/) Inline AI Status. See [its license](licenses/rare-ui.txt).

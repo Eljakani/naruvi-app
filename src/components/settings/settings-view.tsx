@@ -2,18 +2,17 @@
 
 import Link from "next/link"
 import { useState, useTransition } from "react"
-import { DownloadIcon, Loader2Icon, PaletteIcon } from "lucide-react"
+import { ArrowDownToLineIcon, DatabaseIcon, FileTextIcon, Loader2Icon, PaletteIcon, SparklesIcon, TypeIcon } from "lucide-react"
 import { toast } from "sonner"
 import { downloadFontsAction, saveDocumentPhotoDefaultAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
 import { DecisionSettings } from "./decision-settings"
 import { ModelSettings } from "./model-settings"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldSeparator, FieldTitle } from "@/components/ui/field"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
 import type { DocumentDefaults, getSystemOverview } from "@/server/settings/service"
 
 type Overview = Awaited<ReturnType<typeof getSystemOverview>>
@@ -27,6 +26,21 @@ const LANGS = [
 
 const FONT_NAMES: Record<string, string> = { SC: "Chinese (Simplified)", JP: "Japanese", KR: "Korean" }
 
+const sections = [
+  { id: "ai", title: "AI models", icon: SparklesIcon },
+  { id: "documents", title: "Documents", icon: FileTextIcon },
+  { id: "data", title: "Data & storage", icon: DatabaseIcon },
+] as const
+
+function SectionHeading({ id, title, icon: Icon }: (typeof sections)[number]) {
+  return (
+    <h2 id={`${id}-heading`} className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+      <Icon className="size-4 text-muted-foreground @4xl/workspace:hidden" aria-hidden />
+      {title}
+    </h2>
+  )
+}
+
 export function SettingsView({ overview, defaults: initialDefaults }: { overview: Overview; defaults: DocumentDefaults }) {
   const [showPhoto, setShowPhoto] = useState(initialDefaults.showPhoto)
   const [language, setLanguage] = useState(overview.defaultLanguage)
@@ -36,18 +50,22 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
   const run = (key: string, action: () => Promise<{ ok: boolean; message?: string }>, success?: string) => {
     setBusy(key)
     startTransition(async () => {
-      const result = await action()
-      setBusy(null)
-      if (!result.ok) toast.error(result.message ?? "Something went wrong")
-      else if (result.message || success) toast.success(result.message ?? success)
+      try {
+        const result = await action()
+        if (!result.ok) toast.error(result.message ?? "Something went wrong")
+        else if (result.message || success) toast.success(result.message ?? success)
+      } catch {
+        toast.error("Could not save or refresh settings. Try again.")
+      } finally {
+        setBusy(null)
+      }
     })
   }
 
   const savePhotoDefault = (next: boolean) => {
-    setShowPhoto(next)
     run("defaults", async () => {
       const result = await saveDocumentPhotoDefaultAction(next)
-      if (!result.ok) setShowPhoto(!next)
+      if (result.ok) setShowPhoto(next)
       return result
     }, "Defaults saved")
   }
@@ -55,140 +73,156 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
   const missingFonts = overview.fonts.filter((font) => !font.downloaded)
 
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-2">
-      <Card className="xl:col-span-2">
-        <CardHeader>
-          <CardTitle>Documents</CardTitle>
-          <CardDescription>Defaults for new CVs and cover letters. You can still change each document; regenerating keeps its design.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            <Field orientation="horizontal">
-              <FieldContent>
-                <FieldLabel htmlFor="default-language">Default language</FieldLabel>
-                <FieldDescription>Starting language for new applications, and the fallback when an entry has no wording in a document’s language.</FieldDescription>
-              </FieldContent>
-              <Select
-                items={LANGS}
-                value={language}
-                disabled={pending}
-                onValueChange={(value) => {
-                  if (!value) return
-                  setLanguage(value)
-                  run("language", () => setDefaultLanguageAction(value), `Default language: ${LANGS.find((item) => item.value === value)?.label}`)
-                }}
-              >
-                <SelectTrigger id="default-language" className="w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGS.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
+    <div className="grid min-w-0 items-start gap-6 @4xl/workspace:grid-cols-[10rem_minmax(0,1fr)] @4xl/workspace:gap-8">
+      <nav aria-label="Settings sections" className="flex flex-wrap gap-1 border-b pb-3 @4xl/workspace:sticky @4xl/workspace:top-4 @4xl/workspace:flex-col @4xl/workspace:border-b-0 @4xl/workspace:pb-0">
+        {sections.map(({ id, title, icon: Icon }) => (
+          <a key={id} href={`#${id}`} className="flex min-h-10 items-center gap-2 rounded-md px-2 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">
+            <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            {id === "data" ? <><span className="@md/workspace:hidden">Data</span><span className="hidden @md/workspace:inline">Data &amp; storage</span></> : title}
+          </a>
+        ))}
+      </nav>
+
+      <div className="@container/settings grid min-w-0 gap-8">
+        <section id="ai" aria-labelledby="ai-heading" className="grid min-w-0 scroll-mt-5 gap-3">
+          <div className="space-y-1">
+            <SectionHeading {...sections[0]} />
+            <p className="max-w-prose text-sm text-muted-foreground">AI features send relevant job text, verified profile facts, and available company research to the configured provider.</p>
+          </div>
+          <div className="grid min-w-0 items-start gap-4 @3xl/settings:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+            <ModelSettings initial={overview.llm} />
+            <DecisionSettings initial={overview.decisions} />
+          </div>
+        </section>
+
+        <section id="documents" aria-labelledby="documents-heading" className="grid min-w-0 scroll-mt-5 gap-3 border-t pt-6">
+          <SectionHeading {...sections[1]} />
+          <div className="grid min-w-0 items-start gap-4 @3xl/settings:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+            <Card>
+              <CardHeader>
+                <CardTitle><h3>Document defaults</h3></CardTitle>
+                <CardDescription>Starting preferences for new CVs and cover letters.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FieldGroup>
+                  <Field orientation="responsive">
+                    <FieldContent>
+                      <FieldLabel htmlFor="default-language">Default language</FieldLabel>
+                      <FieldDescription>Used for new applications and as a fallback for untranslated entries.</FieldDescription>
+                    </FieldContent>
+                    <Select
+                      items={LANGS}
+                      value={language}
+                      disabled={pending}
+                      onValueChange={(value) => {
+                        if (!value) return
+                        run("language", async () => {
+                          const result = await setDefaultLanguageAction(value)
+                          if (result.ok) setLanguage(value)
+                          return result
+                        }, `Default language: ${LANGS.find((item) => item.value === value)?.label}`)
+                      }}
+                    >
+                      <SelectTrigger id="default-language" className="w-full @md/field-group:w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LANGS.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <FieldSeparator />
+                  <Field orientation="responsive">
+                    <FieldContent>
+                      <FieldTitle>Design</FieldTitle>
+                      <FieldDescription>New documents use your default template.</FieldDescription>
+                    </FieldContent>
+                    <Button variant="outline" className="self-start" nativeButton={false} render={<Link href="/templates" />}>
+                      <PaletteIcon /> Open templates
+                    </Button>
+                  </Field>
+                  <FieldSeparator />
+                  <Field orientation="responsive">
+                    <FieldContent>
+                      <FieldLabel htmlFor="show-photo">Show photo</FieldLabel>
+                      <FieldDescription>Common in France, Germany and Spain; usually left out in the US, UK and Canada.</FieldDescription>
+                    </FieldContent>
+                    <Switch className="self-start" id="show-photo" checked={showPhoto} disabled={pending} onCheckedChange={savePhotoDefault} />
+                  </Field>
+                </FieldGroup>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle><h3 className="flex items-center gap-2"><TypeIcon className="size-4 text-muted-foreground" aria-hidden /> Fonts</h3></CardTitle>
+                <CardDescription>Latin, Cyrillic, Greek, Arabic, Hebrew, Devanagari and Thai are included. Chinese, Japanese and Korean download on first use.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="divide-y border-y">
+                  {overview.fonts.map((font) => (
+                    <li key={font.code} className="flex min-h-10 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">
+                      <span>{FONT_NAMES[font.code] ?? font.code}</span>
+                      {font.downloaded
+                        ? <Badge variant="secondary">Installed · {(font.bytes / 1_048_576).toFixed(1)} MB</Badge>
+                        : <span className="text-xs text-muted-foreground">Downloads on first use</span>}
+                    </li>
                   ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <FieldSeparator />
-            <Field orientation="horizontal">
-              <FieldContent>
-                <FieldTitle>Design</FieldTitle>
-                <FieldDescription>Fonts, colours and layout live on the Templates page. The one marked Default is used for new documents.</FieldDescription>
-              </FieldContent>
-              <Button variant="outline" nativeButton={false} render={<Link href="/templates" />}>
-                <PaletteIcon /> Open templates
+                </ul>
+                {missingFonts.length > 0 && (
+                  <Button className="mt-3" size="sm" variant="outline" disabled={pending} onClick={() => run("fonts", downloadFontsAction)}>
+                    {busy === "fonts" ? <Loader2Icon className="animate-spin motion-reduce:animate-none" /> : <ArrowDownToLineIcon />} Download all fonts
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        <section id="data" aria-labelledby="data-heading" className="grid min-w-0 scroll-mt-5 gap-3 border-t pt-6">
+          <SectionHeading {...sections[2]} />
+          <Card>
+            <CardHeader className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle><h3>Your data</h3></CardTitle>
+                <CardDescription>Download a copy of your profile, jobs, applications, and documents.</CardDescription>
+              </div>
+              <Button size="sm" nativeButton={false} render={<a href="/api/export" />}>
+                <ArrowDownToLineIcon /> Export JSON
               </Button>
-            </Field>
-            <FieldSeparator />
-            <Field orientation="horizontal">
-              <FieldContent>
-                <FieldLabel htmlFor="show-photo">Show photo</FieldLabel>
-                <FieldDescription>Common in France, Germany and Spain; usually left out in the US, UK and Canada.</FieldDescription>
-              </FieldContent>
-              <Switch id="show-photo" checked={showPhoto} disabled={pending} onCheckedChange={savePhotoDefault} />
-            </Field>
-          </FieldGroup>
-        </CardContent>
-      </Card>
-
-      <ModelSettings initial={overview.llm} />
-      <DecisionSettings initial={overview.decisions} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Fonts</CardTitle>
-          <CardDescription>Latin, Cyrillic, Greek, Arabic, Hebrew, Devanagari and Thai are included. Chinese, Japanese and Korean download on first use.</CardDescription>
-          {missingFonts.length ? (
-            <CardAction>
-              <Button size="sm" variant="outline" disabled={pending} onClick={() => run("fonts", downloadFontsAction)}>
-                {busy === "fonts" ? <Loader2Icon className="animate-spin" /> : <DownloadIcon />} Download all
-              </Button>
-            </CardAction>
-          ) : null}
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableBody>
-              {overview.fonts.map((font) => (
-                <TableRow key={font.code}>
-                  <TableCell>{FONT_NAMES[font.code] ?? font.code}</TableCell>
-                  <TableCell className="text-right">
-                    {font.downloaded ? <Badge variant="secondary">{(font.bytes / 1_048_576).toFixed(1)} MB</Badge> : <span className="text-muted-foreground">Downloads when needed</span>}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Your data</CardTitle>
-          <CardDescription>Everything is stored on this machine. Export it any time as JSON.</CardDescription>
-          <CardAction>
-            <Button size="sm" nativeButton={false} render={<a href="/api/export" />}>
-              <DownloadIcon /> Export
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableBody>
-              {(
-                [
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-t pt-4 @sm/settings:grid-cols-3 @3xl/settings:grid-cols-6">
+                {([
                   ["Profile entries", overview.counts.entries],
                   ["Facts", overview.counts.facts],
                   ["Bullets", overview.counts.phrasings],
                   ["Jobs", overview.counts.jobs],
                   ["Applications", overview.counts.applications],
                   ["Document versions", overview.counts.revisions],
-                ] as const
-              ).map(([label, value]) => (
-                <TableRow key={label}>
-                  <TableCell className="text-muted-foreground">{label}</TableCell>
-                  <TableCell className="text-right tabular-nums">{value}</TableCell>
-                </TableRow>
-              ))}
-              <TableRow>
-                <TableCell className="text-muted-foreground">Database</TableCell>
-                <TableCell className="text-right">{overview.database}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="text-muted-foreground">Files</TableCell>
-                <TableCell className="max-w-64 truncate text-right font-mono" title={overview.assetsDir}>
-                  {overview.assetsDir}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="text-muted-foreground">Version</TableCell>
-                <TableCell className="text-right">{overview.appVersion}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ] as const).map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-xs text-muted-foreground">{label}</dt>
+                    <dd className="font-medium tabular-nums">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <details className="border-t pt-3">
+                <summary className="w-fit cursor-pointer rounded text-sm font-medium focus-visible:outline-2 focus-visible:outline-ring">Storage details</summary>
+                <dl className="mt-3 grid gap-2 text-sm">
+                  <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">Database</dt><dd>{overview.database}</dd></div>
+                  <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">Files</dt><dd className="break-all font-mono text-xs">{overview.assetsDir}</dd></div>
+                  <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">Version</dt><dd>{overview.appVersion}</dd></div>
+                </dl>
+              </details>
+            </CardContent>
+          </Card>
+        </section>
+      </div>
     </div>
   )
 }

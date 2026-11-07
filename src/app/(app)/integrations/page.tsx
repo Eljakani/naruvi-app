@@ -22,7 +22,7 @@ export const metadata = { title: "Integrations" }
 export default function IntegrationsPage() {
   return (
     <>
-      <PageHeader title="Integrations" description="Connect Naruvi to your email and other tools. Everything runs on this computer; nothing is shared unless you send it." />
+      <PageHeader title="Integrations" description="Connect Naruvi to your email provider and other tools." />
       <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
         <Integrations />
       </Suspense>

@@ -91,7 +91,7 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
 }
 
 /** Visual template editor: controls, AI prompt, live preview with your own CV. */
-export function TemplateEditor({ initial }: { initial: Initial }) {
+export function TemplateEditor({ initial, previewVersion }: { initial: Initial; previewVersion: string }) {
   const router = useRouter()
   const [baseline] = useState({ name: initial.name, tokens: initial.tokens })
   const [name, setName] = useState(initial.name)
@@ -131,7 +131,7 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
   const dirty = JSON.stringify({ name, tokens }) !== savedKey
   // CV or letter preview: one template styles both, so you can check the pair.
   const [previewKind, setPreviewKind] = useState<"cv" | "letter">("cv")
-  const tokenKey = `${previewKind}:${JSON.stringify(tokens)}`
+  const tokenKey = `${previewVersion}:${previewKind}:${JSON.stringify(tokens)}`
   const failed = previewError?.key === tokenKey && previewError.attempt === attempt
   const rendering = !failed && (preview?.key !== tokenKey || preview.attempt !== attempt)
   const busy = asking || saving || !draftReady
@@ -681,7 +681,7 @@ export function TemplateEditor({ initial }: { initial: Initial }) {
             <p>{preview ? "Couldn’t update the preview. Showing the previous design." : "Couldn’t render the preview."}</p>
             <Button size="sm" variant="outline" onClick={() => setAttempt((value) => value + 1)}>Retry preview</Button>
           </div> : null}
-          {preview ? <PdfPreview url={preview.url} busy={rendering} onRetry={failed || rendering ? undefined : () => setAttempt((value) => value + 1)} className="flex-1" /> : !failed ? <div className="flex-1 animate-pulse rounded-xl bg-muted" /> : null}
+          {preview?.key.startsWith(`${previewVersion}:`) ? <PdfPreview url={preview.url} busy={rendering} onRetry={failed || rendering ? undefined : () => setAttempt((value) => value + 1)} className="flex-1" /> : !failed ? <div className="flex-1 animate-pulse rounded-xl bg-muted" /> : null}
         </div>
       </div>
       <AlertDialog open={confirmation !== null} onOpenChange={(open) => { if (!open && !saving) setConfirmation(null) }}>

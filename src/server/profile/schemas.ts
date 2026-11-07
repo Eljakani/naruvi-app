@@ -63,3 +63,23 @@ export const identityInput = z.object({
   links: z.array(z.object({ label: z.string().trim().min(1).max(40), url: z.string().trim().url() })).default([]),
 })
 export type IdentityInput = z.input<typeof identityInput>
+
+export const profileDetailFields = ["fullName", "email", "phone", "location", "availability"] as const
+const editableLink = z.object({
+  label: z.string().trim().min(1).max(40),
+  url: z.url({ protocol: /^https?$/ }).max(2048),
+})
+
+export const profileDetailEdit = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("field"),
+    field: z.enum(profileDetailFields),
+    previous: z.string(),
+    value: z.string().describe("New value. Use an empty string to clear an optional field."),
+  }),
+  z.object({
+    kind: z.literal("link"),
+    previous: editableLink.nullable().describe("Exact existing link, or null to add a link."),
+    value: editableLink.nullable().describe("New link, or null to remove the existing link."),
+  }),
+])

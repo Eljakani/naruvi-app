@@ -13,7 +13,8 @@ import { refreshJobInsights } from "@/server/jobs/insights"
 import { markLeadImported } from "@/server/jobs/leads"
 import { searchJobs } from "@/server/jobs/search"
 import { registrableDomain } from "@/server/jobs/vendor/company-resolver"
-import { entriesForMatching, getProfile, listEntries, mergeIntoEntry } from "@/server/profile/repository"
+import { editProfileDetails, entriesForMatching, getProfile, listEntries, mergeIntoEntry } from "@/server/profile/repository"
+import { profileDetailEdit, profileDetailFields } from "@/server/profile/schemas"
 import { getDashboard } from "@/server/queries/dashboard"
 import { extractPage, visiblePageText } from "@/server/research/extract"
 import { researchForJob } from "@/server/research/service"
@@ -126,6 +127,20 @@ export const assistantTools = {
     inputSchema: z.object({ q: z.string().max(200).optional() }),
     execute: async ({ q }) => ({ contacts: (await listContacts(q)).slice(0, 30).map((contact) => ({ id: contact.id, name: contact.name, title: contact.title, company: contact.company, email: contact.email || null, linkedinUrl: contact.linkedinUrl || null, applications: contact.applications })) }),
   }),
+  read_profile_details: tool({
+    description: "Read the user's current name, email, phone, location, availability, and profile links before proposing an edit. Use the exact current value in the proposal.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const profile = await getProfile()
+      if (!profile) return { profile: null }
+      return {
+        profile: {
+          ...Object.fromEntries(profileDetailFields.map((field) => [field, profile[field]])),
+          links: profile.links,
+        },
+      }
+    },
+  }),
   show_profile: tool({
     description: "Show the user's native profile card with photo, headline, location, and verified entry count. Use for requests to see or open their profile.",
     inputSchema: z.object({}),
@@ -194,6 +209,16 @@ export const assistantTools = {
   }),
 
   // ── Changing things (each one waits for the user's approval) ──────────────
+  edit_profile_details: tool({
+    description: "Propose a single edit to a profile detail or add, update, or remove a profile link. Read current details first. Requires explicit user approval.",
+    inputSchema: profileDetailEdit,
+    needsApproval: true,
+    execute: async (input) => {
+      await editProfileDetails(input)
+      refresh()
+      return { href: "/profile" }
+    },
+  }),
   add_profile_fact: tool({
     description: "Propose adding one user-supplied fact and any explicitly mentioned skills to an existing profile entry. Requires user approval.",
     inputSchema: z.object({

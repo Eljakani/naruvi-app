@@ -53,7 +53,7 @@ async function Setup() {
           </div>
         </Step>
 
-        <Step number={2} icon={SparklesIcon} title="Connect an AI model" done={steps.model} current={next === "model"} why="It reads postings, tailors your CV and writes letters. Any OpenAI-compatible service works (OpenAI, DeepSeek, Mistral, Groq, OpenRouter…), or a local model with Ollama and no key.">
+        <Step number={2} icon={SparklesIcon} title="Connect an AI model" done={steps.model} current={next === "model"} why="Choose a cloud provider, a gateway, or a local model. Naruvi uses it to analyze jobs, tailor CVs, and write letters.">
           {steps.security ? <ModelSettings initial={status.llm} /> : <p className="text-sm text-muted-foreground">Set up secure storage first, so your key can be saved encrypted.</p>}
         </Step>
 

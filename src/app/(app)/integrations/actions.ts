@@ -1,8 +1,9 @@
 "use server"
 
+import { cookies, headers } from "next/headers"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { deleteMailAccount, getMailAccount, mailAccountInput, saveMailAccount, testMailConnection, type MailAccountInput, type MailOverview } from "@/server/mail/account"
+import { deleteMailAccount, getMailAccount, mailAccountInput, saveMailAccount, saveResendAccount, testMailConnection, type MailAccountInput, type MailOverview, type ResendAccountInput } from "@/server/mail/account"
 import { syncMail } from "@/server/mail/sync"
 
 type Result<T = undefined> = { ok: true; data: T; message?: string } | { ok: false; message: string }
@@ -16,7 +17,7 @@ export async function testMailAction(raw: MailAccountInput): Promise<Result<{ me
   try {
     const input = mailAccountInput.parse(raw)
     const saved = input.password ? null : await getMailAccount()
-    const password = input.password || (saved && saved.email.toLowerCase() === input.email.toLowerCase() ? saved.password : "")
+    const password = input.password || (saved?.authType === "password" && saved.email.toLowerCase() === input.email.toLowerCase() ? saved.password : "")
     if (!password) return { ok: false, message: "Enter the password (an app password for most providers)." }
     return { ok: true, data: await testMailConnection({ ...input, username: input.username || input.email, password }) }
   } catch (error) {
@@ -29,6 +30,33 @@ export async function saveMailAction(raw: MailAccountInput): Promise<Result<Mail
     const overview = await saveMailAccount(raw)
     revalidatePath("/integrations")
     return { ok: true, data: overview }
+  } catch (error) {
+    return fail(error)
+  }
+}
+
+export async function startResendOAuthAction(input: Omit<ResendAccountInput, "apiKey">): Promise<Result<{ url: string }>> {
+  try {
+    const origin = (await headers()).get("origin")
+    if (!origin) return { ok: false, message: "Open Email settings in your browser to connect Resend." }
+    const { startResendOAuth, resendOAuthCookie, resendOAuthPath } = await import("@/server/mail/resend-oauth")
+    const flow = await startResendOAuth(origin, input)
+    const jar = await cookies()
+    jar.set(resendOAuthCookie, flow.cookie, {
+      httpOnly: true, sameSite: "lax", secure: flow.secure, path: resendOAuthPath, maxAge: 600,
+    })
+    return { ok: true, data: { url: flow.url } }
+  } catch (error) {
+    return fail(error)
+  }
+}
+
+export async function saveResendAction(raw: ResendAccountInput): Promise<Result> {
+  try {
+    await saveResendAccount(raw)
+    revalidatePath("/integrations")
+    revalidatePath("/applications")
+    return { ok: true, data: undefined }
   } catch (error) {
     return fail(error)
   }

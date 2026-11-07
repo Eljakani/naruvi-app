@@ -110,3 +110,34 @@ test("a schema mismatch gets one repair round naming the problem", async () => {
   assert.match(prompts[1], /did not match the schema \(status:/)
   assert.equal(result.inputTokens, 20, "usage is summed across attempts")
 })
+
+test("Claude uses the native Messages API and returns structured workflow output", async () => {
+  const fetcher: typeof fetch = async (url, init) => {
+    assert.equal(url, "https://api.anthropic.com/v1/messages")
+    const headers = new Headers(init?.headers)
+    assert.equal(headers.get("x-api-key"), config.apiKey)
+    assert.equal(headers.has("authorization"), false)
+    assert.equal(init?.redirect, "error")
+    const body = JSON.parse(String(init?.body))
+    assert.equal(body.model, "claude-sonnet-4-6")
+    assert.equal(body.output_config.format.type, "json_schema")
+    return Response.json({
+      id: "msg_test", type: "message", role: "assistant", model: body.model,
+      content: [{ type: "text", text: '{"ok":true}' }], stop_reason: "end_turn",
+      stop_sequence: null, usage: { input_tokens: 20, output_tokens: 5 },
+    })
+  }
+  const result = await requestCompletion({ ...config, baseUrl: "https://api.anthropic.com/v1", model: "claude-sonnet-4-6" }, { ...input, schema: z.object({ ok: z.boolean() }) }, { fetcher })
+  assert.deepEqual(JSON.parse(result.text), { ok: true })
+})
+
+test("OpenAI uses the token limit supported by reasoning models", async () => {
+  const fetcher: typeof fetch = async (_url, init) => {
+    const body = JSON.parse(String(init?.body))
+    assert.equal(body.max_completion_tokens, 512)
+    assert.equal(body.max_tokens, undefined)
+    assert.equal(body.temperature, undefined)
+    return Response.json({ choices: [{ message: { content: "OK" }, finish_reason: "stop" }] })
+  }
+  await requestCompletion({ ...config, baseUrl: "https://api.openai.com/v1" }, { ...input, maxTokens: 512 }, { fetcher, jsonMode: false })
+})

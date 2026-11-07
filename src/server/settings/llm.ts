@@ -56,3 +56,17 @@ export async function saveLlmSettings(input: unknown) {
   })
   return getLlmOverview()
 }
+
+/** A draft can only reuse credentials bound to the same endpoint. */
+export async function resolveDraftConnection(input: { baseUrl: string; apiKey: string; removeKey: boolean }) {
+  if (input.apiKey || input.removeKey) return input
+  const stored = await readStored()
+  const fallback = defaults()
+  if (stored) {
+    const apiKey = stored.baseUrl === input.baseUrl && stored.encryptedApiKey
+      ? decryptSecret(stored.encryptedApiKey, env.SETTINGS_ENCRYPTION_KEY, `llm:${stored.baseUrl}`)
+      : ""
+    return { ...input, apiKey }
+  }
+  return { ...input, apiKey: fallback.baseUrl === input.baseUrl ? fallback.apiKey : "" }
+}

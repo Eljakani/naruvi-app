@@ -3,6 +3,7 @@ import { and, desc, eq, sql } from "drizzle-orm"
 import { ALL_PRESETS, designTokens, type DesignTokens } from "@/lib/design"
 import { db } from "@/server/db/client"
 import { documents, profiles, revisions, settings, templates, templateVersions } from "@/server/db/schema"
+import { contactVersion, getLiveContact } from "@/server/documents/live-contact"
 import { cvDocument, type CvDocument } from "@/server/documents/model"
 import { letterDocument, type LetterDocument } from "@/server/documents/letter"
 
@@ -87,11 +88,12 @@ export async function previewSource(): Promise<{ content: CvDocument; revision: 
   const rows = await db.select({ id: revisions.id, content: revisions.content }).from(documents)
     .innerJoin(revisions, eq(revisions.id, documents.currentRevisionId))
     .where(eq(documents.kind, "cv")).orderBy(desc(revisions.createdAt)).limit(10)
+  const contact = await getLiveContact()
   for (const row of rows) {
     const parsed = cvDocument.safeParse(row.content)
-    if (parsed.success) return { content: parsed.data, revision: row.id }
+    if (parsed.success) return { content: { ...parsed.data, header: { ...parsed.data.header, ...contact } }, revision: `${row.id}:${contactVersion(contact)}` }
   }
-  return { content: SAMPLE, revision: "sample-v1" }
+  return { content: SAMPLE, revision: `sample-v1:${contactVersion(contact)}` }
 }
 
 export async function previewContent(): Promise<CvDocument> {
@@ -138,7 +140,8 @@ async function previewLetter(sample: boolean): Promise<LetterDocument> {
       const parsed = letterDocument.safeParse(rev?.content)
       if (parsed.success) {
         const letter = parsed.data
-        return { ...letter, header: { ...letter.header, headline: letter.header.headline || profile?.headlines?.[letter.language] || "", photoPath: letter.header.photoPath ?? profile?.photoPath ?? null } }
+        const contact = await getLiveContact()
+        return { ...letter, header: { ...letter.header, ...contact, headline: letter.header.headline || profile?.headlines?.[letter.language] || "", photoPath: letter.header.photoPath ?? profile?.photoPath ?? null } }
       }
     }
   }

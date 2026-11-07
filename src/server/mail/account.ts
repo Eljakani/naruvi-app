@@ -9,12 +9,18 @@ import { db } from "@/server/db/client"
 import { mailAccounts, mailMessages, settings } from "@/server/db/schema"
 import { decryptSecret, encryptSecret, encryptionReady } from "@/server/settings/encryption"
 import { SettingsError } from "@/server/settings/errors"
+import { listResendMail } from "./resend"
+
+import { refreshResendOAuth, resendAddresses, revokeResendOAuth, type ResendCredential } from "./resend-oauth"
+
+const resendAccountInput = resendAddresses.extend({ apiKey: z.string().trim().max(500) })
+export type ResendAccountInput = z.input<typeof resendAccountInput>
 
 const host = z.string().trim().min(1, "Enter the server name").max(253).regex(/^[a-z0-9.-]+$/i, "Use a server name like imap.example.com")
 export const mailAccountInput = z.object({
   email: z.string().trim().email("Enter your email address").max(254),
   displayName: z.string().trim().max(120).default(""),
-  provider: z.string().max(40).default("other"),
+  provider: z.string().max(40).refine((provider) => provider !== "resend", "Use the Resend tab to connect Resend.").default("other"),
   username: z.string().trim().max(254).default(""),
   /** Empty keeps the saved password. */
   password: z.string().max(500).default(""),
@@ -118,6 +124,20 @@ export async function hasMailbox() {
 export async function getMailAccount() {
   const [account] = await db.select().from(mailAccounts).limit(1)
   if (!account) return null
+  if (account.authType === "resend_oauth") {
+    // Resend rotates refresh tokens. Serialize refreshes across requests and processes.
+    return db.transaction(async (tx) => {
+      const [current] = await tx.select().from(mailAccounts).where(eq(mailAccounts.id, account.id)).for("update")
+      if (!current || current.authType !== "resend_oauth") return null
+      const secret = decryptSecret(current.encryptedPassword, env.SETTINGS_ENCRYPTION_KEY, context(current.email))
+      const { credential, rotated } = await refreshResendOAuth(secret)
+      const encryptedPassword = rotated
+        ? encryptSecret(JSON.stringify(credential), env.SETTINGS_ENCRYPTION_KEY, context(current.email))
+        : current.encryptedPassword
+      if (rotated) await tx.update(mailAccounts).set({ encryptedPassword }).where(eq(mailAccounts.id, current.id))
+      return { ...current, encryptedPassword, password: "", accessToken: credential.access_token }
+    })
+  }
   const secret = decryptSecret(account.encryptedPassword, env.SETTINGS_ENCRYPTION_KEY, context(account.email))
   if (account.authType === "oauth") {
     // Signed in with Google or Microsoft: the secret is a refresh token; connect with a short-lived access token.
@@ -144,7 +164,7 @@ export async function saveMailAccount(raw: MailAccountInput) {
     authType: "password", status: "ok", lastError: null,
   }
   if (existing) {
-    const changedMailbox = existing.email.toLowerCase() !== input.email.toLowerCase() || existing.imapHost !== input.imapHost
+    const changedMailbox = existing.email.toLowerCase() !== input.email.toLowerCase() || existing.imapHost !== input.imapHost || existing.provider === "resend"
     await db.update(mailAccounts).set({ ...values, ...(changedMailbox ? { cursor: {} } : {}) }).where(eq(mailAccounts.id, existing.id))
   } else {
     await db.insert(mailAccounts).values({ ...values, syncFrom: new Date(Date.now() - 30 * 86_400_000) })
@@ -152,9 +172,39 @@ export async function saveMailAccount(raw: MailAccountInput) {
   return getMailOverview()
 }
 
+/** Validate inbox access without sending a message, then switch the active connection. */
+export async function saveResendAccount(raw: ResendAccountInput, credential?: ResendCredential) {
+  const input = resendAccountInput.parse(raw)
+  if (!encryptionReady(env.SETTINGS_ENCRYPTION_KEY)) throw new SettingsError("Set SETTINGS_ENCRYPTION_KEY first (npm run settings:key), then restart Naruvi.")
+  const [existing] = await db.select().from(mailAccounts).limit(1)
+  const key = credential?.access_token || input.apiKey || (existing?.provider === "resend" && existing.authType === "api" ? decryptSecret(existing.encryptedPassword, env.SETTINGS_ENCRYPTION_KEY, context(existing.email)) : "")
+  if (!key) throw new SettingsError("Enter a Resend API key with receiving access.")
+  await listResendMail(key)
+  const values = {
+    email: input.email, displayName: input.displayName, provider: "resend", authType: credential ? "resend_oauth" : "api",
+    username: input.inboundEmail.toLowerCase(),
+    encryptedPassword: encryptSecret(credential ? JSON.stringify(credential) : key, env.SETTINGS_ENCRYPTION_KEY, context(input.email)),
+    imapHost: "", smtpHost: "", status: "ok", lastError: null,
+  }
+  const changedInbox = existing?.provider !== "resend" || existing.username !== values.username || Boolean(input.apiKey || credential)
+  const syncFrom = new Date(Date.now() - 30 * 86_400_000)
+  if (existing) {
+    await db.update(mailAccounts).set({ ...values, ...(changedInbox ? { cursor: {}, syncFrom, lastSyncAt: null } : {}) }).where(eq(mailAccounts.id, existing.id))
+  } else {
+    await db.insert(mailAccounts).values({ ...values, syncFrom })
+  }
+}
+
 /** Disconnect: removes the account and every stored message. */
 export async function deleteMailAccount() {
-  await db.delete(mailAccounts)
+  await db.transaction(async (tx) => {
+    const [account] = await tx.select().from(mailAccounts).limit(1).for("update")
+    if (account?.authType === "resend_oauth") {
+      const secret = decryptSecret(account.encryptedPassword, env.SETTINGS_ENCRYPTION_KEY, context(account.email))
+      await revokeResendOAuth(secret)
+    }
+    await tx.delete(mailAccounts)
+  })
 }
 
 const REPLY_KEY = "integration.replyAddress"

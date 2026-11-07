@@ -1,5 +1,5 @@
 import { APICallError, generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output, zodSchema } from "ai"
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
+import { isAnthropicEndpoint, languageModel } from "./provider"
 import type { z } from "zod"
 import { SettingsError } from "@/server/settings/errors"
 import { AiRequestError, type AiRequestMetrics } from "./errors"
@@ -15,28 +15,23 @@ export async function requestCompletion(config: ModelConfiguration, input: Compl
   let metrics: AiRequestMetrics = { model: config.model, inputTokens: null, outputTokens: null, attempts: 0 }
   const deepseek = new URL(config.baseUrl).hostname === "api.deepseek.com"
   const reasoning = input.reasoning ?? "none"
-  const provider = createOpenAICompatible({
-    name: "naruvi", baseURL: config.baseUrl, apiKey: config.apiKey || undefined,
-    // Some compatible providers support JSON mode but not strict JSON Schema.
-    // Request portable JSON mode; workflow schemas are validated locally below.
-    supportsStructuredOutputs: false,
-    fetch: (url, init) => {
-      attempts += 1
-      return fetcher(url, { ...init, redirect: "error" })
-    },
+  const model = languageModel(config, (url, init) => {
+    attempts += 1
+    return fetcher(url, init)
   })
+  const nativeSchema = jsonMode && isAnthropicEndpoint(config.baseUrl) && input.schema
   try {
     const schemaInstructions = jsonMode && input.schema ? `\nReturn JSON matching this exact schema (including enum values):\n${JSON.stringify(await zodSchema(input.schema).jsonSchema)}` : ""
     const ask = (prompt: string) => generateText({
-      model: provider.chatModel(config.model),
-      system: input.system + schemaInstructions, prompt, temperature: 0,
+      model,
+      system: input.system + schemaInstructions, prompt,
       maxOutputTokens: input.maxTokens ?? 2000,
       maxRetries: 1, abortSignal: AbortSignal.timeout(timeoutMs),
       // DeepSeek currently enables high thinking by default. For bounded JSON
       // editing, keep the output budget for the answer. Future reasoning-heavy
       // workflows can request low/high explicitly through the same SDK runtime.
       providerOptions: deepseek ? { naruvi: { thinking: { type: reasoning === "none" ? "disabled" : "enabled" }, ...(reasoning === "none" ? {} : { reasoningEffort: reasoning }) } } : undefined,
-      output: jsonMode ? Output.json() : Output.text(),
+      output: nativeSchema ? Output.object({ schema: nativeSchema }) : jsonMode ? Output.json() : Output.text(),
       include: { requestBody: false, responseBody: false },
     })
     // One repair round: models occasionally return JSON that is almost right

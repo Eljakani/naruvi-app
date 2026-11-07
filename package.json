@@ -28,6 +28,7 @@
     "mcp": "node mcp/naruvi-mcp.mjs"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.98",
     "@ai-sdk/openai-compatible": "^3.0.85",
     "@ai-sdk/react": "^4.0.168",
     "@animate-ui/react": "^2.4.2",

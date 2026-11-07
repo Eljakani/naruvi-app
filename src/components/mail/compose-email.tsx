@@ -98,7 +98,7 @@ function ComposeDialog({ applicationId, kind, onClose }: { applicationId: string
               send()
             }}
           >
-            {!context.canSend ? <p className="text-sm text-destructive">Your mailbox has no outgoing (SMTP) server. Add one on the Integrations page.</p> : null}
+            {!context.canSend ? <p className="text-sm text-destructive">Set up outgoing email on the Integrations page.</p> : null}
             <FieldGroup className="gap-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field>

@@ -14,6 +14,8 @@ import { moveApplication } from "@/server/tracking/service"
 import { replyAddress } from "@/lib/mail-match"
 import { explainMailError, getMailAccount, getReplySetting, imapClient, smtpTransport } from "./account"
 
+import { sendResendMail } from "./resend"
+
 const PREPARING: Status[] = ["draft", "parsed", "analyzed", "generated", "ready"]
 
 /** What the compose dialog needs: who to write to, the documents to attach, and a draft. */
@@ -46,7 +48,7 @@ export async function composeContext(applicationId: string, kind: ComposeKind) {
   // No thread yet: write to the person linked to this application.
   const [person] = (await contactsForApplication(applicationId)).filter((contact) => contact.email)
   return {
-    canSend: Boolean(account?.smtpHost),
+    canSend: Boolean(account && (account.provider === "resend" || account.smtpHost)),
     from: account ? `${account.displayName || name} <${account.email}>` : null,
     to: (kind === "apply" ? "" : (last?.fromAddress ?? "")) || person?.email || "",
     replyTo: kind === "apply" ? null : (last?.id ?? null),
@@ -80,7 +82,7 @@ export async function sendApplicationMail(raw: z.input<typeof sendInput>) {
   const cc = parseAddresses(input.cc)
   if (!to.length) throw new Error("Add at least one valid recipient.")
   const account = await getMailAccount()
-  if (!account?.smtpHost) throw new Error("Connect a mailbox with an outgoing (SMTP) server first, on the Integrations page.")
+  if (!account || (account.provider !== "resend" && !account.smtpHost)) throw new Error("Set up outgoing email on the Integrations page first.")
   const context = await composeContext(input.applicationId, input.kind)
   if (!context) throw new Error("Application not found.")
 
@@ -93,13 +95,15 @@ export async function sendApplicationMail(raw: z.input<typeof sendInput>) {
 
   let threading: { inReplyTo?: string; references?: string[] } = {}
   if (input.replyTo) {
-    const [parent] = await db.select({ messageId: mailMessages.messageId, references: mailMessages.references }).from(mailMessages).where(eq(mailMessages.id, input.replyTo))
+    const [parent] = await db.select({ messageId: mailMessages.messageId, references: mailMessages.references }).from(mailMessages).where(and(eq(mailMessages.id, input.replyTo), eq(mailMessages.applicationId, input.applicationId)))
     if (parent) threading = { inReplyTo: parent.messageId, references: [...parent.references, parent.messageId] }
   }
 
-  const messageId = `<${randomUUID()}@${account.email.split("@")[1] ?? "naruvi.local"}>`
+  let messageId = `<${randomUUID()}@${account.email.split("@")[1] ?? "naruvi.local"}>`
   // Replies come back to this application's own address (it still lands in your inbox).
-  const replyTo = replyAddress(input.applicationId, account.email, await getReplySetting())
+  const replyTo = account.provider === "resend"
+    ? replyAddress(input.applicationId, account.username, { mode: "plus" })
+    : replyAddress(input.applicationId, account.email, await getReplySetting())
   const mail = {
     from: { name: account.displayName || context.from?.split(" <")[0] || "", address: account.email },
     to,
@@ -113,29 +117,42 @@ export async function sendApplicationMail(raw: z.input<typeof sendInput>) {
   }
   const run = await startRun("mail.send", { kind: input.kind, recipients: to.length + cc.length, attachments: attachments.length }, input.applicationId)
   try {
-    await run.step("send over SMTP", async () => {
-      try {
-        return await smtpTransport(account).sendMail(mail)
-      } catch (error) {
-        throw new Error(explainMailError(error))
-      }
-    }, () => `${attachments.length} attachment(s)`)
-    // A copy in the mailbox's Sent folder, like any mail client. Best effort.
-    await run.step("save to Sent folder", async () => {
-      const raw = await new MailComposer({ ...mail, date: new Date() }).compile().build()
-      const client = imapClient(account)
-      try {
-        await client.connect()
-        const folders = await client.list()
-        const sent = folders.find((folder) => folder.specialUse === "\\Sent")?.path ?? folders.find((folder) => /^(sent|sent items|sent mail|envoyés|gesendet)$/i.test(folder.name))?.path
-        if (sent) await client.append(sent, raw, ["\\Seen"])
-        await client.logout()
-        return sent ?? "no Sent folder"
-      } catch {
-        client.close()
-        return "skipped"
-      }
-    }, (folder) => String(folder))
+    if (account.provider === "resend") {
+      messageId = await run.step("send via Resend", () => sendResendMail(account.accessToken ?? account.password, {
+        from: mail.from.name ? `${mail.from.name} <${account.email}>` : account.email,
+        to,
+        cc: mail.cc,
+        subject: input.subject,
+        text: input.body,
+        reply_to: replyTo ?? account.username,
+        attachments: attachments.map(({ filename, content, contentType }) => ({ filename, content: content.toString("base64"), content_type: contentType })),
+        headers: threading.inReplyTo ? { "In-Reply-To": threading.inReplyTo, References: threading.references?.join(" ") ?? "" } : undefined,
+      }), () => `${attachments.length} attachment(s)`)
+    } else {
+      await run.step("send over SMTP", async () => {
+        try {
+          return await smtpTransport(account).sendMail(mail)
+        } catch (error) {
+          throw new Error(explainMailError(error))
+        }
+      }, () => `${attachments.length} attachment(s)`)
+      // A copy in the mailbox's Sent folder, like any mail client. Best effort.
+      await run.step("save to Sent folder", async () => {
+        const raw = await new MailComposer({ ...mail, date: new Date() }).compile().build()
+        const client = imapClient(account)
+        try {
+          await client.connect()
+          const folders = await client.list()
+          const sent = folders.find((folder) => folder.specialUse === "\\Sent")?.path ?? folders.find((folder) => /^(sent|sent items|sent mail|envoyés|gesendet)$/i.test(folder.name))?.path
+          if (sent) await client.append(sent, raw, ["\\Seen"])
+          await client.logout()
+          return sent ?? "no Sent folder"
+        } catch {
+          client.close()
+          return "skipped"
+        }
+      }, (folder) => String(folder))
+    }
     await db.insert(mailMessages).values({
       accountId: account.id,
       applicationId: input.applicationId,

@@ -9,27 +9,32 @@ import { useReducedMotion } from "motion/react"
 import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import {
   ArrowRightIcon, ArrowUpIcon, BanIcon, BriefcaseBusinessIcon, CalendarClockIcon, CheckIcon, ChevronDownIcon, CircleAlertIcon, FileTextIcon, GaugeIcon, GlobeIcon,
-  ImagePlusIcon, LinkIcon, MailIcon, MailSearchIcon, MessageCircleQuestionIcon, SendIcon, SparklesIcon, SquareIcon, SquarePenIcon, Trash2Icon, UserPenIcon, UserPlusIcon, UserRoundIcon, XIcon,
+  ExternalLinkIcon, LinkIcon, MailIcon, MailSearchIcon, MessageCircleQuestionIcon, SendIcon, SparklesIcon, SquarePenIcon, Trash2Icon, UserPenIcon, UserPlusIcon, UserRoundIcon, XIcon,
   type LucideIcon,
 } from "lucide-react"
 import { FitRing } from "@/components/applications/fit-ring"
+import AIPrompt from "@/components/kokonutui/ai-prompt"
+import AITextLoading from "@/components/kokonutui/ai-text-loading"
+import AIToolApproval from "@/components/kokonutui/ai-tool-approval"
+import { DotmCircular5 } from "@/components/ui/dotm-circular-5"
+import { DotmSquare3 } from "@/components/ui/dotm-square-3"
 import { EntryLogo } from "@/components/profile/entry-logo"
+import { AiStatus, AiStatusIcon } from "@/components/ui/ai-status"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, InputGroupTextarea } from "@/components/ui/input-group"
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
 import { Kbd } from "@/components/ui/kbd"
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker"
 import { Message, MessageContent } from "@/components/ui/message"
 import { MessageScroller, MessageScrollerButton, MessageScrollerContent, MessageScrollerItem, MessageScrollerProvider, MessageScrollerViewport } from "@/components/ui/message-scroller"
 import { SidebarMenuButton } from "@/components/ui/sidebar"
-import { Trace, TraceDescription, TraceIcon, TraceLine, TraceTitle } from "@/components/ui/trace"
+import { TraceDescription, TraceIcon, TraceLine, TraceTitle } from "@/components/ui/trace"
 import { CHAT_IMAGE_BYTES, CHAT_IMAGE_TYPES, limitChatImages } from "@/lib/assistant-images"
 import { cn } from "@/lib/utils"
 import type { assistantTools } from "@/server/assistant/tools"
 import type { apiApplications } from "@/server/integrations/api-data"
-import "./assistant-activity.css"
 
 /* ───────────────────────────── entry points ───────────────────────────── */
 
@@ -153,7 +158,7 @@ function DockedAssistant() {
       className={cn("sticky top-0 flex h-dvh w-full min-w-0 shrink-0 flex-col self-start bg-background outline-none lg:w-[min(var(--assistant-width),42vw)] lg:border-s", !open && "hidden")}
       style={{ "--assistant-width": `${width}px` } as CSSProperties}
       onKeyDown={(event) => {
-        if (event.key === "Escape" && !event.defaultPrevented) {
+        if (event.key === "Escape" && !event.defaultPrevented && event.target instanceof Node && event.currentTarget.contains(event.target)) {
           event.stopPropagation()
           close()
         }
@@ -233,7 +238,6 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
   const [image, setImage] = useState<FileUIPart | null>(null)
   const [imageError, setImageError] = useState("")
   const [readingImage, setReadingImage] = useState(false)
-  const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (status !== "ready" && status !== "error") return
@@ -302,7 +306,19 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
   }, [addToolApprovalResponse])
 
   const last = messages.at(-1)
-  const thinking = status === "submitted" || (status === "streaming" && last?.role === "assistant" && !last.parts.some((part) => (part.type === "text" && part.text) || isTool(part)))
+  const latestStep = last?.role === "assistant"
+    ? last.parts.slice(last.parts.findLastIndex((part) => part.type === "step-start") + 1)
+    : []
+  const toolOwnsStatus = latestStep.some((part) => isTool(part) && (
+    READS[toolName(part)] || ACTIONS[toolName(part)] || toolName(part) === "ask_user"
+  ) && (
+    part.state === "input-streaming" || part.state === "input-available" ||
+    part.state === "approval-requested" ||
+    (part.state === "approval-responded" && part.approval?.approved)
+  ))
+  const working = busy && !toolOwnsStatus
+  const writing = status === "streaming" && latestStep.some((part) => part.type === "text" && part.state === "streaming" && part.text.trim())
+
 
   return (
     <>
@@ -330,17 +346,14 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
             <MessageScrollerContent className="gap-5 px-4 py-5">
               {messages.length ? (
                 messages.map((message) => (
-                  <TranscriptMessage key={message.id} message={message} onNavigate={onNavigate} onAnswer={onAnswer} onApproval={onApproval} busy={busy} />
+                  <TranscriptMessage key={message.id} message={message} onNavigate={onNavigate} onAnswer={onAnswer} onApproval={onApproval} busy={busy && message.id === last?.id} stale={message.id !== last?.id} />
                 ))
               ) : (
                 <Welcome onPick={send} />
               )}
-              {thinking ? (
+              {working ? (
                 <MessageScrollerItem>
-                  <div role="status" className={cn("flex w-fit max-w-full items-center gap-2.5 rounded-xl border bg-muted/30 py-1.5 ps-1.5 pe-3 text-sm font-medium", "assistant-activity-entry")}>
-                    <ActivitySignal large />
-                    Preparing a reply
-                  </div>
+                  {writing ? <AiStatus state="writing" /> : <ThinkingIndicator />}
                 </MessageScrollerItem>
               ) : null}
               {error ? (
@@ -357,26 +370,23 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
         </MessageScroller>
       </MessageScrollerProvider>
 
-      <form
-        className="shrink-0 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-        onSubmit={(event) => {
-          event.preventDefault()
-          sendDraft()
+      <AIPrompt
+        value={draft}
+        onChange={setDraft}
+        onSubmit={sendDraft}
+        onStop={() => void stop()}
+        onAttach={([file, extra]) => {
+          if (extra) setImageError("Attach one image at a time.")
+          else if (file) attachImage(file)
         }}
-      >
-        <input
-          ref={fileInput}
-          type="file"
-          accept={CHAT_IMAGE_TYPES.join(",")}
-          hidden
-          onChange={(event) => {
-            const file = event.currentTarget.files?.[0]
-            if (file) attachImage(file)
-            event.currentTarget.value = ""
-          }}
-        />
-        {image ? (
-          <div className="mb-2 flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5">
+        accept={CHAT_IMAGE_TYPES.join(",")}
+        placeholder={messages.length ? "Reply, or ask something else…" : "Ask anything, or tell Naruvi what to do…"}
+        responding={busy}
+        readingAttachment={readingImage}
+        canSend={!readingImage && Boolean(draft.trim() || image)}
+        attachmentError={imageError}
+        attachment={image ? (
+          <div className="flex w-fit max-w-full min-w-0 items-center gap-2 rounded-lg border bg-muted/25 px-2 py-1.5">
             <ChatImage part={image} className="size-9 shrink-0 rounded object-cover" />
             <span className="min-w-0 flex-1 truncate text-xs">{image.filename || "Attached image"}</span>
             <Button type="button" size="icon-xs" variant="ghost" aria-label="Remove image" onClick={() => { setImage(null); setImageError("") }}>
@@ -384,45 +394,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
             </Button>
           </div>
         ) : null}
-        {imageError ? <p role="alert" className="mb-2 text-xs text-destructive">{imageError}</p> : null}
-        <InputGroup className="bg-background">
-          <InputGroupTextarea
-            aria-label="Message Naruvi"
-            value={draft}
-            maxLength={4000}
-            onChange={(event) => setDraft(event.target.value)}
-            onPaste={(event) => {
-              const file = Array.from(event.clipboardData.files).find((item) => item.type.startsWith("image/"))
-              if (file) attachImage(file)
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                event.preventDefault()
-                sendDraft()
-              }
-            }}
-            placeholder={messages.length ? "Reply, or ask something else…" : "Ask anything, or tell Naruvi what to do…"}
-            className="max-h-40 min-h-14 text-base sm:text-sm"
-          />
-          <InputGroupAddon align="block-end" className="justify-between">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <InputGroupButton type="button" size="icon-sm" aria-label="Attach image" title="Attach image" disabled={busy || readingImage} onClick={() => fileInput.current?.click()}>
-                <ImagePlusIcon />
-              </InputGroupButton>
-              <span className="text-xs text-muted-foreground">Changes wait for your approval</span>
-            </div>
-            {busy ? (
-              <InputGroupButton type="button" size="icon-sm" variant="secondary" className="rounded-full" aria-label="Stop" onClick={() => void stop()}>
-                <SquareIcon className="size-3 fill-current" />
-              </InputGroupButton>
-            ) : (
-              <InputGroupButton type="submit" size="icon-sm" variant="default" className="rounded-full" disabled={readingImage || (!draft.trim() && !image)} aria-label="Send">
-                <ArrowUpIcon />
-              </InputGroupButton>
-            )}
-          </InputGroupAddon>
-        </InputGroup>
-      </form>
+      />
     </>
   )
 }
@@ -476,6 +448,7 @@ const READS: Record<string, [running: string, done: string]> = {
   read_careers_page: ["Checking the careers link", "Checked the careers link"],
   list_contacts: ["Looking through your contacts", "Looked through your contacts"],
   profile_overview: ["Reading your profile", "Read your profile"],
+  read_profile_details: ["Checking profile details", "Checked profile details"],
   find_profile_entries: ["Finding the profile entry", "Checked matching profile entries"],
 }
 
@@ -503,19 +476,21 @@ const TranscriptMessage = memo(function TranscriptMessage(props: Parameters<type
   )
 })
 
-function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy }: { message: UIMessage; onNavigate: () => void; onAnswer: (toolCallId: string, choice: string) => void; onApproval: (id: string, approved: boolean) => void; busy: boolean }) {
+function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, stale = false }: { message: UIMessage; onNavigate: () => void; onAnswer: (toolCallId: string, choice: string) => void; onApproval: (id: string, approved: boolean) => void; busy: boolean; stale?: boolean }) {
   // Consecutive look-ups collapse into one trace; everything else renders in order.
   const blocks: ReactNode[] = []
+  // The card owns the outcome for this turn, including after an approval changes state.
+  const hasAction = message.parts.some((part) => isTool(part) && Object.hasOwn(ACTIONS, toolName(part)))
   let reads: ToolPart[] = []
   const flush = () => {
-    if (reads.length) blocks.push(<ReadTrace key={`reads-${blocks.length}`} parts={reads} />)
+    if (reads.length) blocks.push(<ReadTrace key={`reads-${blocks.length}`} parts={reads} busy={busy} />)
     reads = []
   }
   message.parts.forEach((part, index) => {
     if (isTool(part) && READS[toolName(part)]) return void reads.push(part)
     flush()
-    if (part.type === "text" && part.text.trim()) blocks.push(<Markdown key={index} text={part.text} onNavigate={onNavigate} streaming={busy && part.state === "streaming"} />)
-    else if (isTool(part) && toolName(part) === "ask_user") blocks.push(<AskCard key={index} part={part} onAnswer={onAnswer} disabled={busy && part.state !== "input-available"} />)
+    if (!hasAction && part.type === "text" && part.text.trim()) blocks.push(<Markdown key={index} text={part.text} onNavigate={onNavigate} streaming={busy && part.state === "streaming"} />)
+    else if (isTool(part) && toolName(part) === "ask_user" && (busy || part.state !== "input-streaming")) blocks.push(<AskCard key={index} part={part} onAnswer={onAnswer} disabled={busy && part.state !== "input-available"} />)
     else if (isTool(part) && toolName(part) === "show_applications" && part.state === "output-available") {
       const applications = part.output?.applications as Awaited<ReturnType<typeof apiApplications>>["applications"] | undefined
       if (applications?.length) blocks.push(<ApplicationResults key={index} applications={applications} onNavigate={onNavigate} />)
@@ -524,7 +499,7 @@ function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy }: {
       if (profile) blocks.push(<ProfileCard key={index} profile={profile} onNavigate={onNavigate} />)
     }
     else if (isTool(part) && toolName(part) === "open_page" && part.state === "output-available") blocks.push(<OpenButton key={index} path={String(part.input?.path ?? "/")} label={String(part.input?.label ?? "Open")} onNavigate={onNavigate} />)
-    else if (isTool(part) && ACTIONS[toolName(part)]) blocks.push(<ActionCard key={index} part={part} onApproval={onApproval} onNavigate={onNavigate} />)
+    else if (isTool(part) && ACTIONS[toolName(part)]) blocks.push(<ActionCard key={index} part={part} busy={busy} stale={stale} onApproval={onApproval} onNavigate={onNavigate} />)
   })
   flush()
   return (
@@ -594,40 +569,68 @@ function ApplicationResults({ applications, onNavigate }: { applications: Applic
   )
 }
 
-function ReadTrace({ parts }: { parts: ToolPart[] }) {
+function ReadTrace({ parts, busy }: { parts: ToolPart[]; busy: boolean }) {
   const reducedMotion = useReducedMotion()
   const steps = parts.map((part) => {
     const [running, done] = READS[toolName(part)]
     const pending = part.state === "input-streaming" || part.state === "input-available"
-    const failed = part.state === "output-error" || Boolean(part.output?.error)
+    const failed = part.state === "output-error" || Boolean(part.output?.error) || (toolName(part) === "read_careers_page" && part.output?.page === null)
     return { part, pending, failed, label: failed ? "Lookup failed" : pending ? running : done }
-  })
+  }).filter((step) => busy || !step.pending)
+  if (!steps.length) return null
   const active = steps.find((step) => step.pending)
   const failed = steps.filter((step) => step.failed).length
+  const settled = steps.filter((step) => !step.pending).length
   const rows = (
-    <Trace>
-      {steps.map(({ part, pending, failed, label }) => (
-        <TraceLine key={part.toolCallId} status={failed ? "error" : undefined} className="text-xs">
-          <TraceIcon>{pending ? <ActivitySignal /> : failed ? <CircleAlertIcon className="size-3.5" /> : <CheckIcon className="size-3.5" />}</TraceIcon>
-          <TraceTitle>{label}</TraceTitle>
-          {!pending && !failed ? <TraceDescription>{countOf(part.output)}</TraceDescription> : null}
-        </TraceLine>
-      ))}
-    </Trace>
+    <div className="grid min-w-0 gap-2">
+      {steps.map(({ part, pending, failed, label }) => {
+        const source = !pending && !failed && toolName(part) === "read_careers_page"
+          ? (part.output?.page as { url?: string; title?: string } | null | undefined)
+          : null
+        return (
+          <div key={part.toolCallId} className="grid min-w-0 gap-1.5">
+            {pending ? (
+              <AiStatus state="researching" label={label} timer={false} className="text-xs" />
+            ) : (
+              <TraceLine status={failed ? "error" : undefined} className="text-xs">
+                <TraceIcon>{failed ? <CircleAlertIcon className="size-3.5" /> : <CheckIcon className="size-3.5" />}</TraceIcon>
+                <TraceTitle>{label}</TraceTitle>
+                {!failed ? <TraceDescription>{countOf(part.output)}</TraceDescription> : null}
+              </TraceLine>
+            )}
+            {source ? <CareersSource source={source} /> : null}
+          </div>
+        )
+      })}
+    </div>
   )
   if (steps.length === 1) return rows
 
   return (
     <Collapsible.Root className="min-w-0 rounded-lg border bg-muted/25">
       <Collapsible.Trigger className="group/activity flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
-        {active ? <ActivitySignal /> : failed ? <CircleAlertIcon className="size-3.5 shrink-0 text-destructive" /> : <CheckIcon className="size-3.5 shrink-0" />}
+        {active ? <span aria-hidden><AiStatusIcon state="researching" /></span> : failed ? <CircleAlertIcon className="size-3.5 shrink-0 text-destructive" /> : <CheckIcon className="size-3.5 shrink-0" />}
         <span className="min-w-0 flex-1 font-medium">{active ? active.label : failed ? `Lookups · ${failed} failed` : `${steps.length} lookups completed`}</span>
+        {active ? <span className="shrink-0 tabular-nums">{settled} of {steps.length}</span> : null}
         <ChevronDownIcon className="size-3.5 shrink-0 group-data-[panel-open]/activity:rotate-180 motion-safe:transition-transform motion-safe:duration-150" />
       </Collapsible.Trigger>
       <Collapsible.Panel transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.23, 1, 0.32, 1] }}>
         <div className="border-t px-2.5 py-2">{rows}</div>
       </Collapsible.Panel>
     </Collapsible.Root>
+  )
+}
+
+function CareersSource({ source }: { source: { url?: string; title?: string } }) {
+  if (!source.url || !URL.canParse(source.url)) return null
+  const url = new URL(source.url)
+  if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) return null
+  return (
+    <a href={url.href} target="_blank" rel="noreferrer" title={source.title || url.hostname} className="ms-6 inline-flex w-fit max-w-[calc(100%-1.5rem)] items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+      <GlobeIcon aria-hidden className="size-3 shrink-0" />
+      <span className="truncate">{source.title || url.hostname}</span>
+      <ExternalLinkIcon aria-hidden className="size-3 shrink-0" />
+    </a>
   )
 }
 
@@ -716,19 +719,25 @@ function AskCard({ part, onAnswer, disabled }: { part: ToolPart; onAnswer: (tool
   )
 }
 
-function ActivitySignal({ large = false }: { large?: boolean }) {
+const THINKING = ["Thinking", "Reading your workspace", "Weighing options", "Putting it together"]
+
+/** Dot-matrix loader with words that swap letter by letter, for the gap before a reply starts. */
+function ThinkingIndicator() {
   return (
-    <span aria-hidden="true" className="assistant-activity-signal" data-large={large ? "" : undefined}>
-      {[0, 1, 2, 3].map((index) => <span key={index} className="assistant-activity-bar" />)}
-    </span>
+    <div className="cb-step flex items-center gap-2.5 text-foreground/80" role="status">
+      <DotmSquare3 size={18} dotSize={3} color="currentColor" ariaLabel="Thinking" />
+      <AITextLoading texts={THINKING} interval={1800} label="Naruvi is thinking" showElapsed className="justify-start gap-2 text-sm font-medium text-foreground/80 [&>span:last-child]:text-xs [&>span:last-child]:text-muted-foreground" />
+    </div>
   )
 }
 
-function PendingActivity({ label, className }: { label: string; className?: string }) {
+function PendingActivity({ label, className, analyzing = false }: { label: string; className?: string; analyzing?: boolean }) {
+  if (!analyzing) return <AiStatus state="thinking" label={label} timer={false} className={cn("text-xs", className)} />
+  // Real work (drafting, analyzing) can take a minute: show it's alive and for how long.
   return (
-    <div role="status" className={cn("flex items-center gap-2 text-xs text-muted-foreground", className)}>
-      <ActivitySignal />
-      <span>{label}</span>
+    <div className={cn("flex items-center gap-2 text-muted-foreground", className)} role="status">
+      <DotmCircular5 size={16} dotSize={2} color="currentColor" ariaLabel={label} />
+      <AITextLoading texts={[label]} label={label} showElapsed className="justify-start gap-2 text-xs font-medium text-muted-foreground [&>span:last-child]:text-[11px]" />
     </div>
   )
 }
@@ -742,7 +751,27 @@ const LANG: Record<string, string> = { en: "English", fr: "French", de: "German"
 const STAGE: Record<string, string> = { submitted: "Sent", interviewing: "Interviewing", offer: "Offer", rejected: "Rejected", withdrawn: "Withdrawn" }
 const day = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })
 
+const PROFILE_DETAIL_LABELS: Record<string, string> = {
+  fullName: "name", email: "email", phone: "phone", location: "location", availability: "availability",
+}
+
+function profileEditValue(value: unknown) {
+  if (value && typeof value === "object" && "label" in value && "url" in value) {
+    return `${s(value.label)} · ${s(value.url)}`
+  }
+  return s(value) || "None"
+}
+
 const ACTIONS: Record<string, Action> = {
+  edit_profile_details: {
+    icon: UserPenIcon,
+    title: (i) => {
+      if (i.kind === "link") return !i.previous ? "Add a profile link" : !i.value ? "Remove a profile link" : "Update a profile link"
+      return `Update profile ${PROFILE_DETAIL_LABELS[s(i.field)] ?? "detail"}`
+    },
+    details: (i) => [`Current: ${profileEditValue(i.previous)}`, `After approval: ${profileEditValue(i.value)}`],
+    approve: "Apply change", working: "Updating profile details", done: () => "Profile updated",
+  },
   add_profile_fact: {
     icon: UserPenIcon, title: (i) => `Add a fact to ${s(i.label)}`,
     details: (i) => [s(i.statement), Array.isArray(i.skills) && i.skills.length ? `Skills: ${i.skills.join(", ")}` : ""],
@@ -800,57 +829,67 @@ const ACTIONS: Record<string, Action> = {
   },
 }
 
-function ActionCard({ part, onApproval, onNavigate }: { part: ToolPart; onApproval: (id: string, approved: boolean) => void; onNavigate: () => void }) {
+function ActionCard({ part, busy, stale, onApproval, onNavigate }: { part: ToolPart; busy: boolean; stale: boolean; onApproval: (id: string, approved: boolean) => void; onNavigate: () => void }) {
   const action = ACTIONS[toolName(part)]
   const input = part.input ?? {}
-  if (part.state === "input-streaming") return <PendingActivity label="Preparing a suggestion" />
+  if (part.state === "input-streaming") return busy ? <PendingActivity label="Preparing a suggestion" /> : null
   const Icon = action.icon
   const details = action.details(input).filter(Boolean)
   const state = part.state
-  const asking = state === "approval-requested"
+  // A suggestion the conversation moved past without an answer counts as skipped.
+  const skipped = state === "approval-requested" && stale
+  const asking = state === "approval-requested" && !stale
   const running = state === "approval-responded" || state === "input-available"
-  const declined = state === "output-denied" || (state === "approval-responded" && part.approval?.approved === false)
+  const declined = skipped || state === "output-denied" || (state === "approval-responded" && part.approval?.approved === false)
   const done = state === "output-available"
   const failed = state === "output-error"
   const href = done && typeof part.output?.href === "string" ? part.output.href : null
+  const title = action.title(input)
+  const approvalId = part.approval?.id
+
+  if (asking && approvalId) {
+    return (
+      <AIToolApproval
+        className="cb-step max-w-none"
+        calls={[{ id: approvalId, tool: toolName(part), title, input: details, destructive: action.destructive, approveLabel: action.approve, state: "approval-requested", icon: <Icon className="size-3.5" /> }]}
+        onRespond={(id, approved) => onApproval(id, approved)}
+      />
+    )
+  }
+
+  if (done || declined) {
+    const Icon = done ? CheckIcon : BanIcon
+    return (
+      <div className="flex min-w-0 items-start gap-2 rounded-lg border bg-muted/25 p-2 text-xs">
+        <Icon aria-hidden className="mt-1 size-3.5 shrink-0 text-muted-foreground" />
+        <details className="min-w-0 flex-1">
+          <summary className="cursor-pointer rounded-sm py-0.5 font-medium focus-visible:outline-2 focus-visible:outline-ring">
+            {title} <span className="font-normal text-muted-foreground">· {done ? action.done(part.output ?? {}) : skipped ? "Skipped" : "Declined"}</span>
+          </summary>
+          {details.length ? <ul className="mt-1.5 grid gap-1 text-muted-foreground">{details.map((line, index) => <li key={index}>{line}</li>)}</ul> : null}
+        </details>
+        {href ? <Button size="xs" variant="outline" nativeButton={false} render={<Link href={href} onClick={onNavigate} />}>Open <ArrowRightIcon /></Button> : null}
+      </div>
+    )
+  }
 
   return (
-    <div className={cn("cb-step grid gap-2 rounded-xl border bg-card p-3 text-sm transition-[opacity,border-color]", asking && "border-foreground/25", declined && "opacity-60")}>
+    <div className={cn("cb-step grid gap-2 rounded-xl border bg-card p-3 text-sm transition-colors", asking && "border-foreground/25")}>
       <div className="flex items-start gap-2.5">
         <span className={cn("mt-px flex size-7 shrink-0 items-center justify-center rounded-md border bg-muted/40", action.destructive && "text-destructive")}>
           <Icon className="size-3.5" />
         </span>
         <div className="grid min-w-0 flex-1 gap-0.5">
-          <span className="font-medium break-words">{action.title(input)}</span>
+          <span className="font-medium break-words">{title}</span>
           {details.map((line) => <span key={line} className="text-xs break-words text-muted-foreground">{line}</span>)}
         </div>
       </div>
 
-      {asking && part.approval ? (
-        <div className="flex flex-wrap items-center gap-1.5 border-t pt-2">
-          <Badge variant="secondary" className="me-auto">Needs approval</Badge>
-          <Button size="sm" variant="ghost" onClick={() => onApproval(part.approval!.id, false)}>Not now</Button>
-          <Button size="sm" variant={action.destructive ? "destructive" : "default"} onClick={() => onApproval(part.approval!.id, true)}>
-            <CheckIcon /> {action.approve}
-          </Button>
-        </div>
-      ) : null}
 
-      {running && !declined ? (
-        <PendingActivity label={action.working} className="ps-9.5" />
+      {running && busy ? (
+        <PendingActivity analyzing label={action.working} className="ps-9.5" />
       ) : null}
-      {declined ? <p className="flex items-center gap-1.5 pl-9.5 text-xs text-muted-foreground"><BanIcon className="size-3.5" /> Not done</p> : null}
       {failed ? <p className="flex items-start gap-1.5 pl-9.5 text-xs text-destructive"><CircleAlertIcon className="mt-px size-3.5 shrink-0" /> {part.errorText || "That didn’t work."}</p> : null}
-      {done ? (
-        <div className="flex items-center gap-2 pl-9.5">
-          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground"><CheckIcon className="cb-pop size-3.5 shrink-0 text-primary" /> <span className="truncate">{action.done(part.output ?? {})}</span></span>
-          {href ? (
-            <Button size="xs" variant="outline" nativeButton={false} render={<Link href={href} onClick={onNavigate} />}>
-              Open <ArrowRightIcon />
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   )
 }

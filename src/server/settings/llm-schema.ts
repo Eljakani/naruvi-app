@@ -14,12 +14,15 @@ const model = z.string().trim().min(1, "Enter a model name.").max(160)
 
 export const storedLlmSettings = z.object({ baseUrl, model, encryptedApiKey: z.string().nullable() })
 export type StoredLlmSettings = z.infer<typeof storedLlmSettings>
-export const llmSettingsInput = z.object({
+const connectionFields = {
   baseUrl,
-  model,
   apiKey: z.string().trim().max(4096, "The API key is too long.").regex(/^[^\r\n]*$/, "The API key must be a single line.").default(""),
   removeKey: z.boolean().default(false),
-}).refine((input) => !(input.removeKey && input.apiKey), "Choose either a replacement key or removal.")
+}
+const keyChoice = (input: { removeKey: boolean; apiKey: string }) => !(input.removeKey && input.apiKey)
+const keyChoiceError = "Choose either a replacement key or removal."
+export const llmConnectionInput = z.object(connectionFields).refine(keyChoice, keyChoiceError)
+export const llmSettingsInput = z.object({ ...connectionFields, model }).refine(keyChoice, keyChoiceError)
 
 export function isLocalModel(baseUrl: string): boolean {
   const hostname = new URL(baseUrl).hostname.toLowerCase()

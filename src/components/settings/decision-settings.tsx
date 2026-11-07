@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Loader2Icon, PlugZapIcon } from "lucide-react"
+import { ArrowUpRightIcon, Loader2Icon, PlugZapIcon, ScanSearchIcon } from "lucide-react"
 import { toast } from "sonner"
 import { saveDecisionSettingsAction, testDecisionModelAction } from "@/app/(app)/settings/actions"
 import { Badge } from "@/components/ui/badge"
@@ -20,32 +20,44 @@ export function DecisionSettings({ initial }: { initial: DecisionOverview }) {
   const [busy, setBusy] = useState<"save" | "test" | "remove" | null>(null)
 
   const save = (removeKey = false) => {
+    if (pending) return
     setBusy(removeKey ? "remove" : "save")
     startTransition(async () => {
-      const result = await saveDecisionSettingsAction({ model, apiKey, removeKey })
-      setBusy(null)
-      if (!result.ok) return void toast.error(result.message)
-      setSaved(result.overview)
-      setApiKey("")
-      toast.success(removeKey ? "Decision model key removed" : "Decision model saved")
+      try {
+        const result = await saveDecisionSettingsAction({ model, apiKey, removeKey })
+        if (!result.ok) return void toast.error(result.message)
+        setSaved(result.overview)
+        setModel(result.overview.model)
+        setApiKey("")
+        toast.success(removeKey ? "Decision model key removed" : "Decision model saved")
+      } catch {
+        toast.error("Could not save the decision model. Try again.")
+      } finally {
+        setBusy(null)
+      }
     })
   }
   const test = () => {
     setBusy("test")
     startTransition(async () => {
-      const result = await testDecisionModelAction()
-      setBusy(null)
-      if (result.ok) toast.success(result.message ?? "Connected")
-      else toast.error(result.message ?? "Test failed")
+      try {
+        const result = await testDecisionModelAction()
+        if (result.ok) toast.success(result.message ?? "Connected")
+        else toast.error(result.message ?? "Test failed")
+      } catch {
+        toast.error("Could not test the connection. Try again.")
+      } finally {
+        setBusy(null)
+      }
     })
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Decision model</CardTitle>
+        <CardTitle><h3 className="flex items-center gap-2"><ScanSearchIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Decision model</h3></CardTitle>
         <CardDescription>
-          Optional. A TypeSafe Jev key moves classification work off the language model: it filters job requirements, matches them to your facts, enriches imported jobs and double-checks generated claims. It returns calibrated decisions, never text, so the language model still writes your CV and letters.
+          Optionally use TypeSafe Jev to filter job requirements, match profile facts, enrich imported jobs, and check claims in drafts.
         </CardDescription>
         <CardAction>
           <Badge variant={saved.configured ? "default" : "secondary"}>{saved.configured ? "Connected" : "Off"}</Badge>
@@ -61,24 +73,27 @@ export function DecisionSettings({ initial }: { initial: DecisionOverview }) {
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="jev-model">Model</FieldLabel>
-              <Input id="jev-model" value={model} onChange={(event) => setModel(event.target.value)} className="max-w-60 font-mono" />
-              <FieldDescription>Use jev-latest, or pin a version like jev-1.14.0.</FieldDescription>
+              <Input id="jev-model" value={model} onChange={(event) => setModel(event.target.value)} disabled={pending} autoCapitalize="none" spellCheck={false} />
+              <FieldDescription>Use jev-latest or enter a specific version.</FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="jev-key">API key</FieldLabel>
-              <Input id="jev-key" type="password" autoComplete="off" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={saved.hasKey ? "Saved — leave blank to keep" : "From console.typesafe.ai/keys"} />
-              <FieldDescription>Stored encrypted. Without a key, the language model (or the built-in rules) does this work.</FieldDescription>
+              <Input id="jev-key" type="password" autoComplete="new-password" disabled={pending} value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={saved.hasKey ? "Leave blank to keep the current key" : "Paste your TypeSafe API key"} />
+              <FieldDescription>Keys are stored encrypted. Without a key, Naruvi uses the language model or built-in rules.</FieldDescription>
+              <a href="https://console.typesafe.ai/keys" target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 text-sm font-medium underline underline-offset-4">
+                Get a TypeSafe API key <ArrowUpRightIcon className="size-3.5" aria-hidden />
+              </a>
             </Field>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 border-t pt-4">
               <Button type="submit" disabled={pending || (!apiKey && model === saved.model)}>
-                {busy === "save" ? <Loader2Icon className="animate-spin" /> : null} Save
+                {busy === "save" ? <Loader2Icon className="animate-spin motion-reduce:animate-none" /> : null} Save model
               </Button>
               <Button type="button" variant="outline" disabled={pending || !saved.configured} onClick={test}>
-                {busy === "test" ? <Loader2Icon className="animate-spin" /> : <PlugZapIcon />} Test
+                {busy === "test" ? <Loader2Icon className="animate-spin motion-reduce:animate-none" /> : <PlugZapIcon />} Test saved model
               </Button>
               {saved.keySource === "database" ? (
-                <Button type="button" variant="ghost" disabled={pending} onClick={() => save(true)}>
-                  Remove key
+                <Button type="button" variant="ghost" disabled={pending || Boolean(apiKey)} onClick={() => save(true)}>
+                  {busy === "remove" ? <Loader2Icon className="animate-spin motion-reduce:animate-none" /> : null} Remove key
                 </Button>
               ) : null}
             </div>

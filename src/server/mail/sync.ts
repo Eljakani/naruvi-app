@@ -1,10 +1,12 @@
 import "server-only"
 import { simpleParser } from "mailparser"
-import { desc, eq, sql } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 import { ATS_DOMAINS, baseDomain, matchMessage, type MatchCandidate } from "@/lib/mail-match"
 import { db } from "@/server/db/client"
 import { applications, companies, jobLeads, jobs, mailAccounts, mailMessages } from "@/server/db/schema"
 import { ALERT_SENDERS, extractJobLeads } from "@/lib/job-alerts"
+import { visiblePageText } from "@/server/research/extract"
+import { getResendMail, listResendMail } from "./resend"
 import { explainMailError, getMailAccount, imapClient } from "./account"
 
 const FIRST_SYNC_LIMIT = 400
@@ -81,6 +83,11 @@ async function runSync(): Promise<SyncResult> {
     accountId = row.id
     const account = await getMailAccount()
     if (!account) return { checked: 0, stored: 0, skipped: "No mailbox connected." }
+    if (account.provider === "resend") {
+      const result = await syncResend(account)
+      await afterSync()
+      return result
+    }
     const apps = await candidates()
     const client = imapClient(account)
     await client.connect()
@@ -156,9 +163,73 @@ async function runSync(): Promise<SyncResult> {
     await afterSync()
     return { checked, stored, leads }
   } catch (error) {
-    if (accountId) await db.update(mailAccounts).set({ status: "error", lastError: explainMailError(error), lastSyncAt: new Date() }).where(eq(mailAccounts.id, accountId)).catch(() => {})
+    if (accountId) await db.update(mailAccounts).set({ status: "error", lastError: error instanceof Error && error.message.startsWith("Resend (") ? error.message : explainMailError(error), lastSyncAt: new Date() }).where(eq(mailAccounts.id, accountId)).catch(() => {})
     throw error
   }
+}
+
+/** Resend lists newest first. Keep the watermark inclusive for messages with equal timestamps. */
+async function syncResend(account: NonNullable<Awaited<ReturnType<typeof getMailAccount>>>): Promise<SyncResult> {
+  const credential = account.accessToken ?? account.password
+  const since = account.cursor.RESEND?.last ?? account.syncFrom.getTime()
+  const inbox = account.username.toLowerCase()
+  const [local, domain] = inbox.split("@")
+  const alias = `${local.split("+")[0]}+nrv-`
+  const addressOf = (value: string) => (value.match(/<([^<>]+)>$/)?.[1] ?? value).trim().toLowerCase()
+  const apps = await candidates()
+  let checked = 0
+  let stored = 0
+  let latest = since
+  let after: string | undefined
+
+  while (true) {
+    const page = await listResendMail(credential, after)
+    for (const item of page.data) {
+      const sentAt = new Date(item.created_at)
+      if (sentAt.getTime() < since) break
+      latest = Math.max(latest, sentAt.getTime())
+      const recipients = [...item.to, ...(item.cc ?? []), ...(item.bcc ?? [])].map(addressOf)
+      if (!recipients.some((address) => address === inbox || (address.startsWith(alias) && address.endsWith(`@${domain}`)))) continue
+
+      const messageId = item.message_id || `<${item.id}@resend.invalid>`
+      const [existing] = await db.select({ id: mailMessages.id }).from(mailMessages)
+        .where(and(eq(mailMessages.accountId, account.id), eq(mailMessages.messageId, messageId))).limit(1)
+      if (existing) continue
+
+      checked += 1
+      const message = await getResendMail(credential, item.id)
+      const headers = Object.fromEntries(Object.entries(message.headers ?? {}).map(([name, value]) => [name.toLowerCase(), value]))
+      const from = headers.from || message.from
+      const text = (message.text || visiblePageText((message.html ?? "").slice(0, MAX_SOURCE_BYTES))).slice(0, MAX_TEXT)
+      const inReplyTo = headers["in-reply-to"]?.match(/<[^<>]+>/)?.[0] ?? null
+      const references = headers.references?.match(/<[^<>]+>/g) ?? []
+      const normalized = {
+        fromAddress: addressOf(from),
+        fromName: from.includes("<") ? from.slice(0, from.lastIndexOf("<")).trim().replace(/^"|"$/g, "") : "",
+        toAddresses: recipients,
+        subject: message.subject ?? "",
+        text, inReplyTo, references,
+      }
+      const match = matchMessage(normalized, apps)
+      if (!match) continue
+      const inserted = await db.insert(mailMessages).values({
+        ...normalized, accountId: account.id, applicationId: match.applicationId,
+        messageId, direction: "in", sentAt, matchReason: match.reason,
+      }).onConflictDoNothing().returning({ id: mailMessages.id })
+      stored += inserted.length
+    }
+
+    const tail = page.data.at(-1)
+    if (!page.has_more || !tail || Date.parse(tail.created_at) < since) break
+    if (tail.id === after) throw new Error("Resend returned the same inbox page twice.")
+    after = tail.id
+  }
+
+  await db.update(mailAccounts).set({
+    cursor: { ...account.cursor, RESEND: { validity: inbox, last: latest } },
+    lastSyncAt: new Date(), status: "ok", lastError: null,
+  }).where(and(eq(mailAccounts.id, account.id), eq(mailAccounts.provider, "resend"), eq(mailAccounts.encryptedPassword, account.encryptedPassword)))
+  return { checked, stored }
 }
 
 /** New messages arrived: classify them and prepare suggestions. Never fails the sync. */

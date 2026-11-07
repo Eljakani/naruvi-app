@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { CheckCircle2Icon, ChevronDownIcon, CircleAlertIcon, KeyRoundIcon, Loader2Icon, MailIcon, PlugZapIcon, RefreshCwIcon, ServerIcon, ShieldCheckIcon, UnplugIcon } from "lucide-react"
 import { toast } from "sonner"
-import { disconnectMailAction, saveMailAction, syncMailAction, testMailAction } from "@/app/(app)/integrations/actions"
+import { disconnectMailAction, saveMailAction, saveResendAction, startResendOAuthAction, syncMailAction, testMailAction } from "@/app/(app)/integrations/actions"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -70,6 +70,7 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
   if (overview.connected && !editing) {
     const account = overview.account
     const error = account.status === "error"
+    const resend = account.provider === "resend"
     return (
       <Card>
         <CardHeader>
@@ -86,15 +87,21 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
         <CardContent className="grid gap-3 text-sm">
           <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-4">
             <div className="flex min-w-0 items-center gap-2 sm:col-span-1"><ProviderLogo id={account.provider} className="size-5 shrink-0" /><Item label="Mailbox" value={account.email} /></div>
-            <Item label="Provider" value={`${(MAIL_PROVIDERS.find((item) => item.id === account.provider) ?? OTHER_PROVIDER).name}${account.authType === "oauth" ? " (signed in)" : ""}`} />
+            <Item label="Provider" value={resend ? (account.authType === "resend_oauth" ? "Resend (signed in)" : "Resend") : `${(MAIL_PROVIDERS.find((item) => item.id === account.provider) ?? OTHER_PROVIDER).name}${account.authType === "oauth" ? " (signed in)" : ""}`} />
             <Item label="Last checked" value={when(account.lastSyncAt)} />
             <Item label="Linked emails" value={account.matched.toLocaleString()} />
           </dl>
           {error && account.lastError ? <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-destructive">{account.lastError}</p> : null}
-          <p className="text-xs text-muted-foreground">Reads the inbox from {new Date(account.syncFrom).toLocaleDateString(undefined, { day: "numeric", month: "long" })} on. Sending uses {account.smtpHost || "nothing yet (no SMTP server)"}.</p>
-          <div className="text-muted-foreground">
-            <ReplyAddresses email={account.email} initial={reply} />
-          </div>
+          {resend ? (
+            <p className="text-xs text-muted-foreground">Sending uses Resend. Replies go to application aliases on {account.username.split("@")[1]} and sync about every five minutes while Naruvi runs.</p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">Reads the inbox from {new Date(account.syncFrom).toLocaleDateString(undefined, { day: "numeric", month: "long" })} on. Sending uses {account.smtpHost || "nothing yet (no SMTP server)"}.</p>
+              <div className="text-muted-foreground">
+                <ReplyAddresses email={account.email} initial={reply} />
+              </div>
+            </>
+          )}
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2 border-t">
           <Button
@@ -119,6 +126,7 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
               Edit settings
             </Button>
           )}
+          {account.authType === "oauth" ? <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Change provider</Button> : null}
           <AlertDialog>
             <AlertDialogTrigger render={<Button size="sm" variant="ghost" className="ml-auto text-muted-foreground" disabled={disconnecting} />}>
               <UnplugIcon /> Disconnect
@@ -126,7 +134,7 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Disconnect {account.email}?</AlertDialogTitle>
-                <AlertDialogDescription>Naruvi forgets the password and deletes the {account.matched} linked email{account.matched === 1 ? "" : "s"} it stored. Nothing is deleted from your mailbox.</AlertDialogDescription>
+                <AlertDialogDescription>Naruvi removes the saved credential and deletes the {account.matched} linked email{account.matched === 1 ? "" : "s"} it stored. Nothing is deleted from your mailbox.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -163,13 +171,17 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
         <CardDescription>Connect the mailbox you apply from. Naruvi links replies to your applications and suggests what to do; it never changes anything or sends mail without your click.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue={overview.connected ? "password" : "signin"}>
+        <Tabs defaultValue={overview.connected && overview.account.provider === "resend" ? "resend" : overview.connected ? "password" : "signin"}>
           <TabsList className="w-full sm:w-fit">
             <TabsTrigger value="signin">Sign in</TabsTrigger>
             <TabsTrigger value="password">App password</TabsTrigger>
+            <TabsTrigger value="resend">Resend</TabsTrigger>
           </TabsList>
           <TabsContent value="signin" className="pt-3">
             <OAuthSignIn clients={oauth} origin={origin} />
+          </TabsContent>
+          <TabsContent value="resend" className="pt-4">
+            <ResendForm overview={overview} onSaved={() => setEditing(false)} onCancel={() => setEditing(false)} />
           </TabsContent>
           <TabsContent value="password" className="pt-3">
             <form
@@ -261,6 +273,73 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
         </Tabs>
       </CardContent>
     </Card>
+  )
+}
+
+function ResendForm({ overview, onSaved, onCancel }: { overview: MailOverview; onSaved: () => void; onCancel: () => void }) {
+  const existing = overview.connected && overview.account.provider === "resend" ? overview.account : null
+  const [email, setEmail] = useState(existing?.email ?? "")
+  const [displayName, setDisplayName] = useState(existing?.displayName ?? "")
+  const [inboundEmail, setInboundEmail] = useState(existing?.username ?? "")
+  const [apiKey, setApiKey] = useState("")
+  const [useApiKey, setUseApiKey] = useState(false)
+  const hasSavedKey = existing?.authType === "api"
+  const [saving, startSave] = useTransition()
+
+  return (
+    <form autoComplete="off" onSubmit={(event) => {
+      event.preventDefault()
+      startSave(async () => {
+        if (!useApiKey) {
+          const result = await startResendOAuthAction({ email, displayName, inboundEmail })
+          if (!result.ok) return void toast.error("Couldn’t start Resend sign-in", { description: result.message })
+          window.location.assign(result.data.url)
+          return
+        }
+        const result = await saveResendAction({ email, displayName, inboundEmail, apiKey })
+        if (!result.ok) return void toast.error("Couldn’t connect Resend", { description: result.message })
+        setApiKey("")
+        onSaved()
+        toast.success("Resend connected")
+      })
+    }}>
+      <FieldGroup className="gap-4">
+        <FieldDescription>Use a sender on a verified Resend domain and an address that receives mail in Resend. Naruvi adds a per-application plus tag to the receiving address for replies.</FieldDescription>
+        {overview.connected && !existing ? <FieldDescription>Connecting Resend switches your active mail provider and keeps your linked emails.</FieldDescription> : null}
+        <FieldGroup className="grid gap-4 sm:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="resend-email">Sender email</FieldLabel>
+            <Input id="resend-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="resend-name">Sender name <span className="font-normal text-muted-foreground">(optional)</span></FieldLabel>
+            <Input id="resend-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="resend-inbox">Receiving address</FieldLabel>
+            <Input id="resend-inbox" type="email" required value={inboundEmail} onChange={(event) => setInboundEmail(event.target.value)} />
+          </Field>
+          {useApiKey ? (
+            <Field>
+              <FieldLabel htmlFor="resend-key">Resend API key</FieldLabel>
+              <Input id="resend-key" type="password" autoComplete="new-password" data-1p-ignore data-lpignore="true" required={!hasSavedKey} value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={hasSavedKey ? "Leave blank to keep the saved key" : undefined} />
+              <FieldDescription>Use a full access key for sending and receiving. Naruvi stores it encrypted.</FieldDescription>
+            </Field>
+          ) : null}
+        </FieldGroup>
+        {!useApiKey ? <FieldDescription>Resend asks for full access to the selected team because receiving email requires it.</FieldDescription> : null}
+        {!overview.encryptionReady ? <FieldDescription>Run <code>npm run settings:key</code> and restart Naruvi to enable secure storage.</FieldDescription> : null}
+        <div className="flex flex-wrap gap-2 border-t pt-4">
+          <Button type="submit" disabled={saving || !overview.encryptionReady}>
+            {saving ? <Loader2Icon className="animate-spin" /> : <PlugZapIcon />} {useApiKey ? "Save API key settings" : "Continue with Resend"}
+          </Button>
+          <Button type="button" variant="outline" disabled={saving} onClick={() => setUseApiKey(!useApiKey)}>
+            {useApiKey ? "Use Resend sign-in" : "Use an API key"}
+          </Button>
+          {overview.connected ? <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button> : null}
+        </div>
+      </FieldGroup>
+    </form>
   )
 }
 

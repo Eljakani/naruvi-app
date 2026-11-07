@@ -6,9 +6,10 @@ import { existsSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { count, sql } from "drizzle-orm"
 import { z } from "zod"
-import { getLlmConfiguration, getLlmOverview } from "./llm"
+import { getLlmConfiguration, getLlmOverview, resolveDraftConnection } from "./llm"
 import { SettingsError } from "./errors"
-import { exportableSettings } from "./llm-schema"
+import { exportableSettings, isLocalModel, llmSettingsInput } from "./llm-schema"
+import { providerForEndpoint } from "@/lib/ai-providers"
 import { requestCompletion } from "@/server/llm/transport"
 import { ASSETS_DIR } from "@/server/assets/store"
 import { db } from "@/server/db/client"
@@ -88,11 +89,19 @@ export async function getSystemOverview() {
 }
 
 /** Cheapest possible round trip to check the model endpoint and key. */
-export async function testLlm() {
+export async function testLlm(input?: unknown) {
   const started = Date.now()
   try {
-    const config = await getLlmConfiguration()
-    await requestCompletion(config, { system: "Reply briefly.", user: "ping", maxTokens: 1 }, { timeoutMs: 20_000, jsonMode: false })
+    const draft = input === undefined ? null : llmSettingsInput.safeParse(input)
+    if (draft && !draft.success) return { ok: false, message: draft.error.issues[0]?.message ?? "Check the model settings." }
+    if (draft && !providerForEndpoint(draft.data.baseUrl) && draft.data.baseUrl !== (await getLlmOverview()).baseUrl) {
+      return { ok: false, message: "Save your custom endpoint before testing it." }
+    }
+    const config = draft ? {
+      ...await resolveDraftConnection(draft.data), model: draft.data.model,
+    } : await getLlmConfiguration()
+    const configured = Boolean(config.apiKey) || isLocalModel(config.baseUrl)
+    await requestCompletion({ ...config, configured }, { system: "Reply with OK only.", user: "Connection check.", maxTokens: 512 }, { timeoutMs: 20_000, jsonMode: false })
     return { ok: true, message: `Connected to ${config.model} in ${Date.now() - started} ms.` }
   } catch (error) {
     return { ok: false, message: error instanceof SettingsError ? error.message : "Could not test the model connection. Check Settings and try again." }

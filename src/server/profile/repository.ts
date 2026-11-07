@@ -9,7 +9,7 @@ import { entries, facts, phrasings, profiles } from "@/server/db/schema"
 import { rankFacts, supportFor, verifySupport } from "@/server/domain/grounding"
 import { matchLogo } from "./logo-match"
 import { parseIdentity, parsePool } from "./pool-parser"
-import { entryInput, identityInput, type EntryInput, type IdentityInput } from "./schemas"
+import { entryInput, identityInput, profileDetailEdit, type EntryInput, type IdentityInput } from "./schemas"
 
 /** Single-user app: the first profile is the profile. */
 export async function getProfile() {
@@ -29,6 +29,35 @@ export async function saveIdentity(input: IdentityInput) {
   const profile = await requireProfile()
   const [saved] = await db.update(profiles).set(data).where(eq(profiles.id, profile.id)).returning()
   return saved
+}
+
+/** Apply just the approved edit and reject it if the original value has changed. */
+export async function editProfileDetails(input: unknown) {
+  const edit = profileDetailEdit.parse(input)
+  await db.transaction(async (tx) => {
+    const [profile] = await tx.select().from(profiles).orderBy(asc(profiles.createdAt)).limit(1).for("update")
+    if (!profile) throw new Error("Set up your profile before editing its details.")
+
+    if (edit.kind === "field") {
+      const value = identityInput.shape[edit.field].parse(edit.value)
+      if (profile[edit.field] !== edit.previous) throw new Error("This profile detail changed. Ask Naruvi to propose the edit again.")
+      await tx.update(profiles).set({ [edit.field]: value }).where(eq(profiles.id, profile.id))
+      return
+    }
+
+    const { previous, value } = edit
+    if (!previous && !value) throw new Error("Choose a link to add, update, or remove.")
+    const matches = previous ? profile.links.filter((link) => link.label === previous.label && link.url === previous.url) : []
+    if (previous && matches.length !== 1) throw new Error("The original link changed or is duplicated. Check your current profile links.")
+    if (value && profile.links.some((link) => link !== matches[0] && link.url === value.url)) {
+      throw new Error("That URL is already on your profile.")
+    }
+
+    const links = previous
+      ? profile.links.flatMap((link) => link === matches[0] ? (value ? [value] : []) : [link])
+      : value ? [...profile.links, value] : profile.links
+    await tx.update(profiles).set({ links }).where(eq(profiles.id, profile.id))
+  })
 }
 
 /** Entries with facts and phrasings; each phrasing carries its grounding check. */

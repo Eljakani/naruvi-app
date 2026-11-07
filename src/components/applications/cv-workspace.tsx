@@ -116,8 +116,8 @@ function Editor({ applicationId, jobTitle, company, language, workspace, savedTe
       language={language}
       quality={current.quality as unknown as Quality}
       regenerate={<GenerateForm applicationId={applicationId} language={language} label="Regenerate" />}
-      downloadHref={`/api/revisions/${current.id}/pdf?download=1`}
-      previewUrl={`/api/revisions/${current.id}/pdf`}
+      downloadHref={`/api/revisions/${current.id}/pdf?contact=${workspace.contactVersion}&download=1`}
+      previewUrl={`/api/revisions/${current.id}/pdf?contact=${workspace.contactVersion}`}
       pageBudget={2}
       dirty={dirty}
       pending={pending}
