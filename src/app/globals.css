@@ -315,3 +315,7 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
     @apply font-sans;
   }
 }
+
+/* A sparkle in a button means "Naruvi does this": it wears the brand copper (not on copper buttons). */
+[data-slot="button"]:not(.bg-brand) > .lucide-sparkles,
+[data-slot="button"]:not(.bg-brand) > .lucide-sparkle { color: var(--brand); }

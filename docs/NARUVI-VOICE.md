@@ -26,8 +26,14 @@ Warm, observant, honest, practical, discreet, lightly playful. A thoughtful coll
 | Sent, offer, setup complete | `celebrating-progress` |
 | Fit check or drafting in progress | `working-on-it` |
 | A company replied | `good-news-mail` |
+| Ask Naruvi is thinking | `thinking` |
+| CV tailor (intro and while working) | `tailoring-cv` |
+| Letter and email drafting | `writing-letter` |
+| Importing a CV into the profile | `reading-stack` |
+| "Don't claim these", unproven claims | `careful` |
+| Every check passes (entry, profile) | `all-checked` |
 
-Who is speaking (assistant header, progress toasts): `<NaruviAvatar>`, the round face. Images live in `public/mascot/web` and come from `scripts/mascot-web.mjs`. Not in dense working screens (requirements, editors, tables).
+Who is speaking (assistant header and replies, agent replies, review notes, progress toasts): `<NaruviAvatar>`, the round face. Embedded agents (`AgentThread`) take a `pose` and an `intro` line in Naruvi’s voice. A sparkle inside a button means “Naruvi does this” and is coloured copper by a global rule. Images live in `public/mascot/web` and come from `scripts/mascot-web.mjs`. Not in dense working screens (requirements, editors, tables).
 
 Colour: `brand` (copper) marks what is Naruvi’s or what’s current: Ask Naruvi, "Check my fit", the current step, the active page, focus outlines. Black stays the main button colour. Amber, green and red keep their meanings (attention, done, problem).
 

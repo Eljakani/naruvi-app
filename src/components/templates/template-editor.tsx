@@ -399,6 +399,7 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                   <span className="font-normal text-muted-foreground">· {previewKind === "letter" ? "cover letter" : "CV"}</span>
                 </div>
                 <AgentThread
+                  pose="working-on-it"
                   steps={DESIGN_STEPS}
                   working={asking ? working : null}
                   turns={history.map((turn, index) => {

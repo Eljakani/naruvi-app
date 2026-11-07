@@ -13,7 +13,7 @@ import { useSyncExternalStore } from "react"
 import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import {
   ArrowRightIcon, ArrowUpIcon, BanIcon, BriefcaseBusinessIcon, CalendarClockIcon, CheckIcon, ChevronDownIcon, CircleAlertIcon, FileTextIcon, GaugeIcon, GlobeIcon,
-  ExternalLinkIcon, LinkIcon, MailIcon, MailSearchIcon, MessageCircleQuestionIcon, SendIcon, SparklesIcon, SquarePenIcon, Trash2Icon, UserPenIcon, UserPlusIcon, UserRoundIcon, XIcon,
+  ExternalLinkIcon, LinkIcon, MailIcon, MailSearchIcon, SendIcon, SparklesIcon, SquarePenIcon, Trash2Icon, UserPenIcon, UserPlusIcon, UserRoundIcon, XIcon,
   Building2Icon, type LucideIcon,
 } from "lucide-react"
 import { FitRing } from "@/components/applications/fit-ring"
@@ -599,8 +599,9 @@ function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, sta
   })
   flush()
   return (
-    <Message className="cb-step">
-      <MessageContent className="grid w-full grid-cols-[minmax(0,1fr)] gap-2.5 wrap-anywhere">{blocks}</MessageContent>
+    <Message className="cb-step items-start gap-2.5">
+      <NaruviAvatar size={26} className="mt-0.5" />
+      <MessageContent className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5 wrap-anywhere">{blocks}</MessageContent>
     </Message>
   )
 }
@@ -788,7 +789,7 @@ function AskCard({ part, onAnswer, disabled }: { part: ToolPart; onAnswer: (tool
   return (
     <div className="cb-step grid gap-2.5 rounded-xl border bg-card p-3">
       <p className="flex items-start gap-2 text-sm font-medium">
-        <MessageCircleQuestionIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" /> {question}
+        <span className="min-w-0">{question}</span>
       </p>
       {answered !== null ? (
         <p className="flex items-start gap-1.5 pl-6 text-sm text-muted-foreground"><CheckIcon className="cb-pop mt-0.5 size-3.5 shrink-0 text-primary" /> <span className="min-w-0 wrap-anywhere">{answered}</span></p>
@@ -820,8 +821,9 @@ const THINKING = ["Looking into it", "Reading your workspace", "Finding the usef
 /** Dot-matrix loader with words that swap letter by letter, for the gap before a reply starts. */
 function ThinkingIndicator() {
   return (
-    <div className="cb-step flex items-center gap-2.5 text-foreground/80" role="status">
-      <DotmSquare3 size={18} dotSize={3} color="currentColor" ariaLabel="Thinking" />
+    <div className="cb-step flex items-end gap-2 text-foreground/80" role="status">
+      <Otter pose="thinking" height={56} className="-mb-1" />
+      <DotmSquare3 size={14} dotSize={2} color="currentColor" ariaLabel="Thinking" className="mb-2 text-brand" />
       <AITextLoading texts={THINKING} interval={1800} label="Naruvi is thinking" showElapsed className="justify-start gap-2 text-sm font-medium text-foreground/80 [&>span:last-child]:text-xs [&>span:last-child]:text-muted-foreground" />
     </div>
   )

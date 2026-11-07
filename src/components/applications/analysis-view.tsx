@@ -1,5 +1,6 @@
 "use client"
 
+import { Otter } from "@/components/naruvi/otter"
 import Link from "next/link"
 import { useMemo, useState } from "react"
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react"
@@ -11,7 +12,6 @@ import {
   InfoIcon,
   CircleDashedIcon,
   CircleHelpIcon,
-  ShieldAlertIcon,
   XCircleIcon,
 } from "lucide-react"
 import { CompanyResearch } from "@/components/applications/company-research"
@@ -274,16 +274,14 @@ export function AnalysisView({ analysis, facts, research }: { analysis: StoredAn
 
         {analysis.mustGaps.length ? (
           <Card className="gap-3 overflow-hidden border-rose-200/70 bg-gradient-to-b from-rose-50/70 to-transparent dark:border-rose-900/60 dark:from-rose-950/30">
-            <CardHeader className="flex flex-row items-start gap-3">
-              <span className="grid size-9 shrink-0 place-content-center rounded-lg bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
-                <ShieldAlertIcon className="size-4.5" />
-              </span>
+            <CardHeader className="flex flex-row items-end gap-3">
+              <Otter pose="careful" height={64} className="-mb-1 -ms-1 shrink-0" />
               <div className="grid min-w-0 gap-0.5">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   Don’t claim these
                   <span className="rounded-full bg-rose-100 px-1.5 text-[11px] font-medium text-rose-700 tabular-nums dark:bg-rose-950 dark:text-rose-300">{analysis.mustGaps.length}</span>
                 </CardTitle>
-                <CardDescription className="text-xs">Not backed by your verified profile, so your CV and letter leave them out.</CardDescription>
+                <CardDescription className="text-xs">Your verified profile doesn’t back these up yet, so I’ll keep them out of your CV and letter.</CardDescription>
               </div>
             </CardHeader>
             <CardContent>

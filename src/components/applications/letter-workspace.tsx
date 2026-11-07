@@ -170,8 +170,8 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
           <Label htmlFor="letter-direction">Ask AI to change it</Label>
           {previousDraft && !asking ? <Button size="xs" variant="ghost" onClick={() => { setDraft(previousDraft); setPreviousDraft(null) }}>Undo last change</Button> : null}
         </div>
-        <AgentThread turns={turns} working={asking ? working : null} steps={LETTER_STEPS} />
-        <AgentComposer label="What should AI change?" value={direction} onChange={setDirection} onSend={ask} busy={pending || asking}
+        <AgentThread turns={turns} working={asking ? working : null} steps={LETTER_STEPS} pose="writing-letter" intro="Want a different tone or a shorter letter? Tell me, and I’ll rewrite it without adding anything you can’t back up." />
+        <AgentComposer label="What should Naruvi change?" value={direction} onChange={setDirection} onSend={ask} busy={pending || asking}
           placeholder="For example, make it shorter and more conversational"
           suggestions={turns.length ? [] : ["Make it shorter", "More conversational", "Mention the company’s mission", "More formal"]} />
       </div>

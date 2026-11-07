@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group"
 import { Message, MessageContent, MessageGroup } from "@/components/ui/message"
 import { Trace, TraceDescription, TraceIcon, TraceLine, TraceTitle } from "@/components/ui/trace"
+import { NaruviAvatar, Otter, type OtterPose } from "@/components/naruvi/otter"
 import { cn } from "@/lib/utils"
 
 /**
@@ -32,13 +33,20 @@ const OUTCOME = {
 } as const
 
 /** The conversation so far, plus the turn in progress with its live steps. */
-export function AgentThread({ turns, working, steps, className }: { turns: AgentTurn[]; working?: string | null; steps: readonly string[]; className?: string }) {
+export function AgentThread({ turns, working, steps, className, pose = "working-on-it", intro }: { turns: AgentTurn[]; working?: string | null; steps: readonly string[]; className?: string; /** Naruvi's pose while this agent works. */ pose?: OtterPose; /** Shown before the first request: what this agent does, in Naruvi's words. */ intro?: ReactNode }) {
   const end = useRef<HTMLDivElement>(null)
   const step = useStep(Boolean(working), steps.length)
   useEffect(() => {
     end.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
   }, [turns.length, working, step])
-  if (!turns.length && !working) return null
+  if (!turns.length && !working) {
+    return intro ? (
+      <div className="cb-step flex items-end gap-2.5">
+        <Otter pose={pose} height={64} className="-mb-1" />
+        <p className="rounded-2xl rounded-bl-sm border bg-background px-3 py-2 text-sm text-pretty text-muted-foreground shadow-xs">{intro}</p>
+      </div>
+    ) : null
+  }
   return (
     <MessageGroup className={cn("max-h-80 gap-3 overflow-y-auto pr-1", className)} aria-live="polite">
       {turns.map((turn, index) => {
@@ -52,8 +60,9 @@ export function AgentThread({ turns, working, steps, className }: { turns: Agent
                 </Bubble>
               </MessageContent>
             </Message>
-            <Message>
-              <MessageContent className="gap-1.5">
+            <Message className="items-start gap-2">
+              <NaruviAvatar size={22} className="mt-px" />
+              <MessageContent className="min-w-0 gap-1.5">
                 <Trace>
                   <TraceLine status={turn.outcome === "error" ? "error" : undefined} className="items-start">
                     <TraceIcon className="mt-0.5">
@@ -79,8 +88,9 @@ export function AgentThread({ turns, working, steps, className }: { turns: Agent
               </Bubble>
             </MessageContent>
           </Message>
-          <Message>
-            <MessageContent>
+          <Message className="items-end gap-2">
+            <Otter pose={pose} height={52} className="-mb-1" />
+            <MessageContent className="min-w-0">
               <Trace role="status">
                 {steps.slice(0, step + 1).map((label, index) => (
                   <TraceLine key={label} status={index === step ? "running" : undefined} className="cb-step">
@@ -108,7 +118,7 @@ export function AgentComposer({ value, onChange, onSend, busy, placeholder, sugg
         <div className="cb-stagger flex flex-wrap gap-1.5">
           {suggestions.map((suggestion) => (
             <Button key={suggestion} size="xs" variant="outline" className="bg-background font-normal text-muted-foreground" onClick={() => onSend(suggestion)}>
-              <SparklesIcon className="size-3" /> {suggestion}
+              <SparklesIcon className="size-3 text-brand" /> {suggestion}
             </Button>
           ))}
         </div>
@@ -137,7 +147,7 @@ export function AgentComposer({ value, onChange, onSend, busy, placeholder, sugg
           />
           <InputGroupAddon align="block-end" className="justify-between">
             <span className="text-xs text-muted-foreground">Enter to send · Shift+Enter for a new line</span>
-            <InputGroupButton type="submit" size="icon-sm" variant="default" className="rounded-full" disabled={!ready} aria-label="Send">
+            <InputGroupButton type="submit" size="icon-sm" variant="default" className="rounded-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={!ready} aria-label="Send">
               {busy ? <LoaderCircleIcon className="animate-spin" /> : <ArrowUpIcon />}
             </InputGroupButton>
           </InputGroupAddon>

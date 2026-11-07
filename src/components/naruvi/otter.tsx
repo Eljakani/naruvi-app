@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
  * companion shows up when there's something to find, check, plan, celebrate
  * or get through. Images: public/mascot/web (see scripts/mascot-web.mjs).
  */
-export type OtterPose = "concept" | "finding-opportunity" | "reviewing-cv" | "planning-next-step" | "interview-practice" | "offering-reassurance" | "celebrating-progress" | "working-on-it" | "good-news-mail"
+export type OtterPose = "concept" | "finding-opportunity" | "reviewing-cv" | "planning-next-step" | "interview-practice" | "offering-reassurance" | "celebrating-progress" | "working-on-it" | "good-news-mail" | "thinking" | "tailoring-cv" | "writing-letter" | "reading-stack" | "careful" | "all-checked"
 
 const SIZE: Record<OtterPose, [number, number]> = {
   concept: [292, 360],
@@ -18,6 +18,12 @@ const SIZE: Record<OtterPose, [number, number]> = {
   "celebrating-progress": [255, 360],
   "working-on-it": [248, 360],
   "good-news-mail": [298, 360],
+  thinking: [270, 360],
+  "tailoring-cv": [273, 360],
+  "writing-letter": [278, 360],
+  "reading-stack": [288, 360],
+  careful: [238, 360],
+  "all-checked": [287, 360],
 }
 
 /** A full-body pose, sized by height. Decorative: the text next to it carries the meaning. */

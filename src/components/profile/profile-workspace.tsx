@@ -1,5 +1,6 @@
 "use client"
 
+import { Otter } from "@/components/naruvi/otter"
 import { useMemo, useState } from "react"
 import { motion, useReducedMotion } from "motion/react"
 import {
@@ -193,7 +194,7 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
           {/* Readiness: same card, separated by a rule, fixed width so both halves stay balanced. */}
           <div className="grid gap-3 border-t pt-5 lg:w-80 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
             <div className="flex items-center gap-3">
-              <ReadyRing value={active.length - stats.attention} total={active.length} />
+              {stats.attention ? <ReadyRing value={active.length - stats.attention} total={active.length} /> : <Otter pose="all-checked" height={64} className="-my-2" />}
               <div className="grid min-w-0 gap-0.5">
                 <p className="text-sm font-medium">{stats.attention ? `${active.length - stats.attention} of ${active.length} entries ready` : "Every entry is ready"}</p>
                 <p className="text-xs text-muted-foreground">
@@ -207,7 +208,7 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
               </Button>
             ) : (
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <BadgeCheckIcon className="size-4 text-emerald-600" /> CVs can use everything.
+                <BadgeCheckIcon className="size-4 text-emerald-600" /> Every entry checks out. Your CVs can use all of it.
               </p>
             )}
           </div>

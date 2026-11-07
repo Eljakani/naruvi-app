@@ -1,5 +1,6 @@
 "use client"
 
+import { Otter } from "@/components/naruvi/otter"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useRef, useState, useTransition } from "react"
@@ -73,8 +74,13 @@ export function ProfileImport() {
         </Button>
         <Card>
           <CardHeader>
-            <CardTitle>Start from your CV</CardTitle>
-            <CardDescription className="max-w-[30rem]">Upload a PDF CV or your LinkedIn data export (ZIP), or paste your CV, LinkedIn profile or notes. AI sorts it into jobs, studies, projects and skills, and splits achievements into facts. It never adds anything you didn’t write, and nothing is used until you verify it.</CardDescription>
+            <div className="flex items-end gap-4">
+              <Otter pose="reading-stack" height={92} className="-mb-1 shrink-0" priority />
+              <div className="grid gap-1.5">
+                <CardTitle>Start from your CV</CardTitle>
+                <CardDescription className="max-w-[30rem]">Give me your CV, your LinkedIn export or a few notes. I’ll sort it into jobs, studies, projects and skills, and split achievements into facts. I never add anything you didn’t write, and nothing is used until you verify it.</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="grid gap-4">
             <button
@@ -96,9 +102,9 @@ export function ProfileImport() {
             <Textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Paste your CV, your LinkedIn “About” and “Experience”, or just write about your jobs…" className="min-h-40" />
           </CardContent>
           <CardFooter className="justify-between gap-4 border-t">
-            {reading ? <AiSteps steps={AI_STEPS.cvImport} step={step} /> : <span className="text-xs text-muted-foreground">Usually 15–40 seconds.</span>}
+            {reading ? <AiSteps steps={AI_STEPS.cvImport} step={step} /> : <span className="text-xs text-muted-foreground">Usually 15–40 seconds. I’ll show you everything before saving.</span>}
             <Button onClick={read} disabled={reading || (!file && text.trim().length < 80)}>
-              <SparklesIcon className={reading ? "cb-breathe" : undefined} /> Read my CV
+              <SparklesIcon className={reading ? "cb-breathe" : "text-brand"} /> Read my CV
             </Button>
           </CardFooter>
         </Card>

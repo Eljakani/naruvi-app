@@ -38,6 +38,7 @@ import { EntryAssist } from "@/components/profile/editor/entry-assist"
 import { ChipInput, FactPicker, GrowText, LineList, StringLineList } from "@/components/profile/editor/inputs"
 import { LanguageSwitch, LANGUAGE_NAMES } from "@/components/profile/language-switch"
 import ParticleButton from "@/components/kokonutui/particle-button"
+import { Otter } from "@/components/naruvi/otter"
 import { DateRangeField } from "@/components/profile/editor/date-range-field"
 import { Segmented } from "@/components/ui/segmented"
 import { type Draft, type DraftBullet, type Lang, LANGS, newKey, pairRows, toDraft, toInput } from "@/components/profile/editor/draft"
@@ -723,7 +724,7 @@ function Readiness({ items, onJump }: { items: Check[]; onJump: (id: string) => 
   return (
     <Card size="sm" className={cn("gap-0 overflow-hidden transition-colors", complete && "border-emerald-200/70 bg-gradient-to-b from-emerald-50/60 to-transparent dark:border-emerald-900/50 dark:from-emerald-950/20")}>
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-1 text-start">
-        <ProgressRing value={done} total={items.length} />
+        {complete ? <Otter pose="all-checked" height={44} className="-my-1" /> : <ProgressRing value={done} total={items.length} />}
         <span className="grid min-w-0 flex-1 gap-0.5">
           <span className="text-sm font-medium">{complete ? "Ready for CVs" : `${items.length - done} step${items.length - done === 1 ? "" : "s"} before CVs can use it`}</span>
           <span className="text-xs text-muted-foreground">{complete ? `All ${items.length} checks pass` : "CVs and letters skip it until then"}</span>

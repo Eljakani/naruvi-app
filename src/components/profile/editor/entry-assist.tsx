@@ -1,5 +1,6 @@
 "use client"
 
+import { NaruviAvatar } from "@/components/naruvi/otter"
 import { useState, useTransition } from "react"
 import { LanguagesIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -95,15 +96,15 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
   if (!open) {
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-xl border px-4 py-3">
-        <SparklesIcon className="size-4 text-muted-foreground" />
-        <span className="flex-1 text-sm text-muted-foreground">Add more in your own words, or translate this entry.</span>
+        <NaruviAvatar size={26} />
+        <span className="flex-1 text-sm text-muted-foreground">Tell me more about it in your own words, or let me translate it.</span>
         {from && to ? (
           <Button size="sm" variant="ghost" onClick={translate} disabled={translating}>
             <LanguagesIcon className={translating ? "cb-breathe" : undefined} /> {translating ? AI_STEPS.translate[translateStep] : `Add ${NAME[to]} version`}
           </Button>
         ) : null}
         <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-          <SparklesIcon /> Describe with AI
+          <SparklesIcon className="text-brand" /> Tell Naruvi
         </Button>
       </div>
     )
@@ -112,10 +113,10 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <SparklesIcon className="size-4" /> Fill it with AI
+        <CardTitle className="flex items-center gap-2.5">
+          <NaruviAvatar size={28} /> Tell me about it
         </CardTitle>
-        <CardDescription>Describe it in your own words, the way you’d tell a friend. AI fills the role, dates and skills and turns it into facts. It only uses what you write.</CardDescription>
+        <CardDescription>Describe it the way you’d tell a friend. I’ll fill in the role, dates and skills and turn it into facts, using only what you write.</CardDescription>
         {draft.facts.length ? (
           <CardAction>
             <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>

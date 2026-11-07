@@ -72,8 +72,8 @@ export function CvAssistant({ applicationId, draft, apply }: { applicationId: st
   }
   return (
     <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
-      <AgentThread turns={turns} working={pending ? working : null} steps={STEPS} />
-      <AgentComposer label="Ask AI to change this CV" value={text} onChange={setText} onSend={send} busy={pending} placeholder="Ask AI to change this CV…" suggestions={turns.length ? IDEAS.slice(0, 3) : IDEAS} />
+      <AgentThread turns={turns} working={pending ? working : null} steps={STEPS} pose="tailoring-cv" intro="Tell me what to change on this CV. I’ll reword and reorder, but I only use what your verified facts back up." />
+      <AgentComposer label="Ask Naruvi to change this CV" value={text} onChange={setText} onSend={send} busy={pending} placeholder="Ask Naruvi to change this CV…" suggestions={turns.length ? IDEAS.slice(0, 3) : IDEAS} />
     </div>
   )
 }
@@ -83,7 +83,7 @@ export function LineAssistant({ applicationId, draft, bulletId, apply }: { appli
   const { pending, run } = useRevise(applicationId, draft, apply)
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button type="button" size="icon-xs" variant="ghost" aria-label="Improve this line with AI" disabled={pending} className="text-muted-foreground" />}>
+      <DropdownMenuTrigger render={<Button type="button" size="icon-xs" variant="ghost" aria-label="Ask Naruvi to improve this line" disabled={pending} className="text-muted-foreground" />}>
         <SparklesIcon className={pending ? "cb-breathe" : undefined} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
