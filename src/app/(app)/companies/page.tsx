@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { OtterEmpty } from "@/components/naruvi/otter"
 import { AddCompanyDialog } from "@/components/companies/company-dialogs"
 import { Suspense } from "react"
 import { connection } from "next/server"
@@ -55,15 +56,21 @@ async function CompanyList({ searchParams }: { searchParams: Promise<Record<stri
           ))}
         </Card>
       ) : (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Building2Icon />
-            </EmptyMedia>
-            <EmptyTitle>{query ? "No matching company" : "No companies yet"}</EmptyTitle>
-            <EmptyDescription>{query ? `Nothing matches “${query}”.` : "Companies appear here when you add a job."}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        query ? (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Building2Icon />
+              </EmptyMedia>
+              <EmptyTitle>No matching company</EmptyTitle>
+              <EmptyDescription>Nothing matches “{query}”.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <OtterEmpty pose="finding-opportunity" title="No companies yet">
+            Each job you add brings its company here, with public facts and everything you’ve sent them.
+          </OtterEmpty>
+        )
       )}
     </div>
   )

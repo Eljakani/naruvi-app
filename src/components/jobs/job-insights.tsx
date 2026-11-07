@@ -40,7 +40,7 @@ export function JobInsights({ jobId, insights }: { jobId: string; insights: Insi
         <CardDescription>{insights ? `${ENGINE[insights.engine]}${insights.model ? ` · ${insights.model}` : ""}` : "Not analyzed yet."}</CardDescription>
         <CardAction>
           <Button size="sm" variant="ghost" onClick={refresh} disabled={pending} aria-label="Refresh insights">
-            {pending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} {insights ? "Refresh" : "Analyze"}
+            {pending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} {insights ? "Refresh" : "Summarize"}
           </Button>
         </CardAction>
       </CardHeader>

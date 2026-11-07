@@ -173,7 +173,7 @@ async function Traces({ workflow, status, range, before }: { workflow?: string; 
             <Empty className="m-3 border">
               <EmptyHeader>
                 <EmptyTitle>No runs</EmptyTitle>
-                <EmptyDescription>{workflow || status || range !== "all" ? "Nothing matches these filters. Try a longer time range." : "Import a job, analyze your fit or generate a document to see its trace here."}</EmptyDescription>
+                <EmptyDescription>{workflow || status || range !== "all" ? "Nothing matches these filters. Try a longer time range." : "Add a job, check your fit or draft a document to see its trace here."}</EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}

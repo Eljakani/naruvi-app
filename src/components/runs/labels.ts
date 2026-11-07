@@ -1,5 +1,5 @@
 export const WORKFLOW_LABEL: Record<string, string> = {
-  "application.analyze": "Fit analysis",
+  "application.analyze": "Fit check",
   "mail.classify": "Email replies",
   "company.research": "Company research",
   "cv.generate": "CV generation",

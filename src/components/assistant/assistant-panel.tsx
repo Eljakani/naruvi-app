@@ -1,7 +1,9 @@
 "use client"
 
+import { ComposeEmail } from "@/components/mail/compose-email"
 import { PresenceList } from "@/components/presence"
 import Link from "next/link"
+import { NaruviAvatar, Otter } from "@/components/naruvi/otter"
 import { usePathname, useRouter } from "next/navigation"
 import { useChat } from "@ai-sdk/react"
 import { Collapsible } from "@animate-ui/react/primitives/base-ui/collapsible"
@@ -18,8 +20,8 @@ import { FitRing } from "@/components/applications/fit-ring"
 import AIPrompt from "@/components/kokonutui/ai-prompt"
 import AITextLoading from "@/components/kokonutui/ai-text-loading"
 import AIToolApproval from "@/components/kokonutui/ai-tool-approval"
-import { DotmCircular5 } from "@/components/ui/dotm-circular-5"
 import { DotmSquare3 } from "@/components/ui/dotm-square-3"
+import { DotmCircular5 } from "@/components/ui/dotm-circular-5"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { AiStatus, AiStatusIcon } from "@/components/ui/ai-status"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -115,7 +117,7 @@ export function AssistantSidebarItem() {
   const shortcut = useShortcutLabel()
   return (
     <SidebarMenuButton tooltip={`Ask Naruvi (${shortcut})`} aria-controls={PANEL_ID} aria-expanded={open} isActive={open} onClick={toggle}>
-      <SparklesIcon />
+      <SparklesIcon className="text-brand!" />
       <span>Ask Naruvi</span>
       <Kbd className="ml-auto opacity-70 group-data-[collapsible=icon]:hidden">{shortcut}</Kbd>
     </SidebarMenuButton>
@@ -125,8 +127,8 @@ export function AssistantSidebarItem() {
 export function AssistantHeaderButton() {
   const { open, toggle } = useContext(AssistantContext)
   return (
-    <Button id="assistant-toggle" size="sm" variant={open ? "secondary" : "ghost"} aria-label="Ask Naruvi" aria-controls={PANEL_ID} aria-expanded={open} onClick={toggle}>
-      <SparklesIcon />
+    <Button id="assistant-toggle" size="sm" variant={open ? "secondary" : "ghost"} aria-label="Ask Naruvi" aria-controls={PANEL_ID} aria-expanded={open} onClick={toggle} className="text-foreground">
+      <SparklesIcon className="text-brand" />
       <span className="hidden @min-[30rem]/workspace:inline">Ask Naruvi</span>
     </Button>
   )
@@ -385,11 +387,9 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
   return (
     <>
       <header className="flex min-h-14 shrink-0 items-center gap-2.5 border-b px-4 py-2">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
-          <SparklesIcon className="size-4" />
-        </span>
+        <NaruviAvatar size={32} />
         <div className="min-w-0 flex-1">
-          <h2 id="assistant-title" className="text-sm font-semibold">Ask Naruvi</h2>
+          <h2 id="assistant-title" className="text-sm font-semibold">Naruvi</h2>
           <p key={context.label} className="cb-fade truncate text-xs text-muted-foreground">Looking at {context.label}</p>
         </div>
         {messages.length ? (
@@ -489,12 +489,15 @@ function Welcome({ onPick, suggestions }: { onPick: (text: string) => void; sugg
   // Sits just above the composer, where the eye already is, instead of floating mid-panel.
   return (
     <div className="flex flex-1 flex-col justify-end gap-4 pb-1">
-      <div className="grid gap-1">
-        <span className="mb-1 flex size-9 items-center justify-center rounded-xl border bg-muted/40">
-          <SparklesIcon className="size-4.5" />
-        </span>
-        <p className="text-base font-semibold tracking-tight">What can I do for you?</p>
-        <p className="text-sm text-muted-foreground">I read your jobs, applications, contacts and profile. Nothing changes until you approve it.</p>
+      <div className="flex items-end gap-1">
+        <div className="relative -mb-1 shrink-0">
+          <span className="absolute inset-x-3 bottom-0 h-5 rounded-[50%] bg-brand/15 blur-md" aria-hidden />
+          <Otter pose="concept" height={132} className="relative" priority />
+        </div>
+        <div className="relative mb-6 grid gap-1 rounded-2xl rounded-bl-sm border bg-background px-3.5 py-3 shadow-xs">
+          <p className="text-base font-semibold tracking-tight">Hi, I’m Naruvi.</p>
+          <p className="text-sm text-pretty text-muted-foreground">I know your jobs, applications, contacts and profile. Tell me what you need and I’ll get it ready. Nothing changes until you say so.</p>
+        </div>
       </div>
       <div className="grid gap-1.5">
         <p className="text-xs font-medium text-muted-foreground">Suggested</p>
@@ -577,6 +580,19 @@ function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, sta
     } else if (isTool(part) && toolName(part) === "show_profile" && part.state === "output-available") {
       const profile = part.output?.profile as ProfileResult | null | undefined
       if (profile) blocks.push(<ProfileCard key={index} profile={profile} onNavigate={onNavigate} />)
+    }
+    else if (isTool(part) && toolName(part) === "draft_email") {
+      if (part.state === "output-available" && part.output) {
+        const draft = part.output as InferUITools<typeof assistantTools>["draft_email"]["output"]
+        blocks.push(<div key={index} className="grid min-w-0 gap-3 rounded-lg border bg-card p-3 text-sm">
+          <div className="grid gap-1"><p className="flex items-center gap-2 font-medium"><MailIcon className="size-4" /> Email draft · {draft.company}</p><p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">To {draft.to || "Choose a recipient in the composer"}</p></div>
+          <p className="font-medium [overflow-wrap:anywhere]">{draft.subject}</p>
+          <p dir="auto" className="max-h-64 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{draft.body}</p>
+          {draft.missingDetails.length ? <p className="text-xs text-muted-foreground">To complete: {draft.missingDetails.join(" · ")}</p> : null}
+          <div className="flex items-center justify-between gap-2 border-t pt-2"><span className="text-xs text-muted-foreground">Draft only · not sent</span><ComposeEmail applicationId={draft.applicationId} connected={draft.canSend} hasReplies={Boolean(draft.replyTo)} initialDraft={draft} /></div>
+        </div>)
+      } else if (part.state === "output-error") blocks.push(<p key={index} role="alert" className="text-sm text-destructive">{part.errorText || "Couldn’t write the email draft."}</p>)
+      else if (busy) blocks.push(<PendingActivity key={index} label="Drafting an email from the conversation" />)
     }
     else if (isTool(part) && toolName(part) === "open_page" && part.state === "output-available") blocks.push(<OpenButton key={index} path={String(part.input?.path ?? "/")} label={String(part.input?.label ?? "Open")} onNavigate={onNavigate} />)
     else if (isTool(part) && ACTIONS[toolName(part)]) blocks.push(<ActionCard key={index} part={part} busy={busy} stale={stale} onApproval={onApproval} onNavigate={onNavigate} />)
@@ -799,7 +815,7 @@ function AskCard({ part, onAnswer, disabled }: { part: ToolPart; onAnswer: (tool
   )
 }
 
-const THINKING = ["Thinking", "Reading your workspace", "Weighing options", "Putting it together"]
+const THINKING = ["Looking into it", "Reading your workspace", "Finding the useful details", "Putting it together"]
 
 /** Dot-matrix loader with words that swap letter by letter, for the gap before a reply starts. */
 function ThinkingIndicator() {
@@ -869,15 +885,15 @@ const ACTIONS: Record<string, Action> = {
   },
   start_application: {
     icon: GaugeIcon, title: (i) => `Start application · ${s(i.label)}`, details: () => ["Analyzes your fit against your verified facts"],
-    approve: "Analyze fit", working: "Analyzing your fit", done: (o) => (typeof o.fit === "number" ? `Application started · fit ${o.fit}` : "Application started"),
+    approve: "Check fit", working: "Checking your fit", done: (o) => (typeof o.fit === "number" ? `Application started · fit ${o.fit}` : "Application started"),
   },
   draft_cv: {
     icon: FileTextIcon, title: (i) => `Draft CV · ${s(i.label)}`, details: (i) => [LANG[s(i.language)] ?? s(i.language), "Only from verified facts"],
     approve: "Draft CV", working: "Drafting the CV (about a minute)", done: () => "CV drafted",
   },
   draft_letter: {
-    icon: MailIcon, title: (i) => `Draft letter · ${s(i.label)}`, details: (i) => [LANG[s(i.language)] ?? s(i.language), s(i.notes)],
-    approve: "Draft letter", working: "Drafting the letter", done: () => "Letter drafted",
+    icon: MailIcon, title: (i) => `Draft cover letter · ${s(i.label)}`, details: (i) => [LANG[s(i.language)] ?? s(i.language), s(i.notes)],
+    approve: "Draft cover letter", working: "Drafting the cover letter", done: () => "Cover letter drafted",
   },
   research_company: {
     icon: GlobeIcon, title: (i) => `Research · ${s(i.label)}`, details: () => ["Reads the company’s public website"],

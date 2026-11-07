@@ -75,11 +75,11 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <StatusControl id={application.id} status={application.status} />
+        <StatusControl id={application.id} status={application.status} company={job.company?.name ?? ""} title={job.title} />
         <NextStep id={application.id} nextStep={application.nextStep} due={application.nextStepDue?.toISOString() ?? null} />
         <ComposeEmail applicationId={application.id} connected={mailConnected} hasReplies={mail.some((message) => message.direction === "in")} />
         <div className="ms-auto flex flex-wrap items-center gap-2">
-          {job.board === "spontaneous" || !application.analysis ? null : <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />}
+          {job.board === "spontaneous" || !application.analysis ? null : <AnalyzeButton jobId={job.id} label="Check again" variant="outline" />}
           <ArchiveButton id={application.id} archived={Boolean(application.archivedAt)} />
         </div>
       </div>
@@ -102,14 +102,14 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
       <div className={mail.length ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]" : "grid gap-4"}>
         {mail.length ? (
           <div className="grid min-w-0 content-start gap-4">
-            <MailThread messages={mail} />
+            <MailThread messages={mail} applicationId={application.id} connected={mailConnected} status={application.status} />
           </div>
         ) : null}
         <ApplicationPeople applicationId={application.id} people={people} options={contactOptions.map((contact) => ({ id: contact.id, name: contact.name, title: contact.title, company: contact.company }))} />
       </div>
       {job.board === "spontaneous" ? null : (
         <nav className="flex w-fit rounded-lg bg-muted p-0.5" aria-label="Application sections">
-          {([["overview", "Job posting"], ["analysis", application.analysis ? "Fit analysis" : "Fit analysis · not run"]] as const).map(([value, label]) => (
+          {([["overview", "Job posting"], ["analysis", application.analysis ? "Fit check" : "Fit check · not run yet"]] as const).map(([value, label]) => (
             <Link
               key={value}
               href={`/applications/${application.id}${value === "analysis" ? "" : "?tab=overview"}`}

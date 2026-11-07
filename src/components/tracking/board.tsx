@@ -8,6 +8,7 @@ import Link from "next/link"
 import { useOptimistic, useState, useTransition } from "react"
 import { ArchiveIcon, CalendarClockIcon, EllipsisIcon, InboxIcon } from "lucide-react"
 import { toast } from "sonner"
+import { announceStatus } from "@/components/naruvi/moments"
 import { archiveApplicationAction, moveApplicationAction } from "@/app/(app)/applications/actions"
 import { FitRing } from "@/components/applications/fit-ring"
 import { EntryLogo } from "@/components/profile/entry-logo"
@@ -54,7 +55,7 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
       applyMove({ id, status })
       const result = await moveApplicationAction(id, status)
       if (!result.ok) toast.error(result.message ?? "Couldn’t move the application")
-      else toast(`${item.title} → ${STATUS_LABEL[status]}`)
+      else announceStatus(status, item.company, item.title)
     })
   }
 
@@ -184,7 +185,7 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
 function AnalyzeCardButton() {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" size="xs" variant="outline" disabled={pending} className="w-full border-primary/30 text-primary hover:bg-primary/5" draggable={false}>
+    <Button type="submit" size="xs" variant="outline" disabled={pending} className="w-full border-brand/30 text-brand hover:bg-brand-soft" draggable={false}>
       {pending ? <SparklesIcon className="cb-breathe" /> : <ScanSearchIcon />} {pending ? "Checking fit…" : "Check my fit"}
     </Button>
   )

@@ -220,7 +220,7 @@ export function AnalysisView({ analysis, facts, research }: { analysis: StoredAn
   }, [analysis.requirements, filter])
   const score = displayFitScore(analysis)
   const reviewStatus = analysis.requirementFilter?.status
-  const verdict = score === null ? "No score yet." : score >= 75 ? "Strong match." : score >= 50 ? "Worth applying, with a few gaps." : "A stretch for now."
+  const verdict = score === null ? "No score yet." : score >= 75 ? "Strong match: you can back up most of what they ask." : score >= 50 ? "Worth a shot, with a few gaps to be upfront about." : "A stretch for now. Go for it only if it really excites you."
   const method = analysis.modelReview
     ? `Rules, then a model review (${analysis.modelReview.reviewed} items checked, ${analysis.modelReview.changed} adjusted).`
     : reviewStatus === "empty" ? "AI review skipped: no requirements were extracted."
@@ -237,7 +237,7 @@ export function AnalysisView({ analysis, facts, research }: { analysis: StoredAn
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm">
                   <span className="font-medium">{verdict}</span>{" "}
-                  <span className="text-muted-foreground">Checked against your {analysis.factCount} verified facts.</span>
+                  <span className="text-muted-foreground">I checked it against your {analysis.factCount} verified facts.</span>
                 </p>
                 <Popover>
                   <PopoverTrigger render={<button type="button" className="inline-flex shrink-0 items-center gap-1 rounded text-xs text-muted-foreground hover:text-foreground" />}>
@@ -405,7 +405,7 @@ export function AnalysisView({ analysis, facts, research }: { analysis: StoredAn
               ))
             ) : (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                {analysis.requirements.length ? "Nothing in this filter." : analysis.requirementFilter?.excluded.length ? "No candidate requirements remained after filtering. Inspect the excluded posting details below." : "No requirements were extracted. Check the imported job description and re-analyze."}
+                {analysis.requirements.length ? "Nothing in this filter." : analysis.requirementFilter?.excluded.length ? "No candidate requirements remained after filtering. Inspect the excluded posting details below." : "No requirements were extracted. Check the imported job description and run the fit check again."}
               </p>
             )}
             {analysis.requirementFilter?.excluded.length ? <details className="border-t pt-4 text-sm">

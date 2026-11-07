@@ -1,10 +1,11 @@
 "use client"
 
+import { OtterEmpty } from "@/components/naruvi/otter"
 import { WebsiteDialog } from "@/components/companies/company-dialogs"
 import { PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
 import { useRef, useState, useTransition } from "react"
-import { ChevronRightIcon, EllipsisIcon,  FileUpIcon, Loader2Icon, MailIcon, MailSearchIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon, UsersIcon } from "lucide-react"
+import { ChevronRightIcon, EllipsisIcon,  FileUpIcon, Loader2Icon, MailIcon, MailSearchIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon } from "lucide-react"
 import { toast } from "sonner"
 import { deleteContactAction, findEmailAction, importContactsAction, saveContactAction, startSpontaneousAction } from "@/app/(app)/contacts/actions"
 import { EntryLogo } from "@/components/profile/entry-logo"
@@ -13,7 +14,6 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput} from "@/components/ui/input-group"
@@ -62,23 +62,22 @@ export function ContactsView({ contacts, finder }: { contacts: ContactListItem[]
           </PresenceList>
         </Card>
       ) : (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <UsersIcon />
-            </EmptyMedia>
-            <EmptyTitle>No contacts yet</EmptyTitle>
-            <EmptyDescription>Add the recruiters, HR people and managers you write to, import a spreadsheet or your LinkedIn connections, or save profiles with the browser extension.</EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent className="flex-row justify-center">
-            <Button onClick={() => setEditing(BLANK)}>
-              <PlusIcon /> Add contact
-            </Button>
-            <Button variant="outline" onClick={() => setImporting(true)}>
-              <FileUpIcon /> Import
-            </Button>
-          </EmptyContent>
-        </Empty>
+        <OtterEmpty
+          pose="interview-practice"
+          title="Who are you in touch with?"
+          action={
+            <>
+              <Button onClick={() => setEditing(BLANK)}>
+                <PlusIcon /> Add contact
+              </Button>
+              <Button variant="outline" onClick={() => setImporting(true)}>
+                <FileUpIcon /> Import
+              </Button>
+            </>
+          }
+        >
+          Add the recruiters, HR people and managers you write to, import a spreadsheet or your LinkedIn connections, or save profiles with the browser extension.
+        </OtterEmpty>
       )}
       {editing ? <ContactDialog initial={editing} onClose={() => setEditing(null)} /> : null}
       {importing ? <ImportDialog onClose={() => setImporting(false)} /> : null}

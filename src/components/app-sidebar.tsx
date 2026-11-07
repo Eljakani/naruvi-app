@@ -36,9 +36,7 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/" aria-label="Naruvi home" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <NaruviMark className="size-5" />
-              </div>
+              <NaruviMark className="size-8 shrink-0" />
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">Naruvi</span>
                 <span className="truncate text-xs text-muted-foreground">Local workspace</span>
@@ -150,7 +148,7 @@ function NavLink({ item, active, tooltip }: { item: NavItem; active: boolean; to
       tooltip={tooltip}
       isActive={active}
       aria-current={active ? "page" : undefined}
-      className="relative text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent/60 data-active:text-sidebar-foreground [&_svg]:text-muted-foreground [&_svg]:transition-colors hover:[&_svg]:text-sidebar-foreground data-active:[&_svg]:text-sidebar-foreground"
+      className="relative text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent/60 data-active:text-sidebar-foreground [&_svg]:text-muted-foreground [&_svg]:transition-colors hover:[&_svg]:text-sidebar-foreground data-active:[&_svg]:text-brand"
       render={<Link href={item.url} />}
     >
       {active ? <motion.span layoutId="nav-current" transition={{ type: "spring", duration: 0.35, bounce: 0.15 }} className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-sidebar-foreground group-data-[collapsible=icon]:inset-y-2" aria-hidden /> : null}

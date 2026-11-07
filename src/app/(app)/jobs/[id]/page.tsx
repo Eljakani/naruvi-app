@@ -54,7 +54,7 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <TrackJobButton jobId={job.id} />
-          <AnalyzeButton jobId={job.id} label="Track & analyze fit" />
+          <AnalyzeButton jobId={job.id} label="Track & check my fit" />
         </div>
       </div>
       <JobOverview job={job} />

@@ -3,13 +3,14 @@
 import { useTransition } from "react"
 import { ChevronDownIcon, Loader2Icon } from "lucide-react"
 import { toast } from "sonner"
+import { announceStatus } from "@/components/naruvi/moments"
 import { moveApplicationAction } from "@/app/(app)/applications/actions"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MANUAL_STATUSES, STATUS_LABEL, type Status } from "@/lib/stages"
 
 /** Current status with a menu to set it by hand. */
-export function StatusControl({ id, status }: { id: string; status: Status }) {
+export function StatusControl({ id, status, company = "", title = "" }: { id: string; status: Status; company?: string; title?: string }) {
   const [pending, startTransition] = useTransition()
   const options = MANUAL_STATUSES.includes(status) ? MANUAL_STATUSES : [status, ...MANUAL_STATUSES]
   return (
@@ -26,6 +27,7 @@ export function StatusControl({ id, status }: { id: string; status: Status }) {
               startTransition(async () => {
                 const result = await moveApplicationAction(id, value as string)
                 if (!result.ok) toast.error(result.message ?? "Couldn’t update the status")
+                else announceStatus(value as Status, company, title)
               })
             }
           >

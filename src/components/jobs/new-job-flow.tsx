@@ -63,7 +63,7 @@ export function NewJobFlow({ initialUrl = "", initialText = "", initial }: { ini
       setDraft(null)
       setDuplicates([])
       setDescriptionView("preview")
-      toast.success("Saved to Applications", { description: "Analyze your fit when you're ready." })
+      toast.success("Saved to Applications", { description: "Check your fit whenever you’re ready." })
       router.push(result.data.applicationId ? `/applications/${result.data.applicationId}` : `/jobs/${result.data.id}`)
     })
 

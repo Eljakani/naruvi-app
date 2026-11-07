@@ -1,7 +1,7 @@
 "use client"
 
+import { NaruviAvatar, Otter } from "@/components/naruvi/otter"
 import { useEffect, useId, useState } from "react"
-import { SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -36,18 +36,18 @@ export function useStep(active: boolean, count: number) {
   return step
 }
 
-/** Sparkle + shimmering current step + progress dots. */
-export function AiSteps({ steps, step, className }: { steps: readonly string[]; step: number; className?: string }) {
+/** Naruvi + shimmering current step + progress dots. */
+export function AiSteps({ steps, step, className, avatar = true }: { steps: readonly string[]; step: number; className?: string; avatar?: boolean }) {
   return (
     <div role="status" aria-live="polite" className={cn("flex min-w-0 items-center gap-2.5", className)}>
-      <SparklesIcon className="cb-breathe size-4 shrink-0 text-primary" aria-hidden />
+      {avatar ? <NaruviAvatar size={28} className="cb-breathe" /> : null}
       <div className="grid min-w-0 gap-1.5">
         <span key={step} className="cb-step cb-shimmer truncate text-sm font-medium">
           {steps[step]}…
         </span>
         <span className="flex gap-1" aria-hidden>
           {steps.map((label, index) => (
-            <span key={label} className={cn("cb-dot h-1 w-3 rounded-full", index <= step ? "bg-primary" : "bg-muted", index === step && "scale-x-125")} />
+            <span key={label} className={cn("cb-dot h-1 w-3 rounded-full", index <= step ? "bg-brand" : "bg-muted", index === step && "scale-x-125")} />
           ))}
         </span>
       </div>
@@ -61,7 +61,12 @@ export function useAiToast(active: boolean, steps: readonly string[]) {
   const step = useStep(active, steps.length)
   useEffect(() => {
     if (!active) return void toast.dismiss(id)
-    toast.custom(() => <AiSteps steps={steps} step={step} className="w-80 rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg" />, { id, duration: Infinity })
+    toast.custom(() => (
+      <div className="flex w-80 items-end gap-2 overflow-hidden rounded-xl border bg-popover ps-2 pe-4 text-popover-foreground shadow-lg">
+        <Otter pose="working-on-it" height={72} className="-mb-2 mt-2" />
+        <AiSteps steps={steps} step={step} avatar={false} className="flex-1 py-4" />
+      </div>
+    ), { id, duration: Infinity })
   }, [active, step, steps, id])
   useEffect(() => () => void toast.dismiss(id), [id])
   return step

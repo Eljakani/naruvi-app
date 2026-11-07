@@ -1,7 +1,8 @@
 import Link from "next/link"
+import { OtterEmpty } from "@/components/naruvi/otter"
 import { Suspense } from "react"
 import { connection } from "next/server"
-import { ArchiveIcon, ChevronRightIcon, DownloadIcon, FileTextIcon, KanbanIcon, ListIcon, PlusIcon } from "lucide-react"
+import { ArchiveIcon, ChevronRightIcon, DownloadIcon, KanbanIcon, ListIcon, PlusIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { AddJobDialog } from "@/components/jobs/job-reader"
 import { EntryLogo } from "@/components/profile/entry-logo"
@@ -11,7 +12,7 @@ import { ArchiveAllButton, ArchiveButton, NextStep } from "@/components/tracking
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { CLOSED } from "@/lib/attention"
@@ -116,20 +117,9 @@ async function List({ searchParams }: { searchParams: Search }) {
   )
   if (!all.length && show === "active" && !q) {
     return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <FileTextIcon />
-          </EmptyMedia>
-          <EmptyTitle>No applications yet</EmptyTitle>
-          <EmptyDescription>Open a job and click “Analyze my fit” to start one.</EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
-          <Button nativeButton={false} render={<Link href="/jobs" />}>
-            <PlusIcon /> Go to jobs
-          </Button>
-        </EmptyContent>
-      </Empty>
+      <OtterEmpty pose="planning-next-step" title="No applications yet" action={<AddJobDialog trigger={<Button><PlusIcon /> Add a job</Button>} />}>
+        Add a job you like and it starts here as Saved. Then we check your fit together and build a CV that only says what you can back up.
+      </OtterEmpty>
     )
   }
   if (view === "board") {

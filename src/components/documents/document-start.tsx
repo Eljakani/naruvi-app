@@ -49,7 +49,7 @@ export function DocumentStart({
   return (
     <div className="-mx-4 -mt-4 flex h-[calc(100svh-3.5rem)] flex-col md:-mx-6 md:-mt-6">
       <div className="flex flex-wrap items-center gap-3 border-b bg-background px-4 py-2.5 md:px-6">
-        <Button variant="ghost" size="icon-sm" aria-label="Back to analysis" nativeButton={false} render={<Link href={base} />}>
+        <Button variant="ghost" size="icon-sm" aria-label="Back to the application" nativeButton={false} render={<Link href={base} />}>
           <ArrowLeftIcon />
         </Button>
         <div className="min-w-0">

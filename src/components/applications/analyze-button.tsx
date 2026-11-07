@@ -10,14 +10,14 @@ function Submit({ label, variant }: { label: string; variant: "default" | "outli
   const { pending } = useFormStatus()
   useAiToast(pending, AI_STEPS.analyze)
   return (
-    <Button type="submit" variant={variant} disabled={pending}>
-      {pending ? <SparklesIcon className="cb-breathe" /> : <ScanSearchIcon />} <span className={pending ? "cb-shimmer" : undefined}>{pending ? "Analyzing" : label}</span>
+    <Button type="submit" variant={variant} disabled={pending} className={variant === "default" ? "bg-brand text-brand-foreground hover:bg-brand/90" : undefined}>
+      {pending ? <SparklesIcon className="cb-breathe" /> : <ScanSearchIcon />} <span className={pending ? "cb-shimmer" : undefined}>{pending ? "Checking your fit" : label}</span>
     </Button>
   )
 }
 
 /** Runs the evidence-based fit analysis for a job (creates the application if needed). */
-export function AnalyzeButton({ jobId, label = "Analyze my fit", variant = "default" }: { jobId: string; label?: string; variant?: "default" | "outline" }) {
+export function AnalyzeButton({ jobId, label = "Check my fit", variant = "default" }: { jobId: string; label?: string; variant?: "default" | "outline" }) {
   return (
     <form action={analyzeJobAction}>
       <input type="hidden" name="jobId" value={jobId} />

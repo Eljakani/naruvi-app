@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Otter } from "@/components/naruvi/otter"
 import { Suspense, type ReactNode } from "react"
 import { connection } from "next/server"
 import { BriefcaseBusinessIcon, CheckIcon, FileUpIcon, KeyRoundIcon, MailIcon, MessageSquareTextIcon, PaletteIcon, PencilIcon, PlusIcon, PuzzleIcon, SparklesIcon, UserRoundIcon, type LucideIcon } from "lucide-react"
@@ -31,9 +32,12 @@ async function Setup() {
   return (
     <>
       <header className="grid gap-3">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{status.done === status.total ? "You’re all set" : "Set up Naruvi"}</h1>
-          <p className="text-sm text-muted-foreground">A few minutes, once. Everything stays on this computer; you can change any of it later in Settings.</p>
+        <div className="flex items-end gap-4">
+          <Otter pose={status.done === status.total ? "celebrating-progress" : "concept"} height={104} className="-mb-1" priority />
+          <div className="grid gap-1 pb-1">
+            <h1 className="text-2xl font-semibold tracking-tight">{status.done === status.total ? "You’re all set. Let’s go find something good." : "Hi, I’m Naruvi. Let’s get you set up."}</h1>
+            <p className="text-sm text-pretty text-muted-foreground">A few minutes, once. Everything stays on this computer, and you can change any of it later in Settings.</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Progress value={(status.done / status.total) * 100} className="max-w-64" />
@@ -53,11 +57,11 @@ async function Setup() {
           </div>
         </Step>
 
-        <Step number={2} icon={SparklesIcon} title="Connect an AI model" done={steps.model} current={next === "model"} why="Choose a cloud provider, a gateway, or a local model. Naruvi uses it to analyze jobs, tailor CVs, and write letters.">
+        <Step number={2} icon={SparklesIcon} title="Connect an AI model" done={steps.model} current={next === "model"} why="Choose a cloud provider, a gateway, or a local model. It’s what I use to check your fit, tailor your CV and draft your letters.">
           {steps.security ? <ModelSettings initial={status.llm} /> : <p className="text-sm text-muted-foreground">Set up secure storage first, so your key can be saved encrypted.</p>}
         </Step>
 
-        <Step number={3} icon={UserRoundIcon} title="Your profile" done={steps.profile} current={next === "profile"} why="Everything Naruvi writes comes from facts you’ve checked. Start from what you already have." note={status.verifiedFacts ? `${status.verifiedFacts} verified fact${status.verifiedFacts === 1 ? "" : "s"}` : undefined}>
+        <Step number={3} icon={UserRoundIcon} title="Your profile" done={steps.profile} current={next === "profile"} why="I only write what your checked facts can back up. Start from what you already have." note={status.verifiedFacts ? `${status.verifiedFacts} verified fact${status.verifiedFacts === 1 ? "" : "s"}` : undefined}>
           <div className="grid gap-2 sm:grid-cols-3">
             <Choice href="/profile/import" icon={FileUpIcon} title="Import" text="A PDF CV or your LinkedIn data export" />
             <Choice href="/profile/new" icon={MessageSquareTextIcon} title="Answer questions" text="Type or dictate, one question at a time" />

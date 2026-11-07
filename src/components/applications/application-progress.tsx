@@ -52,7 +52,7 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
             : null
 
   return (
-    <div className={cn("grid gap-3 rounded-xl border p-3 sm:p-4", next && current <= 0 && "border-primary/30 bg-primary/[0.03]")}>
+    <div className={cn("grid gap-3 rounded-xl border p-3 sm:p-4", next && current <= 0 && "border-brand/30 bg-brand-soft/50")}>
       <ol className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none]" aria-label="Progress">
         {steps.map((step, position) => {
           const done = !closed && position < index
@@ -63,11 +63,11 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
                 className={cn(
                   "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs whitespace-nowrap transition-colors",
                   done && "text-muted-foreground",
-                  here && "bg-primary font-medium text-primary-foreground",
+                  here && "bg-brand font-medium text-brand-foreground",
                   !done && !here && "text-muted-foreground/60",
                 )}
               >
-                <span className={cn("grid size-4 place-content-center rounded-full text-[10px] tabular-nums", done ? "bg-emerald-500 text-white" : here ? "bg-primary-foreground/20" : "border")}>
+                <span className={cn("grid size-4 place-content-center rounded-full text-[10px] tabular-nums", done ? "bg-emerald-500 text-white" : here ? "bg-brand-foreground/20" : "border")}>
                   {done ? <CheckIcon className="size-2.5" strokeWidth={3} /> : position + 1}
                 </span>
                 {step.label}
@@ -80,7 +80,7 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
       </ol>
       {next ? (
         <div className="flex flex-wrap items-center gap-3 border-t pt-3">
-          <span className="grid size-9 shrink-0 place-content-center rounded-lg bg-primary/10 text-primary">
+          <span className="grid size-9 shrink-0 place-content-center rounded-lg bg-brand/10 text-brand">
             {status === "draft" || status === "parsed" ? <ScanSearchIcon className="size-4.5" /> : status === "ready" ? <SendIcon className="size-4.5" /> : <FileTextIcon className="size-4.5" />}
           </span>
           <div className="grid min-w-0 flex-1 basis-60 gap-0.5">

@@ -1,13 +1,14 @@
 import Link from "next/link"
+import { OtterEmpty } from "@/components/naruvi/otter"
 import { Suspense } from "react"
 import { connection } from "next/server"
-import { BriefcaseBusinessIcon, ChevronLeftIcon, ChevronRightIcon, MapPinIcon, PlusIcon, SearchIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon, MapPinIcon, PlusIcon, SearchIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FitRing } from "@/components/applications/fit-ring"
 import { ClearFilters, SearchBox, UrlSelect } from "@/components/list-toolbar"
@@ -68,18 +69,9 @@ async function JobList({ searchParams }: { searchParams: Search }) {
   const [result, facets] = await Promise.all([searchJobs({ ...filter, tag: tag && tags.some((item) => item.tag === tag) ? tag : undefined }), jobFacets()])
   if (!facets.total && !leads.length) {
     return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <BriefcaseBusinessIcon />
-          </EmptyMedia>
-          <EmptyTitle>Nothing to discover yet</EmptyTitle>
-          <EmptyDescription>Paste a link from LinkedIn, Greenhouse, Lever, Ashby, Workday or any careers page.</EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
-          <AddJobDialog trigger={<Button><PlusIcon /> Add your first job</Button>} />
-        </EmptyContent>
-      </Empty>
+      <OtterEmpty pose="finding-opportunity" title="Let’s find your first posting" action={<AddJobDialog trigger={<Button><PlusIcon /> Add your first job</Button>} />}>
+        Paste a link from LinkedIn, Greenhouse, Lever, Ashby, Workday or any careers page. Job-alert emails and the browser extension will bring more here.
+      </OtterEmpty>
     )
   }
   const filtered = Boolean(filter.q || tag || filter.workMode || filter.contract || filter.seniority || filter.stage !== "all")
@@ -152,15 +144,21 @@ async function JobList({ searchParams }: { searchParams: Search }) {
           })}
         </div>
       ) : (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <SearchIcon />
-            </EmptyMedia>
-            <EmptyTitle>{filter.stage === "new" && !filter.q ? "You’re tracking every posting" : "No matching postings"}</EmptyTitle>
-            <EmptyDescription>{filter.stage === "new" && !filter.q ? <>Everything you saved is in <Link href="/applications" className="underline underline-offset-2">Applications</Link>. New links from job-alert emails and your browser show up above.</> : <>{filter.q ? `Nothing matches “${filter.q}” with these filters.` : "No posting matches these filters."} Try fewer words or clear a filter.</>}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        filter.stage === "new" && !filter.q ? (
+          <OtterEmpty pose="finding-opportunity" title="Nothing new to look at right now" action={<Button variant="outline" nativeButton={false} render={<Link href="/applications" />}>Open Applications</Button>}>
+            Everything you saved is already in Applications. I’ll put new links from your job-alert emails and your browser here as they come in.
+          </OtterEmpty>
+        ) : (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <SearchIcon />
+              </EmptyMedia>
+              <EmptyTitle>No matching postings</EmptyTitle>
+              <EmptyDescription>{filter.q ? `Nothing matches “${filter.q}” with these filters.` : "No posting matches these filters."} Try fewer words or clear a filter.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )
       )}
       {result.pages > 1 ? (
         <nav className="flex items-center justify-between gap-2" aria-label="Pages">

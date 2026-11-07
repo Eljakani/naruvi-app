@@ -323,7 +323,7 @@ function ReadyRing({ value, total }: { value: number; total: number }) {
         <circle cx="24" cy="24" r={r} className="fill-none stroke-muted" strokeWidth="4.5" />
         <motion.circle
           cx="24" cy="24" r={r} strokeWidth="4.5" strokeLinecap="round" strokeDasharray={c}
-          className={share === 1 ? "fill-none stroke-emerald-500" : "fill-none stroke-primary"}
+          className={share === 1 ? "fill-none stroke-emerald-500" : "fill-none stroke-brand"}
           initial={reduce ? false : { strokeDashoffset: c }}
           animate={{ strokeDashoffset: c * (1 - share) }}
           transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}

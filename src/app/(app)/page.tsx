@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import { ArrowRightIcon, BriefcaseBusinessIcon, CheckCircle2Icon, ChevronRightIcon, CircleIcon, FileTextIcon, PlusIcon, SendIcon, UserRoundCheckIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
+import { Otter, type OtterPose } from "@/components/naruvi/otter"
 import { FitRing } from "@/components/applications/fit-ring"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { NeedsAttention } from "@/components/tracking/needs-attention"
@@ -43,9 +44,9 @@ const RUN_STATUS = {
 } as const
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  parsed: "Draft",
-  analyzed: "Analyzed",
+  draft: "Saved",
+  parsed: "Saved",
+  analyzed: "Fit checked",
   generated: "CV drafted",
   ready: "Ready to send",
   submitted: "Sent",
@@ -100,8 +101,8 @@ async function DashboardData() {
 
   const setup = [
     { done: data.hasProfile && data.verifiedFacts > 0, label: "Build your profile", detail: "Add experience and verify the facts your documents will cite.", href: "/profile", icon: UserRoundCheckIcon },
-    { done: data.jobs > 0, label: "Add a job", detail: "Paste a link or the description of any posting.", href: "/jobs", icon: BriefcaseBusinessIcon },
-    { done: data.applications > 0, label: "Analyze your fit", detail: "Open the job and run the analysis to start an application.", href: "/jobs", icon: FileTextIcon },
+    { done: data.jobs > 0, label: "Add a job", detail: "Paste a link or the description of any posting.", href: "/jobs/new", icon: BriefcaseBusinessIcon },
+    { done: data.applications > 0, label: "Check your fit", detail: "Open the application and run the fit check.", href: "/applications", icon: FileTextIcon },
   ]
   const setupDone = setup.filter((step) => step.done).length
 
@@ -113,6 +114,25 @@ async function DashboardData() {
     due ? `${due} thing${due === 1 ? "" : "s"} need${due === 1 ? "s" : ""} you` : "Nothing needs you right now",
     upcoming ? `${upcoming} upcoming next step${upcoming === 1 ? "" : "s"}` : "",
   ].filter(Boolean).join(" · ")
+
+  // What Naruvi would say first, most important situation wins.
+  const offers = sum(["offer"])
+  const interviews = sum(["interviewing"])
+  const unchecked = sum(["draft", "parsed"])
+  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`
+  const note: { pose: OtterPose; text: string; href: string; cta: string } | null = !data.applications
+    ? null
+    : offers
+      ? { pose: "celebrating-progress", text: `${plural(offers, "offer")} on the table. That’s real progress. When you’re ready, I can help you compare ${offers === 1 ? "it with your other options" : "them"}.`, href: "/applications?view=list&stage=offer", cta: offers === 1 ? "See the offer" : "See the offers" }
+      : data.replies.length
+        ? { pose: "good-news-mail", text: `${(data.replies.length === 1 ? "1 company" : `${data.replies.length} companies`)} wrote back. Read ${data.replies.length === 1 ? "it" : "them"} first, I’ve linked each reply to its application.`, href: "#attention", cta: data.replies.length === 1 ? "Read the reply" : "Read the replies" }
+      : due
+        ? { pose: "planning-next-step", text: `${plural(due, "thing")} need${due === 1 ? "s" : ""} you. Start with the first one below, it’s the most urgent.`, href: "#attention", cta: "Show me" }
+        : interviews
+          ? { pose: "interview-practice", text: `${plural(interviews, "interview")} in progress. Ask me and I’ll gather what’s worth mentioning about the company.`, href: "/applications?view=list&stage=interviewing", cta: "Open interviews" }
+          : unchecked
+            ? { pose: "finding-opportunity", text: `${plural(unchecked, "saved job")} ${unchecked === 1 ? "hasn’t" : "haven’t"} been checked yet. A fit check takes about a minute and tells you if it’s worth your time.`, href: "/applications", cta: "Check them" }
+            : { pose: "planning-next-step", text: "You’re all caught up. A good moment to add a new job, or to verify a few more facts in your profile.", href: "/jobs/new", cta: "Add a job" }
 
   return (
     <>
@@ -154,7 +174,22 @@ async function DashboardData() {
         </Card>
       ) : null}
 
-      {data.applications ? <NeedsAttention items={data.attention} now={data.now} replies={data.replies} /> : null}
+      {note ? (
+        <div className="relative flex items-end gap-3 overflow-hidden rounded-xl border border-brand/20 bg-gradient-to-r from-brand-soft/70 via-brand-soft/25 to-transparent ps-3 pe-4">
+          <Otter pose={note.pose} height={88} className="-mb-2 mt-2" priority />
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2 py-3">
+            <p className="min-w-0 flex-1 basis-72 text-sm text-pretty">
+              <span className="font-medium text-brand">Naruvi · </span>
+              {note.text}
+            </p>
+            <Button size="sm" variant="outline" className="border-brand/30 bg-background/70" nativeButton={false} render={<Link href={note.href} />}>
+              {note.cta} <ArrowRightIcon />
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {data.applications && (data.attention.length || data.replies.length) ? <div id="attention" className="scroll-mt-4"><NeedsAttention items={data.attention} now={data.now} replies={data.replies} /></div> : null}
 
       {/* One strip, four numbers: each opens the list behind it. */}
       <Card className="grid grid-cols-2 gap-0 overflow-hidden py-0 @min-[48rem]/workspace:grid-cols-4">
@@ -226,7 +261,7 @@ async function DashboardData() {
                     <SendIcon />
                   </EmptyMedia>
                   <EmptyTitle>No applications yet</EmptyTitle>
-                  <EmptyDescription>Add a job and analyze your fit to start one.</EmptyDescription>
+                  <EmptyDescription>Add a job and check your fit to start one.</EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
                   <Button nativeButton={false} render={<Link href="/jobs" />}>

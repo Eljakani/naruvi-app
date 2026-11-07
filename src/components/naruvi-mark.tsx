@@ -1,10 +1,8 @@
-import type { ComponentProps } from "react"
+import Image from "next/image"
 
-/** The Naruvi monogram, shared with the app icon. */
-export function NaruviMark(props: ComponentProps<"svg">) {
+/** Decorative brand artwork; the surrounding home link supplies its accessible name. */
+export function NaruviMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true" {...props}>
-      <path d="M8 25V7L24 25V7" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <Image src="/brand/naruvi-otter-128-v2.png" width={128} height={128} alt="" aria-hidden="true" className={className} unoptimized />
   )
 }
