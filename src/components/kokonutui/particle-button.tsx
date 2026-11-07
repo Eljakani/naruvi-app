@@ -137,7 +137,9 @@ function Burst({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
+  useLayoutEffect(() => {
+    onDoneRef.current = onDone;
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
