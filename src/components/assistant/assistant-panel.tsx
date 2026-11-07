@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useChat } from "@ai-sdk/react"
 import { Collapsible } from "@animate-ui/react/primitives/base-ui/collapsible"
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, lastAssistantMessageIsCompleteWithToolCalls, type FileUIPart, type InferUITools, type UIMessage } from "ai"
@@ -225,12 +225,28 @@ function DockedAssistant() {
 /* ───────────────────────────── conversation ───────────────────────────── */
 
 const STORAGE = "naruvi-assistant-v2"
-const SUGGESTIONS = [
+type Suggestion = { icon: LucideIcon; text: string }
+const GENERAL: Suggestion[] = [
   { icon: CalendarClockIcon, text: "What should I do today?" },
   { icon: GaugeIcon, text: "Which saved jobs fit me best?" },
   { icon: SendIcon, text: "Start a spontaneous application" },
   { icon: UserPlusIcon, text: "Add a recruiter to my contacts" },
 ]
+
+/** What Naruvi is looking at, and what's most useful to ask there. */
+function pageContext(path: string): { label: string; suggestions: Suggestion[] } {
+  if (/^\/applications\/[^/]+\/letter/.test(path)) return { label: "this cover letter", suggestions: [{ icon: MailIcon, text: "Make this letter shorter and more direct" }, { icon: GlobeIcon, text: "Add something specific about the company" }, { icon: UserRoundIcon, text: "Who should I send it to?" }] }
+  if (/^\/applications\/[^/]+\/cv/.test(path)) return { label: "this CV", suggestions: [{ icon: FileTextIcon, text: "What's missing from this CV for the job?" }, { icon: GaugeIcon, text: "Which requirements am I weakest on?" }, { icon: MailIcon, text: "Draft the cover letter too" }] }
+  if (/^\/applications\/[^/]+/.test(path)) return { label: "this application", suggestions: [{ icon: GaugeIcon, text: "Summarize where this application stands" }, { icon: MailIcon, text: "Draft the cover letter" }, { icon: CalendarClockIcon, text: "Set a follow-up for next week" }, { icon: UserRoundIcon, text: "Who should I contact here?" }] }
+  if (/^\/jobs\/[^/]+/.test(path) && !path.startsWith("/jobs/new")) return { label: "this job", suggestions: [{ icon: GaugeIcon, text: "Is this job a good fit for me?" }, { icon: BriefcaseBusinessIcon, text: "Start an application for this job" }, { icon: GlobeIcon, text: "Research this company" }] }
+  if (path.startsWith("/jobs")) return { label: "your jobs", suggestions: [{ icon: GaugeIcon, text: "Which saved jobs fit me best?" }, { icon: BriefcaseBusinessIcon, text: "Add a job from a link" }, { icon: CalendarClockIcon, text: "Which jobs haven't I applied to yet?" }] }
+  if (path.startsWith("/contacts")) return { label: "your contacts", suggestions: [{ icon: UserPlusIcon, text: "Add a recruiter to my contacts" }, { icon: MailSearchIcon, text: "Which contacts have no email yet?" }, { icon: SendIcon, text: "Start a spontaneous application" }] }
+  if (path.startsWith("/companies")) return { label: "your companies", suggestions: [{ icon: GlobeIcon, text: "Which companies have I applied to most?" }, { icon: SendIcon, text: "Start a spontaneous application" }] }
+  if (path.startsWith("/profile")) return { label: "your profile", suggestions: [{ icon: UserRoundIcon, text: "What's missing from my profile?" }, { icon: FileTextIcon, text: "Which entries have no facts yet?" }, { icon: GaugeIcon, text: "What are my strongest skills?" }] }
+  if (path === "/applications") return { label: "your applications", suggestions: [{ icon: CalendarClockIcon, text: "Which applications have had no news?" }, { icon: GaugeIcon, text: "Which application should I push next?" }, { icon: SendIcon, text: "Start a spontaneous application" }] }
+  return { label: "your dashboard", suggestions: GENERAL }
+}
+
 
 type Part = UIMessage["parts"][number]
 type ToolPart = Extract<Part, { toolCallId: string }> & { type: string; state: string; input?: Record<string, unknown>; output?: Record<string, unknown>; errorText?: string; approval?: { id: string; approved?: boolean } }
@@ -342,6 +358,8 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
     (part.state === "approval-responded" && part.approval?.approved)
   ))
   const working = busy && !toolOwnsStatus
+  // Safe here: the panel only renders after the user opens it, never while prerendering.
+  const context = pageContext(usePathname())
   const writing = status === "streaming" && latestStep.some((part) => part.type === "text" && part.state === "streaming" && part.text.trim())
 
 
@@ -353,7 +371,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
         </span>
         <div className="min-w-0 flex-1">
           <h2 id="assistant-title" className="text-sm font-semibold">Ask Naruvi</h2>
-          <p className="text-xs text-muted-foreground">Career assistant</p>
+          <p key={context.label} className="cb-fade truncate text-xs text-muted-foreground">Looking at {context.label}</p>
         </div>
         {messages.length ? (
           <Button size="icon-sm" variant="ghost" aria-label="New conversation" title="New conversation" disabled={busy} onClick={() => { setMessages([]); sessionStorage.removeItem(STORAGE) }}>
@@ -374,7 +392,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
                   <TranscriptMessage key={message.id} message={message} onNavigate={onNavigate} onAnswer={onAnswer} onApproval={onApproval} busy={busy && message.id === last?.id} stale={message.id !== last?.id} />
                 ))
               ) : (
-                <Welcome onPick={send} />
+                <Welcome onPick={send} suggestions={context.suggestions} />
               )}
               {working ? (
                 <MessageScrollerItem>
@@ -437,24 +455,30 @@ function friendlyError(message: string) {
   return "Something went wrong. Try again, or check your AI model in Settings."
 }
 
-function Welcome({ onPick }: { onPick: (text: string) => void }) {
+function Welcome({ onPick, suggestions }: { onPick: (text: string) => void; suggestions: Suggestion[] }) {
+  // Sits just above the composer, where the eye already is, instead of floating mid-panel.
   return (
-    <div className="grid min-h-full content-center gap-5 py-6">
-      <div className="grid justify-items-center gap-2 text-center">
-        <span className="flex size-10 items-center justify-center rounded-xl border bg-muted/40">
-          <SparklesIcon className="size-5" />
+    <div className="flex flex-1 flex-col justify-end gap-4 pb-1">
+      <div className="grid gap-1">
+        <span className="mb-1 flex size-9 items-center justify-center rounded-xl border bg-muted/40">
+          <SparklesIcon className="size-4.5" />
         </span>
-        <p className="font-medium">What can I do for you?</p>
-        <p className="max-w-64 text-sm text-muted-foreground">Find your best matches, prepare an application, or follow up with a recruiter.</p>
+        <p className="text-base font-semibold tracking-tight">What can I do for you?</p>
+        <p className="text-sm text-muted-foreground">I read your jobs, applications, contacts and profile. Nothing changes until you approve it.</p>
       </div>
       <div className="grid gap-1.5">
-        {SUGGESTIONS.map(({ icon: Icon, text }) => (
-          <button key={text} type="button" onClick={() => onPick(text)} className="group/suggestion flex min-h-11 items-center gap-2.5 rounded-lg border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring">
-            <Icon className="size-4 shrink-0 text-muted-foreground" />
-            <span className="flex-1">{text}</span>
-            <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground motion-safe:transition-transform motion-safe:duration-150 motion-safe:group-hover/suggestion:translate-x-0.5" />
-          </button>
-        ))}
+        <p className="text-xs font-medium text-muted-foreground">Suggested</p>
+        <ul key={suggestions[0]?.text} className="cb-stagger grid divide-y overflow-hidden rounded-xl border bg-background">
+          {suggestions.map(({ icon: Icon, text }) => (
+            <li key={text}>
+              <button type="button" onClick={() => onPick(text)} className="group/suggestion flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none">
+                <Icon className="size-4 shrink-0 text-muted-foreground transition-colors group-hover/suggestion:text-foreground" />
+                <span className="flex-1">{text}</span>
+                <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-[opacity,translate] duration-150 group-hover/suggestion:translate-x-0.5 group-hover/suggestion:opacity-100 group-focus-visible/suggestion:opacity-100" />
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   )
