@@ -120,19 +120,19 @@ async function DashboardData() {
   const interviews = sum(["interviewing"])
   const unchecked = sum(["draft", "parsed"])
   const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`
-  const note: { pose: OtterPose; text: string; href: string; cta: string } | null = !data.applications
+  const note: { pose: OtterPose; title: string; text: string; href: string; cta: string } | null = !data.applications
     ? null
     : offers
-      ? { pose: "celebrating-progress", text: `${plural(offers, "offer")} on the table. That’s real progress. When you’re ready, I can help you compare ${offers === 1 ? "it with your other options" : "them"}.`, href: "/applications?view=list&stage=offer", cta: offers === 1 ? "See the offer" : "See the offers" }
+      ? { pose: "celebrating-progress", title: `${plural(offers, "offer")} on the table`, text: `That’s real progress. When you’re ready, I can help you compare ${offers === 1 ? "it with your other options" : "them"}.`, href: "/applications?view=list&stage=offer", cta: offers === 1 ? "See the offer" : "See the offers" }
       : data.replies.length
-        ? { pose: "good-news-mail", text: `${(data.replies.length === 1 ? "1 company" : `${data.replies.length} companies`)} wrote back. Read ${data.replies.length === 1 ? "it" : "them"} first, I’ve linked each reply to its application.`, href: "#attention", cta: data.replies.length === 1 ? "Read the reply" : "Read the replies" }
+        ? { pose: "good-news-mail", title: `${data.replies.length === 1 ? "A company" : `${data.replies.length} companies`} wrote back`, text: `Read ${data.replies.length === 1 ? "it" : "them"} first. I’ve linked each reply to its application.`, href: "#attention", cta: data.replies.length === 1 ? "Read the reply" : "Read the replies" }
       : due
-        ? { pose: "planning-next-step", text: `${plural(due, "thing")} need${due === 1 ? "s" : ""} you. Start with the first one below, it’s the most urgent.`, href: "#attention", cta: "Show me" }
+        ? { pose: "planning-next-step", title: `${plural(due, "thing")} need${due === 1 ? "s" : ""} you`, text: "Start with the first one below, it’s the most urgent.", href: "#attention", cta: "Show me" }
         : interviews
-          ? { pose: "interview-practice", text: `${plural(interviews, "interview")} in progress. Ask me and I’ll gather what’s worth mentioning about the company.`, href: "/applications?view=list&stage=interviewing", cta: "Open interviews" }
+          ? { pose: "interview-practice", title: `${plural(interviews, "interview")} in progress`, text: "Ask me and I’ll gather what’s worth mentioning about the company.", href: "/applications?view=list&stage=interviewing", cta: "Open interviews" }
           : unchecked
-            ? { pose: "finding-opportunity", text: `${plural(unchecked, "saved job")} ${unchecked === 1 ? "hasn’t" : "haven’t"} been checked yet. A fit check takes about a minute and tells you if it’s worth your time.`, href: "/applications", cta: "Check them" }
-            : { pose: "planning-next-step", text: "You’re all caught up. A good moment to add a new job, or to verify a few more facts in your profile.", href: "/jobs/new", cta: "Add a job" }
+            ? { pose: "finding-opportunity", title: `${plural(unchecked, "saved job")} to check`, text: "A fit check takes about a minute and tells you if it’s worth your time.", href: "/applications", cta: "Check them" }
+            : { pose: "planning-next-step", title: "You’re all caught up", text: "A good moment to add a new job, or to verify a few more facts in your profile.", href: "/jobs/new", cta: "Add a job" }
 
   return (
     <>
@@ -175,18 +175,20 @@ async function DashboardData() {
       ) : null}
 
       {note ? (
-        <div className="relative flex items-end gap-3 overflow-hidden rounded-xl border border-brand/20 bg-gradient-to-r from-brand-soft/70 via-brand-soft/25 to-transparent ps-3 pe-4">
-          <Otter pose={note.pose} height={88} className="-mb-2 mt-2" priority />
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2 py-3">
-            <p className="min-w-0 flex-1 basis-72 text-sm text-pretty">
-              <span className="font-medium text-brand">Naruvi · </span>
-              {note.text}
-            </p>
-            <Button size="sm" variant="outline" className="border-brand/30 bg-background/70" nativeButton={false} render={<Link href={note.href} />}>
-              {note.cta} <ArrowRightIcon />
-            </Button>
+        <section aria-label="Naruvi" className="cb-enter flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-brand/20 bg-gradient-to-r from-brand-soft via-brand-soft/40 to-card px-4 py-3">
+          <span className="relative grid shrink-0 place-items-end">
+            <span className="absolute inset-x-1 bottom-0 h-4 rounded-[50%] bg-brand/15 blur-md" aria-hidden />
+            <Otter pose={note.pose} height={72} className="relative" priority />
+          </span>
+          <div className="grid min-w-0 flex-1 gap-0.5">
+            <p className="text-xs font-medium tracking-wide text-brand uppercase">Naruvi</p>
+            <p className="text-base font-semibold tracking-tight text-balance">{note.title}</p>
+            <p className="text-sm text-pretty text-muted-foreground">{note.text}</p>
           </div>
-        </div>
+          <Button variant="outline" className="shrink-0 border-brand/30 bg-background/80 hover:bg-background max-sm:ms-[5.5rem]" nativeButton={false} render={<Link href={note.href} />}>
+            {note.cta} <ArrowRightIcon />
+          </Button>
+        </section>
       ) : null}
 
       {data.applications && (data.attention.length || data.replies.length) ? <div id="attention" className="scroll-mt-4"><NeedsAttention items={data.attention} now={data.now} replies={data.replies} /></div> : null}

@@ -66,6 +66,9 @@ export function AppSidebar({
         </Suspense>
       </SidebarContent>
       <SidebarFooter>
+        <Suspense fallback={null}>
+          <ActiveWeekCard />
+        </Suspense>
         <Suspense fallback={<SettingsLink pathname={null} />}>
           <ActiveSettingsLink />
         </Suspense>
@@ -82,16 +85,61 @@ function ActiveNavGroups() {
   return <NavGroups pathname={usePathname()} />
 }
 
+function ActiveWeekCard() {
+  return <WeekCard counts={useNavCounts(usePathname())} />
+}
+
+/** Naruvi's short weekly recap in the sidebar's spare space: real numbers, one encouraging line. */
+function WeekCard({ counts }: { counts: Record<string, number> }) {
+  if (!("week.sent" in counts)) return null
+  const items = [
+    { n: counts["week.sent"], one: "sent", many: "sent" },
+    { n: counts["week.interviews"], one: "interview", many: "interviews" },
+    { n: counts["week.offers"], one: "offer", many: "offers" },
+  ].filter((item) => item.n)
+  const line = counts["week.offers"]
+    ? "An offer this week. That’s worth celebrating."
+    : counts["week.interviews"]
+      ? "They want to talk. Your work is paying off."
+      : counts["week.sent"]
+        ? "Good momentum. Keep the follow-ups coming."
+        : counts["week.checked"]
+          ? "You’ve been checking fits. Ready to send one?"
+          : "A quiet week. One good application is enough to restart."
+  return (
+    <Link href="/" className="group/week mx-1 mb-1 grid gap-2 rounded-xl border border-brand/15 bg-gradient-to-br from-brand-soft/80 to-transparent p-3 transition-colors hover:border-brand/30 group-data-[collapsible=icon]:hidden">
+      <span className="flex items-center gap-2">
+        <span className="grid size-7 shrink-0 place-content-center overflow-hidden rounded-full ring-1 ring-brand/25">
+          <NaruviMark className="size-7" />
+        </span>
+        <span className="text-xs font-medium">This week</span>
+      </span>
+      {items.length ? (
+        <span className="flex flex-wrap gap-1.5">
+          {items.map((item) => (
+            <span key={item.one} className="rounded-full bg-background/80 px-2 py-0.5 text-xs tabular-nums ring-1 ring-border">
+              <span className="font-semibold">{item.n}</span> {item.n === 1 ? item.one : item.many}
+            </span>
+          ))}
+        </span>
+      ) : null}
+      <span className="text-xs leading-snug text-pretty text-muted-foreground group-hover/week:text-foreground">{line}</span>
+    </Link>
+  )
+}
+
 function ActiveSettingsLink() {
   return <SettingsLink pathname={usePathname()} />
 }
 
-/** Counts refresh on every page change, so they follow what you just did. */
+/** Counts refresh on every page change, so they follow what you just did. The nav and the week card share one request. */
+let shared: { key: string | null; request: Promise<Record<string, number>> } | null = null
 function useNavCounts(pathname: string | null) {
   const [counts, setCounts] = React.useState<Record<string, number>>({})
   React.useEffect(() => {
     let current = true
-    void navCountsAction().then((next) => {
+    if (!shared || shared.key !== pathname) shared = { key: pathname, request: navCountsAction() }
+    void shared.request.then((next) => {
       if (current) setCounts(next)
     })
     return () => {

@@ -20,7 +20,6 @@ import { FitRing } from "@/components/applications/fit-ring"
 import AIPrompt from "@/components/kokonutui/ai-prompt"
 import AITextLoading from "@/components/kokonutui/ai-text-loading"
 import AIToolApproval from "@/components/kokonutui/ai-tool-approval"
-import { DotmSquare3 } from "@/components/ui/dotm-square-3"
 import { DotmCircular5 } from "@/components/ui/dotm-circular-5"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { AiStatus, AiStatusIcon } from "@/components/ui/ai-status"
@@ -127,9 +126,22 @@ export function AssistantSidebarItem() {
 export function AssistantHeaderButton() {
   const { open, toggle } = useContext(AssistantContext)
   return (
-    <Button id="assistant-toggle" size="sm" variant={open ? "secondary" : "ghost"} aria-label="Ask Naruvi" aria-controls={PANEL_ID} aria-expanded={open} onClick={toggle} className="text-foreground">
-      <SparklesIcon className="text-brand" />
-      <span className="hidden @min-[30rem]/workspace:inline">Ask Naruvi</span>
+    <Button
+      id="assistant-toggle"
+      size="sm"
+      variant="ghost"
+      aria-label={open ? "Close Naruvi" : "Wake Naruvi up"}
+      aria-controls={PANEL_ID}
+      aria-expanded={open}
+      onClick={toggle}
+      data-awake={open || undefined}
+      className="naruvi-trigger h-8 gap-2 rounded-full border ps-1 pe-3 text-foreground"
+    >
+      <span className="relative grid size-6 place-content-center">
+        <NaruviAvatar size={24} className="naruvi-trigger-face" />
+        <span aria-hidden="true" className="naruvi-sleep pointer-events-none absolute -end-1 -top-1.5 text-[9px] font-bold text-brand"><span className="naruvi-z inline-block">z</span></span>
+      </span>
+      <span className="hidden text-sm @min-[30rem]/workspace:inline">{open ? "Naruvi is here" : "Ask Naruvi"}</span>
     </Button>
   )
 }
@@ -286,6 +298,8 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
     sendAutomaticallyWhen: (options) => lastAssistantMessageIsCompleteWithApprovalResponses(options) || lastAssistantMessageIsCompleteWithToolCalls(options),
   })
   const busy = status === "submitted" || status === "streaming"
+  // One clock per turn, started by what started the turn, so the elapsed time never jumps back to 0 between steps.
+  const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null)
   const [draft, setDraft] = useState("")
   const [images, setImages] = useState<FileUIPart[]>([])
   const [imageError, setImageError] = useState("")
@@ -311,6 +325,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
   }, [finished, router])
 
   const send = (text: string, attachments: FileUIPart[] = []) => {
+    setTurnStartedAt(Date.now())
     const value = text.trim()
     if ((!value && !attachments.length) || busy) return
     clearError()
@@ -361,9 +376,11 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
     if (!window.matchMedia("(min-width: 64rem)").matches) onClose()
   }, [onClose])
   const onAnswer = useCallback((toolCallId: string, choice: string) => {
+    setTurnStartedAt(Date.now())
     void addToolOutput({ tool: "ask_user", toolCallId, output: { choice } } as never)
   }, [addToolOutput])
   const onApproval = useCallback((id: string, approved: boolean) => {
+    setTurnStartedAt(Date.now())
     void addToolApprovalResponse({ id, approved })
   }, [addToolApprovalResponse])
 
@@ -416,7 +433,8 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
               )}
               {working ? (
                 <MessageScrollerItem>
-                  {writing ? <AiStatus state="writing" /> : <ThinkingIndicator />}
+                  {/* While text streams, the text itself is the progress: no extra "Writing" line. */}
+                  {writing ? null : <ThinkingIndicator startedAt={turnStartedAt} />}
                 </MessageScrollerItem>
               ) : null}
               {error ? (
@@ -816,15 +834,24 @@ function AskCard({ part, onAnswer, disabled }: { part: ToolPart; onAnswer: (tool
   )
 }
 
-const THINKING = ["Looking into it", "Reading your workspace", "Finding the useful details", "Putting it together"]
-
-/** Dot-matrix loader with words that swap letter by letter, for the gap before a reply starts. */
-function ThinkingIndicator() {
+/** A stationary Naruvi portrait with quiet water ripples while a turn is pending. */
+function ThinkingIndicator({ startedAt }: { startedAt: number | null }) {
+  const [mountedAt] = useState(() => Date.now())
+  const [now, setNow] = useState(mountedAt)
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  const seconds = Math.max(0, Math.floor((now - (startedAt ?? mountedAt)) / 1000))
   return (
-    <div className="cb-step flex items-end gap-2 text-foreground/80" role="status">
-      <Otter pose="thinking" height={56} className="-mb-1" />
-      <DotmSquare3 size={14} dotSize={2} color="currentColor" ariaLabel="Thinking" className="mb-2 text-brand" />
-      <AITextLoading texts={THINKING} interval={1800} label="Naruvi is thinking" showElapsed className="justify-start gap-2 text-sm font-medium text-foreground/80 [&>span:last-child]:text-xs [&>span:last-child]:text-muted-foreground" />
+    <div className="flex items-center gap-2.5" role="status" aria-label="Naruvi is thinking">
+      <span className="naruvi-thinking-mark" aria-hidden="true">
+        <span className="naruvi-thinking-ripple" />
+        <span className="naruvi-thinking-ripple naruvi-thinking-ripple--second" />
+        <NaruviAvatar size={28} className="relative" />
+      </span>
+      <span className="text-sm font-medium text-muted-foreground">Naruvi is thinking</span>
+      {seconds >= 3 ? <span className="text-xs text-muted-foreground tabular-nums">{seconds}s</span> : null}
     </div>
   )
 }
