@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { MAX_IMAGE_BYTES } from "@/lib/asset-limits"
+import { LanguageSwitch, LANGUAGE_NAMES } from "@/components/profile/language-switch"
 import type { profiles } from "@/server/db/schema"
 
 type Profile = typeof profiles.$inferSelect
@@ -38,68 +39,67 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
       toast.success("Identity saved")
       onOpenChange(false)
     })
+  const [lang, setLang] = useState<"en" | "fr">("en")
+  const other = lang === "en" ? "fr" : "en"
+  const setText = (key: "headlines" | "summaries", value: string) => setForm((current) => ({ ...current, [key]: { ...current[key], [lang]: value } }))
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Identity & contact</DialogTitle>
-          <DialogDescription>Copied verbatim into every document. Generation is never allowed to change these.</DialogDescription>
+          <DialogDescription>Copied as-is into every CV and letter. AI never changes these.</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4">
-          <div className="flex items-center gap-4">
-            <PhotoField pending={uploading || pending} startUpload={startUpload} value={form.photoPath} name={form.fullName} onChange={(photoPath) => setForm((current) => ({ ...current, photoPath }))} />
-            <div className="grid flex-1 gap-2">
-              <Field id="fullName" label="Full name" value={form.fullName} onChange={set("fullName")} />
+        <div className="-mx-4 grid min-h-0 flex-1 content-start gap-6 overflow-y-auto overscroll-contain px-4 pb-1">
+          <section className="grid gap-4" aria-labelledby="identity-who">
+            <h3 id="identity-who" className="sr-only">Who you are</h3>
+            <div className="flex items-center gap-4">
+              <PhotoField pending={uploading || pending} startUpload={startUpload} value={form.photoPath} name={form.fullName} onChange={(photoPath) => setForm((current) => ({ ...current, photoPath }))} />
+              <div className="grid flex-1 gap-2">
+                <Field id="fullName" label="Full name" value={form.fullName} onChange={set("fullName")} autoComplete="name" />
+              </div>
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label>Headline</Label>
-            <div className="grid gap-2">
-              {(["en", "fr"] as const).map((lang) => (
-                <div key={lang} className="flex items-center gap-2">
-                  <span className="w-7 shrink-0 rounded border px-1 text-center font-mono text-[11px] uppercase text-muted-foreground">{lang}</span>
-                  <Input
-                    aria-label={`Headline ${lang}`}
-                    value={form.headlines[lang]}
-                    onChange={(event) => setForm({ ...form, headlines: { ...form.headlines, [lang]: event.target.value } })}
-                    placeholder={lang === "en" ? "e.g. Registered Nurse · Pediatrics" : "ex. Infirmière diplômée · Pédiatrie"}
-                  />
-                </div>
-              ))}
+          </section>
+
+          <section className="grid gap-3 rounded-lg border p-3" aria-labelledby="identity-intro">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 id="identity-intro" className="flex-1 text-sm font-medium">How you introduce yourself</h3>
+              <LanguageSwitch value={lang} onChange={setLang} languages={["en", "fr"] as const} filled={(code) => Boolean(form.headlines[code].trim())} />
             </div>
-            <p className="text-xs text-muted-foreground">The line under your name. A job can override it later; it never invents seniority.</p>
-          </div>
-          <div className="grid gap-2">
-            <Label>About you</Label>
-            <div className="grid gap-2">
-              {(["en", "fr"] as const).map((lang) => (
-                <div key={lang} className="flex items-start gap-2">
-                  <span className="mt-2 w-7 shrink-0 rounded border px-1 text-center font-mono text-[11px] uppercase text-muted-foreground">{lang}</span>
-                  <Textarea
-                    aria-label={`Summary ${lang}`}
-                    value={form.summaries[lang]}
-                    onChange={(event) => setForm({ ...form, summaries: { ...form.summaries, [lang]: event.target.value } })}
-                    placeholder={lang === "en" ? "2–3 sentences: what you do, for whom, and what you’re known for." : "2–3 phrases : ce que vous faites, pour qui, et ce qui vous distingue."}
-                    className="min-h-16"
-                    maxLength={1200}
-                  />
-                </div>
-              ))}
+            <div key={lang} className="cb-fade grid gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="headline">Headline</Label>
+                <Input id="headline" value={form.headlines[lang]} onChange={(event) => setText("headlines", event.target.value)} placeholder={lang === "en" ? "e.g. Registered Nurse · Pediatrics" : "ex. Infirmière diplômée · Pédiatrie"} />
+                <p className="text-xs text-muted-foreground">The line under your name. A job can adjust it; it never invents seniority.</p>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="summary">About you <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                <Textarea id="summary" value={form.summaries[lang]} onChange={(event) => setText("summaries", event.target.value)} placeholder={lang === "en" ? "2–3 sentences: what you do, for whom, and what you’re known for." : "2–3 phrases : ce que vous faites, pour qui, et ce qui vous distingue."} className="min-h-20" maxLength={1200} />
+                <p className="text-xs text-muted-foreground">A short paragraph at the top of your CV. AI can tailor it per job using only your verified facts.</p>
+              </div>
+              {!form.headlines[lang].trim() && !form.summaries[lang].trim() && (form.headlines[other].trim() || form.summaries[other].trim()) ? (
+                <Button size="sm" variant="outline" className="w-fit" onClick={() => setForm((current) => ({ ...current, headlines: { ...current.headlines, [lang]: current.headlines[other] }, summaries: { ...current.summaries, [lang]: current.summaries[other] } }))}>
+                  Start from the {LANGUAGE_NAMES[other]} text
+                </Button>
+              ) : null}
             </div>
-            <p className="text-xs text-muted-foreground">Shown as a short paragraph at the top of your CV. For each job, AI can tailor it using only your verified facts.</p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="email" label="Email" value={form.email} onChange={set("email")} type="email" />
-            <Field id="phone" label="Phone" value={form.phone} onChange={set("phone")} />
-            <Field id="location" label="Location" value={form.location} onChange={set("location")} />
-            <Field id="availability" label="Availability" value={form.availability} onChange={set("availability")} />
-          </div>
-          <div className="grid gap-2">
-            <Label>Links</Label>
+          </section>
+
+          <section className="grid gap-3" aria-labelledby="identity-contact">
+            <h3 id="identity-contact" className="text-sm font-medium">Contact</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="email" label="Email" value={form.email} onChange={set("email")} type="email" autoComplete="email" />
+              <Field id="phone" label="Phone" value={form.phone} onChange={set("phone")} type="tel" autoComplete="tel" />
+              <Field id="location" label="Location" value={form.location} onChange={set("location")} placeholder="City, country" />
+              <Field id="availability" label="Availability" value={form.availability} onChange={set("availability")} placeholder="e.g. Immediately, March 2027" />
+            </div>
+          </section>
+
+          <section className="grid gap-2" aria-labelledby="identity-links">
+            <h3 id="identity-links" className="text-sm font-medium">Links</h3>
             {form.links.map((link, index) => (
-              <div key={index} className="flex gap-2">
-                <Input aria-label="Label" className="w-32" value={link.label} onChange={(event) => setForm({ ...form, links: form.links.map((item, i) => (i === index ? { ...item, label: event.target.value } : item)) })} />
-                <Input aria-label="URL" value={link.url} onChange={(event) => setForm({ ...form, links: form.links.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)) })} />
+              <div key={index} className="cb-enter flex gap-2">
+                <Input aria-label="Label" className="w-32" value={link.label} placeholder="LinkedIn" onChange={(event) => setForm({ ...form, links: form.links.map((item, i) => (i === index ? { ...item, label: event.target.value } : item)) })} />
+                <Input aria-label="URL" type="url" value={link.url} onChange={(event) => setForm({ ...form, links: form.links.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)) })} />
                 <Button size="icon" variant="ghost" aria-label="Remove link" onClick={() => setForm({ ...form, links: form.links.filter((_, i) => i !== index) })}>
                   <TrashIcon />
                 </Button>
@@ -108,12 +108,12 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
             <Button size="sm" variant="outline" className="w-fit" onClick={() => setForm({ ...form, links: [...form.links, { label: "", url: "https://" }] })}>
               <PlusIcon /> Add link
             </Button>
-          </div>
+          </section>
         </div>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button onClick={save} disabled={pending || uploading}>
-            {pending ? "Saving…" : "Save"}
+            {pending ? <Loader2Icon className="animate-spin" /> : null} {pending ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -30,6 +30,7 @@ import { LogoField } from "@/components/profile/editor/logo-field"
 import { BulletSuggestions } from "@/components/profile/editor/bullet-suggestions"
 import { EntryAssist } from "@/components/profile/editor/entry-assist"
 import { ChipInput, FactPicker, GrowText, LineList, StringLineList } from "@/components/profile/editor/inputs"
+import { LanguageSwitch, LANGUAGE_NAMES } from "@/components/profile/language-switch"
 import { type Draft, type DraftBullet, type Lang, LANGS, newKey, pairRows, toDraft, toInput } from "@/components/profile/editor/draft"
 import { KIND_SINGULAR, STATUS_LABELS } from "@/components/profile/labels"
 import {
@@ -94,7 +95,6 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   const [initial] = useState(() => ({ ...toDraft(entry), ...(entry || !initialKind ? {} : { kind: initialKind }) }))
   const [draft, setDraft] = useState<Draft>(initial)
   const [lang, setLang] = useState<Lang>("en")
-  const [previewLang, setPreviewLang] = useState<Lang>("en")
   const [hoverFact, setHoverFact] = useState<string | null>(null)
   const [confirmLeave, setConfirmLeave] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -204,6 +204,10 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             {KIND_SINGULAR[draft.kind]} · {dirty ? <span className="text-amber-600">Unsaved changes</span> : entry ? "All changes saved" : "Not saved yet"}
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden text-xs text-muted-foreground lg:inline">Writing in</span>
+          <LanguageSwitch value={lang} onChange={setLang} languages={LANGS} filled={(code) => Boolean(draft.display[code].role.trim())} label="Language you're writing in" />
+        </div>
         <ToggleGroup value={[draft.status]} onValueChange={(value) => value[0] && patch({ status: value[0] as Draft["status"] })} variant="outline" size="sm" aria-label="Status">
           {entryStatuses.map((status) => (
             <ToggleGroupItem key={status} value={status} className="px-2.5 text-xs aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background">
@@ -263,29 +267,22 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             id="display"
             n={2}
             title="How it appears on a CV"
-            description="Title, place and dates, in each language you apply in."
-            action={
-              <ToggleGroup value={[lang]} onValueChange={(value) => value[0] && setLang(value[0] as Lang)} variant="outline" size="sm" aria-label="Language">
-                {LANGS.map((code) => (
-                  <ToggleGroupItem key={code} value={code} className="gap-1.5 px-3 text-xs aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background">
-                    {code.toUpperCase()}
-                    {draft.display[code].role ? <span className="size-1.5 rounded-full bg-emerald-500" /> : <span className="size-1.5 rounded-full bg-muted-foreground/40" />}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            }
+            description={`Title, place and dates in ${LANGUAGE_NAMES[lang]}. Switch language at the top.`}
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div key={lang} className="cb-fade grid gap-4 sm:grid-cols-2">
               <Field id={`${lang}-role`} label={copy.role} value={draft.display[lang].role} placeholder={copy.rolePlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], role: value } } })} />
               <Field id={`${lang}-org`} label={copy.organization} value={draft.display[lang].organization} placeholder={copy.orgPlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], organization: value } } })} />
               <Field id={`${lang}-dates`} label="Dates" value={draft.display[lang].dates} placeholder={lang === "en" ? "Feb. 2024 – Present" : "Février 2024 – aujourd’hui"} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], dates: value } } })} />
               <Field id={`${lang}-location`} label="Location" value={draft.display[lang].location} placeholder={lang === "en" ? "Paris, France" : "Paris, France"} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], location: value } } })} />
             </div>
-            {lang === "fr" && !draft.display.fr.role && draft.display.en.role ? (
-              <Button variant="outline" size="sm" className="w-fit" onClick={() => patch({ display: { ...draft.display, fr: { ...draft.display.en } } })}>
-                <CopyIcon /> Start from the English fields
-              </Button>
-            ) : null}
+            {(() => {
+              const other = LANGS.find((code) => code !== lang)!
+              return !draft.display[lang].role && draft.display[other].role ? (
+                <Button variant="outline" size="sm" className="w-fit" onClick={() => patch({ display: { ...draft.display, [lang]: { ...draft.display[other] } } })}>
+                  <CopyIcon /> Start from the {LANGUAGE_NAMES[other]} fields
+                </Button>
+              ) : null
+            })()}
           </Section>
 
           {/* 3. facts */}
@@ -323,7 +320,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             id="bullets"
             n={4}
             title="CV lines"
-            description="The polished sentences a CV may use, in each language. Each one points to the facts that back it up. Let AI draft them from your facts."
+            description={`The polished sentences a CV may use, shown in ${LANGUAGE_NAMES[lang]}. Each one points to the facts that back it up.`}
             action={
               <Button variant="outline" size="sm" onClick={addGroup}>
                 <PlusIcon /> Group
@@ -358,41 +355,38 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                 <div key={group} className="grid gap-3 rounded-lg border bg-muted/20 p-3">
                   <div className="flex items-center gap-2">
                     <Input defaultValue={group} onBlur={(event) => event.target.value.trim() && event.target.value !== group && renameGroup(group, event.target.value.trim())} className="h-8 max-w-64 border-transparent bg-transparent font-medium shadow-none hover:border-input focus-visible:border-ring" aria-label="Group name" />
-                    <span className="ml-auto hidden text-[11px] font-medium tracking-wide text-muted-foreground uppercase sm:inline">English</span>
-                    <span className="hidden w-[calc(50%-0.5rem)] text-[11px] font-medium tracking-wide text-muted-foreground uppercase sm:inline">French</span>
+                    <span className="ml-auto text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{LANGUAGE_NAMES[lang]}</span>
                   </div>
-                  {rows.map((row, index) => (
-                    <div key={index} className="grid gap-3 sm:grid-cols-2">
-                      {LANGS.map((code) =>
-                        row[code] ? (
-                          <BulletCard
-                            key={row[code]!.key}
-                            bullet={row[code]!}
-                            facts={draft.facts}
-                            check={grounding[row[code]!.key]}
-                            highlighted={Boolean(hoverFact && row[code]!.factKeys.includes(hoverFact))}
-                            onChange={(value) => updateBullet(row[code]!.key, value)}
-                            onRemove={() => patch({ bullets: draft.bullets.filter((bullet) => bullet.key !== row[code]!.key) })}
-                          />
-                        ) : (
-                          <button
-                            key={code}
-                            type="button"
-                            onClick={() => {
-                              const sibling = row[code === "en" ? "fr" : "en"]
-                              patch({ bullets: [...draft.bullets, { key: newKey(), group, role: sibling?.role ?? "bullet", language: code, text: "", factKeys: sibling?.factKeys ?? [] }] })
-                            }}
-                            className="flex min-h-24 items-center justify-center gap-1.5 rounded-lg border border-dashed text-xs text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
-                          >
-                            <PlusIcon className="size-3.5" /> Add {code === "en" ? "English" : "French"} version
-                          </button>
-                        ),
-                      )}
-                    </div>
-                  ))}
+                  <div key={lang} className="cb-fade grid gap-3">
+                    {rows.map((row, index) => {
+                      const bullet = row[lang]
+                      const sibling = row[lang === "en" ? "fr" : "en"]
+                      return bullet ? (
+                        <BulletCard
+                          key={bullet.key}
+                          bullet={bullet}
+                          facts={draft.facts}
+                          check={grounding[bullet.key]}
+                          highlighted={Boolean(hoverFact && bullet.factKeys.includes(hoverFact))}
+                          onChange={(value) => updateBullet(bullet.key, value)}
+                          onRemove={() => patch({ bullets: draft.bullets.filter((item) => item.key !== bullet.key) })}
+                        />
+                      ) : (
+                        <button
+                          key={`missing-${index}`}
+                          type="button"
+                          onClick={() => patch({ bullets: [...draft.bullets, { key: newKey(), group, role: sibling?.role ?? "bullet", language: lang, text: "", factKeys: sibling?.factKeys ?? [] }] })}
+                          className="grid gap-1 rounded-lg border border-dashed p-3 text-left text-xs text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+                        >
+                          <span className="flex items-center gap-1.5 font-medium"><PlusIcon className="size-3.5" /> Add the {LANGUAGE_NAMES[lang]} version</span>
+                          {sibling?.text ? <span className="line-clamp-2">{sibling.text}</span> : null}
+                        </button>
+                      )
+                    })}
+                  </div>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => patch({ bullets: [...draft.bullets, ...LANGS.map((language) => ({ key: newKey(), group, role: "bullet" as const, language, text: "", factKeys: [] }))] })}>
-                      <PlusIcon /> Add bullet pair
+                      <PlusIcon /> Add bullet
                     </Button>
                     {rows.length === 0 ? (
                       <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => addBullet(group, "en")}>
@@ -478,17 +472,11 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                 <span className="flex items-center gap-1.5">
                   <BookOpenIcon className="size-4" /> CV preview
                 </span>
-                <ToggleGroup value={[previewLang]} onValueChange={(value) => value[0] && setPreviewLang(value[0] as Lang)} variant="outline" size="sm">
-                  {LANGS.map((code) => (
-                    <ToggleGroupItem key={code} value={code} className="h-6 px-2 text-[11px]">
-                      {code.toUpperCase()}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
+                <span className="text-xs font-normal text-muted-foreground">{LANGUAGE_NAMES[lang]}</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Preview draft={draft} lang={previewLang} grounding={grounding} />
+              <div key={lang} className="cb-fade"><Preview draft={draft} lang={lang} grounding={grounding} /></div>
             </CardContent>
           </Card>
 
