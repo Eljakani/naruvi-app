@@ -402,7 +402,8 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
         </Button>
       </header>
 
-      <MessageScrollerProvider>
+      {/* Open at the latest message; when you send, your question anchors at the top while the reply streams below. */}
+      <MessageScrollerProvider defaultScrollPosition="end">
         <MessageScroller className="min-h-0 flex-1">
           <MessageScrollerViewport aria-label="Conversation" tabIndex={0} className="focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
             <MessageScrollerContent className="gap-5 px-4 py-5">
@@ -534,7 +535,8 @@ const READS: Record<string, [running: string, done: string]> = {
 const TranscriptMessage = memo(function TranscriptMessage(props: Parameters<typeof AssistantMessage>[0]) {
   const { message } = props
   return (
-    <MessageScrollerItem scrollAnchor={message.role === "user"}>
+    // Real heights, not estimates (content-visibility), so scroll positions never jump.
+    <MessageScrollerItem scrollAnchor={message.role === "user"} className="[content-visibility:visible]">
       {message.role === "user" ? (
         <Message align="end" className="cb-step">
           <MessageContent>
