@@ -19,6 +19,7 @@ import { getDashboard } from "@/server/queries/dashboard"
 import { extractPage, visiblePageText } from "@/server/research/extract"
 import { researchForJob } from "@/server/research/service"
 import { scheduleResearch } from "@/server/research/auto"
+import { composeContext, draftApplicationMail } from "@/server/mail/send"
 
 /**
  * Everything Naruvi's assistant can do. Reading runs straight away; anything
@@ -64,7 +65,7 @@ export const assistantTools = {
     inputSchema: z.object({ id: uuid }),
     execute: async ({ id }) => {
       const application = await apiApplication(id)
-      return { ...application, emails: application.emails.slice(0, 6).map((email) => ({ ...email, text: email.text.slice(0, 1500) })) }
+      return { ...application, emails: application.emails.slice(-8).map((email) => ({ ...email, text: email.text.slice(0, 1500) })) }
     },
   }),
   search_jobs: tool({
@@ -207,6 +208,16 @@ export const assistantTools = {
     inputSchema: z.object({ path: z.string().regex(/^\/[\w\-/?=&.%]*$/).max(200), label: z.string().max(60) }),
     execute: async (input) => input,
   }),
+  draft_email: tool({
+    description: "Write an editable EMAIL draft: reply to a recruiter/interview invitation, follow up, thank someone, or send an application email. This is NOT a cover letter. Uses the selected application's actual email thread. Does not send email, change application documents, or require approval. The user reviews the draft in the email composer and explicitly sends it there. Resolve the application first; a company named by the user overrides any earlier company in the conversation.",
+    inputSchema: z.object({ applicationId: uuid, kind: z.enum(["reply", "follow_up", "thank_you", "apply"]).default("reply"), replyTo: uuid.nullable().default(null), instructions: z.string().max(4000), language: z.enum(["auto", "en", "fr", "de", "es", "ar"]).default("auto") }),
+    execute: async ({ applicationId, kind, replyTo, instructions, language }) => {
+      const context = await composeContext(applicationId, kind, replyTo)
+      if (!context) throw new Error("Application not found.")
+      const draft = await draftApplicationMail({ applicationId, kind, replyTo: context.replyTo, instructions, language, tone: "professional", subject: context.subject, body: "", attachCv: false, attachLetter: false })
+      return { ...draft, applicationId, kind, replyTo: context.replyTo, instructions, language, company: context.application.company, to: context.to, canSend: context.canSend }
+    },
+  }),
 
   // ── Changing things (each one waits for the user's approval) ──────────────
   edit_profile_details: tool({
@@ -288,7 +299,7 @@ export const assistantTools = {
     },
   }),
   draft_letter: tool({
-    description: "Draft a ready-to-send cover letter for an application. notes: anything the user wants said.",
+    description: "Generate the formal COVER LETTER document attached to a job application. Only for an explicit cover-letter request. NEVER use for emails, replies, interview availability, follow-ups, thank-you emails or messages to a recruiter/CEO. Use draft_email for those. notes: cover-letter instructions only.",
     inputSchema: z.object({ applicationId: uuid, label: z.string().max(120), language, notes: z.string().max(1500).default("") }),
     needsApproval: true,
     execute: async ({ applicationId, language, notes }) => {

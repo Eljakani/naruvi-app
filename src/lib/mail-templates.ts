@@ -5,7 +5,7 @@
 export type ComposeKind = "apply" | "follow_up" | "thank_you" | "reply"
 export const COMPOSE_LABEL: Record<ComposeKind, string> = { apply: "Send my application", follow_up: "Follow up", thank_you: "Thank you after an interview", reply: "Reply" }
 
-type Input = { name: string; title: string; company: string; subject?: string }
+type Input = { name: string; title: string; company: string; subject?: string; attachments?: { cv: boolean; letter: boolean } }
 type Draft = { subject: string; body: string }
 type Templates = Record<ComposeKind, (input: Input) => Draft>
 
@@ -40,7 +40,20 @@ const TEMPLATES: Record<string, Templates> = {
 
 /** A draft in the given language; English when that language has no templates yet. */
 export function composeDraft(kind: ComposeKind, language: string, input: Input): Draft {
-  return (TEMPLATES[language] ?? TEMPLATES.en)[kind](input)
+  const draft = (TEMPLATES[language] ?? TEMPLATES.en)[kind](input)
+  if (kind === "apply" && input.attachments) {
+    const files = input.attachments
+    const introductions: Record<string, string> = {
+      en: `I am writing to apply for the ${input.title} position at ${input.company}.${files.cv || files.letter ? ` Please find attached ${[files.cv && "my CV", files.letter && "my cover letter"].filter(Boolean).join(" and ")}.` : ""}`,
+      fr: `Je vous adresse ma candidature au poste de ${input.title} chez ${input.company}.${files.cv || files.letter ? ` Vous trouverez en pièce jointe ${[files.cv && "mon CV", files.letter && "ma lettre de motivation"].filter(Boolean).join(" et ")}.` : ""}`,
+      de: `Hiermit bewerbe ich mich für die Position ${input.title} bei ${input.company}.${files.cv || files.letter ? ` Im Anhang finden Sie ${[files.cv && "meinen Lebenslauf", files.letter && "mein Anschreiben"].filter(Boolean).join(" und ")}.` : ""}`,
+      es: `Le envío mi candidatura para el puesto de ${input.title} en ${input.company}.${files.cv || files.letter ? ` Adjunto ${[files.cv && "mi CV", files.letter && "mi carta de presentación"].filter(Boolean).join(" y ")}.` : ""}`,
+    }
+    const paragraphs = draft.body.split("\n\n")
+    paragraphs[1] = introductions[language] ?? introductions.en
+    draft.body = paragraphs.join("\n\n")
+  }
+  return draft
 }
 
 /** "a@x.com, B <b@y.org>" → ["a@x.com", "b@y.org"]; invalid entries dropped. */

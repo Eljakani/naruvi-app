@@ -111,7 +111,7 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
               startSync(async () => {
                 const result = await syncMailAction()
                 if (!result.ok) toast.error("Sync failed", { description: result.message })
-                else toast(result.data.stored ? `${result.data.stored} new email${result.data.stored === 1 ? "" : "s"} linked` : `Checked ${result.data.checked} new email${result.data.checked === 1 ? "" : "s"}; nothing about your applications`)
+                else toast(result.data.stored ? `${result.data.stored} new email${result.data.stored === 1 ? "" : "s"} linked` : `Checked ${result.data.checked} unlinked email${result.data.checked === 1 ? "" : "s"}; no new application matches`)
               })
             }
           >

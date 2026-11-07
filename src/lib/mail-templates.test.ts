@@ -18,3 +18,10 @@ test("replies keep the thread subject and don't stack prefixes", () => {
 test("addresses are parsed and invalid ones dropped", () => {
   assert.deepEqual(parseAddresses("Talent <talent@acme.com>, bob@acme.io; not-an-email"), ["talent@acme.com", "bob@acme.io"])
 })
+
+test("application drafts mention only available attachments", () => {
+  assert.doesNotMatch(composeDraft("apply", "en", { ...input, attachments: { cv: false, letter: false } }).body, /attach|cover letter|my CV/i)
+  const cvOnly = composeDraft("apply", "en", { ...input, attachments: { cv: true, letter: false } }).body
+  assert.match(cvOnly, /attached my CV/)
+  assert.doesNotMatch(cvOnly, /cover letter/)
+})

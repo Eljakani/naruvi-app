@@ -28,7 +28,7 @@ export function CalendarSettings({ token: initial, events, origin }: { token: st
         <CardTitle className="flex items-center gap-2">
           <CalendarDaysIcon className="size-4" /> Calendar
         </CardTitle>
-        <CardDescription>Your next steps (follow-ups, interviews, offer deadlines) as all-day events in your calendar. It updates when you change a next step.</CardDescription>
+        <CardDescription>Your dated next steps and scheduled interviews in your calendar. Reminders are all-day events; interviews keep their selected time and duration.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 text-sm">
         {token ? (

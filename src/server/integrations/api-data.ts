@@ -42,7 +42,7 @@ export async function apiApplication(id: string) {
     jobId: application.job.id,
     language: application.language,
     analysis: analysis ? { fit: displayFitScore(analysis), proven: analysis.counts.met, partial: analysis.counts.partial, missing: analysis.counts.gap } : null,
-    emails: emails.map((email) => ({ direction: email.direction, from: email.fromName || email.fromAddress, subject: email.subject, date: email.sentAt.toISOString(), kind: email.kind, text: email.text.slice(0, 4000) })),
+    emails: emails.map((email) => ({ id: email.id, direction: email.direction, from: email.fromName || email.fromAddress, fromAddress: email.fromAddress, toAddresses: email.toAddresses, subject: email.subject, date: email.sentAt.toISOString(), kind: email.kind, text: email.text.slice(0, 4000) })),
   }
 }
 

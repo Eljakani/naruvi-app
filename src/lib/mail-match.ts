@@ -1,19 +1,20 @@
 /**
  * Link an email to one of the person's applications. Pure and deterministic:
- * replies to mail sent from Naruvi, the company's own domain, an applicant-
- * tracking system naming the company, or the company named in the subject.
+ * thread history, known recruiters, company names/domains, role titles,
+ * and application-related wording in the subject, body and signature.
  * Anything that does not match is ignored and never stored.
  */
-import { titleSimilarity } from "./similar"
+import { titleWords } from "./similar"
+import { ruleKind } from "./mail-classify"
 
 export type MatchMessage = { fromAddress: string; fromName: string; subject: string; text: string; inReplyTo?: string | null; references?: string[]; toAddresses?: string[] }
-export type MatchCandidate = { applicationId: string; company: string; website: string | null; title: string; sentMessageIds: string[]; active: boolean; updatedAt: number }
+export type MatchCandidate = { applicationId: string; company: string; website: string | null; title: string; sentMessageIds: string[]; active: boolean; updatedAt: number; contactEmails?: string[]; contactNames?: string[] }
 export type Match = { applicationId: string; reason: string; confidence: number }
 
 /** Mail services hiring teams send from on behalf of a company. */
 export const ATS_DOMAINS = ["greenhouse.io", "greenhouse-mail.io", "lever.co", "hire.lever.co", "ashbyhq.com", "smartrecruiters.com", "myworkday.com", "myworkdayjobs.com", "workday.com", "teamtailor.com", "teamtailor-mail.com", "welcometothejungle.com", "wttj.co", "recruitee.com", "workable.com", "workablemail.com", "jobvite.com", "icims.com", "successfactors.com", "taleo.net", "personio.de", "personio.com", "bamboohr.com", "breezy.hr", "jazzhr.com", "pinpointhq.com", "join.com", "homerun.co", "softgarden.de", "flatchr.io", "talent-soft.com", "linkedin.com", "indeed.com", "indeedemail.com"]
 
-const FREE_MAIL = new Set(["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "icloud.com", "me.com", "proton.me", "protonmail.com", "gmx.com", "gmx.de", "web.de", "orange.fr", "free.fr", "laposte.net", "aol.com"])
+const FREE_MAIL = new Set(["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "icloud.com", "me.com", "proton.me", "protonmail.com", "gmx.com", "gmx.de", "web.de", "orange.fr", "wanadoo.fr", "outlook.fr", "hotmail.fr", "yahoo.fr", "live.fr", "free.fr", "laposte.net", "aol.com"])
 const TWO_PART_TLDS = new Set(["co.uk", "org.uk", "ac.uk", "com.au", "co.jp", "co.in", "com.br", "co.nz", "co.za", "com.mx", "com.tr", "com.cn"])
 
 /** "mail.jobs.dashlane.com" → "dashlane.com" (good enough for matching, not a full public-suffix list). */
@@ -63,42 +64,117 @@ export function replyAddress(applicationId: string, mailbox: string, setting: { 
   return null
 }
 
+/** Coverage rather than Jaccard: a subject can contain greeting/company words around the full role. */
+function roleCoverage(text: string, title: string): number {
+  const role = new Set(titleWords(title))
+  if (role.size < 2) return 0
+  const words = new Set(titleWords(text))
+  return [...role].filter((word) => words.has(word)).length / role.size
+}
+
+const companyWords = (text: string) => titleWords(text).filter((word) => !["sas", "sa", "inc", "ltd", "llc", "gmbh", "group", "groupe"].includes(word))
+
+/** Bounded typo tolerance on whole names, never substring matching or fuzzy short names. */
+function nearName(left: string, right: string): boolean {
+  if (left.length < 5 || right.length < 5) return false
+  const limit = Math.min(left.length, right.length) >= 9 ? 2 : 1
+  if (Math.abs(left.length - right.length) > limit) return false
+  let row = Array.from({ length: right.length + 1 }, (_, index) => index)
+  for (let i = 1; i <= left.length; i++) {
+    const next = [i]
+    for (let j = 1; j <= right.length; j++) next[j] = Math.min(next[j - 1] + 1, row[j] + 1, row[j - 1] + Number(left[i - 1] !== right[j - 1]))
+    row = next
+  }
+  return row[right.length] <= limit
+}
+
+function nearCompany(text: string, company: string): boolean {
+  const name = companyWords(company).join("")
+  const count = companyWords(company).length
+  if (!count || name.length < 5) return false
+  const words = titleWords(text)
+  return words.some((_, index) => nearName(words.slice(index, index + count).join(""), name))
+}
+
 export function matchMessage(message: MatchMessage, candidates: MatchCandidate[]): Match | null {
   const tags = new Set((message.toAddresses ?? []).map(tagIn).filter(Boolean))
   if (tags.size) {
-    const tagged = candidates.find((candidate) => tags.has(replyTag(candidate.applicationId)))
-    if (tagged) return { applicationId: tagged.applicationId, reason: "Sent to this application’s reply address", confidence: 1 }
+    const tagged = candidates.filter((candidate) => tags.has(replyTag(candidate.applicationId)))
+    if (tagged.length === 1) return { applicationId: tagged[0].applicationId, reason: "Sent to this application’s reply address", confidence: 1 }
+    if (tagged.length > 1) return null
   }
   const threadIds = new Set([message.inReplyTo, ...(message.references ?? [])].filter(Boolean) as string[])
-  const replied = candidates.find((candidate) => candidate.sentMessageIds.some((id) => threadIds.has(id)))
-  if (replied) return { applicationId: replied.applicationId, reason: "Reply to an email you sent from Naruvi", confidence: 1 }
+  const replied = candidates.filter((candidate) => candidate.sentMessageIds.some((id) => threadIds.has(id)))
+  if (replied.length === 1) return { applicationId: replied[0].applicationId, reason: "Reply in this application’s email thread", confidence: 1 }
+  if (replied.length > 1) return null
 
   const from = domainOf(message.fromAddress)
   const head = `${message.fromName} ${message.subject}`
-  const body = message.text.slice(0, 4000)
-  const scored: (Match & { title: number; active: boolean; updatedAt: number })[] = []
+  const body = message.text.slice(0, 8000)
+  const hiring = ruleKind(message.subject, body) !== "other"
+  const senderBrand = FREE_MAIL.has(from) || isAts(from) ? "" : from.split(".")[0]
+  const bodyDomains = new Set([...body.matchAll(/(?:https?:\/\/|@)([a-z0-9.-]+\.[a-z]{2,})/gi)].map((match) => baseDomain(match[1])))
+  const scored: (Match & { title: number; company: string; active: boolean; updatedAt: number })[] = []
   for (const candidate of candidates) {
     const site = hostOf(candidate.website)
+    const title = Math.max(roleCoverage(message.subject, candidate.title), roleCoverage(body, candidate.title))
+    const headName = mentions(head, candidate.company)
+    const bodyName = mentions(body, candidate.company)
+    const contact = candidate.contactEmails?.some((email) => email.trim().toLowerCase() === message.fromAddress.trim().toLowerCase())
+    const reasons: string[] = []
     let confidence = 0
-    let reason = ""
-    if (site && from === site && !FREE_MAIL.has(from)) {
+    if (contact) {
       confidence = 0.9
-      reason = `Sent from ${site}`
-    } else if (isAts(from) && (mentions(head, candidate.company) || mentions(body, candidate.company))) {
-      confidence = 0.8
-      reason = `Hiring system email naming ${candidate.company}`
-    } else if (mentions(head, candidate.company)) {
-      confidence = 0.6
-      reason = `${candidate.company} in the ${mentions(message.subject, candidate.company) ? "subject" : "sender name"}`
+      reasons.push("Sender is a linked recruiter or contact")
+    }
+    if (hiring && title >= 0.65 && candidate.contactNames?.some((name) => titleWords(name).length >= 2 && normalize(name.trim()) === normalize(message.fromName.trim()))) {
+      confidence = Math.max(confidence, 0.7)
+      reasons.push("Sender name matches a linked recruiter or contact")
+    }
+    if (site && from === site && !FREE_MAIL.has(from) && !isAts(from)) {
+      confidence = Math.max(confidence, 0.9)
+      reasons.push(`Sender domain ${site}`)
+    }
+    if (headName) {
+      confidence = Math.max(confidence, 0.8)
+      reasons.push(`${candidate.company} in the subject or sender name`)
+    } else if (bodyName && (hiring || title >= 0.65 || isAts(from))) {
+      confidence = Math.max(confidence, isAts(from) ? 0.8 : 0.65)
+      reasons.push(`${candidate.company} in the email body`)
+    }
+    const brand = companyWords(candidate.company).join("")
+    if (senderBrand && brand.length >= 3 && normalize(senderBrand) === brand && (hiring || title >= 0.65)) {
+      confidence = Math.max(confidence, 0.8)
+      reasons.push("Sender domain names the company")
+    }
+    // Approximate names require both a strong role match and application-related wording.
+    if (!confidence && hiring && title >= 0.65 && (nearCompany(head, candidate.company) || nearCompany(body, candidate.company) || (senderBrand && nearName(normalize(senderBrand), brand)))) {
+      confidence = 0.65
+      reasons.push(`Similar company name to ${candidate.company}`)
+    }
+    // A website/email address in the body is corroboration, never sufficient by itself.
+    if (site && !FREE_MAIL.has(site) && !isAts(site) && (headName || bodyName || contact || title >= 0.65) && hiring) {
+      if (bodyDomains.has(site)) {
+        confidence = Math.max(confidence, 0.75)
+        reasons.push(`Company domain ${site} in the body`)
+      }
     }
     if (!confidence) continue
-    scored.push({ applicationId: candidate.applicationId, reason, confidence, title: Math.max(titleSimilarity(message.subject, candidate.title), mentions(`${message.subject} ${body}`, candidate.title) ? 1 : 0), active: candidate.active, updatedAt: candidate.updatedAt })
+    if (title >= 0.65) {
+      confidence += 0.08 * title
+      reasons.push("Matching role title")
+    }
+    if (hiring) {
+      confidence += 0.04
+      reasons.push("Application-related wording")
+    }
+    scored.push({ applicationId: candidate.applicationId, reason: reasons.join("; "), confidence: Math.min(confidence, 0.98), title, company: normalize(candidate.company), active: candidate.active, updatedAt: candidate.updatedAt })
   }
   if (!scored.length) return null
-  // Several applications at one company: the role named in the email wins, then active, then most recent.
   scored.sort((a, b) => b.confidence - a.confidence || b.title - a.title || Number(b.active) - Number(a.active) || b.updatedAt - a.updatedAt)
   const best = scored[0]
-  const sameCompany = scored.filter((item) => item.confidence === best.confidence)
-  const unsure = sameCompany.length > 1 && best.title < 0.5
+  // Recency must not decide between different companies with similarly strong evidence.
+  if (scored.some((item) => item.company !== best.company && best.confidence - item.confidence < 0.12)) return null
+  const unsure = scored.some((item) => item.applicationId !== best.applicationId && item.company === best.company && best.confidence - item.confidence < 0.12) && best.title < 0.5
   return { applicationId: best.applicationId, reason: unsure ? `${best.reason} (several roles there; check it’s this one)` : best.reason, confidence: unsure ? best.confidence - 0.2 : best.confidence }
 }

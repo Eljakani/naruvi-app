@@ -1,9 +1,11 @@
 import "server-only"
 import { randomBytes, timingSafeEqual } from "node:crypto"
-import { and, eq, isNotNull, isNull, notInArray } from "drizzle-orm"
+import { and, eq, isNotNull, isNull, notInArray, sql } from "drizzle-orm"
 import { calendar } from "@/lib/ical"
 import { db } from "@/server/db/client"
 import { applications, companies, jobs, settings } from "@/server/db/schema"
+
+import { interviewEvent, storedInterview } from "@/server/mail/interview-calendar"
 
 const KEY = "integration.calendar"
 
@@ -36,7 +38,7 @@ export async function datedNextSteps() {
   return db.$count(applications, ACTIVE_DATED)
 }
 
-/** One all-day event per next step with a date, on active applications. */
+/** Dated reminders plus timed interviews on active applications, without duplicating an interview's next step. */
 export async function calendarFeed(origin: string) {
   const rows = await db
     .select({ id: applications.id, nextStep: applications.nextStep, due: applications.nextStepDue, updatedAt: applications.updatedAt, title: jobs.title, company: companies.name, status: applications.status })
@@ -44,15 +46,19 @@ export async function calendarFeed(origin: string) {
     .innerJoin(jobs, eq(jobs.id, applications.jobId))
     .leftJoin(companies, eq(companies.id, jobs.companyId))
     .where(ACTIVE_DATED)
+  const interviewRows = await db.select({ value: settings.value }).from(settings).where(sql`${settings.key} like 'calendar.interview.%'`)
+  const active = await db.select({ id: applications.id }).from(applications).where(and(isNull(applications.archivedAt), notInArray(applications.status, ["rejected", "withdrawn"])))
+  const activeIds = new Set(active.map((application) => application.id))
+  const interviews = interviewRows.flatMap((row) => { const parsed = storedInterview.safeParse(row.value); return parsed.success && activeIds.has(parsed.data.applicationId) ? [parsed.data] : [] })
   return calendar(
     "Naruvi: job search",
-    rows.map((row) => ({
+    [...rows.filter((row) => !interviews.some((event) => event.applicationId === row.id && Date.parse(event.start) === row.due!.getTime())).map((row) => ({
       uid: `${row.id}@naruvi`,
       date: row.due!,
       summary: `${row.nextStep || "Next step"} · ${row.company ?? row.title}`,
       description: `${row.title}${row.company ? ` at ${row.company}` : ""}\n${origin}/applications/${row.id}`,
       url: `${origin}/applications/${row.id}`,
       updatedAt: row.updatedAt,
-    })),
+    })), ...interviews.map((event) => interviewEvent(event, origin))],
   )
 }

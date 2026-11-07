@@ -1,27 +1,33 @@
 import "server-only"
 import { randomUUID } from "node:crypto"
 import MailComposer from "nodemailer/lib/mail-composer"
-import { and, desc, eq } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, lte } from "drizzle-orm"
 import { z } from "zod"
 import { composeDraft, parseAddresses, type ComposeKind } from "@/lib/mail-templates"
 import type { Status } from "@/lib/stages"
 import { db } from "@/server/db/client"
-import { applications, companies, documents, jobs, mailMessages, revisions } from "@/server/db/schema"
+import { applications, companies, documents, entries, facts, jobs, mailMessages, profiles, revisions } from "@/server/db/schema"
 import { contactsForApplication } from "@/server/contacts/repository"
 import { revisionPdf } from "@/server/documents/service"
 import { startRun } from "@/server/runs/tracer"
 import { moveApplication } from "@/server/tracking/service"
+import { ruleKind } from "@/lib/mail-classify"
 import { replyAddress } from "@/lib/mail-match"
 import { explainMailError, getMailAccount, getReplySetting, imapClient, smtpTransport } from "./account"
+
+import { getLlmOverview } from "@/server/settings/llm"
+import { completionForRun } from "@/server/llm/client"
+import { draftMailInput, type DraftMailInput } from "@/lib/mail-draft"
+import { MAIL_DRAFT_PROMPT_VERSION, writeMailDraft } from "./ai-compose"
 
 import { sendResendMail } from "./resend"
 
 const PREPARING: Status[] = ["draft", "parsed", "analyzed", "generated", "ready"]
 
 /** What the compose dialog needs: who to write to, the documents to attach, and a draft. */
-export async function composeContext(applicationId: string, kind: ComposeKind) {
+export async function composeContext(applicationId: string, kind: ComposeKind, replyToId?: string | null) {
   const [app] = await db
-    .select({ id: applications.id, status: applications.status, language: applications.language, title: jobs.title, company: companies.name })
+    .select({ id: applications.id, status: applications.status, language: applications.language, nextStep: applications.nextStep, title: jobs.title, company: companies.name })
     .from(applications)
     .innerJoin(jobs, eq(jobs.id, applications.jobId))
     .leftJoin(companies, eq(companies.id, jobs.companyId))
@@ -39,15 +45,20 @@ export async function composeContext(applicationId: string, kind: ComposeKind) {
   const name = ((cv?.content ?? letter?.content) as { header?: { name?: string } } | null)?.header?.name || account?.displayName || ""
   // Reply in the latest thread from the company, if there is one.
   const [last] = await db
-    .select({ id: mailMessages.id, fromAddress: mailMessages.fromAddress, subject: mailMessages.subject })
+    .select({ id: mailMessages.id, fromAddress: mailMessages.fromAddress, subject: mailMessages.subject, text: mailMessages.text, fromName: mailMessages.fromName, sentAt: mailMessages.sentAt, kind: mailMessages.kind })
     .from(mailMessages)
-    .where(and(eq(mailMessages.applicationId, applicationId), eq(mailMessages.direction, "in")))
+    .where(and(eq(mailMessages.applicationId, applicationId), eq(mailMessages.direction, "in"), ...(replyToId ? [eq(mailMessages.id, replyToId)] : [])))
     .orderBy(desc(mailMessages.sentAt))
     .limit(1)
-  const draft = composeDraft(kind, app.language, { name, title: app.title, company: app.company ?? "", subject: kind === "apply" ? undefined : last?.subject })
+  if (replyToId && !last) throw new Error("That email is no longer available on this application.")
+  const model = await getLlmOverview()
+  const draft = composeDraft(kind, app.language, { name, title: app.title, company: app.company ?? "", subject: kind === "apply" ? undefined : last?.subject, attachments: { cv: Boolean(cv), letter: Boolean(letter) } })
   // No thread yet: write to the person linked to this application.
   const [person] = (await contactsForApplication(applicationId)).filter((contact) => contact.email)
   return {
+    application: { company: app.company ?? "", title: app.title, language: app.language, nextStep: app.nextStep },
+    aiConfigured: model.configured,
+    latestEmail: last ? { id: last.id, from: last.fromName || last.fromAddress, address: last.fromAddress, subject: last.subject, text: last.text.slice(0, 8000), date: last.sentAt.toISOString(), kind: last.kind } : null,
     canSend: Boolean(account && (account.provider === "resend" || account.smtpHost)),
     from: account ? `${account.displayName || name} <${account.email}>` : null,
     to: (kind === "apply" ? "" : (last?.fromAddress ?? "")) || person?.email || "",
@@ -59,6 +70,35 @@ export async function composeContext(applicationId: string, kind: ComposeKind) {
   }
 }
 export type ComposeContext = NonNullable<Awaited<ReturnType<typeof composeContext>>>
+
+/** Draft only: no mailbox transport is called and no email is sent. */
+export async function draftApplicationMail(raw: DraftMailInput) {
+  const input = draftMailInput.parse(raw)
+  const [app] = await db.select({ profileId: applications.profileId, selectedFactIds: applications.selectedFactIds, name: profiles.fullName, company: companies.name, title: jobs.title, language: applications.language, status: applications.status, nextStep: applications.nextStep, notes: applications.notes, jobText: jobs.rawText })
+    .from(applications).innerJoin(jobs, eq(jobs.id, applications.jobId)).innerJoin(profiles, eq(profiles.id, applications.profileId)).leftJoin(companies, eq(companies.id, jobs.companyId)).where(eq(applications.id, input.applicationId))
+  if (!app) throw new Error("Application not found.")
+  // A specific Reply button anchors generation to that email, not a newer unrelated exchange.
+  let through: Date | null = null
+  if (input.replyTo) {
+    const [parent] = await db.select({ sentAt: mailMessages.sentAt }).from(mailMessages).where(and(eq(mailMessages.id, input.replyTo), eq(mailMessages.applicationId, input.applicationId), eq(mailMessages.direction, "in")))
+    if (!parent) throw new Error("That email is no longer available on this application.")
+    through = parent.sentAt
+  }
+  const recent = await db.select({ direction: mailMessages.direction, sender: mailMessages.fromName, subject: mailMessages.subject, text: mailMessages.text, sentAt: mailMessages.sentAt })
+    .from(mailMessages).where(and(eq(mailMessages.applicationId, input.applicationId), ...(through ? [lte(mailMessages.sentAt, through)] : []))).orderBy(desc(mailMessages.sentAt)).limit(8)
+  const thread = recent.filter((message) => !through || message.sentAt <= through).slice(0, 8).reverse().map((message) => ({ ...message, date: message.sentAt.toISOString() }))
+  const verified = await db.select({ statement: facts.statement, restrictions: entries.doNotClaim }).from(facts).innerJoin(entries, eq(entries.id, facts.entryId))
+    .where(and(eq(entries.profileId, app.profileId), eq(entries.status, "verified"), eq(entries.confidential, false), ...(app.selectedFactIds.length ? [inArray(facts.id, app.selectedFactIds)] : []))).orderBy(asc(entries.sortOrder), asc(facts.sortOrder)).limit(40)
+  const run = await startRun("mail.draft", { kind: input.kind, messages: thread.length, facts: verified.length }, input.applicationId)
+  try {
+    const draft = await writeMailDraft(input, { name: app.name, company: app.company ?? "", title: app.title, language: app.language, status: app.status, nextStep: app.nextStep, notes: app.notes, jobText: app.jobText, today: new Date().toISOString().slice(0, 10), thread, facts: verified }, completionForRun(run, "email draft", MAIL_DRAFT_PROMPT_VERSION))
+    await run.finish("succeeded", { model: draft.model, missingDetails: draft.missingDetails.length })
+    return draft
+  } catch (error) {
+    await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
+    throw error
+  }
+}
 
 export const sendInput = z.object({
   applicationId: z.string().uuid(),
@@ -83,7 +123,7 @@ export async function sendApplicationMail(raw: z.input<typeof sendInput>) {
   if (!to.length) throw new Error("Add at least one valid recipient.")
   const account = await getMailAccount()
   if (!account || (account.provider !== "resend" && !account.smtpHost)) throw new Error("Set up outgoing email on the Integrations page first.")
-  const context = await composeContext(input.applicationId, input.kind)
+  const context = await composeContext(input.applicationId, input.kind, input.replyTo)
   if (!context) throw new Error("Application not found.")
 
   const attachments: { filename: string; content: Buffer; contentType: string }[] = []
@@ -153,7 +193,7 @@ export async function sendApplicationMail(raw: z.input<typeof sendInput>) {
         }
       }, (folder) => String(folder))
     }
-    await db.insert(mailMessages).values({
+    const [saved] = await db.insert(mailMessages).values({
       accountId: account.id,
       applicationId: input.applicationId,
       messageId,
@@ -170,9 +210,10 @@ export async function sendApplicationMail(raw: z.input<typeof sendInput>) {
       matchReason: "Sent from Naruvi",
       kind: input.kind,
       readAt: new Date(),
-    })
+    }).returning({ id: mailMessages.id })
     if (input.kind === "apply" && PREPARING.includes(context.status)) await moveApplication(input.applicationId, "submitted", "Sent by email from Naruvi")
     await run.finish("succeeded", { kind: input.kind })
+    return { sentMessageId: saved.id, interviewRelated: ["reply", "follow_up"].includes(input.kind) && !["offer", "rejected", "withdrawn"].includes(context.status) && Boolean(context.latestEmail && (context.latestEmail.kind === "interview" || (!context.latestEmail.kind && ruleKind(context.latestEmail.subject, context.latestEmail.text) === "interview"))) }
   } catch (error) {
     await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
     throw error

@@ -2,9 +2,9 @@
  * Minimal iCalendar (RFC 5545) writer for next steps. Pure, no dependencies.
  * All-day events on the due date, so time zones never shift a deadline.
  */
-export type CalendarEvent = { uid: string; date: Date; summary: string; description?: string; url?: string; updatedAt: Date }
+export type CalendarEvent = { uid: string; date: Date; end?: Date; status?: "TENTATIVE" | "CONFIRMED"; location?: string; summary: string; description?: string; url?: string; updatedAt: Date }
 
-const escape = (text: string) => text.replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n")
+const escape = (text: string) => text.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r\n|\r|\n/g, "\\n")
 const day = (date: Date) => `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`
 const stamp = (date: Date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")
 
@@ -37,12 +37,13 @@ export function calendar(name: string, events: CalendarEvent[]): string {
       "BEGIN:VEVENT",
       `UID:${event.uid}`,
       `DTSTAMP:${stamp(event.updatedAt)}`,
-      `DTSTART;VALUE=DATE:${day(event.date)}`,
-      `DTEND;VALUE=DATE:${day(end)}`,
+      ...(event.end ? [`DTSTART:${stamp(event.date)}`, `DTEND:${stamp(event.end)}`] : [`DTSTART;VALUE=DATE:${day(event.date)}`, `DTEND;VALUE=DATE:${day(end)}`]),
       `SUMMARY:${escape(event.summary)}`,
       ...(event.description ? [`DESCRIPTION:${escape(event.description)}`] : []),
       ...(event.url ? [`URL:${event.url}`] : []),
-      "TRANSP:TRANSPARENT",
+      ...(event.location ? [`LOCATION:${escape(event.location)}`] : []),
+      ...(event.status ? [`STATUS:${event.status}`] : []),
+      event.end ? "TRANSP:OPAQUE" : "TRANSP:TRANSPARENT",
       "END:VEVENT",
     )
   }
