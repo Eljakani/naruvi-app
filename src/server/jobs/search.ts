@@ -6,7 +6,7 @@ import { applications, companies, jobs } from "@/server/db/schema"
 
 export const JOB_SORTS = { newest: "Newest first", oldest: "Oldest first", fit: "Best fit", company: "Company A–Z" } as const
 export type JobSort = keyof typeof JOB_SORTS
-export const JOB_STAGES = { all: "Any stage", new: "Not analyzed yet", active: "In progress", closed: "Closed or archived" } as const
+export const JOB_STAGES = { new: "Not tracked yet", all: "Every posting", active: "Tracked, in progress", closed: "Closed or archived" } as const
 export type JobStage = keyof typeof JOB_STAGES
 
 export type JobFilter = { q?: string; workMode?: string; contract?: string; seniority?: string; tag?: string; stage?: JobStage; sort?: JobSort; page?: number }

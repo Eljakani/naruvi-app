@@ -1,4 +1,4 @@
-import { BriefcaseBusinessIcon, Building2Icon, ContactRoundIcon, FileTextIcon, LayoutDashboardIcon, PaletteIcon, PlugIcon, ScrollTextIcon, Settings2Icon, UserRoundIcon, type LucideIcon } from "lucide-react"
+import { Building2Icon, CompassIcon, ContactRoundIcon, FileTextIcon, LayoutDashboardIcon, PaletteIcon, PlugIcon, ScrollTextIcon, Settings2Icon, UserRoundIcon, type LucideIcon } from "lucide-react"
 
 export type NavItem = { title: string; url: string; icon: LucideIcon; description: string }
 
@@ -8,8 +8,8 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Job search",
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboardIcon, description: "Pipeline and next actions" },
-      { title: "Applications", url: "/applications", icon: FileTextIcon, description: "Tailored CVs and letters" },
-      { title: "Jobs", url: "/jobs", icon: BriefcaseBusinessIcon, description: "Parsed postings" },
+      { title: "Discover", url: "/jobs", icon: CompassIcon, description: "New postings to look at, not tracked yet" },
+      { title: "Applications", url: "/applications", icon: FileTextIcon, description: "Every job you're pursuing, saved to offer" },
       { title: "Companies", url: "/companies", icon: Building2Icon, description: "Every job and application per company" },
       { title: "Contacts", url: "/contacts", icon: ContactRoundIcon, description: "Recruiters, HR and hiring managers" },
     ],

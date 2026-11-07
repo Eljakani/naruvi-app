@@ -20,7 +20,7 @@ import { allTags } from "@/server/companies/repository"
 import { newLeads } from "@/server/jobs/leads"
 import { JOB_SORTS, JOB_STAGES, jobFacets, searchJobs } from "@/server/jobs/search"
 
-export const metadata = { title: "Jobs" }
+export const metadata = { title: "Discover" }
 
 type Search = Promise<Record<string, string | string[] | undefined>>
 const one = (value: string | string[] | undefined) => (typeof value === "string" ? value : undefined)
@@ -30,8 +30,8 @@ export default function JobsPage({ searchParams }: PageProps<"/jobs">) {
   return (
     <>
       <PageHeader
-        title="Jobs"
-        description="Postings you're considering. Each one keeps its original text, unchanged."
+        title="Discover"
+        description="Postings to look at before you commit: from job-alert emails, your browser and links you paste. Track one to start its application."
         actions={
           <AddJobDialog trigger={<Button><PlusIcon /> Add a job</Button>} />
         }
@@ -59,7 +59,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
     workMode: pick(one(params.workMode), WORK_MODE_LABEL),
     contract: pick(one(params.contract), CONTRACT_LABEL),
     seniority: pick(one(params.seniority), SENIORITY_LABEL),
-    stage: pick(one(params.stage), JOB_STAGES),
+    stage: pick(one(params.stage), JOB_STAGES) ?? "new",
     sort: pick(one(params.sort), JOB_SORTS),
     page: Number(one(params.page)) || 1,
   }
@@ -73,7 +73,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
           <EmptyMedia variant="icon">
             <BriefcaseBusinessIcon />
           </EmptyMedia>
-          <EmptyTitle>No jobs yet</EmptyTitle>
+          <EmptyTitle>Nothing to discover yet</EmptyTitle>
           <EmptyDescription>Paste a link from LinkedIn, Greenhouse, Lever, Ashby, Workday or any careers page.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -82,7 +82,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
       </Empty>
     )
   }
-  const filtered = Boolean(filter.q || tag || filter.workMode || filter.contract || filter.seniority || filter.stage)
+  const filtered = Boolean(filter.q || tag || filter.workMode || filter.contract || filter.seniority || filter.stage !== "all")
   const pageHref = (page: number) => {
     const query = new URLSearchParams(Object.entries(params).filter(([key, value]) => key !== "page" && typeof value === "string") as [string, string][])
     if (page > 1) query.set("page", String(page))
@@ -157,8 +157,8 @@ async function JobList({ searchParams }: { searchParams: Search }) {
             <EmptyMedia variant="icon">
               <SearchIcon />
             </EmptyMedia>
-            <EmptyTitle>No matching jobs</EmptyTitle>
-            <EmptyDescription>{filter.q ? `Nothing matches “${filter.q}” with these filters.` : "No job matches these filters."} Try fewer words or clear a filter.</EmptyDescription>
+            <EmptyTitle>{filter.stage === "new" && !filter.q ? "You’re tracking every posting" : "No matching postings"}</EmptyTitle>
+            <EmptyDescription>{filter.stage === "new" && !filter.q ? <>Everything you saved is in <Link href="/applications" className="underline underline-offset-2">Applications</Link>. New links from job-alert emails and your browser show up above.</> : <>{filter.q ? `Nothing matches “${filter.q}” with these filters.` : "No posting matches these filters."} Try fewer words or clear a filter.</>}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}

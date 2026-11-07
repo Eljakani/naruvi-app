@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { connection } from "next/server"
 import { ArchiveIcon, ChevronRightIcon, DownloadIcon, FileTextIcon, KanbanIcon, ListIcon, PlusIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
+import { AddJobDialog } from "@/components/jobs/job-reader"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { FitRing } from "@/components/applications/fit-ring"
 import { Board } from "@/components/tracking/board"
@@ -29,11 +30,14 @@ export default function ApplicationsPage({ searchParams }: PageProps<"/applicati
     <>
       <PageHeader
         title="Applications"
-        description="Track every application from first analysis to offer. Drag a card or use its menu to move or archive it."
+        description="Every job you're pursuing, from saved to offer. Drag a card or use its menu to move or archive it."
         actions={
-          <Suspense fallback={null}>
-            <ViewSwitch searchParams={searchParams} />
-          </Suspense>
+          <div className="flex flex-wrap items-center gap-2">
+            <Suspense fallback={null}>
+              <ViewSwitch searchParams={searchParams} />
+            </Suspense>
+            <AddJobDialog trigger={<Button><PlusIcon /> Add a job</Button>} />
+          </div>
         }
       />
       <Suspense fallback={<Skeleton className="h-80 rounded-xl" />}>

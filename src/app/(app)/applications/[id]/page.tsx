@@ -3,7 +3,8 @@ import { notFound } from "next/navigation"
 import { scheduleResearch } from "@/server/research/auto"
 import { Suspense } from "react"
 import { after, connection } from "next/server"
-import { ArchiveIcon, ArrowLeftIcon, ExternalLinkIcon } from "lucide-react"
+import { ArchiveIcon, ArrowLeftIcon, ScanSearchIcon } from "lucide-react"
+import { JobOverview } from "@/components/jobs/job-overview"
 import { AnalysisView } from "@/components/applications/analysis-view"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
 import { ApplicationDocuments } from "@/components/applications/application-documents"
@@ -30,17 +31,18 @@ import type { CompanyResearch as Research } from "@/server/research/brief"
 
 export const metadata = { title: "Application" }
 
-export default function ApplicationPage({ params }: PageProps<"/applications/[id]">) {
+export default function ApplicationPage({ params, searchParams }: PageProps<"/applications/[id]">) {
   return (
     <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
-      <ApplicationDetail params={params} />
+      <ApplicationDetail params={params} searchParams={searchParams} />
     </Suspense>
   )
 }
 
-async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }) {
+async function ApplicationDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await connection()
   const { id } = await params
+  const { tab: tabParam } = await searchParams
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
   const [application, events, mail, mailConnected, people, contactOptions] = await Promise.all([getApplication(id), listEvents(id), mailFor(id), hasMailbox(), contactsForApplication(id), listContacts()])
   const drafts = await db.select({ kind: documents.kind, language: documents.language, updatedAt: documents.updatedAt, current: documents.currentRevisionId }).from(documents).where(eq(documents.applicationId, id))
@@ -48,6 +50,8 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
   // Opening the application counts as reading its emails.
   if (mail.some((message) => !message.readAt)) after(() => markRead(id))
   const { job } = application
+  // Not analyzed yet: open on the posting. Otherwise on the analysis, unless asked.
+  const tab = tabParam === "overview" || (!application.analysis && tabParam !== "analysis") ? "overview" : "analysis"
   // No research yet: start it in the background; the card fills in when it lands.
   const researching = Boolean(job.company) && !job.company?.research
   if (researching) scheduleResearch(job.id)
@@ -63,8 +67,8 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
           <p className="text-sm text-muted-foreground">
             {job.company ? <Link href={`/companies/${job.company.id}`} className="font-medium text-foreground hover:underline">{job.company.name}</Link> : null}
             {job.location ? ` · ${job.location}` : ""} ·{" "}
-            <Link href={`/jobs/${job.id}`} className="inline-flex items-center gap-1 hover:underline">
-              job description <ExternalLinkIcon className="size-3" />
+            <Link href={`/applications/${application.id}?tab=overview`} scroll={false} className="hover:underline">
+              job posting
             </Link>
           </p>
         </div>
@@ -74,7 +78,7 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
         <NextStep id={application.id} nextStep={application.nextStep} due={application.nextStepDue?.toISOString() ?? null} />
         <ComposeEmail applicationId={application.id} connected={mailConnected} hasReplies={mail.some((message) => message.direction === "in")} />
         <div className="ms-auto flex flex-wrap items-center gap-2">
-          {job.board === "spontaneous" ? null : <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />}
+          {job.board === "spontaneous" || !application.analysis ? null : <AnalyzeButton jobId={job.id} label="Re-analyze" variant="outline" />}
           <ArchiveButton id={application.id} archived={Boolean(application.archivedAt)} />
         </div>
       </div>
@@ -101,7 +105,34 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
         ) : null}
         <ApplicationPeople applicationId={application.id} people={people} options={contactOptions.map((contact) => ({ id: contact.id, name: contact.name, title: contact.title, company: contact.company }))} />
       </div>
-      {job.board === "spontaneous" ? (
+      {job.board === "spontaneous" ? null : (
+        <nav className="flex w-fit rounded-lg bg-muted p-0.5" aria-label="Application sections">
+          {([["overview", "Job posting"], ["analysis", application.analysis ? "Fit analysis" : "Fit analysis · not run"]] as const).map(([value, label]) => (
+            <Link
+              key={value}
+              href={`/applications/${application.id}${value === "analysis" ? "" : "?tab=overview"}`}
+              scroll={false}
+              aria-current={tab === value ? "page" : undefined}
+              className={tab === value ? "rounded-md bg-background px-3 py-1 text-xs font-medium shadow-xs" : "rounded-md px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      )}
+      {tab === "overview" && job.board !== "spontaneous" ? (
+        <JobOverview job={job} />
+      ) : !application.analysis && job.board !== "spontaneous" ? (
+        <Card className="items-center border-dashed py-10 text-center">
+          <CardContent className="grid max-w-md justify-items-center gap-3">
+            <span className="grid size-11 place-content-center rounded-full bg-primary/10 text-primary"><ScanSearchIcon className="size-5" /></span>
+            <p className="font-medium">See how well you fit, before you write anything</p>
+            <p className="text-sm text-muted-foreground">Naruvi checks each requirement of the posting against your verified facts, then picks which entries to lead with on your CV.</p>
+            <AnalyzeButton jobId={job.id} />
+          </CardContent>
+        </Card>
+      ) : (
+        job.board === "spontaneous" ? (
         <Card>
           <CardHeader>
             <CardTitle>Spontaneous application</CardTitle>
@@ -111,7 +142,8 @@ async function ApplicationDetail({ params }: { params: Promise<{ id: string }> }
             <p>Draft the CV and the letter, then send them by email to the person linked here, or note that you reached out on LinkedIn by moving the application to Sent.</p>
           </CardContent>
         </Card>
-      ) : application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} /> : <p className="text-sm text-muted-foreground">Not analyzed yet.</p>}
+      ) : application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} /> : null
+      )}
       {events.length ? (
         <Card>
           <CardHeader>

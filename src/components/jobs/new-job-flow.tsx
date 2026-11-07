@@ -63,8 +63,8 @@ export function NewJobFlow({ initialUrl = "", initialText = "", initial }: { ini
       setDraft(null)
       setDuplicates([])
       setDescriptionView("preview")
-      toast.success("Job saved")
-      router.push(`/jobs/${result.data.id}`)
+      toast.success("Saved to Applications", { description: "Analyze your fit when you're ready." })
+      router.push(result.data.applicationId ? `/applications/${result.data.applicationId}` : `/jobs/${result.data.id}`)
     })
 
   const patch = (value: Partial<Draft>) => setDraft((current) => (current ? { ...current, ...value } : current))
@@ -72,8 +72,8 @@ export function NewJobFlow({ initialUrl = "", initialText = "", initial }: { ini
   if (!draft) {
     return (
       <div className="mx-auto grid w-full max-w-xl gap-3 pt-[8vh]">
-        <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href="/jobs" />}>
-          <ArrowLeftIcon /> Jobs
+        <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href="/applications" />}>
+          <ArrowLeftIcon /> Applications
         </Button>
         <Card>
           <CardHeader>

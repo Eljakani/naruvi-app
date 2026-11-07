@@ -2,7 +2,7 @@ import "server-only"
 import { revalidatePath } from "next/cache"
 import { tool } from "ai"
 import { z } from "zod"
-import { analyzeJob } from "@/server/applications/repository"
+import { analyzeJob, trackJob } from "@/server/applications/repository"
 import { safeFetch } from "@/server/assets/safe-fetch"
 import { getCompany, listCompanies, findDuplicates , saveCompany, setCompanyWebsite } from "@/server/companies/repository"
 import { MissingWebsite, deleteContact, findEmail, getContact, linkContact, listContacts, saveContact, startSpontaneous } from "@/server/contacts/repository"
@@ -249,7 +249,7 @@ export const assistantTools = {
     },
   }),
   add_job_from_link: tool({
-    description: "Read a job posting from a link (or pasted text) and save it to Jobs. Checks for duplicates first.",
+    description: "Read a job posting from a link (or pasted text) and save it to Applications (as Saved). Checks for duplicates first.",
     inputSchema: z.object({ url: z.string().url().max(2000).optional(), text: z.string().max(60000).optional() }).refine((value) => value.url || (value.text ?? "").length >= 80, "Give a link or the posting text"),
     needsApproval: true,
     execute: async (input) => {
@@ -259,9 +259,10 @@ export const assistantTools = {
       const job = await saveJob(draft)
       await markLeadImported(job.id, [draft.sourceUrl, draft.canonicalUrl])
       await refreshJobInsights(job.id).catch(() => null)
+      const applicationId = await trackJob(job.id).catch(() => null)
       scheduleResearch(job.id)
       refresh()
-      return { saved: true, jobId: job.id, title: draft.title, company: draft.company, href: `/jobs/${job.id}` }
+      return { saved: true, jobId: job.id, title: draft.title, company: draft.company, href: applicationId ? `/applications/${applicationId}` : `/jobs/${job.id}` }
     },
   }),
   start_application: tool({

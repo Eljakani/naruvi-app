@@ -2,7 +2,7 @@
 export type Status = "draft" | "parsed" | "analyzed" | "generated" | "ready" | "submitted" | "interviewing" | "offer" | "rejected" | "withdrawn"
 
 export const COLUMNS = [
-  { id: "preparing", title: "Preparing", statuses: ["draft", "parsed", "analyzed"], drop: "analyzed" },
+  { id: "preparing", title: "Saved & analyzed", statuses: ["draft", "parsed", "analyzed"], drop: "analyzed" },
   { id: "documents", title: "Documents", statuses: ["generated", "ready"], drop: "generated" },
   { id: "sent", title: "Sent", statuses: ["submitted"], drop: "submitted" },
   { id: "interviewing", title: "Interviewing", statuses: ["interviewing"], drop: "interviewing" },
@@ -13,8 +13,8 @@ export const COLUMNS = [
 export type ColumnId = (typeof COLUMNS)[number]["id"]
 
 export const STATUS_LABEL: Record<Status, string> = {
-  draft: "Draft",
-  parsed: "Draft",
+  draft: "Saved",
+  parsed: "Saved",
   analyzed: "Analyzed",
   generated: "CV drafted",
   ready: "Ready to send",

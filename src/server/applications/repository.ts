@@ -36,6 +36,22 @@ export async function loadProfileFacts(profileId: string): Promise<ProfileFact[]
 
 export type StoredAnalysis = Analysis & { coverLetter: { decision: string; evidence: string }; analyzedAt: string; factCount: number; runId: string; requirementFilter?: RequirementFilterSummary; modelReview: { reviewed: number; changed: number; model?: string } | null }
 
+/**
+ * Start tracking a saved job: its application begins at "Saved" (status
+ * "draft") until the fit is analyzed. Does nothing without a profile or when
+ * the job is already tracked. Returns the application id, or null.
+ */
+export async function trackJob(jobId: string): Promise<string | null> {
+  const profile = await getProfile()
+  if (!profile) return null
+  const [existing] = await db.select({ id: applications.id }).from(applications).where(and(eq(applications.profileId, profile.id), eq(applications.jobId, jobId))).limit(1)
+  if (existing) return existing.id
+  const job = await db.query.jobs.findFirst({ columns: { language: true }, where: eq(jobs.id, jobId) })
+  if (!job) return null
+  const [created] = await db.insert(applications).values({ profileId: profile.id, jobId, status: "draft", language: job.language }).returning({ id: applications.id })
+  return created.id
+}
+
 /** Create (or reuse) the application for a job and (re)run the analysis. */
 export async function analyzeJob(jobId: string) {
   const profile = await getProfile()
