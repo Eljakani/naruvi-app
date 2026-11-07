@@ -29,3 +29,16 @@ export async function setCompanyWebsiteAction(id: string, website: string): Prom
     return fail(error)
   }
 }
+
+export async function refreshCompanyProfileAction(id: string): Promise<Result<{ found: number }>> {
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, message: "Invalid company." }
+  try {
+    const { refreshCompanyProfile } = await import("@/server/companies/profile")
+    const profile = await refreshCompanyProfile(id)
+    if (!profile) return { ok: false, message: "Wikidata and the business registry couldn’t be reached. Try again in a moment." }
+    revalidatePath(`/companies/${id}`)
+    return { ok: true, data: { found: profile.facts.length } }
+  } catch (error) {
+    return fail(error)
+  }
+}

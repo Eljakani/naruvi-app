@@ -16,6 +16,8 @@ import { applicationForJob } from "@/server/applications/repository"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
 import { JobTags } from "@/components/jobs/job-tags"
 import { allTags } from "@/server/companies/repository"
+import { SalaryCard } from "@/components/jobs/salary-card"
+import { salaryContext } from "@/server/salary/market"
 
 export const metadata = { title: "Job" }
 
@@ -105,6 +107,10 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
 
       <JobInsights jobId={job.id} insights={(job.insights ?? null) as unknown as Insights | null} />
 
+      <Suspense fallback={<Skeleton className="h-40 rounded-xl" />}>
+        <Pay job={job} />
+      </Suspense>
+
       <Card>
         <CardHeader>
           <CardTitle>Job description</CardTitle>
@@ -116,4 +122,8 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
       </Card>
     </div>
   )
+}
+
+async function Pay({ job }: { job: { id: string; title: string; location: string; salary: string; language: string; company: { name: string } | null } }) {
+  return <SalaryCard context={await salaryContext(job)} />
 }

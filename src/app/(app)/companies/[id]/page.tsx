@@ -16,6 +16,9 @@ import { STATUS_LABEL } from "@/lib/stages"
 import { getCompany } from "@/server/companies/repository"
 import { contactsForCompany } from "@/server/contacts/repository"
 import type { CompanyResearch } from "@/server/research/brief"
+import { CompanyFacts } from "@/components/companies/company-facts"
+import AITextLoading from "@/components/kokonutui/ai-text-loading"
+import { companyFactsEnabled, companyProfile } from "@/server/companies/profile"
 
 export const metadata = { title: "Company" }
 
@@ -105,6 +108,9 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
         </Card>
 
         <div className="grid h-fit gap-4">
+        <Suspense fallback={<Card className="h-fit"><CardContent><AITextLoading texts={["Looking up public records", "Reading Wikidata", "Checking the registry"]} label="Looking up company facts" className="text-sm" /></CardContent></Card>}>
+          <Facts company={company} />
+        </Suspense>
         {people.length ? (
           <Card className="gap-0 py-0">
             <CardHeader className="border-b py-3">
@@ -155,4 +161,9 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
       </div>
     </div>
   )
+}
+
+async function Facts({ company }: { company: { id: string; name: string; profile: unknown; profiledAt: Date | null } }) {
+  const [enabled, profile] = await Promise.all([companyFactsEnabled(), companyProfile(company)])
+  return <CompanyFacts companyId={company.id} name={company.name} profile={profile} enabled={enabled} />
 }

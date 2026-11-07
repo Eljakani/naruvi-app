@@ -200,6 +200,9 @@ export const companies = pgTable(
     /** Sourced brief from the company's own site + postings (see src/server/research). */
     research: jsonb().$type<Record<string, unknown>>(),
     researchedAt: timestamp({ withTimezone: true }),
+    /** Public facts (size, founded, headquarters…) from Wikidata and business registries (see src/server/companies/profile.ts). */
+    profile: jsonb().$type<Record<string, unknown>>(),
+    profiledAt: timestamp({ withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

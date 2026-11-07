@@ -155,6 +155,13 @@
       "when": 1793997550489,
       "tag": "0021_contacts",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794021294485,
+      "tag": "0022_company_profile",
+      "breakpoints": true
     }
   ]
 }

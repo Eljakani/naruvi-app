@@ -170,3 +170,21 @@ export async function saveOAuthClientAction(provider: "google" | "microsoft", in
     return fail(error)
   }
 }
+
+export async function saveSalaryDataAction(input: { appId: string; appKey: string }): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    const { saveSalaryData } = await import("@/server/salary/market")
+    await saveSalaryData(z.object({ appId: z.string().max(100), appKey: z.string().max(200) }).parse(input))
+    revalidatePath("/integrations")
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+export async function setCompanyFactsAction(enabled: boolean): Promise<{ ok: true }> {
+  const { setCompanyFactsEnabled } = await import("@/server/companies/profile")
+  await setCompanyFactsEnabled(Boolean(enabled))
+  revalidatePath("/integrations")
+  return { ok: true }
+}
