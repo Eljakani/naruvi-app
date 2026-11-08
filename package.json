@@ -18,7 +18,7 @@
     "auth:setup-link": "node --import tsx scripts/setup-link.mts",
     "settings:key": "node --import tsx scripts/init-settings-key.mts",
     "worker": "tsx watch worker/index.mts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\" \"evals/**/*.test.ts\"",
     "profile:import": "tsx --conditions=react-server scripts/import-profile.mts",
     "jobs:smoke": "tsx --conditions=react-server scripts/smoke-jobs.mts",
