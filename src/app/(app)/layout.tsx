@@ -29,7 +29,9 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             </div>
             <div className="ml-auto flex min-w-0 items-center justify-end gap-1 px-4">
               <AssistantHeaderButton />
-              <NotificationBell />
+              <Suspense fallback={null}>
+                <NotificationBell />
+              </Suspense>
               <CommandMenu />
             </div>
           </header>

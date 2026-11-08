@@ -5,7 +5,7 @@ import { z } from "zod"
 import { safeFetchBytes } from "@/server/assets/safe-fetch"
 import { MAX_IMAGE_BYTES, storeLogo, storePhoto } from "@/server/assets/store"
 import { addFactForBullet, linkBulletFacts, setBulletRole } from "@/server/profile/repository"
-import { deleteEntry, saveEntry, saveIdentity, setEntryStatus } from "@/server/profile/repository"
+import { deleteEntry, saveEntry, saveGoals, saveIdentity, setEntryStatus } from "@/server/profile/repository"
 import type { EntryInput, IdentityInput } from "@/server/profile/schemas"
 import { BULLETS_PROMPT_VERSION, suggestBullets, type BulletSuggestion } from "@/server/profile/ai-bullets"
 import { completionForRun } from "@/server/llm/client"
@@ -53,6 +53,14 @@ export async function saveIdentityAction(input: IdentityInput) {
   })
 }
 
+/** Search goals change every goal check, so the applications and jobs re-render too. */
+export async function saveGoalsAction(goals: unknown) {
+  return run(async () => {
+    await saveGoals(goals)
+    revalidatePath("/applications", "layout")
+    revalidatePath("/jobs", "layout")
+  })
+}
 
 /** Upload a logo file. Returns the stored path; the entry is updated on Save. */
 export async function uploadLogoAction(formData: FormData) {

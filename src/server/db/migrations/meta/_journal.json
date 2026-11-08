@@ -162,6 +162,13 @@
       "when": 1794021294485,
       "tag": "0022_company_profile",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794170801144,
+      "tag": "0023_search_goals",
+      "breakpoints": true
     }
   ]
 }

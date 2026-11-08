@@ -1,6 +1,7 @@
 import "server-only"
 import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm"
 import { likePattern, prefixQuery } from "@/lib/search"
+import type { GoalJob } from "@/lib/search-goals"
 import { db } from "@/server/db/client"
 import { applications, companies, jobs } from "@/server/db/schema"
 
@@ -41,7 +42,7 @@ export async function searchJobs(filter: JobFilter) {
   const rows = await db
     .select({
       id: jobs.id, title: jobs.title, tags: jobs.tags, location: jobs.location, remote: jobs.remote, language: jobs.language, board: jobs.board, createdAt: jobs.createdAt,
-      insights: sql<{ workMode?: string; contract?: string; seniority?: string } | null>`${jobs.insights}`,
+      insights: sql<(GoalJob["insights"] & { seniority?: string }) | null>`${jobs.insights}`,
       company: companies.name, logoPath: companies.logoPath,
       applicationId: applications.id, status: applications.status, archivedAt: applications.archivedAt, fit: fitSql,
       total: sql<number>`count(*) over ()`.mapWith(Number),

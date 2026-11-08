@@ -1,4 +1,5 @@
 import { relations, sql } from "drizzle-orm"
+import type { SearchGoal } from "@/lib/search-goals"
 import {
   boolean,
   customType,
@@ -92,6 +93,8 @@ export const profiles = pgTable("profiles", {
   location: text().notNull().default(""),
   links: jsonb().$type<{ label: string; url: string }[]>().notNull().default([]),
   availability: text().notNull().default(""),
+  /** What the person is looking for (see src/lib/search-goals.ts): contracts, places, work mode, work rights. */
+  goals: jsonb().$type<SearchGoal[]>().notNull().default([]),
   /** Contact fields that must never be changed by generation. */
   locked: text().array().notNull().default(sql`'{}'::text[]`),
   defaultLanguage: text().notNull().default("en"),
