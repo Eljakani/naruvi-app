@@ -22,13 +22,13 @@ import { AddJobDialog } from "@/components/jobs/job-reader"
 import { JobLeads } from "@/components/jobs/job-leads"
 import { allTags } from "@/server/companies/repository"
 import { newLeads } from "@/server/jobs/leads"
-import { JOB_SORTS, JOB_STAGES, jobFacets, searchJobs } from "@/server/jobs/search"
+import { JOB_GOALS, JOB_SORTS, JOB_STAGES, jobFacets, searchJobs } from "@/server/jobs/search"
 
 export const metadata = { title: "Jobs" }
 
 type Search = Promise<Record<string, string | string[] | undefined>>
 const one = (value: string | string[] | undefined) => (typeof value === "string" ? value : undefined)
-const FILTERS = ["q", "tag", "workMode", "contract", "seniority", "stage", "sort"]
+const FILTERS = ["q", "tag", "workMode", "contract", "seniority", "stage", "goal", "sort"]
 
 export default function JobsPage({ searchParams }: PageProps<"/jobs">) {
   return (
@@ -64,6 +64,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
     contract: pick(one(params.contract), CONTRACT_LABEL),
     seniority: pick(one(params.seniority), SENIORITY_LABEL),
     stage: pick(one(params.stage), JOB_STAGES) ?? "new",
+    goal: pick(one(params.goal), JOB_GOALS),
     sort: pick(one(params.sort), JOB_SORTS),
     page: Number(one(params.page)) || 1,
   }
@@ -77,7 +78,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
       </OtterEmpty>
     )
   }
-  const filtered = Boolean(filter.q || tag || filter.workMode || filter.contract || filter.seniority || filter.stage !== "all")
+  const filtered = Boolean(filter.q || tag || filter.workMode || filter.contract || filter.seniority || filter.stage !== "all" || (filter.goal && filter.goal !== "all"))
   const pageHref = (page: number) => {
     const query = new URLSearchParams(Object.entries(params).filter(([key, value]) => key !== "page" && typeof value === "string") as [string, string][])
     if (page > 1) query.set("page", String(page))
@@ -91,6 +92,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
         <SearchBox placeholder="Search title, company, location, text…" />
         {tags.length ? <UrlSelect name="tag" label="Tag" options={[{ value: "all", label: "Any tag" }, ...tags.map((item) => ({ value: item.tag, label: `${item.tag} (${item.count})` }))]} /> : null}
         <UrlSelect name="stage" label="Stage" options={Object.entries(JOB_STAGES).map(([value, label]) => ({ value, label }))} className="w-44" />
+        {facets.goal.size ? <UrlSelect name="goal" label="Goal fit" options={Object.entries(JOB_GOALS).map(([value, label]) => ({ value, label: facets.goal.has(value) ? `${label} (${facets.goal.get(value)})` : label }))} className="w-44" /> : null}
         {facets.workMode.size ? <UrlSelect name="workMode" label="Work mode" options={options("Any work mode", facets.workMode, WORK_MODE_LABEL)} /> : null}
         {facets.contract.size ? <UrlSelect name="contract" label="Contract" options={options("Any contract", facets.contract, CONTRACT_LABEL)} /> : null}
         {facets.seniority.size ? <UrlSelect name="seniority" label="Seniority" options={options("Any seniority", facets.seniority, SENIORITY_LABEL)} /> : null}

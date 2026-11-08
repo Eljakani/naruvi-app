@@ -5,7 +5,7 @@
  */
 import { z } from "zod"
 import { CONTRACT_TYPES, type ContractType, type Programme } from "@/lib/job-program"
-import { COUNTRIES, countryIn, within } from "@/lib/geo"
+import { COUNTRIES, countryIn, plain, within } from "@/lib/geo"
 
 export const WORK_MODES = { onsite: "On site", hybrid: "Hybrid", remote: "Remote" } as const
 export type WorkMode = keyof typeof WORK_MODES
@@ -23,6 +23,8 @@ export const searchGoal = z.object({
   /** For internships, alternance and other time-bound contracts. */
   minMonths: z.number().int().min(1).max(60).nullable().default(null),
   maxMonths: z.number().int().min(1).max(60).nullable().default(null),
+  /** Earliest month the person can start, "YYYY-MM". */
+  startFrom: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable().default(null),
 })
 export type SearchGoal = z.infer<typeof searchGoal>
 export const searchGoals = z.array(searchGoal).max(8)
@@ -34,7 +36,7 @@ export type GoalJob = {
 }
 
 export type CheckStatus = "ok" | "check" | "blocked"
-export type GoalCheck = { kind: "contract" | "place" | "work_mode" | "authorization" | "duration"; status: CheckStatus; text: string }
+export type GoalCheck = { kind: "contract" | "place" | "work_mode" | "authorization" | "duration" | "start"; status: CheckStatus; text: string }
 export type GoalFit = { verdict: CheckStatus; goal: Pick<SearchGoal, "id" | "name">; implicit: boolean; checks: GoalCheck[] }
 
 const CONTRACT_NAME: Record<string, string> = { permanent: "a CDI / permanent job", fixed_term: "a CDD", freelance: "freelance", internship: "an internship", apprenticeship: "an alternance", student_job: "a student job", volunteer: "a volunteer programme (VIE…)", temporary: "temp work", seasonal: "seasonal work" }
@@ -51,6 +53,25 @@ export function monthsOf(duration: string): [number, number] | null {
   return [low, Math.round(Number(match[2] ?? match[1]) * scale)]
 }
 
+const MONTHS: [number, RegExp][] = [
+  [1, /\b(janvier|january|januar|enero|jan)\b/], [2, /\b(fevrier|february|februar|febrero|feb|fev)\b/], [3, /\b(mars|march|marz|marzo|mar)\b/],
+  [4, /\b(avril|april|abril|apr|avr)\b/], [5, /\b(mai|may|mayo)\b/], [6, /\b(juin|june|juni|junio|jun)\b/], [7, /\b(juillet|july|juli|julio|jul|juil)\b/],
+  [8, /\b(aout|august|agosto|aug)\b/], [9, /\b(septembre|september|septiembre|sept?)\b/], [10, /\b(octobre|october|oktober|octubre|oct|okt)\b/],
+  [11, /\b(novembre|november|noviembre|nov)\b/], [12, /\b(decembre|december|dezember|diciembre|dec|dez)\b/],
+]
+export const monthLabel = (value: string) => new Date(`${value}-01T12:00:00Z`).toLocaleDateString("en", { month: "long", year: "numeric", timeZone: "UTC" })
+
+/** "à partir de mars 2027" → "2027-03"; "septembre" → the next September; "ASAP" → "asap"; null if unreadable. */
+export function startOf(text: string, today = new Date()): string | "asap" | null {
+  const value = plain(text)
+  if (/asap|des que possible|immediat|sofort|as soon as/.test(value)) return "asap"
+  const month = MONTHS.find(([, pattern]) => pattern.test(value))?.[0]
+  if (!month) return null
+  const stated = Number(value.match(/\b(20\d{2})\b/)?.[1])
+  const year = stated || (month >= today.getUTCMonth() + 1 ? today.getUTCFullYear() : today.getUTCFullYear() + 1)
+  return `${year}-${String(month).padStart(2, "0")}`
+}
+
 function workModeOf(job: GoalJob): WorkMode | null {
   const mode = job.insights?.workMode
   if (mode === "onsite" || mode === "hybrid" || mode === "remote") return mode
@@ -58,7 +79,7 @@ function workModeOf(job: GoalJob): WorkMode | null {
   return /hybrid|hybride/.test(text) ? "hybrid" : /remote|télétravail|distance/.test(text) ? "remote" : /site|présentiel/.test(text) ? "onsite" : null
 }
 
-export function checkGoal(goal: SearchGoal, job: GoalJob): GoalCheck[] {
+export function checkGoal(goal: SearchGoal, job: GoalJob, today = new Date()): GoalCheck[] {
   const checks: GoalCheck[] = []
   const contract = job.insights?.contract && job.insights.contract !== "unspecified" ? job.insights.contract : null
   if (goal.contracts.length) {
@@ -104,6 +125,12 @@ export function checkGoal(goal: SearchGoal, job: GoalJob): GoalCheck[] {
       ? { kind: "duration", status: "blocked", text: `Lasts ${label}; you want ${goal.minMonths ?? "any"}–${goal.maxMonths ?? "any"} months.` }
       : { kind: "duration", status: "ok", text: `Lasts ${label}, within what you want.` })
   }
+  const start = goal.startFrom && job.insights?.programme?.start ? startOf(job.insights.programme.start, today) : null
+  if (start && goal.startFrom) {
+    const soon = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 2).padStart(2, "0")}`
+    if (start === "asap") checks.push(goal.startFrom > soon ? { kind: "start", status: "check", text: `They want someone as soon as possible; you're available from ${monthLabel(goal.startFrom)}.` } : { kind: "start", status: "ok", text: "Starts as soon as possible, which works for you." })
+    else checks.push(start < goal.startFrom ? { kind: "start", status: "blocked", text: `Starts ${monthLabel(start)}; you're available from ${monthLabel(goal.startFrom)}.` } : { kind: "start", status: "ok", text: `Starts ${monthLabel(start)}, after you're available.` })
+  }
   return checks
 }
 
@@ -126,4 +153,13 @@ export function goalFit(goals: SearchGoal[], job: GoalJob, profileLocation = "")
     return { fit: { verdict: verdictOf(checks), goal: { id: goal.id, name: goal.name }, implicit, checks }, score: checks.reduce((sum, item) => sum + RANK[item.status] * 10, 0) - checks.filter((item) => item.status === "ok").length }
   }).filter((result) => result.fit.checks.length)
   return results.sort((a, b) => a.score - b.score)[0]?.fit ?? null
+}
+
+/** The candidate's own availability for this job, from the goal it fits best (or their first active goal). */
+export function availabilityFor(goals: SearchGoal[], job: GoalJob): { availableFrom?: string; months?: string } | null {
+  const fit = goalFit(goals, job)
+  const goal = goals.find((item) => item.id === fit?.goal.id) ?? goals.find((item) => item.active)
+  if (!goal || (!goal.startFrom && !goal.minMonths && !goal.maxMonths)) return null
+  const months = goal.minMonths && goal.maxMonths && goal.minMonths !== goal.maxMonths ? `${goal.minMonths}-${goal.maxMonths}` : String(goal.minMonths ?? goal.maxMonths ?? "")
+  return { ...(goal.startFrom ? { availableFrom: goal.startFrom } : {}), ...(months ? { months } : {}) }
 }

@@ -5,12 +5,14 @@ import type { GoalJob } from "@/lib/search-goals"
 import { db } from "@/server/db/client"
 import { applications, companies, jobs } from "@/server/db/schema"
 
-export const JOB_SORTS = { newest: "Newest first", oldest: "Oldest first", fit: "Best fit", company: "Company A–Z" } as const
+export const JOB_SORTS = { newest: "Newest first", oldest: "Oldest first", fit: "Best fit", goal: "Fits my goals first", company: "Company A–Z" } as const
+export const JOB_GOALS = { all: "Any goal fit", ok: "Fits my goals", check: "Needs a look", blocked: "Off my goals", hide_blocked: "Hide off-goal" } as const
+export type JobGoal = keyof typeof JOB_GOALS
 export type JobSort = keyof typeof JOB_SORTS
 export const JOB_STAGES = { new: "Not tracked yet", all: "Every posting", active: "Tracked, in progress", closed: "Closed or archived" } as const
 export type JobStage = keyof typeof JOB_STAGES
 
-export type JobFilter = { q?: string; workMode?: string; contract?: string; seniority?: string; tag?: string; stage?: JobStage; sort?: JobSort; page?: number }
+export type JobFilter = { q?: string; workMode?: string; contract?: string; seniority?: string; tag?: string; stage?: JobStage; goal?: JobGoal; sort?: JobSort; page?: number }
 export const JOBS_PER_PAGE = 30
 
 const CLOSED_SQL = sql`(${applications.status} in ('rejected', 'withdrawn') or ${applications.archivedAt} is not null)`
@@ -24,6 +26,8 @@ export async function searchJobs(filter: JobFilter) {
   for (const key of ["workMode", "contract", "seniority"] as const) {
     if (filter[key]) where.push(sql`${jobs.insights}->>${key} = ${filter[key]}`)
   }
+  if (filter.goal === "hide_blocked") where.push(sql`${jobs.goalVerdict} is distinct from 'blocked'`)
+  else if (filter.goal && filter.goal !== "all") where.push(eq(jobs.goalVerdict, filter.goal))
   if (filter.tag) where.push(sql`${jobs.tags} @> array[${filter.tag}]::text[]`)
   if (filter.stage === "new") where.push(sql`${applications.id} is null`)
   if (filter.stage === "active") where.push(sql`${applications.id} is not null and not ${CLOSED_SQL}`)
@@ -33,6 +37,7 @@ export async function searchJobs(filter: JobFilter) {
     newest: [desc(jobs.createdAt)],
     oldest: [asc(jobs.createdAt)],
     fit: [sql`${fitSql} desc nulls last`, desc(jobs.createdAt)],
+    goal: [sql`case ${jobs.goalVerdict} when 'ok' then 0 when 'check' then 1 when 'blocked' then 3 else 2 end`, sql`${fitSql} desc nulls last`, desc(jobs.createdAt)],
     company: [sql`lower(${companies.name}) asc nulls last`, desc(jobs.createdAt)],
   }[filter.sort ?? "newest"]
   // With a search and the default order, the best matches come first.
@@ -69,13 +74,15 @@ export async function jobFacets() {
     .select({ workMode: sql<string | null>`${jobs.insights}->>'workMode'`, contract: sql<string | null>`${jobs.insights}->>'contract'`, seniority: sql<string | null>`${jobs.insights}->>'seniority'`, n: sql<number>`count(*)`.mapWith(Number) })
     .from(jobs)
     .groupBy(sql`1`, sql`2`, sql`3`)
+  const goals = await db.select({ verdict: jobs.goalVerdict, n: sql<number>`count(*)`.mapWith(Number) }).from(jobs).groupBy(jobs.goalVerdict)
+  const goal = new Map(goals.filter((row) => row.verdict && row.verdict !== "none").map((row) => [row.verdict!, row.n]))
   const tally = (key: "workMode" | "contract" | "seniority") => {
     const counts = new Map<string, number>()
     for (const row of rows) if (row[key] && row[key] !== "unspecified") counts.set(row[key]!, (counts.get(row[key]!) ?? 0) + row.n)
     return counts
   }
   const [{ n: all }] = await db.select({ n: sql<number>`count(*)`.mapWith(Number) }).from(jobs)
-  return { workMode: tally("workMode"), contract: tally("contract"), seniority: tally("seniority"), total: all }
+  return { workMode: tally("workMode"), contract: tally("contract"), seniority: tally("seniority"), goal, total: all }
 }
 
 /** A few results of each kind for the command menu. */

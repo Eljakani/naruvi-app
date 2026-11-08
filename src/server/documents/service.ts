@@ -9,6 +9,7 @@ import { db } from "@/server/db/client"
 import { documents, revisions, type QualitySummary } from "@/server/db/schema"
 import { getApplication } from "@/server/applications/repository"
 import { getProfile, listEntries } from "@/server/profile/repository"
+import { availabilityFor, type GoalJob } from "@/lib/search-goals"
 import { getDocumentDefaults } from "@/server/settings/service"
 import { startRun } from "@/server/runs/tracer"
 import { getLlmOverview } from "@/server/settings/llm"
@@ -224,8 +225,11 @@ export async function generateLetter(applicationId: string, language?: string, a
   }
 }
 
-function draftLetter(run: Awaited<ReturnType<typeof startRun>>, application: NonNullable<Awaited<ReturnType<typeof getApplication>>>, content: LetterDocument, instruction = "") {
+async function draftLetter(run: Awaited<ReturnType<typeof startRun>>, application: NonNullable<Awaited<ReturnType<typeof getApplication>>>, content: LetterDocument, instruction = "") {
+  const profile = await getProfile()
+  const availability = profile ? availabilityFor(profile.goals, { ...application.job, insights: application.job.insights as GoalJob["insights"] }) : null
   return run.step("AI draft personal letter", () => enrichLetter(content, {
+    availability: availability ?? undefined,
     title: application.job.title,
     company: application.job.company?.name ?? "",
     description: application.job.rawText,

@@ -20,6 +20,9 @@ import { CompanyFacts } from "@/components/companies/company-facts"
 import { ResearchCompanyButton } from "@/components/companies/research-company-button"
 import AITextLoading from "@/components/kokonutui/ai-text-loading"
 import { companyFactsEnabled, companyProfile } from "@/server/companies/profile"
+import { CareersWatch } from "@/components/companies/careers-watch"
+import type { CareersBoard } from "@/lib/careers-boards"
+import { detectBoard } from "@/server/jobs/careers"
 
 export const metadata = { title: "Company" }
 
@@ -37,7 +40,7 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
   await connection()
   const { id } = await params
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
-  const [company, people] = await Promise.all([getCompany(id), contactsForCompany(id)])
+  const [company, people, suggested] = await Promise.all([getCompany(id), contactsForCompany(id), detectBoard(id)])
   if (!company) notFound()
   const research = company.research as CompanyResearch | null
   const sent = company.jobs.filter((job) => job.status && SENT.has(job.status))
@@ -71,6 +74,8 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
           <AddJobDialog trigger={<Button variant="outline"><PlusIcon /> Add a job</Button>} />
         </div>
       </div>
+
+      <CareersWatch companyId={company.id} name={company.name} board={company.careers as CareersBoard | null} checkedAt={company.careersCheckedAt} suggested={suggested} />
 
       {sent.length ? (
         <Alert>

@@ -3,8 +3,9 @@ import { simpleParser } from "mailparser"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { baseDomain, matchMessage, type MatchCandidate } from "@/lib/mail-match"
 import { db } from "@/server/db/client"
-import { applicationContacts, applications, companies, contacts, jobLeads, jobs, mailAccounts, mailMessages } from "@/server/db/schema"
+import { applicationContacts, applications, companies, contacts, jobs, mailAccounts, mailMessages } from "@/server/db/schema"
 import { ALERT_SENDERS, extractJobLeads } from "@/lib/job-alerts"
+import { addLeads } from "@/server/jobs/leads"
 import { visiblePageText } from "@/server/research/extract"
 import { getResendMail, listResendMail } from "./resend"
 import { explainMailError, getMailAccount, imapClient } from "./account"
@@ -50,14 +51,7 @@ const isAlertSender = (address: string) => {
 
 /** Job links from an alert email, minus jobs already saved or leads already seen. */
 async function collectLeads(html: string, text: string, source: string, foundAt: Date) {
-  const found = extractJobLeads(html, text)
-  if (!found.length) return 0
-  const known = await db.select({ url: jobs.sourceUrl, canonical: jobs.canonicalUrl }).from(jobs)
-  const saved = new Set(known.flatMap((row) => [row.url, row.canonical]).filter(Boolean) as string[])
-  const fresh = found.filter((lead) => !saved.has(lead.url))
-  if (!fresh.length) return 0
-  const inserted = await db.insert(jobLeads).values(fresh.map((lead) => ({ ...lead, source: source.slice(0, 300), foundAt }))).onConflictDoNothing().returning({ id: jobLeads.id })
-  return inserted.length
+  return addLeads(extractJobLeads(html, text), source, foundAt)
 }
 
 /**

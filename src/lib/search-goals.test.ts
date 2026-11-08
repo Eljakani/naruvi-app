@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { within } from "./geo"
-import { goalFit, monthsOf, searchGoal } from "./search-goals"
+import { availabilityFor, checkGoal, goalFit, monthsOf, searchGoal, startOf } from "./search-goals"
 
 const pfe = searchGoal.parse({ id: "pfe", name: "PFE Paris", contracts: ["internship"], places: ["Paris"], workModes: ["onsite", "hybrid"], authorizedIn: ["fr"], minMonths: 5, maxMonths: 6 })
 const job = (over: object) => ({ location: "Paris, France", remote: "", employmentType: "", insights: { contract: "internship", workMode: "hybrid", programme: { duration: "6 mois", start: "", rhythm: "" }, visaSponsorship: null }, ...over })
@@ -51,4 +51,24 @@ test("without goals, the profile location only flags", () => {
   assert.equal(fit.implicit, true)
   assert.equal(fit.verdict, "check")
   assert.equal(goalFit([], job({}), ""), null)
+})
+
+test("start dates read and compare against availability", () => {
+  const today = new Date("2026-11-08T12:00:00Z")
+  assert.equal(startOf("mars 2027", today), "2027-03")
+  assert.equal(startOf("septembre", today), "2027-09")
+  assert.equal(startOf("décembre", today), "2026-12")
+  assert.equal(startOf("dès que possible", today), "asap")
+  assert.equal(startOf("bientôt", today), null)
+  const goal = { ...pfe, startFrom: "2027-02" }
+  const at = (start: string) => checkGoal(goal, job({ insights: { contract: "internship", workMode: "hybrid", programme: { duration: "", start, rhythm: "" } } }), today).find((item) => item.kind === "start")?.status
+  assert.equal(at("janvier 2027"), "blocked")
+  assert.equal(at("mars 2027"), "ok")
+  assert.equal(at("ASAP"), "check")
+})
+
+test("letter availability comes from the best goal", () => {
+  const goal = { ...pfe, startFrom: "2027-02" }
+  assert.deepEqual(availabilityFor([goal], job({})), { availableFrom: "2027-02", months: "5-6" })
+  assert.equal(availabilityFor([searchGoal.parse({ id: "x", name: "CDI" })], job({})), null)
 })

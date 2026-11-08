@@ -29,6 +29,7 @@ export async function saveIdentity(input: IdentityInput) {
   const data = identityInput.parse(input)
   const profile = await requireProfile()
   const [saved] = await db.update(profiles).set(data).where(eq(profiles.id, profile.id)).returning()
+  if (saved.location !== profile.location) await refreshVerdicts()
   return saved
 }
 
@@ -36,6 +37,7 @@ export async function saveGoals(input: unknown) {
   const goals = searchGoals.parse(input)
   const profile = await requireProfile()
   await db.update(profiles).set({ goals }).where(eq(profiles.id, profile.id))
+  await refreshVerdicts()
 }
 
 /** Apply just the approved edit and reject it if the original value has changed. */
@@ -65,7 +67,11 @@ export async function editProfileDetails(input: unknown) {
       : value ? [...profile.links, value] : profile.links
     await tx.update(profiles).set({ links }).where(eq(profiles.id, profile.id))
   })
+  if (edit.kind === "field" && edit.field === "location") await refreshVerdicts()
 }
+
+/** Goals and location decide every job's goal verdict. Imported lazily: the jobs module reads the profile. */
+const refreshVerdicts = async () => (await import("@/server/jobs/goals")).refreshGoalVerdicts()
 
 /** Entries with facts and phrasings; each phrasing carries its grounding check. */
 export async function listEntries() {

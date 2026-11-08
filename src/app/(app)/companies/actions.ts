@@ -55,3 +55,19 @@ export async function researchCompanyAction(id: string): Promise<Result<{ source
     return fail(error)
   }
 }
+
+/** Watch (url given), check now (no url) or stop watching (url null) a company's public job board. */
+export async function careersAction(id: string, url?: string | null): Promise<Result<{ added: number }>> {
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, message: "Invalid company." }
+  try {
+    const careers = await import("@/server/jobs/careers")
+    let added = 0
+    if (url === null) await careers.unwatchCareers(id)
+    else added = url ? await careers.watchCareers(id, z.string().trim().url("Paste the full careers page link (https://…).").max(500).parse(url)) : await careers.checkCareers(id)
+    revalidatePath(`/companies/${id}`)
+    revalidatePath("/jobs")
+    return { ok: true, data: { added } }
+  } catch (error) {
+    return fail(error)
+  }
+}
