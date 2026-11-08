@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 type Lead = { id: string; url: string; title: string; board: string; source: string; foundAt: Date }
 
-const BOARD: Record<string, string> = { linkedin: "LinkedIn", indeed: "Indeed", welcometothejungle: "Welcome to the Jungle", glassdoor: "Glassdoor", greenhouse: "Greenhouse", lever: "Lever", ashbyhq: "Ashby", smartrecruiters: "SmartRecruiters", myworkdayjobs: "Workday", workable: "Workable", teamtailor: "Teamtailor", recruitee: "Recruitee" }
+const BOARD: Record<string, string> = { ashby: "Ashby", linkedin: "LinkedIn", indeed: "Indeed", welcometothejungle: "Welcome to the Jungle", glassdoor: "Glassdoor", greenhouse: "Greenhouse", lever: "Lever", ashbyhq: "Ashby", smartrecruiters: "SmartRecruiters", myworkdayjobs: "Workday", workable: "Workable", teamtailor: "Teamtailor", recruitee: "Recruitee" }
 
 /** Postings found in job-alert emails or saved with the browser extension. Import reads the posting like any link; nothing is saved until you check it. */
 export function JobLeads({ leads }: { leads: Lead[] }) {

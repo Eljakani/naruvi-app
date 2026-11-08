@@ -7,6 +7,7 @@ import { startRun } from "@/server/runs/tracer"
 import { tracedDecide } from "@/server/runs/decisions"
 import { decisionClient } from "@/server/settings/decisions"
 import { getLlmOverview } from "@/server/settings/llm"
+import { refreshGoalVerdicts } from "./goals"
 import { ENRICH_PROMPT_VERSION, enrichJob, type JobInsights } from "./enrich"
 
 /** Computes and stores the job's insights; never throws (enrichment is optional). */
@@ -30,5 +31,7 @@ export async function refreshJobInsights(jobId: string): Promise<JobInsights | n
   } catch (error) {
     await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
     return null
+  } finally {
+    await refreshGoalVerdicts([jobId]).catch(() => undefined)
   }
 }

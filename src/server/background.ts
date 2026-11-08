@@ -9,6 +9,10 @@ export async function runBackgroundTasks() {
     const { syncMail } = await import("@/server/mail/sync")
     await syncMail().catch((error) => console.error("[naruvi] mail sync:", error instanceof Error ? error.message : error))
   }
+  const { backfillGoalVerdicts } = await import("@/server/jobs/goals")
+  await backfillGoalVerdicts().catch((error) => console.error("[naruvi] goal verdicts:", error instanceof Error ? error.message : error))
+  const { checkDueCareers } = await import("@/server/jobs/careers")
+  await checkDueCareers()
   const { runNotifications } = await import("@/server/integrations/notify")
   await runNotifications()
 }

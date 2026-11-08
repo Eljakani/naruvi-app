@@ -206,6 +206,9 @@ export const companies = pgTable(
     /** Public facts (size, founded, headquarters…) from Wikidata and business registries (see src/server/companies/profile.ts). */
     profile: jsonb().$type<Record<string, unknown>>(),
     profiledAt: timestamp({ withTimezone: true }),
+    /** Public job board this company posts on, watched for new postings (see src/server/jobs/careers.ts). */
+    careers: jsonb().$type<{ provider: string; slug: string }>(),
+    careersCheckedAt: timestamp({ withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -236,6 +239,8 @@ export const jobs = pgTable(
     insights: jsonb().$type<Record<string, unknown>>(),
     /** The person's own labels ("Paris cloud", "Plan B") to keep parallel searches apart. */
     tags: text().array().notNull().default(sql`'{}'::text[]`),
+    /** Against the person's search goals: ok / check / blocked, "none" when there's nothing to check (see src/server/jobs/goals.ts). */
+    goalVerdict: text(),
     /**
      * Search over title, location and the posting. The "simple" configuration
      * has no language rules, so every language is searchable the same way.

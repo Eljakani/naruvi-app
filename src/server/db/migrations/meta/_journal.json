@@ -169,6 +169,13 @@
       "when": 1794170801144,
       "tag": "0023_search_goals",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794171695406,
+      "tag": "0024_goal_verdict_and_careers",
+      "breakpoints": true
     }
   ]
 }

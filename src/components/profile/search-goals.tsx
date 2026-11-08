@@ -14,10 +14,10 @@ import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { COUNTRIES } from "@/lib/geo"
 import { CONTRACT_LABEL } from "@/lib/job-labels"
-import { WORK_MODES, type SearchGoal } from "@/lib/search-goals"
+import { monthLabel, WORK_MODES, type SearchGoal } from "@/lib/search-goals"
 
 const PRESSED = "aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background"
-const blank = (): SearchGoal => ({ id: crypto.randomUUID().slice(0, 8), name: "", active: true, contracts: [], places: [], workModes: [], authorizedIn: [], minMonths: null, maxMonths: null })
+const blank = (): SearchGoal => ({ id: crypto.randomUUID().slice(0, 8), name: "", active: true, contracts: [], places: [], workModes: [], authorizedIn: [], minMonths: null, maxMonths: null, startFrom: null })
 
 function summary(goal: SearchGoal) {
   const months = goal.minMonths || goal.maxMonths ? `${goal.minMonths ?? "?"}–${goal.maxMonths ?? "?"} months` : ""
@@ -26,6 +26,7 @@ function summary(goal: SearchGoal) {
     goal.places.join(", ") || "Anywhere",
     goal.workModes.map((mode) => WORK_MODES[mode]).join(" / "),
     months,
+    goal.startFrom ? `From ${monthLabel(goal.startFrom)}` : "",
     goal.authorizedIn.length ? `Can work in ${goal.authorizedIn.map((code) => COUNTRIES[code]?.name ?? code).join(", ")}` : "",
   ].filter(Boolean)
 }
@@ -134,8 +135,12 @@ function GoalDialog({ goal, isNew, pending, onClose, onSave, onDelete }: { goal:
               </ToggleGroup>
             </fieldset>
             <fieldset className="grid gap-2">
-              <legend className="mb-1 text-sm font-medium">Duration in months</legend>
-              <p className="mb-1 text-xs text-muted-foreground">For internships, alternance and fixed-term jobs, e.g. 5 to 6 for a PFE.</p>
+              <legend className="mb-1 text-sm font-medium">Timing</legend>
+              <p className="mb-1 text-xs text-muted-foreground">When you can start, and how long, in months, for internships, alternance and fixed-term jobs (e.g. 5 to 6 for a PFE).</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Label htmlFor="goal-start" className="font-normal text-muted-foreground">Available from</Label>
+                <Input id="goal-start" type="month" value={draft.startFrom ?? ""} onChange={(event) => patch({ startFrom: event.target.value || null })} className="w-40" />
+              </div>
               <div className="flex items-center gap-2">
                 <Input type="number" min={1} max={60} inputMode="numeric" aria-label="Minimum months" value={draft.minMonths ?? ""} onChange={(event) => patch({ minMonths: months(event.target.value) })} placeholder="Min" className="w-24" />
                 <span className="text-sm text-muted-foreground">to</span>

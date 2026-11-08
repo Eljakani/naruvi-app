@@ -1,7 +1,7 @@
 import "server-only"
 import { and, desc, eq, inArray } from "drizzle-orm"
 import { db } from "@/server/db/client"
-import { jobLeads } from "@/server/db/schema"
+import { jobLeads, jobs } from "@/server/db/schema"
 
 export async function newLeads(limit = 30) {
   return db.select().from(jobLeads).where(eq(jobLeads.state, "new")).orderBy(desc(jobLeads.foundAt)).limit(limit)
@@ -30,4 +30,15 @@ export async function saveCapture(input: { url: string; board: string; title: st
 export async function getLead(id: string) {
   const [row] = await db.select().from(jobLeads).where(eq(jobLeads.id, id))
   return row ?? null
+}
+
+/** New leads, minus jobs already saved and leads already seen. Returns how many were added. */
+export async function addLeads(found: { url: string; title: string; board: string }[], source: string, foundAt: Date) {
+  if (!found.length) return 0
+  const known = await db.select({ url: jobs.sourceUrl, canonical: jobs.canonicalUrl }).from(jobs)
+  const saved = new Set(known.flatMap((row) => [row.url, row.canonical]).filter(Boolean) as string[])
+  const fresh = found.filter((lead) => !saved.has(lead.url))
+  if (!fresh.length) return 0
+  const inserted = await db.insert(jobLeads).values(fresh.map((lead) => ({ ...lead, source: source.slice(0, 300), foundAt }))).onConflictDoNothing().returning({ id: jobLeads.id })
+  return inserted.length
 }
