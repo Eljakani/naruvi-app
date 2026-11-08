@@ -10,6 +10,9 @@ const schema = z.object({
   SETTINGS_ENCRYPTION_KEY: z.string().default(""),
   TYPESAFE_API_KEY: z.string().default(""),
   TYPESAFE_MODEL: z.string().default("jev-latest"),
-})
+}).refine(
+  (data) => process.env.NODE_ENV !== "production" || /^[a-f0-9]{64}$/i.test(data.SETTINGS_ENCRYPTION_KEY),
+  { message: "SETTINGS_ENCRYPTION_KEY must be a 64-char hex key in production. Generate one with: npm run settings:key", path: ["SETTINGS_ENCRYPTION_KEY"] },
+)
 
 export const env = schema.parse(process.env)

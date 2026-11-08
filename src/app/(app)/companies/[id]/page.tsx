@@ -3,7 +3,7 @@ import { AddWebsiteButton } from "@/components/companies/company-dialogs"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { connection } from "next/server"
-import { ArrowLeftIcon, CalendarClockIcon, ExternalLinkIcon, PlusIcon } from "lucide-react"
+import { ArrowLeftIcon, CalendarClockIcon, ExternalLinkIcon, PlusIcon, SearchIcon } from "lucide-react"
 import { FitRing } from "@/components/applications/fit-ring"
 import { AddJobDialog } from "@/components/jobs/job-reader"
 import { EntryLogo } from "@/components/profile/entry-logo"
@@ -17,6 +17,7 @@ import { getCompany } from "@/server/companies/repository"
 import { contactsForCompany } from "@/server/contacts/repository"
 import type { CompanyResearch } from "@/server/research/brief"
 import { CompanyFacts } from "@/components/companies/company-facts"
+import { ResearchCompanyButton } from "@/components/companies/research-company-button"
 import AITextLoading from "@/components/kokonutui/ai-text-loading"
 import { companyFactsEnabled, companyProfile } from "@/server/companies/profile"
 
@@ -43,14 +44,14 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
   const host = company.website ? new URL(company.website).hostname : null
 
   return (
-    <div className="grid gap-4">
+    <div className="@container grid gap-5">
       <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href="/companies" />}>
         <ArrowLeftIcon /> Companies
       </Button>
       <div className="flex flex-wrap items-center gap-4">
         <EntryLogo path={company.logoPath} name={company.name} size={56} morph={`company-${company.id}`} />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-2xl font-semibold tracking-tight">{company.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight wrap-anywhere">{company.name}</h1>
           <p className="text-sm text-muted-foreground">
             {company.jobs.length} job{company.jobs.length === 1 ? "" : "s"} · {company.jobs.filter((job) => job.applicationId).length} application{company.jobs.filter((job) => job.applicationId).length === 1 ? "" : "s"}
             {host ? (
@@ -65,7 +66,10 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
             )}
           </p>
         </div>
-        <AddJobDialog trigger={<Button variant="outline"><PlusIcon /> Add a job</Button>} />
+        <div className="flex flex-wrap items-center gap-2">
+          <ResearchCompanyButton companyId={company.id} name={company.name} website={company.website} researched={Boolean(research)} />
+          <AddJobDialog trigger={<Button variant="outline"><PlusIcon /> Add a job</Button>} />
+        </div>
       </div>
 
       {sent.length ? (
@@ -78,88 +82,109 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <Card className="h-fit gap-0 py-0">
-          <CardHeader className="border-b py-3">
-            <CardTitle className="text-sm">Jobs and applications</CardTitle>
-          </CardHeader>
-          <ul className="divide-y">
-            {company.jobs.map((job) => {
-              const closed = Boolean(job.archivedAt) || job.status === "rejected" || job.status === "withdrawn"
-              return (
-                <li key={job.id}>
-                  <Link href={job.applicationId ? `/applications/${job.applicationId}` : `/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40">
-                    <div className="min-w-0 flex-1">
-                      <div className={closed ? "truncate font-medium text-muted-foreground" : "truncate font-medium"}>{job.title}</div>
-                      <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                        {job.location ? <span>{job.location}</span> : null}
-                        <span>Added {job.createdAt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
-                        {job.nextStep && !closed ? <span>· Next: {job.nextStep}</span> : null}
-                        {job.tags.map((tag) => <Badge key={tag} variant="outline" className="h-4 px-1 text-[11px] font-normal">{tag}</Badge>)}
-                      </div>
-                    </div>
-                    {job.applicationId ? <Badge variant={closed ? "outline" : job.status === "ready" ? "default" : "secondary"}>{job.archivedAt ? "Archived" : STATUS_LABEL[job.status!]}</Badge> : <Badge variant="outline" className="font-normal text-muted-foreground">Not analyzed</Badge>}
-                    {job.fit !== null ? <FitRing score={job.fit} size={32} /> : <span className="w-8" />}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </Card>
-
-        <div className="grid h-fit gap-4">
-        <Suspense fallback={<Card className="h-fit"><CardContent><AITextLoading texts={["Looking up public records", "Reading Wikidata", "Checking the registry"]} label="Looking up company facts" className="text-sm" /></CardContent></Card>}>
-          <Facts company={company} />
-        </Suspense>
-        {people.length ? (
-          <Card className="gap-0 py-0">
+      <div className="grid items-start gap-5 @4xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <CompanyOverview research={research} name={company.name} />
+        <div className="grid gap-5">
+          <Suspense fallback={<Card><CardContent><AITextLoading texts={["Looking up public records", "Reading Wikidata", "Checking the registry"]} label="Looking up company facts" className="text-sm" /></CardContent></Card>}>
+            <Facts company={company} />
+          </Suspense>
+          <Card className="h-fit gap-0 py-0">
             <CardHeader className="border-b py-3">
-              <CardTitle className="text-sm">People at {company.name}</CardTitle>
+              <CardTitle>Jobs and applications <span className="ml-1 font-normal text-muted-foreground">{company.jobs.length}</span></CardTitle>
             </CardHeader>
-            <ul className="divide-y text-sm">
-              {people.map((person) => (
-                <li key={person.id} className="px-4 py-2">
-                  <p className="truncate font-medium">{person.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{[person.title, person.email].filter(Boolean).join(" · ") || "No details yet"}</p>
-                </li>
-              ))}
+            {!company.jobs.length ? <p className="px-4 py-5 text-sm leading-relaxed text-muted-foreground">No jobs or applications here yet. You can research this company first, then add a role when you find one.</p> : null}
+            <ul className="divide-y">
+              {company.jobs.map((job) => {
+                const closed = Boolean(job.archivedAt) || job.status === "rejected" || job.status === "withdrawn"
+                return (
+                  <li key={job.id}>
+                    <Link href={job.applicationId ? `/applications/${job.applicationId}` : `/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40">
+                      <div className="min-w-0 flex-1">
+                        <div className={closed ? "font-medium text-muted-foreground wrap-anywhere" : "font-medium wrap-anywhere"}>{job.title}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+                          {job.location ? <span>{job.location}</span> : null}
+                          <span>Added {job.createdAt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
+                          {job.nextStep && !closed ? <span>· Next: {job.nextStep}</span> : null}
+                          {job.tags.map((tag) => <Badge key={tag} variant="outline" className="h-4 px-1 text-[11px] font-normal">{tag}</Badge>)}
+                        </div>
+                      </div>
+                      {job.applicationId ? <Badge variant={closed ? "outline" : job.status === "ready" ? "default" : "secondary"}>{job.archivedAt ? "Archived" : STATUS_LABEL[job.status!]}</Badge> : <Badge variant="outline" className="font-normal text-muted-foreground">Not analyzed</Badge>}
+                      {job.fit !== null ? <FitRing score={job.fit} size={32} /> : null}
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
-            <Link href="/contacts" className="border-t px-4 py-2 text-xs text-muted-foreground hover:text-foreground">All contacts</Link>
           </Card>
-        ) : null}
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle className="text-sm">About {company.name}</CardTitle>
-            <CardDescription className="text-xs">{research ? `From ${research.sources.length} source${research.sources.length === 1 ? "" : "s"}, ${new Date(research.generatedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : "Research runs in the background when you analyze a job here."}</CardDescription>
-          </CardHeader>
-          {research ? (
-            <CardContent className="grid gap-3 text-sm">
-              {research.about.slice(0, 2).map((item) => <p key={item.text} className="line-clamp-4 text-muted-foreground">{item.text}</p>)}
-              {research.facts.length ? (
-                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-                  {research.facts.slice(0, 6).map((fact) => (
-                    <div key={fact.label} className="contents">
-                      <dt className="text-muted-foreground">{fact.label}</dt>
-                      <dd>{fact.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : null}
-              {research.sources.length ? (
-                <ul className="grid gap-1 text-xs">
-                  {research.sources.slice(0, 4).map((source) => (
-                    <li key={source.url} className="truncate">
-                      <a href={source.url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground hover:underline">{source.title || source.url}</a>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </CardContent>
+
+          {people.length ? (
+            <Card className="gap-0 py-0">
+              <CardHeader className="border-b py-3">
+                <CardTitle>People at {company.name}</CardTitle>
+              </CardHeader>
+              <ul className="divide-y text-sm">
+                {people.map((person) => (
+                  <li key={person.id} className="px-4 py-2">
+                    <p className="truncate font-medium">{person.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{[person.title, person.email].filter(Boolean).join(" · ") || "No details yet"}</p>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/contacts" className="border-t px-4 py-2 text-xs text-muted-foreground hover:text-foreground">All contacts</Link>
+            </Card>
           ) : null}
-        </Card>
         </div>
       </div>
     </div>
+  )
+}
+
+function CompanyOverview({ research, name }: { research: CompanyResearch | null; name: string }) {
+  const websiteAbout = research?.about.filter((item) => item.source !== "job posting") ?? []
+  const about = websiteAbout.length ? websiteAbout : research?.about ?? []
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Company overview</CardTitle>
+        <CardDescription>{research ? `${research.summary ? "AI overview · " : ""}${research.sources.length} source${research.sources.length === 1 ? "" : "s"} · Updated ${new Date(research.generatedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : `Get to know ${name} before you apply.`}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-5">
+        {!research?.summary ? (
+          <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-4">
+            <SearchIcon aria-hidden="true" className="mt-1 size-5 shrink-0 text-muted-foreground" />
+            <div className="space-y-1">
+              <p className="font-medium">{research ? "Generate a clear company overview" : "Start with company research"}</p>
+              <p className="text-base leading-relaxed text-muted-foreground">Use {research ? "Refresh research" : "Research company"} to have AI explain what this company does, using its website as evidence. You don’t need a job or application.</p>
+            </div>
+          </div>
+        ) : null}
+        {research?.summary ? <p className="max-w-prose text-base leading-relaxed">{research.summary.text}</p> : about.length ? <details className="space-y-3 text-sm"><summary className="w-fit cursor-pointer font-medium">Website excerpts</summary>{about.slice(0, 2).map((item) => <p key={item.text} className="max-w-prose leading-relaxed text-muted-foreground">{item.text}</p>)}</details> : null}
+        {research?.mission.length ? (
+          <section className="space-y-2 border-t pt-4">
+            <h2 className="font-medium">Mission</h2>
+            {research.mission.slice(0, 2).map((item) => <p key={item.text} className="max-w-prose text-base leading-relaxed text-muted-foreground">{item.text}</p>)}
+          </section>
+        ) : null}
+        {research?.values.length ? (
+          <section className="space-y-2 border-t pt-4">
+            <h2 className="font-medium">Values</h2>
+            <ul className="flex flex-wrap gap-2">{research.values.map((item) => <li key={item.text} className="rounded-md bg-muted px-2.5 py-1 text-sm">{item.text}</li>)}</ul>
+          </section>
+        ) : null}
+        {research?.facts.length ? (
+          <dl className="grid gap-3 border-t pt-4 sm:grid-cols-2">
+            {research.facts.slice(0, 6).map((fact) => <div key={fact.label}><dt className="text-sm text-muted-foreground">{fact.label}</dt><dd className="mt-1 text-base wrap-anywhere">{fact.value}</dd></div>)}
+          </dl>
+        ) : null}
+        {research?.notes.map((note) => <p key={note} className="rounded-md bg-muted p-3 text-sm leading-relaxed text-muted-foreground">{note}</p>)}
+        {research?.sources.length ? (
+          <section className="space-y-2 border-t pt-4">
+            <h2 className="text-sm font-medium">Sources</h2>
+            <ul className="grid gap-2 text-sm">{research.sources.map((source) => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1.5 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring"><span className="min-w-0 truncate">{source.title || source.url}</span><ExternalLinkIcon aria-hidden="true" className="size-3.5 shrink-0" /></a></li>)}</ul>
+          </section>
+        ) : null}
+      </CardContent>
+    </Card>
   )
 }
 

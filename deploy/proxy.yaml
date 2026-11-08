@@ -1,0 +1,4 @@
+# Behind your own reverse proxy (Coolify, Traefik, nginx, Caddy…). The proxy terminates HTTPS.
+services:
+  app:
+    ports: ["${NARUVI_BIND:-127.0.0.1}:${NARUVI_PORT:-3000}:3000"]

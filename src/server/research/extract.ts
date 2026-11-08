@@ -8,6 +8,8 @@ export type PageFacts = {
   url: string
   title: string
   description: string
+  /** Bounded visible text for AI synthesis; never executable instructions. */
+  text?: string
   headings: string[]
   /** Sentences that state what the company does, its mission or values. */
   statements: { kind: "mission" | "about" | "values" | "scale" | "founded"; text: string }[]
@@ -104,7 +106,8 @@ export function extractPage(html: string, url: string): PageFacts {
   const title = decodeHtml(source.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").replace(/\s+/g, " ").trim()
   const description = meta(source, "description") || meta(source, "og:description")
   const headings = [...source.matchAll(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/gi)].map((m) => visiblePageText(m[1])).filter((h) => h.length >= 3 && h.length <= 120).slice(0, 12)
-  const all = sentences(visiblePageText(source))
+  const text = visiblePageText(source)
+  const all = sentences(text)
   const statements: PageFacts["statements"] = []
   const seen = new Set<string>()
   const push = (kind: PageFacts["statements"][number]["kind"], text: string) => {
@@ -115,5 +118,11 @@ export function extractPage(html: string, url: string): PageFacts {
   }
   for (const statement of classifySentences(all.join("\n"), organizationLd(source)?.name ?? "")) push(statement.kind, statement.text)
   if (description && description.length >= 30) push("about", description)
-  return { url, title, description, headings, statements: statements.slice(0, 12), values: valuesFrom(source), organization: organizationLd(source) }
+  return { url, title, description, text: text.slice(0, 12_000), headings, statements: statements.slice(0, 12), values: valuesFrom(source), organization: organizationLd(source) }
+}
+
+/** Guessed /about or /company paths can be user handles on community platforms. */
+export function extractCompanyPage(html: string, url: string): PageFacts | null {
+  const page = extractPage(html, url)
+  return /^(?:user|member) profile (?:of|for)\b/i.test(page.description) ? null : page
 }

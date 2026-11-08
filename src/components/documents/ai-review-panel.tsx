@@ -24,7 +24,7 @@ export function AiReviewPanel({ assistance, changes, pending, onApprove }: {
           Tailored by Naruvi{changes.length ? <span className="font-normal text-muted-foreground"> · {changes.length} line{changes.length === 1 ? "" : "s"} reworded</span> : null}
         </p>
         {assistance.reviewed ? (
-          <Badge variant="secondary"><CheckIcon /> Reviewed</Badge>
+          <Badge variant="secondary" className="cb-pop"><CheckIcon className="text-emerald-600" /> Reviewed</Badge>
         ) : (
           <Button type="button" size="xs" variant="outline" disabled={pending} onClick={onApprove}>
             <CheckIcon /> Mark reviewed

@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { trackJobAction } from "@/app/(app)/jobs/actions"
 import ParticleButton from "@/components/kokonutui/particle-button"
 
-/** Move a posting from Discover into Applications, at "Saved", without analyzing it yet. */
+/** Move a posting from Jobs into Applications, at "Saved", without analyzing it yet. */
 export function TrackJobButton({ jobId }: { jobId: string }) {
   const router = useRouter()
   return (

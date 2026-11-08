@@ -1,0 +1,26 @@
+name: naruvi-installer-sandbox
+services:
+  sandbox:
+    build:
+      context: ../..
+      dockerfile: deploy/sandbox/Dockerfile
+    privileged: true
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      DOCKER_TLS_CERTDIR: ""
+      NARUVI_SOURCE_DIR: /snapshot
+      NARUVI_INSTALL_DIR: /demo/naruvi
+    ports:
+      - "127.0.0.1:8088:8080"
+    volumes:
+      - engine:/var/lib/docker
+      - installation:/demo
+    healthcheck:
+      test: [CMD, docker, info]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    stop_grace_period: 30s
+volumes:
+  engine:
+  installation:

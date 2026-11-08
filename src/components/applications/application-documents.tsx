@@ -47,7 +47,7 @@ export function ApplicationDocuments({ applicationId, language, coverDecision, c
     },
   ]
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid content-start gap-3 sm:grid-cols-2 xl:grid-cols-1">
       {items.map((item) => (
         <Link
           key={item.title}

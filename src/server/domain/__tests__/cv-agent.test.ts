@@ -55,3 +55,17 @@ test("trim candidates never touch must-have evidence or an entry's only line", a
   const ids = trimCandidates(cv, new Set(["must"])).map((c) => `${c.item}:${c.bullet}`)
   assert.deepEqual(ids, ["0:2"])
 })
+
+test("an edit that only resets the AI-review approval is not counted as worse", async () => {
+  // Approved CV with one long bullet (94); the fix removes the warning but un-approves the AI wording (80).
+  const start = doc(2)
+  const fixed = doc(2.5 as never)
+  const result = await runCvAgent(start, { request: "Shorten every bullet longer than 240 characters", maxRounds: 1 }, {
+    evaluate: async (d) => d === start
+      ? evaluation(2, 94, [{ id: "length", status: "warn", label: "Scannable bullets", detail: "1 long" }])
+      : evaluation(2, 80, [{ id: "ai-review", status: "fail", label: "AI wording reviewed", detail: "Review it" }]),
+    revise: async () => ({ doc: fixed, changed: 1, rejected: 0, note: "Shortened one bullet" }),
+  })
+  assert.equal(result.doc, fixed)
+  assert.equal(result.improved, true)
+})

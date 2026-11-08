@@ -45,6 +45,7 @@ export function prepareLlmSettings(input: unknown, previous: StoredLlmSettings |
 }
 
 /** Credentials, including ciphertext, do not belong in portable user-data exports. */
+const SECRET_KEYS = new Set([LLM_SETTINGS_KEY, DECISION_SETTINGS_KEY])
 export function exportableSettings<T extends { key: string }>(rows: T[]): T[] {
-  return rows.filter((row) => row.key !== LLM_SETTINGS_KEY && row.key !== DECISION_SETTINGS_KEY)
+  return rows.filter((row) => !SECRET_KEYS.has(row.key) && !row.key.startsWith("integration."))
 }

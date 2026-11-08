@@ -25,3 +25,9 @@ Errors are JSON: `{ "error": "…" }` with status 400 (invalid request), 401 (mi
 `mcp/naruvi-mcp.mjs` exposes the same API as MCP tools (`naruvi_attention`, `naruvi_list_applications`,
 `naruvi_get_application`, `naruvi_update_application`, `naruvi_search_jobs`, `naruvi_save_job_lead`).
 Run it with `NARUVI_URL` and `NARUVI_API_KEY` set; the Integrations page shows ready-to-paste configuration.
+
+## Request limits
+
+All `/api/v1` handlers apply shared rate budgets: 300 requests/minute globally, 60/minute per client and 120/minute per API key. Client addresses are trusted only behind the configured Caddy gateway; otherwise callers share one client bucket. Unauthorized attempts count toward global/client budgets. HTTP 429 responses include `Retry-After` in seconds.
+
+POST/PATCH and other mutations require `Content-Type: application/json`, accept at most 512 KiB of streamed request data, and have a ten-second body-read deadline. Compressed request bodies are not accepted. Errors use 413 (too large), 415 (unsupported type/encoding), or 408 (body timeout). Authentication still runs before application handlers. Revocation is atomic; an already-authorized request can finish, but later requests cannot revive the key through usage updates.

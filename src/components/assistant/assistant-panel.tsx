@@ -8,12 +8,12 @@ import { usePathname, useRouter } from "next/navigation"
 import { useChat } from "@ai-sdk/react"
 import { Collapsible } from "@animate-ui/react/primitives/base-ui/collapsible"
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, lastAssistantMessageIsCompleteWithToolCalls, type FileUIPart, type InferUITools, type UIMessage } from "ai"
-import { motion, useReducedMotion } from "motion/react"
+import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useSyncExternalStore } from "react"
 import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import {
   ArrowRightIcon, ArrowUpIcon, BanIcon, BriefcaseBusinessIcon, CalendarClockIcon, CheckIcon, ChevronDownIcon, CircleAlertIcon, FileTextIcon, GaugeIcon, GlobeIcon,
-  ExternalLinkIcon, LinkIcon, MailIcon, MailSearchIcon, SendIcon, SparklesIcon, SquarePenIcon, Trash2Icon, UserPenIcon, UserPlusIcon, UserRoundIcon, XIcon,
+  CopyIcon, ExternalLinkIcon, LinkIcon, RotateCcwIcon, MailIcon, MailSearchIcon, SendIcon, SquarePenIcon, Trash2Icon, UserPenIcon, UserPlusIcon, UserRoundIcon, XIcon,
   Building2Icon, type LucideIcon,
 } from "lucide-react"
 import { FitRing } from "@/components/applications/fit-ring"
@@ -29,7 +29,6 @@ import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
 import { Kbd } from "@/components/ui/kbd"
-import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker"
 import { Message, MessageContent } from "@/components/ui/message"
 import { MessageScroller, MessageScrollerButton, MessageScrollerContent, MessageScrollerItem, MessageScrollerProvider, MessageScrollerViewport } from "@/components/ui/message-scroller"
 import { SidebarMenuButton } from "@/components/ui/sidebar"
@@ -115,10 +114,11 @@ export function AssistantSidebarItem() {
   const { open, toggle } = useContext(AssistantContext)
   const shortcut = useShortcutLabel()
   return (
-    <SidebarMenuButton tooltip={`Ask Naruvi (${shortcut})`} aria-controls={PANEL_ID} aria-expanded={open} isActive={open} onClick={toggle}>
-      <SparklesIcon className="text-brand!" />
+    <SidebarMenuButton tooltip={`Ask Naruvi (${shortcut})`} aria-controls={PANEL_ID} aria-expanded={open} isActive={open} onClick={toggle}
+      className="text-sidebar-foreground/75 hover:bg-sidebar-accent/60 data-active:text-sidebar-foreground">
+      <NaruviAvatar size={16} className="-my-0.5" />
       <span>Ask Naruvi</span>
-      <Kbd className="ml-auto opacity-70 group-data-[collapsible=icon]:hidden">{shortcut}</Kbd>
+      <Kbd className="ml-auto bg-transparent opacity-60 group-data-[collapsible=icon]:hidden">{shortcut}</Kbd>
     </SidebarMenuButton>
   )
 }
@@ -171,6 +171,16 @@ function DockedAssistant() {
   useEffect(() => {
     if (open) panel.current?.focus({ preventScroll: true })
   }, [open])
+
+  // Publish the docked width so floating UI (e.g. "Tell me about it") can sit beside the dock, not under it.
+  // Below lg the dock covers the whole screen instead, so nothing needs to move.
+  useEffect(() => {
+    const root = document.documentElement
+    const sync = () => root.style.setProperty("--assistant-dock", shown && window.matchMedia("(min-width: 64rem)").matches ? `${Math.min(width, Math.floor(window.innerWidth * 0.42))}px` : "0px")
+    sync()
+    window.addEventListener("resize", sync)
+    return () => { window.removeEventListener("resize", sync); root.style.setProperty("--assistant-dock", "0px") }
+  }, [shown, width])
 
   const resize = (value: number) => {
     const max = Math.min(MAX_WIDTH, Math.floor(window.innerWidth * 0.42))
@@ -291,7 +301,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
     api: "/api/assistant",
     prepareSendMessagesRequest: ({ messages }) => ({ body: { messages: limitChatImages(messages.slice(-40)), path: window.location.pathname } }),
   }), [])
-  const { messages, sendMessage, status, stop, error, clearError, setMessages, addToolOutput, addToolApprovalResponse } = useChat({
+  const { messages, sendMessage, regenerate, status, stop, error, clearError, setMessages, addToolOutput, addToolApprovalResponse } = useChat({
     messages: initial,
     transport,
     throttle: 32,
@@ -304,6 +314,8 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
   const [images, setImages] = useState<FileUIPart[]>([])
   const [imageError, setImageError] = useState("")
   const [readingImage, setReadingImage] = useState(false)
+  // A follow-up typed while Naruvi works waits here and goes out when the reply ends.
+  const [followUp, setFollowUp] = useState<string | null>(null)
 
   useEffect(() => {
     if (status !== "ready" && status !== "error") return
@@ -329,9 +341,16 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
     const value = text.trim()
     if ((!value && !attachments.length) || busy) return
     clearError()
-    void sendMessage(attachments.length ? { parts: [...(value ? [{ type: "text" as const, text: value }] : []), ...attachments] } : { text: value })
+    // The page travels with the message, so the history shows where each question was asked.
+    const metadata = { path: window.location.pathname }
+    void sendMessage(attachments.length ? { parts: [...(value ? [{ type: "text" as const, text: value }] : []), ...attachments], metadata } : { text: value, metadata })
   }
   const sendDraft = () => {
+    if (busy && draft.trim() && !images.length) {
+      setFollowUp(draft.trim())
+      setDraft("")
+      return
+    }
     if (busy || readingImage || (!draft.trim() && !images.length)) return
     send(draft, images)
     setDraft("")
@@ -362,6 +381,15 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
       .catch(() => setImageError("Couldn’t read an image. Try attaching it again."))
       .finally(() => setReadingImage(false))
   }
+  useEffect(() => {
+    // Waiting on an approval or a question: hold the follow-up until that is answered.
+    if (!followUp || busy || error) return
+    const waiting = messages.at(-1)?.parts.some((part) => isTool(part) && (part.state === "approval-requested" || (toolName(part) === "ask_user" && part.state === "input-available")))
+    if (waiting) return
+    const timer = window.setTimeout(() => { send(followUp); setFollowUp(null) }, 0)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- send once when the turn settles
+  }, [followUp, busy, error, messages])
   useEffect(() => {
     if (!queued || busy) return
     const timer = window.setTimeout(() => {
@@ -399,6 +427,8 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
   // Safe here: the panel only renders after the user opens it, never while prerendering.
   const context = pageContext(usePathname())
   const writing = status === "streaming" && latestStep.some((part) => part.type === "text" && part.state === "streaming" && part.text.trim())
+  const mood = !busy ? null : writing ? "Writing" : toolOwnsStatus ? "Working on it" : "Thinking"
+  const retry = () => { setTurnStartedAt(Date.now()); clearError(); void regenerate() }
 
 
   return (
@@ -407,7 +437,9 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
         <NaruviAvatar size={32} />
         <div className="min-w-0 flex-1">
           <h2 id="assistant-title" className="text-sm font-semibold">Naruvi</h2>
-          <p key={context.label} className="cb-fade truncate text-xs text-muted-foreground">Looking at {context.label}</p>
+          <p key={mood ?? context.label} aria-live="polite" className={cn("cb-fade truncate text-xs", mood ? "font-medium text-brand" : "text-muted-foreground")}>
+            {mood ? `${mood}…` : `Looking at ${context.label}`}
+          </p>
         </div>
         {messages.length ? (
           <Button size="icon-sm" variant="ghost" aria-label="New conversation" title="New conversation" disabled={busy} onClick={() => { setMessages([]); sessionStorage.removeItem(STORAGE) }}>
@@ -426,23 +458,31 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
             <MessageScrollerContent className="gap-5 px-4 py-5">
               {messages.length ? (
                 messages.map((message) => (
-                  <TranscriptMessage key={message.id} message={message} onNavigate={onNavigate} onAnswer={onAnswer} onApproval={onApproval} busy={busy && message.id === last?.id} stale={message.id !== last?.id} />
+                  <TranscriptMessage key={message.id} message={message} onNavigate={onNavigate} onAnswer={onAnswer} onApproval={onApproval} busy={busy && message.id === last?.id} stale={message.id !== last?.id} onRetry={!busy && message.id === last?.id ? retry : undefined} />
                 ))
               ) : (
-                <Welcome onPick={send} suggestions={context.suggestions} />
+                <Welcome onPick={send} suggestions={context.suggestions} label={context.label} />
               )}
-              {working ? (
-                <MessageScrollerItem>
-                  {/* While text streams, the text itself is the progress: no extra "Writing" line. */}
-                  {writing ? null : <ThinkingIndicator startedAt={turnStartedAt} />}
-                </MessageScrollerItem>
-              ) : null}
+              {/* While text streams, the text itself is the progress; the indicator fades out instead of vanishing. */}
+              <AnimatePresence initial={false}>
+                {working && !writing ? (
+                  <MessageScrollerItem key="thinking">
+                    <ThinkingIndicator startedAt={turnStartedAt} />
+                  </MessageScrollerItem>
+                ) : null}
+              </AnimatePresence>
               {error ? (
                 <MessageScrollerItem>
-                  <Marker className="cb-step text-destructive">
-                    <MarkerIcon><CircleAlertIcon /></MarkerIcon>
-                    <MarkerContent>{friendlyError(error.message)}</MarkerContent>
-                  </Marker>
+                  <div role="alert" className="cb-step flex items-start gap-2.5 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm">
+                    <Otter pose="careful" height={44} className="-my-1 shrink-0" />
+                    <div className="grid min-w-0 flex-1 gap-2">
+                      <p className="text-pretty">{friendlyError(error.message)}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button size="xs" onClick={retry}><RotateCcwIcon /> Try again</Button>
+                        {/model|settings|api key/i.test(error.message) ? <Button size="xs" variant="outline" nativeButton={false} render={<Link href="/settings" onClick={onNavigate} />}>Open settings</Button> : null}
+                      </div>
+                    </div>
+                  </div>
                 </MessageScrollerItem>
               ) : null}
             </MessageScrollerContent>
@@ -460,10 +500,19 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
         attachmentCount={images.length}
         attachmentLimit={CHAT_IMAGE_MAX}
         accept={CHAT_IMAGE_TYPES.join(",")}
-        placeholder={messages.length ? "Reply, or ask something else…" : "Ask anything, or tell Naruvi what to do…"}
+        placeholder={busy ? (followUp ? "Naruvi will read your follow-up next…" : "Add a follow-up, it goes out when Naruvi finishes…") : messages.length ? "Reply, or ask something else…" : "Ask anything, or tell Naruvi what to do…"}
         responding={busy}
+        queued={followUp ? (
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+            className="mb-2 flex items-center gap-2 rounded-xl border bg-muted/40 py-1.5 ps-3 pe-1 text-xs">
+            <span className="shrink-0 font-medium text-brand">Up next</span>
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">{followUp}</span>
+            <button type="button" aria-label="Edit follow-up" title="Edit" onClick={() => { setDraft(followUp); setFollowUp(null) }} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><SquarePenIcon className="size-3.5" /></button>
+            <button type="button" aria-label="Cancel follow-up" title="Cancel" onClick={() => setFollowUp(null)} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><XIcon className="size-3.5" /></button>
+          </motion.div>
+        ) : null}
         readingAttachment={readingImage}
-        canSend={!readingImage && Boolean(draft.trim() || images.length)}
+        canSend={busy ? Boolean(draft.trim()) : !readingImage && Boolean(draft.trim() || images.length)}
         attachmentError={imageError}
         attachment={images.length ? (
           <ul className="flex flex-wrap gap-2" aria-label="Attached images">
@@ -503,22 +552,28 @@ function friendlyError(message: string) {
   return "Something went wrong. Try again, or check your AI model in Settings."
 }
 
-function Welcome({ onPick, suggestions }: { onPick: (text: string) => void; suggestions: Suggestion[] }) {
+const greeting = () => {
+  const hour = new Date().getHours()
+  return hour < 5 ? "Up late?" : hour < 12 ? "Good morning." : hour < 18 ? "Good afternoon." : "Good evening."
+}
+
+function Welcome({ onPick, suggestions, label }: { onPick: (text: string) => void; suggestions: Suggestion[]; label: string }) {
+  const [hello] = useState(greeting)
   // Sits just above the composer, where the eye already is, instead of floating mid-panel.
   return (
     <div className="flex flex-1 flex-col justify-end gap-4 pb-1">
-      <div className="flex items-end gap-1">
+      <div className="cb-step flex items-end gap-1">
         <div className="relative -mb-1 shrink-0">
           <span className="absolute inset-x-3 bottom-0 h-5 rounded-[50%] bg-brand/15 blur-md" aria-hidden />
           <Otter pose="concept" height={132} className="relative" priority />
         </div>
         <div className="relative mb-6 grid gap-1 rounded-2xl rounded-bl-sm border bg-background px-3.5 py-3 shadow-xs">
-          <p className="text-base font-semibold tracking-tight">Hi, I’m Naruvi.</p>
+          <p className="text-base font-semibold tracking-tight">{hello} I’m Naruvi.</p>
           <p className="text-sm text-pretty text-muted-foreground">I know your jobs, applications, contacts and profile. Tell me what you need and I’ll get it ready. Nothing changes until you say so.</p>
         </div>
       </div>
       <div className="grid gap-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Suggested</p>
+        <p className="text-xs font-medium text-muted-foreground">Ideas for {label}</p>
         <ul key={suggestions[0]?.text} className="cb-stagger grid divide-y overflow-hidden rounded-xl border bg-background">
           {suggestions.map(({ icon: Icon, text }) => (
             <li key={text}>
@@ -577,7 +632,7 @@ const TranscriptMessage = memo(function TranscriptMessage(props: Parameters<type
   )
 })
 
-function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, stale = false }: { message: UIMessage; onNavigate: () => void; onAnswer: (toolCallId: string, choice: string) => void; onApproval: (id: string, approved: boolean) => void; busy: boolean; stale?: boolean }) {
+function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, stale = false, onRetry }: { message: UIMessage; onNavigate: () => void; onAnswer: (toolCallId: string, choice: string) => void; onApproval: (id: string, approved: boolean) => void; busy: boolean; stale?: boolean; onRetry?: () => void }) {
   // Consecutive look-ups collapse into one trace; everything else renders in order.
   const blocks: ReactNode[] = []
   // The card owns the outcome for this turn, including after an approval changes state.
@@ -616,11 +671,33 @@ function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, sta
     else if (isTool(part) && ACTIONS[toolName(part)]) blocks.push(<ActionCard key={index} part={part} busy={busy} stale={stale} onApproval={onApproval} onNavigate={onNavigate} />)
   })
   flush()
+  const text = hasAction ? "" : message.parts.flatMap((part) => part.type === "text" ? [part.text.trim()] : []).filter(Boolean).join("\n\n")
+  if (!blocks.length) return null
   return (
-    <Message className="cb-step items-start gap-2.5">
+    <Message className="group/reply cb-step items-start gap-2.5">
       <NaruviAvatar size={26} className="mt-0.5" />
-      <MessageContent className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5 wrap-anywhere">{blocks}</MessageContent>
+      <MessageContent className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5 wrap-anywhere">
+        {blocks}
+        {!busy && (text || onRetry) ? <ReplyActions text={text} onRetry={onRetry} /> : null}
+      </MessageContent>
     </Message>
+  )
+}
+
+function ReplyActions({ text, onRetry }: { text: string; onRetry?: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const button = "inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+  return (
+    <div className="naruvi-reply-actions -ms-2 -mt-1 flex items-center gap-0.5">
+      {text ? (
+        <button type="button" className={button} onClick={() => {
+          void navigator.clipboard?.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }).catch(() => {})
+        }}>
+          {copied ? <CheckIcon className="cb-pop size-3.5 text-brand" /> : <CopyIcon className="size-3.5" />}{copied ? "Copied" : "Copy"}
+        </button>
+      ) : null}
+      {onRetry ? <button type="button" className={button} onClick={onRetry}><RotateCcwIcon className="size-3.5" />Ask again</button> : null}
+    </div>
   )
 }
 
@@ -762,6 +839,7 @@ const Streamdown = lazy(() => import("streamdown").then(({ Streamdown }) => ({ d
 
 /** Streamed replies use the same renderer as AI Elements' MessageResponse. */
 function Markdown({ text, onNavigate, streaming }: { text: string; onNavigate: () => void; streaming: boolean }) {
+  const reduced = !!useReducedMotion()
   const components = useMemo(() => ({
     a: ({ href, children }: { href?: string; children?: ReactNode }) => {
       const className = "font-medium underline underline-offset-2"
@@ -774,9 +852,11 @@ function Markdown({ text, onNavigate, streaming }: { text: string; onNavigate: (
   return (
     <Suspense fallback={<p className="text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">{text}</p>}>
       <Streamdown
-        className="min-w-0 space-y-2 text-sm leading-relaxed wrap-anywhere [&_[data-streamdown=heading-1]]:text-base [&_[data-streamdown=heading-2]]:text-sm [&_[data-streamdown=heading-3]]:text-sm"
+        className="naruvi-reply min-w-0 space-y-2 text-sm leading-relaxed wrap-anywhere [&_[data-streamdown=heading-1]]:text-base [&_[data-streamdown=heading-2]]:text-sm [&_[data-streamdown=heading-3]]:text-sm"
         mode={streaming ? "streaming" : "static"}
         isAnimating={streaming}
+        animated={reduced ? false : { animation: "blurIn", duration: 260, sep: "word", stagger: 18 }}
+        caret={streaming && !reduced ? "circle" : undefined}
         skipHtml
         disallowedElements={["img"]}
         urlTransform={(url) => /^(?:https?:\/\/|\/(?![\/\\]))/i.test(url) ? url : ""}
@@ -834,25 +914,47 @@ function AskCard({ part, onAnswer, disabled }: { part: ToolPart; onAnswer: (tool
   )
 }
 
-/** A stationary Naruvi portrait with quiet water ripples while a turn is pending. */
-function ThinkingIndicator({ startedAt }: { startedAt: number | null }) {
-  const [mountedAt] = useState(() => Date.now())
-  const [now, setNow] = useState(mountedAt)
+const THINKING_PHRASES = ["Naruvi is thinking", "Working on it", "Figuring this out"]
+
+/** Ticks on its own, so the once-a-second update re-renders one span, not the whole indicator. */
+function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(since)
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [])
-  const seconds = Math.max(0, Math.floor((now - (startedAt ?? mountedAt)) / 1000))
+  const seconds = Math.max(0, Math.floor((now - since) / 1000))
+  return seconds >= 3 ? <span className="cb-pop text-xs text-muted-foreground tabular-nums">{seconds}s</span> : null
+}
+
+/** Naruvi beside a quiet typing bubble; the phrase and timer only appear if it takes a while. */
+function ThinkingIndicator({ startedAt }: { startedAt: number | null }) {
+  const reduced = !!useReducedMotion()
+  const [mountedAt] = useState(() => Date.now())
+  const [phraseIndex, setPhraseIndex] = useState(0)
+  useEffect(() => {
+    if (reduced) return
+    const timer = setInterval(() => setPhraseIndex((i) => (i + 1) % THINKING_PHRASES.length), 3500)
+    return () => clearInterval(timer)
+  }, [reduced])
+  const phrase = THINKING_PHRASES[phraseIndex]!
   return (
-    <div className="flex items-center gap-2.5" role="status" aria-label="Naruvi is thinking">
-      <span className="naruvi-thinking-mark" aria-hidden="true">
-        <span className="naruvi-thinking-ripple" />
-        <span className="naruvi-thinking-ripple naruvi-thinking-ripple--second" />
-        <NaruviAvatar size={28} className="relative" />
+    <motion.div
+      initial={reduced ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+      transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+      className="flex items-center gap-2.5"
+      role="status"
+      aria-label="Naruvi is thinking"
+    >
+      <NaruviAvatar size={26} />
+      <span className="naruvi-typing" aria-hidden="true"><i /><i /><i /></span>
+      <span className="flex items-baseline gap-1.5 text-xs text-muted-foreground" aria-hidden="true">
+        <span key={phrase} className="naruvi-thinking-phrase">{phrase}</span>
+        <Elapsed since={startedAt ?? mountedAt} />
       </span>
-      <span className="text-sm font-medium text-muted-foreground">Naruvi is thinking</span>
-      {seconds >= 3 ? <span className="text-xs text-muted-foreground tabular-nums">{seconds}s</span> : null}
-    </div>
+    </motion.div>
   )
 }
 

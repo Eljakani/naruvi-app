@@ -45,10 +45,22 @@ export function Otter({ pose, height = 120, className, priority = false }: { pos
 }
 
 /** Naruvi's face in a copper ring: who is talking, in the assistant and in its notes. */
+/**
+ * Naruvi's head on a copper disc. The lower half is framed by the circle; above
+ * its middle the frame opens, so his ears break out of it like a sticker.
+ */
 export function NaruviAvatar({ size = 32, className }: { size?: number; className?: string }) {
+  const lift = Math.round(size * 0.3) // room above the disc for the ears
+  const r = size / 2
+  const mask = `linear-gradient(#000 0 0) top / 100% ${lift + r}px no-repeat, radial-gradient(circle ${r}px at 50% ${lift + r}px, #000 ${r - 0.5}px, transparent ${r}px)`
   return (
-    <span className={cn("inline-grid shrink-0 place-content-center overflow-hidden rounded-full bg-brand-soft ring-1 ring-brand/25", className)} style={{ width: size, height: size }}>
-      <Image src="/brand/naruvi-otter-64-v2.png" width={64} height={64} alt="" aria-hidden="true" unoptimized draggable={false} style={{ width: size, height: size }} />
+    <span className={cn("relative inline-block shrink-0", className)} style={{ width: size, height: size }}>
+      <span className="absolute inset-0 rounded-full bg-brand-soft ring-1 ring-brand/25" />
+      <span aria-hidden="true" className="absolute inset-x-0 bottom-0" style={{ top: -lift, mask, WebkitMask: mask }}>
+        <Image src="/brand/naruvi-otter-head.png" width={128} height={128} alt="" unoptimized draggable={false}
+          className="absolute left-1/2 max-w-none -translate-x-1/2"
+          style={{ width: size * 1.08, height: size * 1.08, bottom: -size * 0.06 }} />
+      </span>
     </span>
   )
 }

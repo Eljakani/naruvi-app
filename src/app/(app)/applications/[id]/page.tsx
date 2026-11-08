@@ -4,6 +4,8 @@ import { scheduleResearch } from "@/server/research/auto"
 import { Suspense } from "react"
 import { after, connection } from "next/server"
 import { ArchiveIcon, ArrowLeftIcon, ScanSearchIcon } from "lucide-react"
+import { displayFitScore } from "@/server/analysis/match"
+import { SectionTabs } from "@/components/applications/section-tabs"
 import { JobOverview } from "@/components/jobs/job-overview"
 import { AnalysisView } from "@/components/applications/analysis-view"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
@@ -61,10 +63,11 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
       <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href="/applications" />}>
         <ArrowLeftIcon /> Applications
       </Button>
-      <div className="flex items-start gap-4">
+      {/* 1. Who and what: identity on the left, page-level actions (re-check, archive) on the right. */}
+      <header className="flex flex-wrap items-start gap-x-4 gap-y-3">
         <EntryLogo path={job.company?.logoPath} name={job.company?.name ?? "?"} size={56} morph={`application-${id}`} />
         <div className="grid min-w-0 flex-1 gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-balance">{job.title}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-balance [overflow-wrap:anywhere]">{job.title}</h1>
           <p className="text-sm text-muted-foreground">
             {job.company ? <Link href={`/companies/${job.company.id}`} className="font-medium text-foreground hover:underline">{job.company.name}</Link> : null}
             {job.location ? ` · ${job.location}` : ""} ·{" "}
@@ -73,16 +76,18 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
             </Link>
           </p>
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusControl id={application.id} status={application.status} company={job.company?.name ?? ""} title={job.title} />
-        <NextStep id={application.id} nextStep={application.nextStep} due={application.nextStepDue?.toISOString() ?? null} />
-        <ComposeEmail applicationId={application.id} connected={mailConnected} hasReplies={mail.some((message) => message.direction === "in")} />
-        {people.length ? null : <ApplicationPeople applicationId={application.id} people={people} options={contactOptions.map((contact) => ({ id: contact.id, name: contact.name, title: contact.title, company: contact.company }))} />}
-        <div className="ms-auto flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 max-sm:w-full">
           {job.board === "spontaneous" || !application.analysis ? null : <AnalyzeButton jobId={job.id} label="Check again" variant="outline" />}
           <ArchiveButton id={application.id} archived={Boolean(application.archivedAt)} />
         </div>
+      </header>
+      {/* 2. What you do with it: stage first, then the everyday actions, as one toolbar. */}
+      <div className="flex flex-wrap items-center gap-2 border-y py-2.5">
+        <StatusControl id={application.id} status={application.status} company={job.company?.name ?? ""} title={job.title} />
+        <span aria-hidden className="mx-1 h-5 w-px bg-border max-sm:hidden" />
+        <NextStep id={application.id} nextStep={application.nextStep} due={application.nextStepDue?.toISOString() ?? null} />
+        <ComposeEmail applicationId={application.id} connected={mailConnected} hasReplies={mail.some((message) => message.direction === "in")} />
+        {people.length ? null : <ApplicationPeople applicationId={application.id} people={people} options={contactOptions.map((contact) => ({ id: contact.id, name: contact.name, title: contact.title, company: contact.company }))} />}
       </div>
       {application.archivedAt ? (
         <Alert>
@@ -91,15 +96,18 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
           <AlertDescription>It’s hidden from the board and the dashboard. Restore it to work on it again.</AlertDescription>
         </Alert>
       ) : null}
-      <ApplicationProgress applicationId={application.id} jobId={job.id} status={application.status} language={application.language} spontaneous={job.board === "spontaneous"} sourceUrl={job.sourceUrl} cvDraft={drafts.some((doc) => doc.kind === "cv" && Boolean(doc.current))} />
-      <ApplicationDocuments
-        applicationId={application.id}
-        language={application.language}
-        coverDecision={(application.analysis?.coverLetter.decision as "required" | "optional" | "not_requested" | "not_mentioned" | undefined) ?? null}
-        coverEvidence={application.analysis?.coverLetter.evidence ?? null}
-        cv={drafts.find((doc) => doc.kind === "cv" && doc.current && doc.language === application.language) ?? null}
-        letter={drafts.find((doc) => doc.kind === "cover_letter" && doc.current && doc.language === application.language) ?? null}
-      />
+      {/* 3. Where you are: progress and next step beside your documents. */}
+      <section aria-label="Progress and documents" className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <ApplicationProgress applicationId={application.id} jobId={job.id} status={application.status} language={application.language} spontaneous={job.board === "spontaneous"} sourceUrl={job.sourceUrl} cvDraft={drafts.some((doc) => doc.kind === "cv" && Boolean(doc.current))} nextStep={application.nextStep} nextStepDue={application.nextStepDue} />
+        <ApplicationDocuments
+          applicationId={application.id}
+          language={application.language}
+          coverDecision={(application.analysis?.coverLetter.decision as "required" | "optional" | "not_requested" | "not_mentioned" | undefined) ?? null}
+          coverEvidence={application.analysis?.coverLetter.evidence ?? null}
+          cv={drafts.find((doc) => doc.kind === "cv" && doc.current && doc.language === application.language) ?? null}
+          letter={drafts.find((doc) => doc.kind === "cover_letter" && doc.current && doc.language === application.language) ?? null}
+        />
+      </section>
       {mail.length || people.length ? (
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
           {mail.length ? (
@@ -114,19 +122,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
         </div>
       ) : null}
       {job.board === "spontaneous" ? null : (
-        <nav className="flex w-fit rounded-lg bg-muted p-0.5" aria-label="Application sections">
-          {([["overview", "Job posting"], ["analysis", application.analysis ? "Fit check" : "Fit check · not run yet"]] as const).map(([value, label]) => (
-            <Link
-              key={value}
-              href={`/applications/${application.id}${value === "analysis" ? "" : "?tab=overview"}`}
-              scroll={false}
-              aria-current={tab === value ? "page" : undefined}
-              className={tab === value ? "rounded-md bg-background px-3 py-1 text-xs font-medium shadow-xs" : "rounded-md px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
+        <SectionTabs applicationId={application.id} current={tab === "overview" ? "overview" : "analysis"} fit={application.analysis ? displayFitScore(application.analysis) : null} />
       )}
       {tab === "overview" && job.board !== "spontaneous" ? (
         <JobOverview job={job} />
@@ -150,9 +146,10 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
             <p>Draft the CV and the letter, then send them by email to the person linked here, or note that you reached out on LinkedIn by moving the application to Sent.</p>
           </CardContent>
         </Card>
-      ) : application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} /> : null
+      ) : application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} footer={!mail.length && !people.length ? <ApplicationJourney createdAt={application.createdAt} events={events} layout="horizontal" /> : undefined} /> : null
       )}
-      {!mail.length && !people.length ? <ApplicationJourney createdAt={application.createdAt} events={events} className="max-w-md" /> : null}
+      {/* With a fit check, Journey sits inside it (left column); otherwise it closes the page. */}
+      {!mail.length && !people.length && !(application.analysis && tab === "analysis" && job.board !== "spontaneous") ? <ApplicationJourney createdAt={application.createdAt} events={events} className="max-w-md" /> : null}
     </div>
   )
 }

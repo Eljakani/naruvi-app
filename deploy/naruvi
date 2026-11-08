@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Manage an installed Naruvi. Lives in the installation directory; safe to symlink onto PATH.
+set -euo pipefail
+umask 077
+self=$0
+while [[ -L $self ]]; do link=$(readlink "$self"); [[ $link == /* ]] && self=$link || self=$(dirname "$self")/$link; done
+root=$(cd "$(dirname "$self")" && pwd)
+cd "$root"
+[[ -f .env ]] || { echo "No Naruvi installation in $root" >&2; exit 1; }
+setting() { sed -n "s/^$1=//p" .env | tail -n1; }
+url=$(setting NARUVI_URL) mode=$(setting NARUVI_MODE)
+bold= dim= green= red= reset=
+if [[ -t 1 && ${TERM:-dumb} != dumb && -z ${NO_COLOR+x} ]]; then bold=$'\033[1m' dim=$'\033[90m' green=$'\033[38;5;108m' red=$'\033[38;5;167m' reset=$'\033[0m'; fi
+say() { printf '  %s\n' "$*"; }
+compose() { docker compose "$@"; }
+link() { compose exec -T app node --import tsx scripts/setup-link.mts --raw; }
+
+backup() {
+  local stamp dir
+  stamp=$(date +%Y%m%d-%H%M%S) dir=$root/backups/$stamp
+  mkdir -p "$dir"; chmod 700 "$root/backups" "$dir"
+  say "Backing up to $dir"
+  compose exec -T db pg_dump -U naruvi -d naruvi --clean --if-exists | gzip > "$dir/database.sql.gz"
+  compose exec -T app tar -C /app/data -cf - assets | gzip > "$dir/assets.tar.gz"
+  cp .env "$dir/env"
+  chmod 600 "$dir"/*
+  say "${green}Done.${reset} Keep ${bold}env${reset} safe: it holds the key that decrypts your saved credentials."
+}
+
+case ${1:-help} in
+  status)
+    printf '\n  %sNaruvi%s  %s  %s(%s)%s\n\n' "$bold" "$reset" "$url" "$dim" "$mode" "$reset"
+    compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Status}}'
+    echo;;
+  open)
+    if command -v xdg-open >/dev/null; then xdg-open "$url"; elif command -v open >/dev/null; then open "$url"; else say "$url"; fi;;
+  logs) shift; compose logs -f --tail=200 "$@";;
+  start) compose up -d; say "Running at $url";;
+  stop) compose stop;;
+  restart) compose restart app worker;;
+  setup-link)
+    value=$(link) || exit $?
+    printf '\n  Create your owner account (one-time, expires in 1 hour):\n\n  %s%s%s\n\n  %sKeep it private. Earlier setup links no longer work.%s\n\n' "$bold" "$value" "$reset" "$dim" "$reset";;
+  reset-password) compose exec app npm run --silent auth:reset-password;;
+  backup) backup;;
+  update)
+    ref=${2:-main}
+    [[ -d source/.git ]] || { say "This installation was made from a local copy. Replace $root/source, then run: naruvi rebuild"; exit 1; }
+    printf '  Update to %s%s%s. A backup is made first. Continue? [Y/n] ' "$bold" "$ref" "$reset"; read -r answer
+    [[ -z $answer || $answer == y || $answer == Y ]] || exit 0
+    backup
+    git -C source fetch --depth 1 origin "$ref" && git -C source checkout --quiet FETCH_HEAD
+    for file in compose.yaml "$mode.yaml"; do
+      cmp -s "source/deploy/$file" "$file" || say "${dim}Note: source/deploy/$file changed. Review it before copying over $file.${reset}"
+    done
+    compose up -d --build
+    say "${green}Updated.${reset} $url";;
+  rebuild) compose up -d --build;;
+  uninstall)
+    say "This stops and removes Naruvi's containers. Your data volumes and $root are kept."
+    say "To also delete all data, run: docker compose down -v   (from $root, after a backup)"
+    printf '  Type %suninstall%s to continue: ' "$bold" "$reset"; read -r answer
+    [[ $answer == uninstall ]] || { say 'Cancelled.'; exit 0; }
+    compose down
+    [[ ! -L $HOME/.local/bin/naruvi ]] || rm "$HOME/.local/bin/naruvi"
+    say 'Removed containers.';;
+  compose) shift; compose "$@";;
+  help|--help|-h)
+    cat <<EOF
+
+  ${bold}naruvi${reset} · manage the Naruvi installation in $root
+
+  ${bold}status${reset}            what is running, and where
+  ${bold}open${reset}              open Naruvi in your browser
+  ${bold}logs${reset} [service]    follow logs (app, worker, db, gateway)
+  ${bold}start | stop | restart${reset}
+  ${bold}setup-link${reset}        new private link to create the owner account
+  ${bold}reset-password${reset}    set a new owner password (signs out every session)
+  ${bold}backup${reset}            database, uploaded files and keys into ./backups
+  ${bold}update${reset} [ref]      back up, then install the latest version (or a tag)
+  ${bold}rebuild${reset}           rebuild from ./source and restart
+  ${bold}compose${reset} ...       run any docker compose command here
+  ${bold}uninstall${reset}         remove containers, keep your data
+
+EOF
+    ;;
+  *) printf '  %sUnknown command%s: %s. Try: naruvi help\n' "$red" "$reset" "$1" >&2; exit 2;;
+esac

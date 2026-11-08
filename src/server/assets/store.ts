@@ -2,6 +2,7 @@ import "server-only"
 import { createHash } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { join, resolve, sep } from "node:path"
+import { assertImageBudget } from "./image-budget"
 import { IMAGE_MIME, type ImageFormat, imageSize, logoShapeWarning, sniffImage } from "./image"
 import { MAX_IMAGE_BYTES } from "@/lib/asset-limits"
 
@@ -51,6 +52,7 @@ async function storeImage(buffer: Buffer, folder: "logos" | "photos"): Promise<S
   if (folder === "photos" && !["png", "jpg", "webp"].includes(format)) throw new Error("Use a PNG, JPG or WebP photo.")
   if (format === "svg") assertSafeSvg(buffer)
   const size = imageSize(buffer)
+  assertImageBudget(size)
   const hash = createHash("sha256").update(buffer).digest("hex").slice(0, 24)
   const path = `${folder}/${hash}.${format}`
   await mkdir(/* turbopackIgnore: true */ join(ASSETS_DIR, folder), { recursive: true })

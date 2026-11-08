@@ -55,7 +55,7 @@ export const OAUTH_PROVIDERS: Record<OAuthProviderId, OAuthProvider> = {
 
 export const isOAuthProvider = (value: string): value is OAuthProviderId => value === "google" || value === "microsoft"
 
-export function authorizeUrl(provider: OAuthProvider, input: { clientId: string; redirectUri: string; state: string; challenge: string; tenant?: string; loginHint?: string }) {
+export function authorizeUrl(provider: OAuthProvider, input: { clientId: string; redirectUri: string; state: string; challenge: string; tenant?: string; loginHint?: string; nonce?: string }) {
   const url = new URL(provider.authorize(input.tenant || "common"))
   url.search = new URLSearchParams({
     client_id: input.clientId,
@@ -63,21 +63,11 @@ export function authorizeUrl(provider: OAuthProvider, input: { clientId: string;
     response_type: "code",
     scope: provider.scopes.join(" "),
     state: input.state,
+    ...(input.nonce ? { nonce: input.nonce } : {}),
     code_challenge: input.challenge,
     code_challenge_method: "S256",
     ...(input.loginHint ? { login_hint: input.loginHint } : {}),
     ...provider.extra,
   }).toString()
   return url.toString()
-}
-
-/** The email in an ID token. Read only (the token came straight from the provider over TLS). */
-export function idTokenEmail(idToken: string): string | null {
-  try {
-    const payload = JSON.parse(Buffer.from(idToken.split(".")[1] ?? "", "base64url").toString("utf8")) as { email?: string; preferred_username?: string; upn?: string }
-    const email = payload.email ?? payload.preferred_username ?? payload.upn ?? null
-    return email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null
-  } catch {
-    return null
-  }
 }

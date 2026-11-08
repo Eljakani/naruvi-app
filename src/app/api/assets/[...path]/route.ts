@@ -8,7 +8,7 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/asse
   return new Response(new Uint8Array(asset.buffer), {
     headers: {
       "content-type": asset.mime,
-      "cache-control": "public, max-age=31536000, immutable",
+      "cache-control": "private, max-age=31536000, immutable",
       "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
     },

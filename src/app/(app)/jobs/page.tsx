@@ -21,7 +21,7 @@ import { allTags } from "@/server/companies/repository"
 import { newLeads } from "@/server/jobs/leads"
 import { JOB_SORTS, JOB_STAGES, jobFacets, searchJobs } from "@/server/jobs/search"
 
-export const metadata = { title: "Discover" }
+export const metadata = { title: "Jobs" }
 
 type Search = Promise<Record<string, string | string[] | undefined>>
 const one = (value: string | string[] | undefined) => (typeof value === "string" ? value : undefined)
@@ -31,7 +31,7 @@ export default function JobsPage({ searchParams }: PageProps<"/jobs">) {
   return (
     <>
       <PageHeader
-        title="Discover"
+        title="Jobs"
         description="Postings to look at before you commit: from job-alert emails, your browser and links you paste. Track one to start its application."
         actions={
           <AddJobDialog trigger={<Button><PlusIcon /> Add a job</Button>} />

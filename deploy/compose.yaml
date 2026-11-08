@@ -1,0 +1,56 @@
+name: naruvi-installed
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: naruvi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: naruvi
+    volumes: [db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U naruvi -d naruvi]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  assets-init:
+    build: {context: ./source, target: runner}
+    user: root
+    entrypoint: [sh, -c, 'chown node:node /app/data/assets']
+    volumes: [assets:/app/data/assets]
+  migrate:
+    build: {context: ./source, target: runner}
+    command: [npx, drizzle-kit, migrate]
+    environment: &environment
+      DATABASE_URL: postgres://naruvi:${POSTGRES_PASSWORD:?required}@db:5432/naruvi
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?required}
+      ASSETS_DIR: /app/data/assets
+      NARUVI_URL: ${NARUVI_URL:?required}
+      NARUVI_TRUST_PROXY: ${NARUVI_TRUST_PROXY:-off}
+      NARUVI_DEPLOYMENT: installer
+    depends_on:
+      db: {condition: service_healthy}
+  app:
+    build: {context: ./source, target: runner}
+    restart: unless-stopped
+    environment: *environment
+    volumes: [assets:/app/data/assets]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      assets-init: {condition: service_completed_successfully}
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+  worker:
+    build: {context: ./source, target: runner}
+    command: [node, --import, tsx, worker/index.mts]
+    restart: unless-stopped
+    environment: *environment
+    volumes: [assets:/app/data/assets]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      assets-init: {condition: service_completed_successfully}
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+volumes:
+  db-data:
+  assets:

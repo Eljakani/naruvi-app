@@ -6,6 +6,36 @@ import { assistantTools } from "@/server/assistant/tools"
 import { getLlmConfiguration } from "@/server/settings/llm"
 import { SettingsError } from "@/server/settings/errors"
 import { isEmailDraftRequest } from "@/lib/assistant-mail-intent"
+import { eq } from "drizzle-orm"
+import { db } from "@/server/db/client"
+import { applications, companies, jobs } from "@/server/db/schema"
+
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+/** Names the page, so "this application" means what is on screen now, not what the chat talked about before. */
+async function describePage(path: string) {
+  const application = path.match(new RegExp(`^/applications/(${UUID})`))?.[1]
+  const job = path.match(new RegExp(`^/jobs/(${UUID})`))?.[1]
+  try {
+    if (application) {
+      const [row] = await db.select({ title: jobs.title, company: companies.name }).from(applications).innerJoin(jobs, eq(jobs.id, applications.jobId)).leftJoin(companies, eq(companies.id, jobs.companyId)).where(eq(applications.id, application))
+      if (row) return `the application "${row.title}"${row.company ? ` at ${row.company}` : ""} (application id ${application}, page ${path})`
+    }
+    if (job) {
+      const [row] = await db.select({ title: jobs.title, company: companies.name }).from(jobs).leftJoin(companies, eq(companies.id, jobs.companyId)).where(eq(jobs.id, job))
+      if (row) return `the job "${row.title}"${row.company ? ` at ${row.company}` : ""} (job id ${job}, page ${path})`
+    }
+  } catch { /* fall back to the path */ }
+  return `the page ${path}`
+}
+
+/** Each user message carries the page it was sent from; say so in the history so a page switch is visible to the model. */
+function stampPages(messages: UIMessage[]) {
+  return messages.map((message) => {
+    const path = (message.metadata as { path?: unknown } | undefined)?.path
+    if (message.role !== "user" || typeof path !== "string" || !path.startsWith("/")) return message
+    return { ...message, parts: [{ type: "text" as const, text: `[Sent from ${path.slice(0, 200)}]` }, ...message.parts] }
+  })
+}
 
 /**
  * Naruvi's assistant: answers from the user's data, asks when unsure, and acts
@@ -74,7 +104,7 @@ function approvalContext(messages: UIMessage[]) {
   return { history, instructions: latest.length ? `\nRecorded action states, oldest first: ${JSON.stringify(latest)}. Use the corresponding tool calls to identify the action. A newer tool result in this run supersedes these states.` : "" }
 }
 
-export async function streamAssistant(messages: UIMessage[], context: { path: string }) {
+export async function streamAssistant(messages: UIMessage[], context: { path: string; signal?: AbortSignal }) {
   const config = await getLlmConfiguration()
   if (!config.configured) throw new SettingsError("Connect an AI model in Settings to use the assistant.")
   const deepseek = new URL(config.baseUrl).hostname === "api.deepseek.com"
@@ -87,16 +117,17 @@ export async function streamAssistant(messages: UIMessage[], context: { path: st
   const language = replyLanguage(recentWords)
   const latestRequest = messages.findLast((message) => message.role === "user")?.parts.flatMap((part) => part.type === "text" ? [part.text] : []).join(" ") ?? ""
   const activeTools = (Object.keys(assistantTools) as (keyof typeof assistantTools)[]).filter((name) => !isEmailDraftRequest(latestRequest) || name !== "draft_letter")
+  const page = await describePage(context.path)
   return streamText({
     model: languageModel(config),
-    system: `${SYSTEM.replace("{today}", today)}\nReply language: ${language.name}. Everything you write in this turn is in ${language.name}.\nThe user is on ${context.path}.${approval.instructions}`,
-    messages: await convertToModelMessages(approval.history, { tools: assistantTools, ignoreIncompleteToolCalls: true }),
+    system: `${SYSTEM.replace("{today}", today)}\nReply language: ${language.name}. Everything you write in this turn is in ${language.name}.\nRight now the user is looking at ${page}. Words like "this", "here" or "this application" refer to it, even if earlier messages discussed something else (each user message notes the page it was sent from).${approval.instructions}`,
+    messages: await convertToModelMessages(stampPages(approval.history), { tools: assistantTools, ignoreIncompleteToolCalls: true }),
     tools: assistantTools,
     activeTools,
     stopWhen: stepCountIs(10),
     maxOutputTokens: 1500,
     maxRetries: 1,
-    abortSignal: AbortSignal.timeout(180_000),
+    abortSignal: context.signal ? AbortSignal.any([AbortSignal.timeout(180_000), context.signal]) : AbortSignal.timeout(180_000),
     providerOptions: deepseek ? { naruvi: { thinking: { type: "disabled" } } } : undefined,
   })
 }

@@ -24,6 +24,7 @@ export async function listCompanies(q?: string) {
       active: sql<number>`count(distinct ${applications.id}) filter (where ${applications.archivedAt} is null and ${applications.status} not in ('rejected', 'withdrawn'))`.mapWith(Number),
       sent: sql<number>`count(distinct ${applications.id}) filter (where ${applications.status} in ('submitted', 'interviewing', 'offer', 'rejected'))`.mapWith(Number),
       last: sql<Date>`greatest(max(${jobs.createdAt}), max(${applications.updatedAt}), ${companies.updatedAt})`.mapWith((value) => new Date(value)),
+      description: sql<string | null>`coalesce(nullif(btrim(${companies.research}->'summary'->>'text'), ''), nullif(btrim(${companies.profile}->>'description'), ''), nullif(btrim(${companies.research}->'about'->0->>'text'), ''))`,
     })
     .from(companies)
     .leftJoin(jobs, eq(jobs.companyId, companies.id))

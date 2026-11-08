@@ -52,6 +52,17 @@ test("robots.txt: longest matching rule wins, only for *", async () => {
   assert.equal(robotsAllows("", "/about"), true)
 })
 
+test("standalone company research builds a sourced brief without job or application data", () => {
+  const page = extractPage(HOME, "https://freshmarket.example/")
+  const brief = buildBrief({ company: "Fresh Market", website: "https://freshmarket.example", pages: [page], jobText: "", language: "en" })
+  assert.ok(brief.about.length)
+  assert.ok(brief.mission.length)
+  assert.ok(brief.values.length)
+  assert.ok(brief.facts.some((fact) => fact.label === "Founded" && fact.value === "2009"))
+  assert.ok([...brief.about, ...brief.mission, ...brief.values, ...brief.facts].every((item) => item.source === page.url))
+  assert.deepEqual(brief.sources, [{ url: page.url, title: page.title }])
+})
+
 test("company facts need the company as subject; posting mission is found", async () => {
   const { classifySentences } = await import("../../research/extract")
   assert.deepEqual(classifySentences("1 in 3 professional logins use a weak password.", "Dashlane"), [])

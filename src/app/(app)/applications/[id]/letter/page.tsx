@@ -1,3 +1,4 @@
+import { CompanyLogoProvider } from "@/components/documents/document-shell"
 import { notFound } from "next/navigation"
 import { startDesign } from "@/server/templates/service"
 import { listTemplates } from "@/server/templates/service"
@@ -29,6 +30,7 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
   const language = typeof query.lang === "string" && /^[a-z]{2}$/.test(query.lang) ? query.lang : application.language
   const [workspace, templates] = await Promise.all([getLetterWorkspace(id, language), listTemplates()])
   return (
+    <CompanyLogoProvider logo={application.job.company?.logoPath ?? null}>
     <LetterWorkspace
       key={workspace?.current?.id ?? "empty"}
       applicationId={id}
@@ -42,5 +44,6 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
       startDesign={await startDesign()}
       savedTemplates={templates.map(({ id, name, tokens }) => ({ id, name, tokens }))}
     />
+    </CompanyLogoProvider>
   )
 }

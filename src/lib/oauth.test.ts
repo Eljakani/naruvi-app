@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { authorizeUrl, idTokenEmail, OAUTH_PROVIDERS } from "./oauth"
+import { authorizeUrl, OAUTH_PROVIDERS } from "./oauth"
 
 test("authorization URLs carry PKCE, offline access and the mail scopes", () => {
   const url = new URL(authorizeUrl(OAUTH_PROVIDERS.google, { clientId: "abc", redirectUri: "http://localhost:3000/api/oauth/google/callback", state: "s1", challenge: "c1", loginHint: "me@gmail.com" }))
@@ -12,12 +12,4 @@ test("authorization URLs carry PKCE, offline access and the mail scopes", () => 
   const ms = new URL(authorizeUrl(OAUTH_PROVIDERS.microsoft, { clientId: "abc", redirectUri: "http://localhost:3000/x", state: "s", challenge: "c", tenant: "consumers" }))
   assert.equal(ms.pathname, "/consumers/oauth2/v2.0/authorize")
   assert.match(ms.searchParams.get("scope")!, /offline_access/)
-})
-
-test("the email is read from the ID token", () => {
-  const token = (claims: object) => `x.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.y`
-  assert.equal(idTokenEmail(token({ email: "me@gmail.com" })), "me@gmail.com")
-  assert.equal(idTokenEmail(token({ preferred_username: "me@outlook.com" })), "me@outlook.com")
-  assert.equal(idTokenEmail(token({ sub: "1" })), null)
-  assert.equal(idTokenEmail("garbage"), null)
 })

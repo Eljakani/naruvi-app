@@ -27,7 +27,7 @@ function Sources({ sources }: { sources: string[] }) {
   return (
     <span className="flex min-w-0 flex-wrap gap-x-2">
       {[...byHost].map(([host, url]) => (url.startsWith("http") ? (
-        <a key={host} href={url} target="_blank" rel="noopener noreferrer nofollow" title={url} className="inline-flex min-w-0 items-center gap-1 rounded-full border bg-background px-1.5 py-px text-[11px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground">
+        <a key={host} href={url} target="_blank" rel="noopener noreferrer nofollow" title={url} className="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline">
           <span className="truncate">{host}</span> <ExternalLinkIcon className="size-2.5 shrink-0" />
         </a>
       ) : (
@@ -58,14 +58,12 @@ function TalkingPoint({ index, text, sources }: { index: number; text: string; s
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   return (
-    <li className="group relative grid min-w-0 gap-1.5 rounded-lg border bg-muted/30 p-2.5 transition-colors hover:bg-muted/60">
-      <div className="flex min-w-0 gap-2">
-        <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-md bg-background text-[11px] font-medium tabular-nums shadow-xs">{index + 1}</span>
-        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={cn("min-w-0 flex-1 text-start text-sm leading-5", !open && "line-clamp-3")}>
-          {text}
-        </button>
-      </div>
-      <div className="flex items-center gap-2 ps-7">
+    <li className="group grid min-w-0 grid-cols-[1rem_minmax(0,1fr)] gap-x-2 py-2.5 first:pt-0 last:pb-0">
+      <span className="text-xs leading-5 font-medium text-muted-foreground tabular-nums">{index + 1}</span>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? undefined : "Read it all"} className={cn("min-w-0 text-start text-sm leading-5 transition-colors hover:text-foreground", !open && "line-clamp-2")}>
+        {text}
+      </button>
+      <div className="col-start-2 mt-1 flex min-w-0 items-center gap-2">
         <Sources sources={sources} />
         <button
           type="button"
@@ -247,7 +245,7 @@ export function CompanyResearch({
         </p>
       ))}
       {angles.length ? (
-        <ol className="cb-stagger grid gap-2">
+        <ol className="cb-stagger grid divide-y">
           {visibleAngles.map((angle, index) => (
             <TalkingPoint key={angle.text} index={index} text={angle.text} sources={angle.sources} />
           ))}

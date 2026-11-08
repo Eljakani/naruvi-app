@@ -3,7 +3,7 @@ import { and, eq, gte, isNotNull, isNull, lt, notInArray, sql } from "drizzle-or
 import { db } from "@/server/db/client"
 import { applicationEvents, applications, jobLeads, mailMessages } from "@/server/db/schema"
 
-/** Small numbers for the sidebar: what's waiting on the Dashboard and on Jobs. */
+/** Small numbers for the sidebar: applications waiting on you, and new job leads. */
 export async function navCounts() {
   const end = new Date()
   end.setHours(23, 59, 59, 999)
@@ -18,5 +18,5 @@ export async function navCounts() {
   ])
   const STILL: Record<string, string[]> = { submitted: ["submitted", "interviewing", "offer", "rejected"], interviewing: ["interviewing", "offer"], offer: ["offer"], analyzed: ["analyzed", "generated", "ready", "submitted", "interviewing", "offer"] }
   const reached = (status: string) => new Set(week.filter((row) => row.status === status && STILL[status].includes(row.current)).map((row) => row.id)).size
-  return { "/": (replies?.n ?? 0) + (due?.n ?? 0), "/jobs": leads?.n ?? 0, "week.sent": reached("submitted"), "week.interviews": reached("interviewing"), "week.offers": reached("offer"), "week.checked": reached("analyzed") } as Record<string, number>
+  return { "/applications": (replies?.n ?? 0) + (due?.n ?? 0), "/jobs": leads?.n ?? 0, "week.sent": reached("submitted"), "week.interviews": reached("interviewing"), "week.offers": reached("offer"), "week.checked": reached("analyzed") } as Record<string, number>
 }

@@ -8,7 +8,7 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Job search",
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboardIcon, description: "Pipeline and next actions" },
-      { title: "Discover", url: "/jobs", icon: CompassIcon, description: "New postings to look at, not tracked yet" },
+      { title: "Jobs", url: "/jobs", icon: CompassIcon, description: "New postings to look at, not tracked yet" },
       { title: "Applications", url: "/applications", icon: FileTextIcon, description: "Every job you're pursuing, saved to offer" },
       { title: "Companies", url: "/companies", icon: Building2Icon, description: "Every job and application per company" },
       { title: "Contacts", url: "/contacts", icon: ContactRoundIcon, description: "Recruiters, HR and hiring managers" },
@@ -25,7 +25,7 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Workspace",
     items: [
       { title: "Integrations", url: "/integrations", icon: PlugIcon, description: "Email, calendar and other connections" },
-      { title: "AI activity", url: "/runs", icon: ScrollTextIcon, description: "What the AI did, step by step" },
+      { title: "Naruvi’s work", url: "/runs", icon: ScrollTextIcon, description: "What Naruvi did, step by step" },
     ],
   },
 ]

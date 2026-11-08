@@ -1,6 +1,8 @@
 name: naruvi
 
 services:
+  # Default credentials are for local development only (port bound to 127.0.0.1).
+  # Set POSTGRES_PASSWORD in .env before exposing the database to any network.
   db:
     image: pgvector/pgvector:pg17
     environment:
@@ -27,6 +29,7 @@ services:
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
       ASSETS_DIR: /app/data/assets
+      NARUVI_URL: ${NARUVI_URL:-http://localhost:3000}
     depends_on:
       db: { condition: service_healthy }
     profiles: ["full"]

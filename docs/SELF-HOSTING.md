@@ -4,6 +4,10 @@ Truthful, tailored, verified job applications — locally. Naruvi turns job post
 and verified profile facts into tailored CVs and cover letters, with application
 tracking in one local workspace. Connecting an AI model is optional.
 
+## Owner account
+
+Both local and server installations require owner login. On first startup, open the private one-hour setup URL printed in the app terminal, create your account, then continue through the setup guide. The link is consumed when the account is created. See [installation and authentication](INSTALLATION.md) for session behavior and operations.
+
 ## Local development
 
 Requires Node.js 24 and Docker Compose.
@@ -144,20 +148,20 @@ Background tasks start with the app; set `NARUVI_BACKGROUND=off` to disable them
 
 ### Existing installations
 
-Naruvi was previously called CareerBuddy. The new Compose project and database
-defaults are `naruvi`. Existing databases and uploaded assets are not renamed or
+The Compose project and database defaults for new Naruvi installations are
+`naruvi`. Existing databases and uploaded assets are not renamed or
 moved automatically. To reuse the previous volumes and database credentials,
 create a `.env` file for Docker Compose with your existing values:
 
 ```dotenv
-COMPOSE_PROJECT_NAME=careerbuddy
-POSTGRES_USER=careerbuddy
-POSTGRES_PASSWORD=careerbuddy
-POSTGRES_DB=careerbuddy
+COMPOSE_PROJECT_NAME=your_existing_project
+POSTGRES_USER=your_existing_database_user
+POSTGRES_PASSWORD=your_existing_database_password
+POSTGRES_DB=your_existing_database
 ```
 
-These are the previous defaults; use your actual project name and credentials
-if you customized them. Keep your existing `DATABASE_URL` in `.env.local` for
+Replace these placeholders with your actual project name and credentials.
+Keep your existing `DATABASE_URL` in `.env.local` for
 local development. Do not remove existing volumes. The UI, PDFs, and new JSON
 exports use the Naruvi name regardless of the database's internal name.
 

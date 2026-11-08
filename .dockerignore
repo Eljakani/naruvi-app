@@ -2,3 +2,9 @@ node_modules
 .next
 .git
 .env*
+data
+*.log
+.tmp-*.mjs
+.impeccable/live
+__pycache__
+*.py[cod]

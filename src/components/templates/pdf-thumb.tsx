@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react"
 import { loadPdfJs } from "@/components/documents/pdf-preview"
-import { Skeleton } from "@/components/ui/skeleton"
 import type { DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
+import { fetchTemplatePreview } from "@/lib/template-preview"
 
 const cache = new Map<string, ArrayBuffer>()
 const CACHE_LIMIT = 24
@@ -26,9 +26,8 @@ export function PdfThumb({ tokens, className, revision, retryable = false, kind 
     const element = wrapper.current
     if (!element) return
     const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return
-      setVisible(true)
-      observer.disconnect()
+      element.dataset.inView = String(entry.isIntersecting)
+      if (entry.isIntersecting) setVisible(true)
     }, { rootMargin: "160px" })
     observer.observe(element)
     return () => observer.disconnect()
@@ -38,7 +37,6 @@ export function PdfThumb({ tokens, className, revision, retryable = false, kind 
     const target = canvas.current
     if (!visible || !target) return
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 30_000)
     let cancelled = false
     let loading: ReturnType<Awaited<ReturnType<typeof loadPdfJs>>["getDocument"]> | undefined
     let task: ReturnType<import("pdfjs-dist").PDFPageProxy["render"]> | undefined
@@ -48,9 +46,7 @@ export function PdfThumb({ tokens, className, revision, retryable = false, kind 
         if (cancelled) return
         let data = cacheKey ? cache.get(cacheKey) : undefined
         if (!data) {
-          const response = await fetch("/api/templates/preview", { method: "POST", headers: { "content-type": "application/json" }, body, signal: controller.signal })
-          if (!response.ok) throw new Error("Preview request failed")
-          data = await response.arrayBuffer()
+          data = (await fetchTemplatePreview(body, controller.signal)).data
         }
         if (cancelled) return
         loading = pdfjs.getDocument({ data: data.slice(0) })
@@ -79,7 +75,6 @@ export function PdfThumb({ tokens, className, revision, retryable = false, kind 
         if (cacheKey) cache.delete(cacheKey)
         setRendered({ key: renderKey, ready: false })
       } finally {
-        clearTimeout(timer)
         const finished = loading
         loading = undefined
         await finished?.destroy().catch(() => {})
@@ -88,7 +83,6 @@ export function PdfThumb({ tokens, className, revision, retryable = false, kind 
     void render()
     return () => {
       cancelled = true
-      clearTimeout(timer)
       controller.abort()
       task?.cancel()
       void loading?.destroy().catch(() => {})
@@ -97,9 +91,23 @@ export function PdfThumb({ tokens, className, revision, retryable = false, kind 
   }, [visible, body, cacheKey, renderKey])
 
   return (
-    <div ref={wrapper} className={cn("relative aspect-[210/297] w-full min-w-0 overflow-hidden rounded-md bg-white ring-1 ring-border", className)}>
-      {!ready && !failed ? <Skeleton className="absolute inset-0 rounded-none" /> : null}
-      <canvas ref={canvas} aria-hidden="true" className={cn("absolute inset-0 size-full transition-opacity duration-200", ready ? "opacity-100" : "opacity-0")} />
+    <div ref={wrapper} aria-busy={!ready && !failed} data-loading={!ready && !failed} className={cn("cb-pdf-thumb relative aspect-[210/297] w-full min-w-0 overflow-hidden rounded-md bg-white ring-1 ring-border", className)}>
+      <div aria-hidden="true" className={cn("cb-pdf-placeholder pointer-events-none absolute inset-0 overflow-hidden bg-background p-[10%] transition-opacity duration-200 ease-(--ease-out)", ready || failed ? "opacity-0" : "opacity-100")}>
+        <div className="mb-[12%] space-y-[4%]">
+          <div className="h-3 w-3/5 rounded-sm bg-muted" />
+          <div className="h-1.5 w-4/5 rounded-sm bg-muted/70" />
+          <div className="h-1 w-2/5 rounded-sm bg-muted/60" />
+        </div>
+        {[0, 1, 2].map((section) => (
+          <div key={section} className="mb-[10%] space-y-[4%]">
+            <div className="mb-[6%] h-1.5 w-1/3 rounded-sm bg-muted" />
+            <div className="h-1 w-full rounded-sm bg-muted/70" />
+            <div className="h-1 w-[90%] rounded-sm bg-muted/70" />
+            <div className="h-1 w-3/4 rounded-sm bg-muted/70" />
+          </div>
+        ))}
+      </div>
+      <canvas ref={canvas} aria-hidden="true" className={cn("absolute inset-0 size-full transition-opacity duration-200 ease-(--ease-out)", ready ? "opacity-100" : "opacity-0")} />
       {failed ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-muted p-2 text-center text-xs text-muted-foreground">
           <span>Preview unavailable</span>

@@ -19,7 +19,7 @@
   <a href="#get-started">Get started</a> ·
   <a href="docs/SELF-HOSTING.md">Self-hosting guide</a> ·
   <a href="CONTRIBUTING.md">Contribute</a> ·
-  <a href="https://github.com/Eljakani/careerbuddy/issues">Issues</a>
+  <a href="https://github.com/Eljakani/naruvi/issues">Issues</a>
 </p>
 
 ## Meet Naruvi
@@ -56,13 +56,17 @@ Mailbox authentication depends on the provider. Some accounts require OAuth or p
 
 ## Get started
 
+### Interactive installer
+
+Run `bash install.sh` for a guided install: **Local** (this computer), **Hosted** (your domain with automatic HTTPS) or **Behind your proxy** (Coolify, Traefik, nginx). It ends with a private owner setup link, and the `naruvi` command handles status, logs, backups and updates. Requires Docker Compose, Git, and OpenSSL. See the [installation guide](docs/INSTALLATION.md) for prerequisites and authentication details.
+
 ### Docker
 
 Requires **Git, Node.js 24, and Docker Compose**. Node is used to generate the local encryption key; the app runs in containers.
 
 ```bash
-git clone https://github.com/Eljakani/careerbuddy.git
-cd careerbuddy
+git clone https://github.com/Eljakani/naruvi.git
+cd naruvi
 npm ci
 npm run settings:key -- .env
 docker compose --profile full up --build -d
@@ -84,7 +88,7 @@ npm run dev
 
 Run `npm run worker` in a second terminal for queued background jobs. Configure your model in **Settings → Language model**.
 
-For browser dependencies, credentials, backups, and existing CareerBuddy installations, read the [self-hosting guide](docs/SELF-HOSTING.md).
+For browser dependencies, credentials, backups, and existing installations, read the [self-hosting guide](docs/SELF-HOSTING.md).
 
 ## Data and control
 
@@ -92,7 +96,7 @@ Your workspace is stored in your own PostgreSQL database and asset storage. Save
 
 Self-hosting does not make external services offline: configured model providers receive the context needed for the requested workflow, and connected email or notification services receive their relevant data. Local models can reduce dependence on hosted AI services.
 
-The default Compose ports bind to localhost. Before exposing an instance beyond your machine, put appropriate authentication and network protections in front of it. See [security guidance](SECURITY.md).
+The default Compose ports bind to localhost. The app requires an owner account initialized through a private terminal link. Use HTTPS and appropriate network protections for internet access. See [security guidance](SECURITY.md).
 
 ## Built with
 
@@ -109,7 +113,7 @@ The default Compose ports bind to localhost. Before exposing an instance beyond 
 
 ## Make Naruvi better
 
-Bug reports, documentation fixes, accessibility improvements, integration work, and tests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), or [open an issue](https://github.com/Eljakani/careerbuddy/issues/new/choose) with a focused problem or proposal.
+Bug reports, documentation fixes, accessibility improvements, integration work, and tests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), or [open an issue](https://github.com/Eljakani/naruvi/issues/new/choose) with a focused problem or proposal.
 
 ```bash
 npm run typecheck

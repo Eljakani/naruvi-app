@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "streamdown/styles.css";
 @source "../../node_modules/streamdown/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
@@ -197,6 +198,20 @@
 .cb-fade { animation: cb-fade-in 160ms var(--ease-out) both; }
 /* Skeletons pulse a little faster: loading feels quicker. */
 [data-slot="skeleton"] { animation-duration: 1.4s; }
+/* A light sweep keeps queued PDF previews visibly loading until the crossfade. */
+@keyframes cb-pdf-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+.cb-pdf-thumb[data-loading="true"] .cb-pdf-placeholder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, var(--background) 50%, transparent 80%);
+  animation: cb-pdf-sweep 1.6s linear infinite;
+  animation-play-state: paused;
+}
+.cb-pdf-thumb[data-in-view="true"] .cb-pdf-placeholder::after { animation-play-state: running; }
 /* Working states. */
 @keyframes cb-slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
 @keyframes cb-pop { from { opacity: 0; transform: scale(0.6); filter: blur(2px); } }
@@ -286,6 +301,7 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
 [data-slot="skeleton"] { transition: opacity 150ms var(--ease-out); }
 
 @media (prefers-reduced-motion: reduce) {
+  .cb-pdf-thumb[data-loading="true"] .cb-pdf-placeholder::after { animation: none; }
   *, *::before, *::after {
     transition-property: opacity, color, background-color, border-color !important;
   }
@@ -337,13 +353,44 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
   #assistant-toggle.naruvi-trigger:hover { background: color-mix(in oklch, var(--brand-soft), var(--brand) 9%); border-color: color-mix(in oklch, var(--brand) 45%, transparent); }
 }
 /* Long-running state indication: water ripples beneath a stationary otter. */
-.naruvi-thinking-mark { position: relative; display: grid; place-items: start center; width: 38px; height: 38px; flex-shrink: 0; }
-.naruvi-thinking-ripple { position: absolute; bottom: 1px; left: 2px; width: 34px; height: 9px; border: 1px solid var(--brand); border-radius: 50%; opacity: 0; animation: naruvi-ripple 1800ms linear infinite; }
-.naruvi-thinking-ripple--second { animation-delay: 900ms; }
-@keyframes naruvi-ripple { 0% { transform: scale(.55); opacity: 0; } 20% { opacity: .55; } 100% { transform: scale(1); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .naruvi-trigger .naruvi-trigger-face { animation: none; transform: none; transition-property: opacity, filter; }
-  .naruvi-z { animation: none; opacity: .7; }
-  .naruvi-thinking-ripple { animation: none; opacity: .35; }
-  .naruvi-thinking-ripple--second { display: none; }
+/* Thinking: a small bubble with three dots that rise and settle in a slow wave. */
+.naruvi-typing {
+  display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px;
+  border-radius: 13px 13px 13px 4px; background: var(--muted);
 }
+.naruvi-typing i {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--muted-foreground); opacity: .35;
+  animation: naruvi-typing 1.2s var(--ease-in-out) infinite;
+}
+.naruvi-typing i:nth-child(2) { animation-delay: .15s; }
+.naruvi-typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes naruvi-typing { 0%, 60%, 100% { transform: translateY(0); opacity: .35; } 30% { transform: translateY(-3px); opacity: .9; } }
+.naruvi-thinking-phrase { display: inline-block; animation: naruvi-phrase-in 280ms var(--ease-out) both; }
+@keyframes naruvi-phrase-in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .naruvi-typing i { animation: none; opacity: .6; }
+  .naruvi-thinking-phrase { animation: none; }
+}
+
+/* One quiet entrance for the pre-auth surface; form fields stay still while typing. */
+.naruvi-auth-enter { animation: naruvi-auth-enter 240ms var(--ease-out) both; }
+@keyframes naruvi-auth-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .naruvi-auth-enter { animation: cb-fade-in 150ms var(--ease-out) both; } }
+.naruvi-auth-input { transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease; }
+.naruvi-auth-input::placeholder { transition: color 150ms ease; }
+.naruvi-auth-input:focus::placeholder { color: var(--foreground); }
+@media (hover: hover) and (pointer: fine) { .naruvi-auth-input:not(:disabled):not(:focus):not([aria-invalid="true"]):hover { border-color: color-mix(in oklch, var(--brand) 45%, var(--input)); } }
+
+/* Naruvi assistant: streamed words settle in, the caret takes Naruvi's copper. */
+.naruvi-reply { --sd-easing: cubic-bezier(0.23, 1, 0.32, 1); }
+.naruvi-reply [data-streamdown-caret], .naruvi-reply .sd-caret { color: var(--brand); }
+@media (prefers-reduced-motion: reduce) { .naruvi-reply [data-sd-animate] { animation: none; } }
+/* A hover/focus toolbar under finished replies; always visible on touch. */
+.naruvi-reply-actions { opacity: 0; transition: opacity 150ms var(--ease-out); }
+.group\/reply:hover .naruvi-reply-actions, .group\/reply:focus-within .naruvi-reply-actions { opacity: 1; }
+@media (hover: none) { .naruvi-reply-actions { opacity: 1; } }
+
+/* The bell rings once when something new arrives, then rests. */
+.naruvi-bell-ring { transform-origin: 50% 2px; animation: naruvi-bell 900ms var(--ease-out) 1; }
+@keyframes naruvi-bell { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(14deg); } 30% { transform: rotate(-11deg); } 45% { transform: rotate(7deg); } 60% { transform: rotate(-4deg); } 75% { transform: rotate(2deg); } }
+@media (prefers-reduced-motion: reduce) { .naruvi-bell-ring { animation: none; } }

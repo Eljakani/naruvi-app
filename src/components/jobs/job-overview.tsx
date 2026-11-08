@@ -15,7 +15,7 @@ import { salaryContext } from "@/server/salary/market"
 
 type Job = NonNullable<Awaited<ReturnType<typeof getJob>>>
 
-/** The posting itself: key facts, tags, insights, pay and the original text. Shared by Discover and the application page. */
+/** The posting itself: key facts, tags, insights, pay and the original text. Shared by Jobs and the application page. */
 export async function JobOverview({ job }: { job: Job }) {
   const tags = await allTags()
   const chips = [

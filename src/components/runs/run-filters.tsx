@@ -32,7 +32,7 @@ export function RunFilters({ workflows, range, workflow, status }: { workflows: 
     const query = next.toString()
     startTransition(() => router.push(query ? `${pathname}?${query}` : pathname, { scroll: false }))
   }
-  const items = [{ value: "all", label: "All workflows" }, ...workflows]
+  const items = [{ value: "all", label: "All tasks" }, ...workflows]
   return (
     <div className={cn("flex flex-wrap items-center gap-2 transition-opacity", pending && "opacity-60")}>
       <Select items={items} value={workflow ?? "all"} onValueChange={(value) => go("workflow", value && value !== "all" ? value : undefined)}>

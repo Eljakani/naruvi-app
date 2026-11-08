@@ -11,6 +11,7 @@
  */
 
 import { ArrowUp, Plus } from "lucide-react";
+import { AnimatePresence } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { useAutoResizeTextarea } from "@/hooks/use-auto-resize-textarea";
@@ -28,6 +29,8 @@ interface AIPromptProps {
   readingAttachment: boolean;
   canSend: boolean;
   attachment?: ReactNode;
+  /** A follow-up waiting for the current reply to finish. */
+  queued?: ReactNode;
   attachmentError?: string;
   /** Images attached so far, and how many fit in one message. */
   attachmentCount?: number;
@@ -88,7 +91,7 @@ function SendButton({
 
 export default function AIPrompt({
   value, onChange, onSubmit, onStop, onAttach, accept, placeholder,
-  responding, readingAttachment, canSend, attachment, attachmentError,
+  responding, readingAttachment, canSend, attachment, queued, attachmentError,
   attachmentCount = 0, attachmentLimit = 1,
 }: AIPromptProps) {
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 56, maxHeight: 160 });
@@ -100,7 +103,9 @@ export default function AIPrompt({
     ? "Reading images…"
     : attachmentCount
       ? `${attachmentCount} of ${attachmentLimit} image${attachmentLimit === 1 ? "" : "s"}${full ? " · that’s the limit" : ""}`
-      : value.trim()
+      : responding && value.trim()
+        ? "Enter to queue it for when Naruvi finishes"
+        : value.trim()
         ? "Enter to send · Shift+Enter for a new line"
         : "Paste or drop images · changes wait for your approval";
 
@@ -113,9 +118,10 @@ export default function AIPrompt({
       className="shrink-0 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       onSubmit={(event) => {
         event.preventDefault();
-        if (canSend && !responding) onSubmit();
+        if (canSend) onSubmit();
       }}
     >
+      <AnimatePresence initial={false}>{queued}</AnimatePresence>
       {attachmentError && <p role="alert" className="mb-2 text-xs text-destructive">{attachmentError}</p>}
       <div className="rounded-[22px] bg-muted/60 p-1">
         <div

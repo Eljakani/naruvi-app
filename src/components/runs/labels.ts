@@ -1,6 +1,9 @@
 export const WORKFLOW_LABEL: Record<string, string> = {
   "application.analyze": "Fit check",
-  "mail.classify": "Email replies",
+  "mail.classify": "Read email replies",
+  "mail.draft": "Drafted an email",
+  "mail.send": "Sent an email",
+  "assistant.chat": "Chat with Naruvi",
   "company.research": "Company research",
   "cv.generate": "CV generation",
   "cv.revise": "CV revision",
@@ -15,7 +18,8 @@ export const WORKFLOW_LABEL: Record<string, string> = {
   "ai.sdk.large-cv-check": "Model output-limit test",
 }
 
-export const workflowLabel = (workflow: string) => WORKFLOW_LABEL[workflow] ?? workflow
+/** Unknown ids ("foo.bar_baz") still read as words, never as code. */
+export const workflowLabel = (workflow: string) => WORKFLOW_LABEL[workflow] ?? (workflow.replace(/[._-]+/g, " ").replace(/^\w/, (c) => c.toUpperCase()))
 
 export function duration(ms: number | null | undefined) {
   if (ms == null) return "—"

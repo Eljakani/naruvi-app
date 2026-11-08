@@ -10,7 +10,6 @@ import { AssistantSidebarItem } from "@/components/assistant/assistant-panel"
 import { NaruviMark } from "@/components/naruvi-mark"
 import { navCountsAction } from "@/app/(app)/nav/actions"
 import { NAV_GROUPS, settingsItem, type NavItem } from "@/components/nav"
-import { motion } from "motion/react"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -149,7 +148,7 @@ function useNavCounts(pathname: string | null) {
   return counts
 }
 
-const BADGE_LABEL: Record<string, string> = { "/": "things need your attention", "/jobs": "new job leads" }
+const BADGE_LABEL: Record<string, string> = { "/applications": "applications need you", "/jobs": "new job leads" }
 
 function NavGroups({ pathname }: { pathname: string | null }) {
   const counts = useNavCounts(pathname)
@@ -163,7 +162,7 @@ function NavGroups({ pathname }: { pathname: string | null }) {
             <SidebarMenuItem key={item.url}>
               <NavLink item={item} active={isActive(pathname, item.url)} tooltip={count ? `${item.title} · ${count}` : item.title} />
               {count ? (
-                <SidebarMenuBadge className="rounded-full bg-primary px-1.5 text-primary-foreground" aria-label={`${count} ${BADGE_LABEL[item.url]}`}>
+                <SidebarMenuBadge className={item.url === "/applications" ? "font-semibold text-brand" : "font-normal text-muted-foreground"} aria-label={`${count} ${BADGE_LABEL[item.url]}`}>
                   {count > 99 ? "99+" : count}
                 </SidebarMenuBadge>
               ) : null}
@@ -186,9 +185,8 @@ function SettingsLink({ pathname }: { pathname: string | null }) {
 }
 
 /**
- * One nav entry. The current page reads clearly (full-strength text, a bar on
- * the edge that glides from item to item); others stay quieter, and hover is
- * lighter than "current" so the two never look the same.
+ * One nav entry. The current page reads clearly (soft fill, full-strength text,
+ * copper icon); others stay quieter, and hover is lighter than "current".
  */
 function NavLink({ item, active, tooltip }: { item: NavItem; active: boolean; tooltip: string }) {
   return (
@@ -196,10 +194,9 @@ function NavLink({ item, active, tooltip }: { item: NavItem; active: boolean; to
       tooltip={tooltip}
       isActive={active}
       aria-current={active ? "page" : undefined}
-      className="relative text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent/60 data-active:text-sidebar-foreground [&_svg]:text-muted-foreground [&_svg]:transition-colors hover:[&_svg]:text-sidebar-foreground data-active:[&_svg]:text-brand"
+      className="text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent/60 data-active:text-sidebar-foreground [&_svg]:text-muted-foreground [&_svg]:transition-colors hover:[&_svg]:text-sidebar-foreground data-active:[&_svg]:text-brand"
       render={<Link href={item.url} />}
     >
-      {active ? <motion.span layoutId="nav-current" transition={{ type: "spring", duration: 0.35, bounce: 0.15 }} className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-sidebar-foreground group-data-[collapsible=icon]:inset-y-2" aria-hidden /> : null}
       <item.icon />
       <span>{item.title}</span>
     </SidebarMenuButton>

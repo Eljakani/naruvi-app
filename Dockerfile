@@ -14,6 +14,7 @@ FROM deps AS runner
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 COPY --from=build /app ./
+RUN mkdir -p /app/data/assets && chown -R node:node /app/data /app/.next
 USER node
 EXPOSE 3000
 CMD ["npm", "run", "start"]

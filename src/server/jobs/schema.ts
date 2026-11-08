@@ -25,12 +25,12 @@ export type ParsedJob = z.infer<typeof parsedJob>
 
 /** What the user reviews (and may edit) before saving. */
 export const jobDraft = z.object({
-  sourceUrl: z.string().url().or(z.literal("")).default(""),
+  sourceUrl: z.string().url().regex(/^https?:\/\//i).or(z.literal("")).default(""),
   canonicalUrl: z.string().default(""),
   board: z.string().default("manual"),
   externalId: z.string().default(""),
   company: z.string().trim().min(1, "Company is required.").max(160),
-  companyWebsite: z.string().url().or(z.literal("")).default(""),
+  companyWebsite: z.string().url().regex(/^https?:\/\//i).or(z.literal("")).default(""),
   companyWebsiteSource: z.string().default(""),
   logoPath: z
     .string()

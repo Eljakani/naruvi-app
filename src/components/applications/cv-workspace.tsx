@@ -12,7 +12,7 @@ import { DEFAULT_PRESET, PRESETS, type DesignTokens } from "@/lib/design"
 const LANGUAGE_NAME: Record<string, string> = { en: "English", fr: "French", es: "Spanish", de: "German" }
 import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/applications/design-picker"
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
-import { CvAssistant, LineAssistant } from "@/components/applications/cv-assistant"
+import { CvAssistant, LineAssistant, useCheckFix } from "@/components/applications/cv-assistant"
 import { AI_STEPS } from "@/components/ai-progress"
 import { DocumentShell, RegenerateButton, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { Button } from "@/components/ui/button"
@@ -66,6 +66,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, savedTe
   const [draft, setDraft] = useState<CvDocument>(current.content)
   const [pending, startTransition] = useTransition()
   const dirty = JSON.stringify(draft) !== JSON.stringify(current.content)
+  const checkFix = useCheckFix(applicationId, draft, setDraft)
 
   const update = (fn: (doc: CvDocument) => void) =>
     setDraft((previous) => {
@@ -121,6 +122,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, savedTe
       pageBudget={2}
       dirty={dirty}
       pending={pending}
+      checkFix={checkFix}
       onSave={() => persist(draft, "Saved")}
       onDiscard={() => setDraft(current.content)}
       design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} design={draft.design} templateRef={draft.templateRef} saved={savedTemplates} onChange={applyDesign} photo={{ available: Boolean(draft.header.photoPath), shown: draft.header.showPhoto }} disabled={pending} />}

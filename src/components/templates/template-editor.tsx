@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import type { AgentResult, DesignTurn } from "@/server/templates/design-agent"
 import { aiDesignAction, deleteTemplateAction, restoreTemplateVersionAction, saveTemplateAction, setDefaultDesignAction, templateVersionsAction } from "@/app/(app)/templates/actions"
 import { PdfThumb } from "@/components/templates/pdf-thumb"
+import { fetchTemplatePreview } from "@/lib/template-preview"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { TemplateVersion } from "@/server/templates/service"
@@ -187,21 +188,17 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
     const controller = new AbortController()
     let cancelled = false
     const timer = setTimeout(async () => {
-      const timeout = setTimeout(() => controller.abort(), 30_000)
       try {
-        const response = await fetch("/api/templates/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tokens, kind: previewKind }), signal: controller.signal })
-        if (!response.ok || !response.headers.get("content-type")?.startsWith("application/pdf")) throw new Error("Preview request failed")
-        const blob = await response.blob()
+        const { data, pages } = await fetchTemplatePreview(JSON.stringify({ tokens, kind: previewKind }), controller.signal)
+        const blob = new Blob([data], { type: "application/pdf" })
         if (cancelled) return
         const url = URL.createObjectURL(blob)
         if (previous.current) URL.revokeObjectURL(previous.current)
         previous.current = url
-        setPreview({ url, key: tokenKey, pages: Number(response.headers.get("x-pages")), attempt })
+        setPreview({ url, key: tokenKey, pages, attempt })
         setPreviewError(undefined)
       } catch {
         if (!cancelled) setPreviewError({ key: tokenKey, attempt })
-      } finally {
-        clearTimeout(timeout)
       }
     }, 350)
     return () => {

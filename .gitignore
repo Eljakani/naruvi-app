@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+__pycache__/
+*.py[cod]
 
 # next.js
 /.next/
@@ -44,3 +46,13 @@ next-env.d.ts
 
 # local asset store
 /data
+
+# graphify code index
+graphify-out/
+
+# ONNX runtime for local Whisper, copied from node_modules at dev/build time
+/public/ort/
+
+# local browser diagnostics and live UI sessions
+/.tmp-*.mjs
+/.impeccable/live/

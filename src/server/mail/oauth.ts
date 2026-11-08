@@ -3,10 +3,11 @@ import { createHash, randomBytes } from "node:crypto"
 import { eq } from "drizzle-orm"
 import { z } from "zod"
 import { env } from "@/lib/env"
-import { authorizeUrl, idTokenEmail, OAUTH_PROVIDERS, type OAuthProviderId } from "@/lib/oauth"
+import { authorizeUrl, OAUTH_PROVIDERS, type OAuthProviderId } from "@/lib/oauth"
 import { db } from "@/server/db/client"
 import { mailAccounts, settings } from "@/server/db/schema"
 import { decryptSecret, encryptSecret, encryptionReady } from "@/server/settings/encryption"
+import { oauthNonce, verifyMailboxIdToken } from "./id-token"
 import { SettingsError } from "@/server/settings/errors"
 
 const key = (provider: OAuthProviderId) => `integration.oauth.${provider}`
@@ -56,7 +57,7 @@ export async function startOAuth(provider: OAuthProviderId, origin: string, logi
   const state = randomBytes(24).toString("base64url")
   const verifier = randomBytes(48).toString("base64url")
   const challenge = createHash("sha256").update(verifier).digest("base64url")
-  return { url: authorizeUrl(OAUTH_PROVIDERS[provider], { clientId: client.clientId, redirectUri: redirectUri(origin, provider), state, challenge, tenant: client.tenant, loginHint }), state, verifier }
+  return { url: authorizeUrl(OAUTH_PROVIDERS[provider], { clientId: client.clientId, redirectUri: redirectUri(origin, provider), state, challenge, nonce: oauthNonce(verifier), tenant: client.tenant, loginHint }), state, verifier }
 }
 
 const tokenReply = z.object({ access_token: z.string(), refresh_token: z.string().optional(), expires_in: z.coerce.number().default(3600), id_token: z.string().optional() })
@@ -80,8 +81,9 @@ async function tokenRequest(provider: OAuthProviderId, body: Record<string, stri
 export async function finishOAuth(provider: OAuthProviderId, input: { code: string; verifier: string; origin: string }, fetcher: typeof fetch = fetch) {
   const tokens = await tokenRequest(provider, { grant_type: "authorization_code", code: input.code, code_verifier: input.verifier, redirect_uri: redirectUri(input.origin, provider) }, fetcher)
   if (!tokens.refresh_token) throw new SettingsError("No refresh token came back. Remove Naruvi’s access in your account settings and sign in again.")
-  const email = tokens.id_token ? idTokenEmail(tokens.id_token) : null
-  if (!email) throw new SettingsError("The sign-in didn’t include your email address. Check that the email scope is allowed.")
+  const client = await readClient(provider)
+  if (!client || !tokens.id_token) throw new SettingsError("The sign-in did not include an ID token. Try again.")
+  const email = await verifyMailboxIdToken(tokens.id_token, { provider, clientId: client.clientId, tenant: client.tenant, nonce: oauthNonce(input.verifier) })
   const values = {
     email,
     provider: provider === "google" ? "gmail" : "outlook",

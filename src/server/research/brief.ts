@@ -11,6 +11,8 @@ export type CompanyResearch = {
   company: string
   website: string
   generatedAt: string
+  summary?: { text: string; sources: string[] }
+  summaryModel?: string
   about: Sourced[]
   mission: Sourced[]
   values: Sourced[]

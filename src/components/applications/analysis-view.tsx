@@ -61,7 +61,8 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
   const status = STATUS[match.status]
   const evidence = match.factIds.map((id) => facts.find((fact) => fact.id === id)).filter(Boolean) as FactRow[]
   // What needs work opens by default; what's already proven stays one line until asked.
-  const [open, setOpen] = useState(match.status !== "met")
+  // Collapsed by default: the list reads as a scannable checklist; open a row for its evidence.
+  const [open, setOpen] = useState(false)
   const reduce = useReducedMotion()
   const hasDetail = Boolean(evidence.length || match.covered.length || match.missing.length || match.note)
   return (
@@ -204,7 +205,7 @@ function FilterTabs({ value, onChange, options }: { value: Filter; onChange: (va
 
 type Filter = "all" | "attention" | "proven"
 
-export function AnalysisView({ analysis, facts, research }: { analysis: StoredAnalysis; facts: FactRow[]; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null; researching?: boolean; logoPath?: string | null } }) {
+export function AnalysisView({ analysis, facts, research, footer }: { /** Shown under the requirements, in the main column (fills the space beside the tall side column). */ footer?: React.ReactNode; analysis: StoredAnalysis; facts: FactRow[]; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null; researching?: boolean; logoPath?: string | null } }) {
   const counts = analysis.counts
   const needsWork = counts.partial + counts.gap + counts.judgement
   const [filter, setFilter] = useState<Filter>(needsWork && needsWork < analysis.requirements.length ? "attention" : "all")
@@ -229,7 +230,7 @@ export function AnalysisView({ analysis, facts, research }: { analysis: StoredAn
     : "Rules only."
 
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:grid-rows-[auto_auto_1fr]">
         <Card className="xl:col-start-1 xl:row-start-1">
           <CardContent className="flex flex-wrap items-center gap-5">
             {score === null ? <p className="shrink-0 text-sm font-medium">Fit not scored</p> : <FitRing score={score} />}
@@ -258,7 +259,7 @@ export function AnalysisView({ analysis, facts, research }: { analysis: StoredAn
           </CardContent>
         </Card>
 
-      <aside className="grid min-w-0 content-start gap-4 md:grid-cols-2 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:grid-cols-1">
+      <aside className="grid min-w-0 content-start gap-4 md:grid-cols-2 xl:col-start-2 xl:row-span-3 xl:row-start-1 xl:grid-cols-1">
         <Card className="gap-4">
           <CardHeader className="flex flex-row items-center gap-3">
             <EntryLogo path={research.logoPath ?? null} name={research.company} size={36} className="rounded-lg" />
@@ -418,6 +419,7 @@ export function AnalysisView({ analysis, facts, research }: { analysis: StoredAn
             </details> : null}
           </CardContent>
         </Card>
+        {footer ? <div className="min-w-0 xl:col-start-1 xl:row-start-3">{footer}</div> : null}
     </div>
   )
 }

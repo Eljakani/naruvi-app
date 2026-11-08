@@ -42,3 +42,16 @@ export async function refreshCompanyProfileAction(id: string): Promise<Result<{ 
     return fail(error)
   }
 }
+
+export async function researchCompanyAction(id: string): Promise<Result<{ sources: number; items: number }>> {
+  try {
+    const companyId = z.string().uuid().parse(id)
+    const { researchForCompany } = await import("@/server/research/service")
+    const brief = await researchForCompany(companyId, { force: true })
+    if (!brief) return { ok: false, message: "Company not found." }
+    revalidatePath("/companies", "layout")
+    return { ok: true, data: { sources: brief.sources.length, items: (brief.summary ? 1 : 0) + brief.about.length + brief.mission.length + brief.values.length + brief.facts.length } }
+  } catch (error) {
+    return fail(error)
+  }
+}

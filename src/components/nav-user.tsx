@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRef } from "react"
 
 import {
   Avatar,
@@ -22,7 +23,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { ChevronsUpDownIcon, SettingsIcon, UserRoundIcon } from "lucide-react"
+import { ChevronsUpDownIcon, SettingsIcon, UserRoundIcon, LogOutIcon } from "lucide-react"
 
 export function NavUser({
   user,
@@ -34,8 +35,11 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const logoutForm = useRef<HTMLFormElement>(null)
   const initials = user.name.trim().split(/\s+/).slice(0, 2).map((word) => Array.from(word)[0]).join("").toUpperCase()
   return (
+    <>
+    <form ref={logoutForm} method="post" action="/auth/logout" hidden />
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
@@ -83,9 +87,16 @@ export function NavUser({
                 <SettingsIcon /> Settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => logoutForm.current?.requestSubmit()}>
+                <LogOutIcon /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
+    </>
   )
 }

@@ -60,7 +60,7 @@ export const identityInput = z.object({
   phone: z.string().trim().max(40).default(""),
   location: z.string().trim().max(120).default(""),
   availability: z.string().trim().max(120).default(""),
-  links: z.array(z.object({ label: z.string().trim().min(1).max(40), url: z.string().trim().url() })).default([]),
+  links: z.array(z.object({ label: z.string().trim().min(1).max(40), url: z.string().trim().url().regex(/^https?:\/\//i) })).default([]),
 })
 export type IdentityInput = z.input<typeof identityInput>
 

@@ -6,6 +6,7 @@ import { ArrowDownToLineIcon, DatabaseIcon, FileTextIcon, Loader2Icon, PaletteIc
 import { toast } from "sonner"
 import { downloadFontsAction, saveDocumentPhotoDefaultAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
 import { DecisionSettings } from "./decision-settings"
+import { DictationSettings } from "@/components/settings/dictation-settings"
 import { SectionLayout, SectionNav, SettingsSection } from "@/components/section-nav"
 import { ModelSettings } from "./model-settings"
 import { Badge } from "@/components/ui/badge"
@@ -70,6 +71,7 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
         <SettingsSection id="ai" title="AI models" description="AI features send relevant job text, verified profile facts, and available company research to the provider you choose.">
             <ModelSettings initial={overview.llm} />
             <DecisionSettings initial={overview.decisions} />
+            <DictationSettings />
         </SettingsSection>
 
         <SettingsSection id="documents" title="Documents" description="Defaults for new CVs and letters, and fonts for other writing systems.">

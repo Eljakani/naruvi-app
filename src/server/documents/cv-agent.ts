@@ -6,8 +6,10 @@
 import type { CvDocument } from "./model"
 import type { QualityReport } from "./quality"
 
+import { AI_FIXABLE_CHECKS } from "@/lib/quality-fixable"
+
 /** Quality checks the content agent can fix by itself (others need the profile). */
-const FIXABLE = new Set(["pages", "coverage", "length", "density", "headline"])
+const FIXABLE = AI_FIXABLE_CHECKS
 
 export type Evaluation = { pages: number; quality: QualityReport }
 export type Revise = (doc: CvDocument, instruction: string) => Promise<{ doc: CvDocument; changed: number; rejected: number; note: string }>
@@ -31,7 +33,12 @@ export function pageTarget(request = ""): number | null {
   return null
 }
 
-const rank = (evaluation: Evaluation) => evaluation.quality.score - evaluation.quality.errors * 15 - fixableProblems(evaluation).length * 3
+// "AI wording reviewed" resets on every AI edit by design (you approve it after). It's not a quality signal,
+// so counting it (as a failed check, or in the score: 20 per error, 6 per warning) would make every
+// revision of an approved CV look worse and get thrown away.
+const blocking = (evaluation: Evaluation) => evaluation.quality.checks.filter((check) => check.status === "fail" && check.id !== "ai-review").length
+const reviewPenalty = (evaluation: Evaluation) => evaluation.quality.checks.find((check) => check.id === "ai-review")?.status === "fail" ? 20 : evaluation.quality.checks.find((check) => check.id === "ai-review")?.status === "warn" ? 6 : 0
+const rank = (evaluation: Evaluation) => Math.min(100, evaluation.quality.score + reviewPenalty(evaluation)) - blocking(evaluation) * 15 - fixableProblems(evaluation).length * 3
 
 /**
  * Lines to drop first when a page target is missed: later bullets of later

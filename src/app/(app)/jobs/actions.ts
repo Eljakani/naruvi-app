@@ -14,7 +14,7 @@ import type { JobDraft } from "@/server/jobs/schema"
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }
 
 const input = z
-  .object({ url: z.string().trim().url("Enter a full link (https://…)").or(z.literal("")).default(""), text: z.string().max(120_000).default("") })
+  .object({ url: z.string().trim().url("Enter a full link (https://…)").regex(/^https?:\/\//i).or(z.literal("")).default(""), text: z.string().max(120_000).default("") })
   .refine((value) => value.url || value.text.trim().length >= 80, "Paste a job link, or at least a few lines of the job description.")
 
 export type Duplicate = Awaited<ReturnType<typeof findDuplicates>>[number]
@@ -77,7 +77,7 @@ export async function dismissLeadAction(id: string): Promise<ActionResult<null>>
   return { ok: true, data: null }
 }
 
-/** Move a posting from Discover into Applications, at "Saved". */
+/** Move a posting from Jobs into Applications, at "Saved". */
 export async function trackJobAction(jobId: string): Promise<ActionResult<{ applicationId: string }>> {
   if (!z.string().uuid().safeParse(jobId).success) return { ok: false, error: "Invalid job." }
   const applicationId = await trackJob(jobId)

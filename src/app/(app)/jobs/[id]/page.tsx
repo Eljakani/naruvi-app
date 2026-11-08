@@ -37,7 +37,7 @@ async function JobDetail({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="grid gap-4">
       <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href="/jobs" />}>
-        <ArrowLeftIcon /> Discover
+        <ArrowLeftIcon /> Jobs
       </Button>
       <div className="flex flex-wrap items-start gap-4">
         <EntryLogo path={job.company?.logoPath} name={job.company?.name ?? "?"} size={56} morph={`job-${job.id}`} />

@@ -2,6 +2,7 @@ import "server-only"
 import { Circle, Document, Font, Image, Line, Link, Page, Path, Polyline, Rect, StyleSheet, Svg, Text as PdfText, View, renderToBuffer } from "@react-pdf/renderer"
 import { PDF_ICONS, type PdfIcon } from "./pdf-icons"
 import sharp from "sharp"
+import { IMAGE_PIXEL_LIMIT } from "@/server/assets/image-budget"
 import { Children, type ComponentProps, type PropsWithChildren } from "react"
 import { detectScripts, isRtl, type Script } from "@/lib/scripts"
 import { readAsset } from "@/server/assets/store"
@@ -41,7 +42,7 @@ async function pngData(path: string | null, size: number, round = false) {
   const asset = await readAsset(path)
   if (!asset) return null
   try {
-    let image = sharp(asset.buffer, { density: 300 }).resize(size * 4, size * 4, { fit: round ? "cover" : "contain", background: { r: 255, g: 255, b: 255, alpha: 0 } })
+    let image = sharp(asset.buffer, { density: 72, limitInputPixels: IMAGE_PIXEL_LIMIT }).resize(size * 4, size * 4, { fit: round ? "cover" : "contain", background: { r: 255, g: 255, b: 255, alpha: 0 } })
     if (round) image = image.flatten({ background: "#ffffff" })
     return `data:image/png;base64,${(await image.png().toBuffer()).toString("base64")}`
   } catch {

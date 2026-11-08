@@ -1,8 +1,10 @@
+import { AuthSessionGuard } from "@/components/auth/auth-session-guard"
 import { connection } from "next/server"
 import { getProfile } from "@/server/profile/repository"
 import { Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { CommandMenu } from "@/components/command-menu"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 import { AssistantHeaderButton, AssistantPanel, AssistantProvider } from "@/components/assistant/assistant-panel"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Separator } from "@/components/ui/separator"
@@ -11,6 +13,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <AssistantProvider>
+      <AuthSessionGuard />
       <SidebarProvider className="group/workspace">
         <Suspense fallback={<AppSidebar user={emptyIdentity} />}>
           <ProfileSidebar />
@@ -26,6 +29,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             </div>
             <div className="ml-auto flex min-w-0 items-center justify-end gap-1 px-4">
               <AssistantHeaderButton />
+              <NotificationBell />
               <CommandMenu />
             </div>
           </header>

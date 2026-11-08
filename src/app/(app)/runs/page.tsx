@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils"
 import { documentQuality, isRange, listRuns, RANGES, runStats, workflows, type Range } from "@/server/runs/repository"
 
-export const metadata = { title: "AI activity" }
+export const metadata = { title: "Naruvi’s work" }
 
 type Search = Promise<Record<string, string | string[] | undefined>>
 const one = (value: string | string[] | undefined) => (typeof value === "string" ? value : undefined)
@@ -27,8 +27,8 @@ export default function RunsPage({ searchParams }: PageProps<"/runs">) {
   return (
     <>
       <PageHeader
-        title="AI activity"
-        description="What every workflow did, how long it took, and how good the output is."
+        title="Naruvi’s work"
+        description="Everything Naruvi did for you: what it read, checked and wrote, and how it went."
         actions={
           <Suspense fallback={null}>
             <TabSwitch searchParams={searchParams} />
@@ -47,7 +47,7 @@ async function TabSwitch({ searchParams }: { searchParams: Search }) {
   return (
     <div className="flex gap-1">
       <Button size="sm" variant={tab === "traces" ? "secondary" : "ghost"} nativeButton={false} render={<Link href="/runs" />}>
-        Traces
+        Activity
       </Button>
       <Button size="sm" variant={tab === "quality" ? "secondary" : "ghost"} nativeButton={false} render={<Link href="/runs?tab=quality" />}>
         Quality
@@ -85,7 +85,6 @@ async function Traces({ workflow, status, range, before }: { workflow?: string; 
   const [stats, list, names] = await Promise.all([runStats({ workflow, range }), listRuns({ workflow, status, range, before }), workflows()])
   const rows = list.runs
   const successRate = stats.total ? Math.round(((stats.total - stats.failed - stats.running) / stats.total) * 100) : null
-  const slowest = Math.max(1, ...rows.map((run) => run.durationMs ?? 0))
   const groups = new Map<string, typeof rows>()
   for (const run of rows) groups.set(dayLabel(run.createdAt), [...(groups.get(dayLabel(run.createdAt)) ?? []), run])
   const rangeName = range === "all" ? "All time" : range === "24h" ? "Last 24 hours" : `Last ${RANGES[range]} days`
@@ -95,14 +94,14 @@ async function Traces({ workflow, status, range, before }: { workflow?: string; 
   return (
     <>
       <LiveRefresh active={rows.some((run) => run.status === "running")} />
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <Stat title="Runs" value={stats.total.toLocaleString()} hint={rangeName}>
+      <Card className="grid grid-cols-2 gap-px overflow-hidden bg-border py-0 sm:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))] [&>*]:bg-card">
+        <MiniStat className="col-span-2 sm:col-span-1" title="Tasks" value={stats.total.toLocaleString()} hint={rangeName}>
           <Spark daily={stats.daily} days={stats.days} now={now} />
-        </Stat>
-        <Stat title="Success rate" value={successRate === null ? "—" : `${successRate}%`} hint={stats.failed ? `${stats.failed} failed${stats.running ? ` · ${stats.running} running` : ""}` : stats.running ? `${stats.running} running` : "No failures"} tone={successRate !== null && successRate < 90 ? "warn" : undefined} />
-        <Stat title="Median time" value={duration(stats.p50)} hint={`95% finish within ${duration(stats.p95)}`} />
-        <Stat title="AI usage" value={compact(stats.tokens)} hint={stats.aiCalls ? `tokens · ${stats.aiCalls.toLocaleString()} model requests` : "No model requests"} />
-      </div>
+        </MiniStat>
+        <MiniStat title="Went well" value={successRate === null ? "—" : `${successRate}%`} hint={stats.failed ? `${stats.failed} failed${stats.running ? ` · ${stats.running} running` : ""}` : stats.running ? `${stats.running} running` : "Nothing failed"} tone={successRate !== null && successRate < 90 ? "warn" : undefined} />
+        <MiniStat title="Usual time" value={duration(stats.p50)} hint={`Almost all under ${duration(stats.p95)}`} />
+        <MiniStat className="col-span-2 sm:col-span-1" title="AI usage" value={compact(stats.tokens)} hint={stats.aiCalls ? `tokens · ${stats.aiCalls.toLocaleString()} requests` : "No AI requests"} />
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <Card className="gap-0 py-0">
@@ -118,40 +117,26 @@ async function Traces({ workflow, status, range, before }: { workflow?: string; 
             <div>
               {[...groups.entries()].map(([day, runs]) => (
                 <section key={day} aria-label={day}>
-                  <h2 className="sticky top-0 z-10 border-b bg-muted/60 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">{day}</h2>
+                  <h2 className="sticky top-0 z-10 border-b bg-background/90 px-4 pt-3 pb-1.5 text-xs font-medium text-muted-foreground backdrop-blur">{day}</h2>
                   <ul className="divide-y">
                     {runs.map((run) => (
                       <li key={run.id}>
-                        <Link href={`/runs/${run.id}`} className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none md:grid-cols-[auto_minmax(0,1fr)_9rem_5rem_5.5rem_auto]">
+                        <Link href={`/runs/${run.id}`} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none">
                           <WorkflowIcon workflow={run.workflow} />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <span className="truncate text-sm font-medium">{workflowLabel(run.workflow)}</span>
                               <StatusMark status={run.status} />
                             </div>
                             <p className={cn("truncate text-xs", run.error ? "text-destructive" : "text-muted-foreground")}>
-                              {run.error ?? ([run.job, run.company].filter(Boolean).join(" · ") || `${run.steps} steps${run.aiCalls ? ` · ${run.aiCalls} model requests` : ""}`)}
+                              {run.error ?? ([run.job, run.company].filter(Boolean).join(" · ") || (run.aiCalls ? `${run.aiCalls} AI ${run.aiCalls === 1 ? "request" : "requests"}` : `${run.steps} ${run.steps === 1 ? "step" : "steps"}`))}
                             </p>
                           </div>
-                          <div className="hidden min-w-0 md:block">
-                            {run.models.length ? (
-                              <span className="flex min-w-0 items-center gap-1">
-                                <Badge variant="outline" className="max-w-32 truncate font-normal">{run.models[0]}</Badge>
-                                {run.models.length > 1 ? <span className="text-xs text-muted-foreground">+{run.models.length - 1}</span> : null}
-                              </span>
-                            ) : <span className="text-xs text-muted-foreground">No model</span>}
-                          </div>
-                          <div className="hidden text-right text-xs text-muted-foreground tabular-nums md:block">{run.tokens ? compact(run.tokens) : "—"}</div>
-                          <div className="hidden md:block">
-                            <div className="text-right text-xs tabular-nums">{run.status === "running" ? "running…" : duration(run.durationMs)}</div>
-                            <div className="mt-1 h-1 rounded-full bg-muted">
-                              <div className={cn("h-1 rounded-full", run.status === "failed" ? "bg-destructive" : "bg-foreground/40")} style={{ width: `${Math.max(3, ((run.durationMs ?? 0) / slowest) * 100)}%` }} />
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs whitespace-nowrap text-muted-foreground">
-                            <time dateTime={run.createdAt.toISOString()} title={run.createdAt.toLocaleString()}>{ago(run.createdAt, now)}</time>
-                            <ChevronRightIcon className="size-4 opacity-40 group-hover:opacity-100" />
-                          </div>
+                          <span className="hidden shrink-0 text-xs text-muted-foreground tabular-nums sm:block" title={run.models.length ? `${run.models.join(", ")}${run.tokens ? ` · ${compact(run.tokens)} tokens` : ""}` : undefined}>
+                            {run.status === "running" ? "running…" : duration(run.durationMs)}
+                          </span>
+                          <time dateTime={run.createdAt.toISOString()} title={run.createdAt.toLocaleString()} className="w-16 shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground">{ago(run.createdAt, now)}</time>
+                          <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground opacity-0 transition-[opacity,translate] group-hover:translate-x-0.5 group-hover:opacity-100 group-focus-visible:opacity-100" />
                         </Link>
                       </li>
                     ))}
@@ -172,8 +157,8 @@ async function Traces({ workflow, status, range, before }: { workflow?: string; 
           ) : (
             <Empty className="m-3 border">
               <EmptyHeader>
-                <EmptyTitle>No runs</EmptyTitle>
-                <EmptyDescription>{workflow || status || range !== "all" ? "Nothing matches these filters. Try a longer time range." : "Add a job, check your fit or draft a document to see its trace here."}</EmptyDescription>
+                <EmptyTitle>Nothing here yet</EmptyTitle>
+                <EmptyDescription>{workflow || status || range !== "all" ? "Nothing matches these filters. Try a longer time range." : "Add a job, check your fit or draft a document, and you’ll see what Naruvi did here."}</EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}
@@ -181,7 +166,7 @@ async function Traces({ workflow, status, range, before }: { workflow?: string; 
 
         <Card className="h-fit gap-0 py-0 xl:sticky xl:top-4">
           <CardHeader className="border-b py-3">
-            <CardTitle className="text-sm">By workflow</CardTitle>
+            <CardTitle className="text-sm">By task</CardTitle>
             <CardDescription className="text-xs">{rangeName}. Pick one to filter.</CardDescription>
           </CardHeader>
           <ul className="divide-y">
@@ -191,7 +176,7 @@ async function Traces({ workflow, status, range, before }: { workflow?: string; 
                 <li key={row.workflow}>
                   <Link href={href({ workflow: active ? undefined : row.workflow, status, range: range === "7d" ? undefined : range })} aria-current={active || undefined} className={cn("flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/40", active && "bg-muted")}>
                     <span className="min-w-0 flex-1 truncate">{workflowLabel(row.workflow)}</span>
-                    {row.failed ? <span className="text-xs text-destructive tabular-nums">{row.failed} failed</span> : null}
+                    {row.failed ? <span className="size-1.5 shrink-0 rounded-full bg-destructive" title={`${row.failed} failed`} aria-label={`${row.failed} failed`} /> : null}
                     <span className="w-12 text-right text-xs text-muted-foreground tabular-nums">{duration(row.p50)}</span>
                     <span className="w-8 text-right font-medium tabular-nums">{row.total}</span>
                   </Link>
@@ -200,7 +185,7 @@ async function Traces({ workflow, status, range, before }: { workflow?: string; 
             })}
             {!stats.byWorkflow.length ? <li className="px-4 py-3 text-sm text-muted-foreground">No runs in this period.</li> : null}
           </ul>
-          <p className="border-t px-4 py-2 text-xs text-muted-foreground">Median time · runs</p>
+          <p className="border-t px-4 py-2 text-xs text-muted-foreground">Usual time · count</p>
         </Card>
       </div>
     </>
@@ -223,11 +208,11 @@ function Spark({ daily, days, now }: { daily: { day: string; total: number; fail
   })
   const max = Math.max(1, ...series.map((point) => point.total))
   return (
-    <div className="flex h-8 items-end gap-px" aria-hidden>
+    <div className="flex h-7 items-end gap-0.5" aria-hidden>
       {series.map((point) => (
-        <div key={point.key} title={`${point.date.toLocaleDateString()}: ${point.total} runs${point.failed ? `, ${point.failed} failed` : ""}`} className="flex flex-1 flex-col justify-end overflow-hidden rounded-[2px] bg-muted" style={{ height: "100%" }}>
+        <div key={point.key} title={`${point.date.toLocaleDateString()}: ${point.total} runs${point.failed ? `, ${point.failed} failed` : ""}`} className="flex flex-1 flex-col justify-end overflow-hidden rounded-[2px] bg-muted/60" style={{ height: "100%" }}>
           <div className="bg-destructive" style={{ height: `${(point.failed / max) * 100}%` }} />
-          <div className="bg-foreground/35" style={{ height: `${((point.total - point.failed) / max) * 100}%` }} />
+          <div className="bg-brand/70" style={{ height: `${((point.total - point.failed) / max) * 100}%` }} />
         </div>
       ))}
     </div>
@@ -285,6 +270,19 @@ async function Quality() {
       </Card>
       <JobEvals />
     </>
+  )
+}
+
+function MiniStat({ title, value, hint, tone, children, className }: { className?: string; title: string; value: string; hint: string; tone?: "warn"; children?: React.ReactNode }) {
+  return (
+    <div className={cn("grid content-start gap-1 p-4", className)}>
+      <span className="text-xs text-muted-foreground">{title}</span>
+      <div className="flex items-end justify-between gap-3">
+        <span className={cn("text-2xl font-semibold tracking-tight tabular-nums", tone === "warn" && "text-destructive")}>{value}</span>
+        {children ? <div className="w-28 max-w-[50%]">{children}</div> : null}
+      </div>
+      <span className="text-xs text-pretty text-muted-foreground">{hint}</span>
+    </div>
   )
 }
 

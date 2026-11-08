@@ -1,7 +1,8 @@
 "use client"
 
+import Image from "next/image"
 import { useState, useTransition } from "react"
-import { ArrowUpRightIcon, Loader2Icon, PlugZapIcon, ScanSearchIcon } from "lucide-react"
+import { ArrowUpRightIcon, Loader2Icon, PlugZapIcon } from "lucide-react"
 import { toast } from "sonner"
 import { saveDecisionSettingsAction, testDecisionModelAction } from "@/app/(app)/settings/actions"
 import { Badge } from "@/components/ui/badge"
@@ -55,7 +56,7 @@ export function DecisionSettings({ initial }: { initial: DecisionOverview }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle><h3 className="flex items-center gap-2"><ScanSearchIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Decision model</h3></CardTitle>
+        <CardTitle><h3 className="flex items-center gap-2"><Image src="/provider-logos/typesafe.png?v=1" alt="" aria-hidden width={20} height={20} unoptimized className="size-5 shrink-0 rounded-full" /> Decision model <span className="text-xs font-normal text-muted-foreground">· TypeSafe Jev</span></h3></CardTitle>
         <CardDescription>
           Optionally use TypeSafe Jev to filter job requirements, match profile facts, enrich imported jobs, and check claims in drafts.
         </CardDescription>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { ArrowUpIcon, BanIcon, CheckIcon, CircleDashedIcon, LoaderCircleIcon, SparklesIcon } from "lucide-react"
 import { useStep } from "@/components/ai-progress"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
@@ -34,11 +34,17 @@ const OUTCOME = {
 
 /** The conversation so far, plus the turn in progress with its live steps. */
 export function AgentThread({ turns, working, steps, className, pose = "working-on-it", intro }: { turns: AgentTurn[]; working?: string | null; steps: readonly string[]; className?: string; /** Naruvi's pose while this agent works. */ pose?: OtterPose; /** Shown before the first request: what this agent does, in Naruvi's words. */ intro?: ReactNode }) {
-  const end = useRef<HTMLDivElement>(null)
+  const box = useRef<HTMLDivElement>(null)
   const step = useStep(Boolean(working), steps.length)
+  const [showAll, setShowAll] = useState(false)
+  // Scroll only inside the thread: scrollIntoView would also move the page you're editing.
   useEffect(() => {
-    end.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    const el = box.current
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
   }, [turns.length, working, step])
+  // Older turns fold away, so the thread stays short and never needs its own scrollbar.
+  const hidden = showAll ? 0 : Math.max(0, turns.length - (working ? 1 : 2))
+  const visible = turns.slice(hidden)
   if (!turns.length && !working) {
     return intro ? (
       <div className="cb-step flex items-end gap-2.5">
@@ -48,8 +54,14 @@ export function AgentThread({ turns, working, steps, className, pose = "working-
     ) : null
   }
   return (
-    <MessageGroup className={cn("max-h-80 gap-3 overflow-y-auto pr-1", className)} aria-live="polite">
-      {turns.map((turn, index) => {
+    <MessageGroup ref={box} className={cn("max-h-[28rem] gap-3 overflow-y-auto overscroll-contain pr-1 wrap-anywhere", className)} aria-live="polite">
+      {hidden ? (
+        <button type="button" onClick={() => setShowAll(true)} className="mx-auto rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+          Show {hidden} earlier {hidden === 1 ? "request" : "requests"}
+        </button>
+      ) : null}
+      {visible.map((turn, i) => {
+        const index = i + hidden
         const outcome = OUTCOME[turn.outcome]
         return (
           <div key={turn.id} className="cb-step grid gap-2">
@@ -104,7 +116,6 @@ export function AgentThread({ turns, working, steps, className, pose = "working-
           </Message>
         </div>
       ) : null}
-      <div ref={end} />
     </MessageGroup>
   )
 }
@@ -114,10 +125,11 @@ export function AgentComposer({ value, onChange, onSend, busy, placeholder, sugg
   const ready = !busy && value.trim().length >= minLength
   return (
     <div className="grid gap-2">
-      {suggestions.length && !busy ? (
-        <div className="cb-stagger flex flex-wrap gap-1.5">
+      {suggestions.length ? (
+        // Stays in place while busy (just quieter), so the composer never jumps up and down.
+        <div className={cn("flex flex-wrap gap-1.5 transition-opacity duration-200", busy ? "pointer-events-none opacity-40" : "cb-stagger")} aria-hidden={busy || undefined}>
           {suggestions.map((suggestion) => (
-            <Button key={suggestion} size="xs" variant="outline" className="bg-background font-normal text-muted-foreground" onClick={() => onSend(suggestion)}>
+            <Button key={suggestion} size="xs" variant="outline" disabled={busy} className="bg-background font-normal text-muted-foreground transition-[background-color,color,translate] hover:-translate-y-px hover:text-foreground active:translate-y-0" onClick={() => onSend(suggestion)}>
               <SparklesIcon className="size-3 text-brand" /> {suggestion}
             </Button>
           ))}

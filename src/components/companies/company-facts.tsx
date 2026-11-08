@@ -29,9 +29,9 @@ export function CompanyFacts({ companyId, name, profile, enabled }: { companyId:
   }
   const facts = profile?.facts ?? []
   return (
-    <Card className="h-fit">
+    <Card className="@container h-fit">
       <CardHeader>
-        <CardTitle className="text-sm">Company facts</CardTitle>
+        <CardTitle>Company facts</CardTitle>
         <CardDescription className="text-xs">
           {profile?.sources.length
             ? `From ${profile.sources.map((source) => source.name).join(" and ")}, ${new Date(profile.fetchedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
@@ -51,7 +51,7 @@ export function CompanyFacts({ companyId, name, profile, enabled }: { companyId:
         <CardContent className="grid gap-3 text-sm">
           {profile?.description ? <p className="text-muted-foreground first-letter:uppercase">{profile.description}</p> : null}
           {facts.length ? (
-            <dl className="grid grid-cols-2 gap-2">
+            <dl className="grid grid-cols-2 gap-2 @lg:grid-cols-3">
               {facts.map((fact, index) => {
                 const Icon = ICONS[fact.label] ?? BuildingIcon
                 return (
