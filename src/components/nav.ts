@@ -31,7 +31,7 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
 ]
 
 /** Kept at the bottom of the sidebar, next to the user menu. */
-export const settingsItem: NavItem = { title: "Settings", url: "/settings", icon: Settings2Icon, description: "Model, compiler and data" }
+export const settingsItem: NavItem = { title: "Settings", url: "/settings", icon: Settings2Icon, description: "Documents, fonts and data" }
 
 /** Every page, for breadcrumbs and lookups. */
 export const navItems: NavItem[] = [...NAV_GROUPS.flatMap((group) => group.items), settingsItem]

@@ -1,6 +1,7 @@
 "use client"
 
-import { PresenceItem, PresenceList } from "@/components/presence"
+import UndoButton from "@/components/kokonutui/undo-button"
+import { Presence, PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react"
@@ -17,10 +18,11 @@ import {
   CheckCircle2Icon,
   CircleDashedIcon,
   CopyIcon,
+  CornerDownRightIcon,
   FolderGit2Icon,
   GraduationCapIcon,
   LanguagesIcon,
-  LockIcon,
+  LightbulbIcon,
   MoreHorizontalIcon,
   PlusIcon,
   ShapesIcon,
@@ -35,7 +37,8 @@ import { EntryLogo } from "@/components/profile/entry-logo"
 import { LogoField } from "@/components/profile/editor/logo-field"
 import { BulletSuggestions } from "@/components/profile/editor/bullet-suggestions"
 import { EntryAssist } from "@/components/profile/editor/entry-assist"
-import { ChipInput, FactPicker, GrowText, LineList, StringLineList } from "@/components/profile/editor/inputs"
+import { FactPicker, GrowText, LineList, QUIET } from "@/components/profile/editor/inputs"
+import { AskExtrasButton, GuardrailFields, SkillFields, useExtras } from "@/components/profile/editor/entry-extras"
 import { LanguageSwitch, LANGUAGE_NAMES } from "@/components/profile/language-switch"
 import ParticleButton from "@/components/kokonutui/particle-button"
 import { Otter } from "@/components/naruvi/otter"
@@ -53,15 +56,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Field as UiField, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field"
 import { cn } from "@/lib/utils"
 import { verifySupport } from "@/server/domain/grounding"
 import type { ProfileEntry } from "@/server/profile/repository"
@@ -208,6 +208,15 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   }
   const renameGroup = (from: string, to: string) => patch({ bullets: draft.bullets.map((bullet) => (bullet.group === from ? { ...bullet, group: to } : bullet)) })
 
+  const factNumber = (key: string) => draft.facts.findIndex((fact) => fact.key === key) + 1
+  const unusedFacts = facts.filter((fact) => !usage[fact.key])
+  const [focusBullet, setFocusBullet] = useState<string | null>(null)
+  const bulletFromFact = (factKey: string, text: string) => {
+    patch({ bullets: [...draft.bullets, { key: newKey(), group: groups[0] ?? "General", role: "bullet", language: lang, text: text.trim(), factKeys: [factKey] }] })
+    toast.success("Added as a CV line", { description: "Polish the wording there. It stays linked to this fact.", action: { label: "Show", onClick: () => jump("bullets") } })
+  }
+  const extras = useExtras(draft)
+
   const title = draft.display.en.role || draft.display.fr.role || draft.title || "New entry"
 
   return (
@@ -349,7 +358,14 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
           </Section>
 
           {/* 3. facts */}
-          <Section id="facts" n={3} title="What you did" description="One fact per line, in plain words, with numbers when you have them. CVs and letters can only say what is written here.">
+          <Section
+            id="facts"
+            n={3}
+            title="What you did"
+            description="One claim per line, in plain words. CVs and letters can only say what is written here."
+            done={facts.length > 0}
+            meta={facts.length ? <Meta value={`${facts.length - unusedFacts.length}/${facts.length}`} label="on CV lines" /> : null}
+          >
             <LineList
               numbered
               items={draft.facts.map((fact) => ({ key: fact.key, text: fact.statement }))}
@@ -363,19 +379,37 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
               placeholder="e.g. Cut average response time from 2 days to 4 hours."
               addLabel="Add fact"
               onHover={setHoverFact}
-              renderMeta={(key) =>
-                usage[key] ? (
-                  <span className="text-muted-foreground">
-                    Backs {usage[key]} bullet{usage[key] === 1 ? "" : "s"}
-                  </span>
-                ) : draft.facts.find((fact) => fact.key === key)?.statement.trim() ? (
-                  <span className="text-muted-foreground/70">Not used by any bullet yet</span>
-                ) : null
+              empty={
+                <EmptyState
+                  title="What did you actually do?"
+                  body="Start with what you’re proudest of: one claim per line, with numbers when you have them. Or use “Tell Naruvi” above and write it freely."
+                  action={
+                    <Button size="sm" onClick={() => (patch({ facts: [{ key: newKey(), statement: "" }] }), requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("#facts textarea")?.focus()))}>
+                      <PlusIcon /> Add your first fact
+                    </Button>
+                  }
+                />
               }
+              renderAside={(item) =>
+                !item.text.trim() ? null : usage[item.key] ? (
+                  <span title={`Backs ${usage[item.key]} CV line${usage[item.key] === 1 ? "" : "s"}`} className="inline-flex h-6 items-center gap-1 rounded-full bg-emerald-500/10 px-2 text-[11px] font-medium text-emerald-700 tabular-nums dark:text-emerald-400">
+                    <CheckIcon className="size-3" /> {usage[item.key]} line{usage[item.key] === 1 ? "" : "s"}
+                  </span>
+                ) : (
+                  <Button size="xs" variant="ghost" className="text-muted-foreground" title="Add this fact as a CV line, linked to it" onClick={() => bulletFromFact(item.key, item.text)}>
+                    <CornerDownRightIcon /> CV line
+                  </Button>
+                )
+              }
+              renderBelow={(item, focused) => (
+                <Presence show={focused && item.text.trim().length > 12 && (!/\d/.test(item.text) || item.text.length > 220)}>
+                  <p className="flex items-center gap-1.5 px-3 pt-0.5 pb-1.5 text-xs text-muted-foreground">
+                    <LightbulbIcon className="size-3.5 shrink-0 text-amber-500" />
+                    {item.text.length > 220 ? "Long fact. Splitting it into one claim per line makes it easier to cite." : "A number makes it stronger: how many, how much, how fast, for whom."}
+                  </p>
+                </Presence>
+              )}
             />
-            <p className="text-xs text-muted-foreground">
-              <kbd className="rounded border px-1 font-mono">Enter</kbd> new fact · <kbd className="rounded border px-1 font-mono">Shift+Enter</kbd> line break · paste a list to split it
-            </p>
           </Section>
 
           {/* 4. bullets */}
@@ -383,11 +417,15 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             id="bullets"
             n={4}
             title="CV lines"
-            description={`The polished sentences a CV may use, shown in ${LANGUAGE_NAMES[lang]}. Each one points to the facts that back it up.`}
+            description={`The polished sentences a CV may use, shown in ${LANGUAGE_NAMES[lang]}. Each one points to the facts behind it.`}
+            done={claimBullets.length > 0 && ungrounded.length === 0}
+            meta={claimBullets.length ? <Meta value={`${claimBullets.length - ungrounded.length}/${claimBullets.length}`} label="backed" warn={ungrounded.length > 0} /> : null}
             action={
-              <Button variant="outline" size="sm" onClick={addGroup}>
-                <PlusIcon /> Group
-              </Button>
+              groups.length ? (
+                <Button variant="ghost" size="sm" onClick={addGroup}>
+                  <PlusIcon /> Group
+                </Button>
+              ) : null
             }
           >
             <BulletSuggestions
@@ -395,115 +433,113 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                 kind: draft.kind,
                 role: draft.display.en.role || draft.display.fr.role || draft.title,
                 organization: draft.display.en.organization || draft.display.fr.organization,
-                facts: draft.facts.filter((fact) => fact.statement.trim()).map((fact) => ({ key: fact.key, statement: fact.statement })),
+                facts: facts.map((fact) => ({ key: fact.key, statement: fact.statement })),
                 existing: draft.bullets.map((bullet) => bullet.text).filter(Boolean),
                 languages: [...LANGS],
               }}
-              onAdd={(suggestion) =>
-                patch({ bullets: [...draft.bullets, { key: newKey(), group: groups[0] ?? "Suggested", role: "bullet", language: suggestion.language as Lang, text: suggestion.text, factKeys: suggestion.factKeys }] })
+              unused={unusedFacts.length}
+              factNumber={factNumber}
+              onAdd={(list) =>
+                patch({ bullets: [...draft.bullets, ...list.map((suggestion) => ({ key: newKey(), group: groups[0] ?? "General", role: "bullet" as const, language: suggestion.language as Lang, text: suggestion.text, factKeys: suggestion.factKeys }))] })
               }
             />
             {groups.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-8 text-center">
-                <p className="text-sm font-medium">No bullets yet</p>
-                <p className="max-w-sm text-xs text-muted-foreground">Group bullets by theme (e.g. “Cloud”, “Monitoring”) so a CV can pick the ones that match a job.</p>
-                <Button size="sm" onClick={addGroup}>
-                  <PlusIcon /> Add first bullets
-                </Button>
-              </div>
+              <EmptyState
+                title="No CV lines yet"
+                body="Draft them from your facts above, or write your own. Group them by theme (e.g. “Cloud”, “Monitoring”) so a CV can pick the ones that match a job."
+                action={
+                  <Button size="sm" variant="outline" onClick={addGroup}>
+                    <PlusIcon /> Write one myself
+                  </Button>
+                }
+              />
             ) : null}
-            {groups.map((group) => {
-              const rows = pairRows(draft.bullets.filter((bullet) => bullet.group === group))
-              return (
-                <div key={group} className="grid gap-3 rounded-lg border bg-muted/20 p-3">
-                  <div className="flex items-center gap-2">
-                    <Input defaultValue={group} onBlur={(event) => event.target.value.trim() && event.target.value !== group && renameGroup(group, event.target.value.trim())} className="h-8 max-w-64 border-transparent bg-transparent font-medium shadow-none hover:border-input focus-visible:border-ring" aria-label="Group name" />
-                    <span className="ml-auto text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{LANGUAGE_NAMES[lang]}</span>
-                  </div>
-                  <div key={lang} className="cb-fade grid gap-3">
-                    <PresenceList>
-                    {rows.map((row, index) => {
-                      const bullet = row[lang]
-                      const sibling = row[lang === "en" ? "fr" : "en"]
-                      return (
-                        <PresenceItem key={bullet?.key ?? sibling?.key ?? `missing-${index}`}>
-                        {bullet ? (
-                        <BulletCard
-                          bullet={bullet}
-                          facts={draft.facts}
-                          check={grounding[bullet.key]}
-                          highlighted={Boolean(hoverFact && bullet.factKeys.includes(hoverFact))}
-                          onChange={(value) => updateBullet(bullet.key, value)}
-                          onRemove={() => patch({ bullets: draft.bullets.filter((item) => item.key !== bullet.key) })}
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => patch({ bullets: [...draft.bullets, { key: newKey(), group, role: sibling?.role ?? "bullet", language: lang, text: "", factKeys: sibling?.factKeys ?? [] }] })}
-                          className="grid gap-1 rounded-lg border border-dashed p-3 text-left text-xs text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
-                        >
-                          <span className="flex items-center gap-1.5 font-medium"><PlusIcon className="size-3.5" /> Add the {LANGUAGE_NAMES[lang]} version</span>
-                          {sibling?.text ? <span className="line-clamp-2">{sibling.text}</span> : null}
-                        </button>
-                        )}
-                        </PresenceItem>
-                      )
-                    })}
-                    </PresenceList>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => patch({ bullets: [...draft.bullets, ...LANGS.map((language) => ({ key: newKey(), group, role: "bullet" as const, language, text: "", factKeys: [] }))] })}>
-                      <PlusIcon /> Add bullet
-                    </Button>
-                    {rows.length === 0 ? (
-                      <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => addBullet(group, "en")}>
-                        <PlusIcon /> English only
+            <PresenceList>
+              {groups.map((group) => {
+                const rows = pairRows(draft.bullets.filter((bullet) => bullet.group === group))
+                const addRow = () => {
+                  const created = LANGS.map((language) => ({ key: newKey(), group, role: "bullet" as const, language, text: "", factKeys: [] }))
+                  patch({ bullets: [...draft.bullets, ...created] })
+                  setFocusBullet(created.find((bullet) => bullet.language === lang)?.key ?? null)
+                }
+                return (
+                  <PresenceItem key={group} className="grid gap-1 rounded-xl border bg-muted/20 p-2 sm:p-3">
+                    <div className="flex items-center gap-2 ps-1">
+                      <Input
+                        defaultValue={group}
+                        onBlur={(event) => event.target.value.trim() && event.target.value !== group && renameGroup(group, event.target.value.trim())}
+                        onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+                        className="h-8 max-w-64 border-transparent bg-transparent px-2 font-medium shadow-none hover:border-input focus-visible:border-ring dark:bg-transparent"
+                        aria-label="Group name"
+                      />
+                      <span className="ms-auto text-xs text-muted-foreground tabular-nums">
+                        {rows.length} line{rows.length === 1 ? "" : "s"} · {LANGUAGE_NAMES[lang]}
+                      </span>
+                    </div>
+                    <div key={lang} className="cb-fade grid gap-1">
+                      <PresenceList>
+                        {rows.map((row, index) => {
+                          const bullet = row[lang]
+                          const sibling = row[lang === "en" ? "fr" : "en"]
+                          return (
+                            <PresenceItem key={bullet?.key ?? sibling?.key ?? `missing-${index}`}>
+                              {bullet ? (
+                                <BulletCard
+                                  bullet={bullet}
+                                  facts={draft.facts}
+                                  check={grounding[bullet.key]}
+                                  highlighted={Boolean(hoverFact && bullet.factKeys.includes(hoverFact))}
+                                  autoFocus={focusBullet === bullet.key}
+                                  onEnter={addRow}
+                                  onChange={(value) => updateBullet(bullet.key, value)}
+                                  onRemove={() => patch({ bullets: draft.bullets.filter((item) => item.key !== bullet.key) })}
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => patch({ bullets: [...draft.bullets, { key: newKey(), group, role: sibling?.role ?? "bullet", language: lang, text: "", factKeys: sibling?.factKeys ?? [] }] })}
+                                  className="grid w-full gap-1 rounded-lg border border-dashed p-3 text-left text-xs text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+                                >
+                                  <span className="flex items-center gap-1.5 font-medium"><PlusIcon className="size-3.5" /> Add the {LANGUAGE_NAMES[lang]} version</span>
+                                  {sibling?.text ? <span className="line-clamp-2">{sibling.text}</span> : null}
+                                </button>
+                              )}
+                            </PresenceItem>
+                          )
+                        })}
+                      </PresenceList>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={addRow}>
+                        <PlusIcon /> Add line
                       </Button>
-                    ) : null}
-                  </div>
-                </div>
-              )
-            })}
+                      {rows.length === 0 ? (
+                        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => addBullet(group, "en")}>
+                          <PlusIcon /> English only
+                        </Button>
+                      ) : null}
+                    </div>
+                  </PresenceItem>
+                )
+              })}
+            </PresenceList>
           </Section>
 
-          {/* 5. guardrails */}
-          <Section id="skills" n={5} title="Skills & keywords" description="Helps match this entry to the right jobs.">
-            <FieldGroup>
-              <UiField>
-                <FieldLabel>Skills used here</FieldLabel>
-                <ChipInput values={draft.skills} onChange={(skills) => patch({ skills })} placeholder="Type a skill, press Enter" />
-                <FieldDescription>Tools and abilities this entry proves, e.g. Terraform, triage, negotiation.</FieldDescription>
-              </UiField>
-              <UiField>
-                <FieldLabel>Keywords</FieldLabel>
-                <ChipInput values={draft.tags} onChange={(tags) => patch({ tags })} placeholder="Type a keyword, press Enter" />
-                <FieldDescription>Topics and fields it relates to, e.g. fintech, appsec. Used only for matching, never printed.</FieldDescription>
-              </UiField>
-              <UiField>
-                <FieldLabel>Proof</FieldLabel>
-                <StringLineList values={draft.evidence} onChange={(evidence) => patch({ evidence })} placeholder="https://… or the name of a document" addLabel="Add a link or document" />
-                <FieldDescription>Optional. Links or documents that back this up, for your own reference.</FieldDescription>
-              </UiField>
-            </FieldGroup>
+          {/* 5. skills */}
+          <Section
+            id="skills"
+            n={5}
+            title="Skills & keywords"
+            description="Helps match this entry to the right jobs."
+            done={draft.skills.length > 0}
+            action={<AskExtrasButton extras={extras} />}
+          >
+            <SkillFields draft={draft} patch={patch} extras={extras} />
           </Section>
 
-          <Section id="guardrails" n={6} title="Never say" description="Limits for CVs and letters about this entry.">
-            <FieldGroup>
-              <UiField>
-                <FieldLabel>Things not to claim</FieldLabel>
-                <StringLineList values={draft.doNotClaim} onChange={(doNotClaim) => patch({ doNotClaim })} placeholder="e.g. Don’t present this freelance work as a permanent job." addLabel="Add a rule" />
-              </UiField>
-              <FieldSeparator />
-              <UiField orientation="horizontal">
-                <FieldContent>
-                  <FieldLabel htmlFor="entry-nda" className="flex items-center gap-1.5">
-                    <LockIcon className="size-3.5" /> Under NDA
-                  </FieldLabel>
-                  <FieldDescription>Keep it high-level: no client names, internal systems or confidential numbers.</FieldDescription>
-                </FieldContent>
-                <Switch id="entry-nda" checked={draft.confidential} onCheckedChange={(value) => patch({ confidential: value })} />
-              </UiField>
-            </FieldGroup>
+          {/* 6. guardrails */}
+          <Section id="guardrails" n={6} title="Never say" description="Limits for CVs and letters about this entry." done={draft.doNotClaim.some((rule) => rule.trim()) || draft.confidential}>
+            <GuardrailFields draft={draft} patch={patch} extras={extras} />
           </Section>
         </div>
 
@@ -542,9 +578,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             <Button variant="outline" onClick={() => (setConfirmDelete(false), patch({ status: "archived" }))}>
               Archive instead
             </Button>
-            <AlertDialogAction variant="destructive" onClick={remove}>
-              Delete
-            </AlertDialogAction>
+            <UndoButton label="Delete" doneLabel="Deleted" icon={TrashIcon} className="h-8 text-destructive" resetAfter={null} disabled={pending} onCommit={remove} />
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -552,23 +586,63 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   )
 }
 
-function Section({ id, n, title, description, action, children }: { id: string; n: number; title: string; description: string; action?: React.ReactNode; children: React.ReactNode }) {
+function Section({ id, n, title, description, action, meta, done, children }: { id: string; n: number; title: string; description: string; action?: React.ReactNode; meta?: React.ReactNode; done?: boolean; children: React.ReactNode }) {
   return (
     <section id={id} className="scroll-mt-20">
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
-          <div className="flex gap-3">
-            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular-nums">{n}</span>
-            <div className="grid gap-1">
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-1 basis-72 gap-3">
+            <span
+              className={cn(
+                "mt-0.5 grid size-6 shrink-0 place-content-center rounded-full text-xs font-semibold tabular-nums transition-colors duration-300",
+                done ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-muted text-muted-foreground",
+              )}
+            >
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span key={done ? "done" : "n"} initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} transition={{ duration: 0.18, ease: EASE }}>
+                  {done ? <CheckIcon className="size-3.5" strokeWidth={3} /> : n}
+                </motion.span>
+              </AnimatePresence>
+            </span>
+            <div className="grid min-w-0 gap-1">
               <CardTitle>{title}</CardTitle>
-              <CardDescription>{description}</CardDescription>
+              <CardDescription className="text-pretty">{description}</CardDescription>
             </div>
           </div>
-          {action}
+          {meta || action ? (
+            <div className="ms-auto flex items-center gap-2">
+              {meta}
+              {action}
+            </div>
+          ) : null}
         </CardHeader>
         <CardContent className="grid gap-4">{children}</CardContent>
       </Card>
     </section>
+  )
+}
+
+/** A live count in a section header, e.g. "3/4 on CV lines". */
+function Meta({ value, label, warn }: { value: string; label: string; warn?: boolean }) {
+  return (
+    <span className={cn("inline-flex items-baseline gap-1 rounded-full px-2.5 py-1 text-xs", warn ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" : "bg-muted text-muted-foreground")}>
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span key={value} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.16, ease: EASE }} className="font-semibold text-foreground tabular-nums">
+          {value}
+        </motion.span>
+      </AnimatePresence>
+      {label}
+    </span>
+  )
+}
+
+function EmptyState({ title, body, action }: { title: string; body: string; action: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center">
+      <p className="text-sm font-medium">{title}</p>
+      <p className="max-w-md text-xs text-pretty text-muted-foreground">{body}</p>
+      <div className="mt-1">{action}</div>
+    </div>
   )
 }
 
@@ -586,6 +660,8 @@ function BulletCard({
   facts,
   check,
   highlighted,
+  autoFocus,
+  onEnter,
   onChange,
   onRemove,
 }: {
@@ -593,55 +669,86 @@ function BulletCard({
   facts: { key: string; statement: string }[]
   check?: ReturnType<typeof verifySupport>
   highlighted: boolean
+  autoFocus?: boolean
+  onEnter: () => void
   onChange: (value: Partial<DraftBullet>) => void
   onRemove: () => void
 }) {
-  const linked = facts.filter((fact) => bullet.factKeys.includes(fact.key))
+  const linked = facts.map((fact, index) => ({ ...fact, n: index + 1 })).filter((fact) => bullet.factKeys.includes(fact.key))
   const isLabel = bullet.role === "label"
   const empty = !bullet.text.trim()
+  const warn = !isLabel && !empty && !check?.grounded
+  const long = bullet.text.length > 220
   return (
     <div
       className={cn(
-        "group grid content-start gap-2 rounded-lg border bg-background p-2.5 transition-shadow",
-        highlighted && "ring-2 ring-primary/40",
-        !isLabel && !empty && !check?.grounded && "border-amber-300 dark:border-amber-700",
+        "group/bullet grid gap-1.5 rounded-lg border border-transparent bg-background p-1.5 pe-1 shadow-xs ring-1 ring-foreground/5 transition-[box-shadow,border-color] duration-200 focus-within:ring-foreground/15",
+        highlighted && "ring-2 ring-brand/50 focus-within:ring-brand/50",
+        warn && "border-amber-500/40",
       )}
     >
-      <div className="flex items-start gap-1.5">
-        <Badge variant="outline" className="mt-2 shrink-0 font-mono text-[11px] uppercase">
-          {bullet.language}
-        </Badge>
-        <GrowText value={bullet.text} onChange={(event) => onChange({ text: event.target.value })} placeholder={isLabel ? "Section label" : "Approved bullet wording…"} className="border-transparent shadow-none hover:border-input" />
-        <Button size="icon-sm" variant="ghost" className="mt-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" aria-label="Remove bullet" onClick={onRemove}>
+      <div className="flex items-start gap-1">
+        <span className="grid h-9 w-6 shrink-0 place-content-center" title={isLabel ? "Label: a heading, not a claim" : empty ? "Empty" : check?.grounded ? "Backed by its facts" : "Not backed by a fact yet"}>
+          {isLabel ? (
+            <span className="text-[10px] font-semibold text-muted-foreground">H</span>
+          ) : empty ? (
+            <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+          ) : check?.grounded ? (
+            <ShieldCheckIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <AlertTriangleIcon className="size-4 text-amber-500" />
+          )}
+        </span>
+        <GrowText
+          value={bullet.text}
+          autoFocus={autoFocus}
+          onChange={(event) => onChange({ text: event.target.value })}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+              event.preventDefault()
+              onEnter()
+            } else if (event.key === "Backspace" && !bullet.text && !bullet.factKeys.length) {
+              event.preventDefault()
+              onRemove()
+            }
+          }}
+          placeholder={isLabel ? "Section label" : "A polished CV line, e.g. Cut response time from 2 days to 4 hours by…"}
+          className={cn(QUIET, "px-2")}
+        />
+        <Button size="icon-sm" variant="ghost" className="mt-1 text-muted-foreground opacity-0 transition-opacity group-hover/bullet:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" aria-label="Remove line" onClick={onRemove}>
           <XIcon />
         </Button>
       </div>
-      {isLabel ? (
-        <p className="pl-1 text-xs text-muted-foreground">Label — a heading, not a claim.</p>
-      ) : (
-        <div className="grid gap-1.5 pl-1">
-          {linked.length ? (
-            <ul className="grid gap-1">
-              {linked.map((fact) => (
-                <li key={fact.key} className="flex items-start gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground">
-                  <CheckCircle2Icon className="mt-0.5 size-3 shrink-0 text-emerald-600" />
-                  <span className="min-w-0 flex-1">{fact.statement}</span>
-                  <button type="button" aria-label="Unlink fact" className="opacity-50 hover:opacity-100" onClick={() => onChange({ factKeys: bullet.factKeys.filter((key) => key !== fact.key) })}>
-                    <XIcon className="size-3" />
-                  </button>
-                </li>
-              ))}
-            </ul>
+      {isLabel ? null : (
+        <div className="flex flex-wrap items-center gap-1 ps-7">
+          <PresenceList>
+            {linked.map((fact) => (
+              <motion.span
+                key={fact.key}
+                layout="position"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.15, ease: EASE }}
+                title={fact.statement}
+                className="inline-flex h-6 max-w-full items-center gap-1 rounded-md bg-muted ps-1 pe-0.5 text-xs text-muted-foreground"
+              >
+                <span className="grid h-4 min-w-4 place-content-center rounded bg-background px-1 text-[10px] font-semibold text-foreground tabular-nums">{fact.n}</span>
+                <span className="max-w-56 truncate">{fact.statement}</span>
+                <button type="button" aria-label={`Unlink fact ${fact.n}`} className="grid size-5 place-content-center rounded-sm hover:bg-foreground/10 hover:text-foreground" onClick={() => onChange({ factKeys: bullet.factKeys.filter((key) => key !== fact.key) })}>
+                  <XIcon className="size-3" />
+                </button>
+              </motion.span>
+            ))}
+          </PresenceList>
+          <FactPicker facts={facts} selected={bullet.factKeys} onChange={(factKeys) => onChange({ factKeys })} />
+          {warn ? (
+            <span className="cb-fade inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
+              {check?.unsupportedNumbers.length ? `No fact states ${check.unsupportedNumbers.join(", ")}` : "Link the fact that proves this"}
+            </span>
+          ) : long ? (
+            <span className="cb-fade text-xs text-muted-foreground">Long for a CV line ({bullet.text.length} characters)</span>
           ) : null}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            {!empty && !check?.grounded ? (
-              <span className="inline-flex items-center gap-1 text-amber-600">
-                <AlertTriangleIcon className="size-3.5" />
-                {check?.unsupportedNumbers.length ? `No fact backs ${check.unsupportedNumbers.join(", ")}` : "Link a fact that proves this"}
-              </span>
-            ) : null}
-            <FactPicker facts={facts} selected={bullet.factKeys} onChange={(factKeys) => onChange({ factKeys })} />
-          </div>
         </div>
       )}
     </div>

@@ -2,13 +2,10 @@
 
 import Link from "next/link"
 import { useState, useTransition } from "react"
-import { ArrowDownToLineIcon, DatabaseIcon, FileTextIcon, Loader2Icon, PaletteIcon, SparklesIcon, TypeIcon } from "lucide-react"
+import { ArrowDownToLineIcon, ArrowRightIcon, DatabaseIcon, FileTextIcon, Loader2Icon, PaletteIcon, SparklesIcon, TypeIcon } from "lucide-react"
 import { toast } from "sonner"
 import { downloadFontsAction, saveDocumentPhotoDefaultAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
-import { DecisionSettings } from "./decision-settings"
-import { DictationSettings } from "@/components/settings/dictation-settings"
 import { SectionLayout, SectionNav, SettingsSection } from "@/components/section-nav"
-import { ModelSettings } from "./model-settings"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,7 +26,6 @@ const LANGS = [
 const FONT_NAMES: Record<string, string> = { SC: "Chinese (Simplified)", JP: "Japanese", KR: "Korean" }
 
 const sections = [
-  { id: "ai", title: "AI models", icon: SparklesIcon },
   { id: "documents", title: "Documents", icon: FileTextIcon },
   { id: "data", title: "Data & storage", icon: DatabaseIcon },
 ] as const
@@ -68,11 +64,14 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
 
   return (
     <SectionLayout nav={<SectionNav label="Settings sections" items={sections.map(({ id, title, icon: Icon }) => ({ id, label: title, icon: <Icon /> }))} />}>
-        <SettingsSection id="ai" title="AI models" description="AI features send relevant job text, verified profile facts, and available company research to the provider you choose.">
-            <ModelSettings initial={overview.llm} />
-            <DecisionSettings initial={overview.decisions} />
-            <DictationSettings />
-        </SettingsSection>
+        <Link href="/integrations#ai" className="group flex items-center gap-3 rounded-xl border bg-muted/20 p-4 transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring">
+          <SparklesIcon className="size-5 shrink-0 text-brand" />
+          <span className="grid min-w-0 flex-1 gap-0.5">
+            <span className="text-sm font-medium">AI models, decision model and dictation</span>
+            <span className="text-xs text-muted-foreground">They now live in Integrations, next to your other connections.</span>
+          </span>
+          <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        </Link>
 
         <SettingsSection id="documents" title="Documents" description="Defaults for new CVs and letters, and fonts for other writing systems.">
             <Card>

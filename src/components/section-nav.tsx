@@ -26,7 +26,7 @@ export function SectionNav({ items, label }: { items: SectionNavItem[]; label: s
   }, [items])
 
   return (
-    <nav aria-label={label} className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 @4xl/workspace:sticky @4xl/workspace:top-4 @4xl/workspace:mx-0 @4xl/workspace:grid @4xl/workspace:overflow-visible @4xl/workspace:px-0 @4xl/workspace:pb-0">
+    <nav aria-label={label} className="relative -mx-1 flex gap-1 overflow-x-auto px-1 pb-1 @4xl/workspace:sticky @4xl/workspace:top-4 @4xl/workspace:mx-0 @4xl/workspace:grid @4xl/workspace:overflow-visible @4xl/workspace:px-0 @4xl/workspace:pb-0">
       {items.map((item) => {
         const current = item.id === active
         return (

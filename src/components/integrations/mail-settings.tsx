@@ -1,10 +1,11 @@
 "use client"
 
+import UndoButton from "@/components/kokonutui/undo-button"
 import { useState, useTransition } from "react"
 import { CheckCircle2Icon, ChevronDownIcon, CircleAlertIcon, KeyRoundIcon, Loader2Icon, MailIcon, PlugZapIcon, RefreshCwIcon, ServerIcon, ShieldCheckIcon, UnplugIcon } from "lucide-react"
 import { toast } from "sonner"
 import { disconnectMailAction, saveMailAction, saveResendAction, startResendOAuthAction, syncMailAction, testMailAction } from "@/app/(app)/integrations/actions"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -138,9 +139,14 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  variant="destructive"
-                  onClick={() =>
+                <UndoButton
+                  label="Disconnect"
+                  doneLabel="Disconnected"
+                  icon={UnplugIcon}
+                  className="h-8 text-destructive"
+                  resetAfter={null}
+                  disabled={disconnecting}
+                  onCommit={() =>
                     startDisconnect(async () => {
                       const result = await disconnectMailAction()
                       if (!result.ok) toast.error(result.message)
@@ -151,9 +157,7 @@ export function MailSettings({ overview, reply, oauth, origin }: { overview: Mai
                       }
                     })
                   }
-                >
-                  Disconnect
-                </AlertDialogAction>
+                />
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

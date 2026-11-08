@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRightIcon, CalendarClockIcon, CheckIcon, ExternalLinkIcon, FileTextIcon, HourglassIcon, MessagesSquareIcon, PartyPopperIcon, ScanSearchIcon, SendIcon, ArchiveIcon, type LucideIcon } from "lucide-react"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
+import { MoveStatusButton } from "@/components/tracking/status-control"
 import { Button } from "@/components/ui/button"
 import type { Status } from "@/lib/stages"
 import { cn } from "@/lib/utils"
@@ -20,7 +21,10 @@ const STEP_OF: Record<Status, number> = { draft: 0, parsed: 0, analyzed: 1, gene
  * Where this application is, as six steps, and the one thing to do next.
  * Shown under the title so the next action is never hidden in a tab.
  */
-export function ApplicationProgress({ applicationId, jobId, status: saved, language, spontaneous, sourceUrl, cvDraft = false, nextStep = "", nextStepDue = null }: {
+export function ApplicationProgress({ applicationId, jobId, status: saved, language, spontaneous, sourceUrl, cvDraft = false, nextStep = "", nextStepDue = null, company = "", title = "" }: {
+  /** For the status toast when a step is ticked off from here. */
+  company?: string
+  title?: string
   applicationId: string
   jobId: string
   status: Status
@@ -49,9 +53,9 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
       : status === "analyzed"
         ? { title: "Make your CV for this job", body: "Built from the analysis: your best-matching entries first, nothing you can’t back up.", action: <Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> Create CV</Button> }
         : status === "generated"
-          ? { title: "Review your CV", body: "Check the draft, then mark it ready.", action: <Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> Open CV</Button> }
+          ? { title: "Review your CV", body: "Check the draft, then mark it ready.", action: <><Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> Open CV</Button><MoveStatusButton id={applicationId} to="ready" company={company} title={title} variant="outline"><CheckIcon /> Mark ready</MoveStatusButton></> }
           : status === "ready"
-            ? { title: "Send your application", body: "Apply on the posting, then set the status to Sent so Naruvi can remind you to follow up.", action: sourceUrl ? <Button nativeButton={false} render={<a href={sourceUrl} target="_blank" rel="noreferrer" />}><SendIcon /> Apply on the posting <ExternalLinkIcon /></Button> : null }
+            ? { title: "Send your application", body: "Apply on the posting, then mark it sent so Naruvi can remind you to follow up.", action: <>{sourceUrl ? <Button variant="outline" nativeButton={false} render={<a href={sourceUrl} target="_blank" rel="noreferrer" />}>Apply on the posting <ExternalLinkIcon /></Button> : null}<MoveStatusButton id={applicationId} to="submitted" company={company} title={title}><SendIcon /> Mark as sent</MoveStatusButton></> }
             : null
 
   // After sending there's no document to make: say what's going on, and surface your own next step if you set one.
@@ -68,59 +72,62 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
           ? own ?? { title: "You have an offer", body: "Take your time. Ask Naruvi to compare it with your other applications before you decide.", action: null, icon: PartyPopperIcon, tone: "good" }
           : null
 
+  const panel = next
+    ? { ...next, icon: status === "draft" || status === "parsed" ? ScanSearchIcon : status === "ready" ? SendIcon : FileTextIcon, tone: undefined, kicker: "Next" }
+    : later
+      ? { ...later, kicker: closed ? null : own && later === own ? "Your next step" : "Now" }
+      : null
+  // The track runs from the first node's centre to the last; the fill reaches the current step.
+  const fill = closed ? 0 : (index / (steps.length - 1)) * 100
+
   return (
-    <div className={cn("grid content-between gap-3 rounded-xl border p-3 sm:p-4", next && current <= 0 && "border-brand/30 bg-brand-soft/50")}>
-      <ol className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none]" aria-label="Progress">
-        {steps.map((step, position) => {
-          const done = !closed && position < index
-          const here = !closed && position === index
-          return (
-            <li key={step.id} className="flex shrink-0 items-center gap-1" aria-current={here ? "step" : undefined}>
-              <span
-                className={cn(
-                  "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs whitespace-nowrap transition-colors",
-                  done && "text-muted-foreground",
-                  here && "bg-brand font-medium text-brand-foreground",
-                  !done && !here && "text-muted-foreground/60",
-                )}
-              >
-                <span className={cn("grid size-4 place-content-center rounded-full text-[10px] tabular-nums", done ? "bg-emerald-500 text-white" : here ? "bg-brand-foreground/20" : "border")}>
-                  {done ? <CheckIcon className="size-2.5" strokeWidth={3} /> : position + 1}
+    <div className={cn("flex flex-col justify-center gap-4 rounded-xl border bg-card p-3 sm:p-4", next && current <= 0 && "border-brand/30 bg-brand-soft/50")}>
+      <div>
+        <p className="mb-3 flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Progress</span>
+          <span className="tabular-nums">{closed ? (status === "rejected" ? "Closed: not selected" : "Closed: withdrawn") : `Step ${index + 1} of ${steps.length}`}</span>
+        </p>
+        <ol className="relative grid" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label="Application progress">
+          <span aria-hidden className="absolute top-3 h-0.5 -translate-y-1/2 rounded-full bg-border" style={{ insetInline: `calc(100% / ${steps.length * 2})` }}>
+            <span className="block h-full rounded-full bg-emerald-500 transition-[width] duration-700 ease-out motion-reduce:transition-none" style={{ width: `${fill}%` }} />
+          </span>
+          {steps.map((step, position) => {
+            const done = !closed && position < index
+            const here = !closed && position === index
+            return (
+              <li key={step.id} className="relative flex min-w-0 flex-col items-center gap-1.5 text-center" aria-current={here ? "step" : undefined}>
+                <span
+                  className={cn(
+                    "relative grid size-6 place-content-center rounded-full text-[11px] font-medium tabular-nums transition-[background-color,box-shadow,color] duration-300 motion-reduce:transition-none",
+                    done && "bg-emerald-500 text-white",
+                    here && "bg-brand text-brand-foreground ring-4 ring-brand/20",
+                    !done && !here && "border bg-card text-muted-foreground",
+                  )}
+                >
+                  {here ? <span aria-hidden className="absolute inset-0 rounded-full bg-brand/40 motion-safe:animate-ping motion-safe:[animation-duration:2.4s]" /> : null}
+                  <span aria-hidden className="relative">{done ? <CheckIcon className="size-3.5" strokeWidth={3} /> : position + 1}</span>
                 </span>
-                {/* On phones only the current step keeps its label; the rest are numbers/ticks. */}
-                <span className={cn(!here && "max-sm:sr-only")}>{step.label}</span>
-              </span>
-              {position < steps.length - 1 ? <span className={cn("h-px w-4 shrink-0 sm:w-6", done ? "bg-emerald-500/60" : "bg-border")} aria-hidden /> : null}
-            </li>
-          )
-        })}
-        {closed ? <li className="ms-2 text-xs text-muted-foreground">{status === "rejected" ? "Closed: not selected" : "Closed: withdrawn"}</li> : null}
-      </ol>
-      {next ? (
-        <div className="flex flex-wrap items-center gap-3 border-t pt-3">
-          <span className="grid size-9 shrink-0 place-content-center rounded-lg bg-brand/10 text-brand">
-            {status === "draft" || status === "parsed" ? <ScanSearchIcon className="size-4.5" /> : status === "ready" ? <SendIcon className="size-4.5" /> : <FileTextIcon className="size-4.5" />}
+                <span className={cn("text-[11px] leading-tight text-balance sm:text-xs", here ? "font-medium text-foreground" : done ? "text-foreground/70" : "text-muted-foreground")}>
+                  {step.label}
+                  <span className="sr-only">{done ? " (done)" : here ? " (current)" : ""}</span>
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      </div>
+      {panel ? (
+        <div key={status} className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 p-3 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-300">
+          <span className={cn("grid size-9 shrink-0 place-content-center rounded-lg", panel.tone === "warn" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : panel.tone === "good" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : closed ? "bg-muted text-muted-foreground" : "bg-brand/10 text-brand")}>
+            <panel.icon className="size-4.5" />
           </span>
-          <div className="grid min-w-0 flex-1 basis-60 gap-0.5">
-            <p className="flex items-center gap-1.5 text-sm font-medium">
-              <span className="text-xs font-normal text-muted-foreground">Next</span> <ArrowRightIcon className="size-3 text-muted-foreground" /> {next.title}
-            </p>
-            <p className="text-xs text-muted-foreground">{next.body}</p>
-          </div>
-          {next.action}
-        </div>
-      ) : later ? (
-        <div className="flex flex-wrap items-center gap-3 border-t pt-3">
-          <span className={cn("grid size-9 shrink-0 place-content-center rounded-lg", later.tone === "warn" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : later.tone === "good" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : closed ? "bg-muted text-muted-foreground" : "bg-brand/10 text-brand")}>
-            <later.icon className="size-4.5" />
-          </span>
-          <div className="grid min-w-0 flex-1 basis-60 gap-0.5">
+          <div className="grid min-w-0 flex-1 basis-56 gap-0.5">
             <p className="flex items-center gap-1.5 text-sm font-medium [overflow-wrap:anywhere]">
-              {closed ? null : <><span className="text-xs font-normal text-muted-foreground">{own && later === own ? "Your next step" : "Now"}</span> <ArrowRightIcon className="size-3 shrink-0 text-muted-foreground" /></>} {later.title}
+              {panel.kicker ? <><span className="text-xs font-normal text-muted-foreground">{panel.kicker}</span> <ArrowRightIcon className="size-3 shrink-0 text-muted-foreground" /></> : null} {panel.title}
             </p>
-            <p className="text-xs text-pretty text-muted-foreground">{later.body}</p>
+            <p className="text-xs text-pretty text-muted-foreground">{panel.body}</p>
           </div>
-          {later.action}
+          {panel.action ? <div className="flex flex-wrap gap-2">{panel.action}</div> : null}
         </div>
       ) : null}
     </div>

@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-type PdfJs = typeof import("pdfjs-dist")
+type PdfJs = typeof import("pdfjs-dist/legacy/build/pdf.mjs")
 let pdfjsPromise: Promise<PdfJs> | null = null
 
 /** Load pdf.js once, in the browser only, with its worker. */
 export function loadPdfJs() {
-  pdfjsPromise ??= import("pdfjs-dist").then((pdfjs) => {
-    pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString()
+  pdfjsPromise ??= import("pdfjs-dist/legacy/build/pdf.mjs").then((pdfjs) => {
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.min.mjs", import.meta.url).toString()
     return pdfjs
   }).catch((error) => {
     pdfjsPromise = null
@@ -21,13 +21,21 @@ export function loadPdfJs() {
   return pdfjsPromise
 }
 
+/** Open in-memory PDF bytes in a new tab; the link is freed once the tab has had time to load it. */
+function openBytes(data?: ArrayBuffer) {
+  if (!data) return
+  const link = URL.createObjectURL(new Blob([data], { type: "application/pdf" }))
+  window.open(link, "_blank", "noopener")
+  setTimeout(() => URL.revokeObjectURL(link), 60_000)
+}
+
 const ZOOMS = [0.5, 0.65, 0.8, 1, 1.25, 1.5]
 
 /**
  * In-app PDF reader: white pages on a soft desk, same look in every browser.
  * Renders each page to a canvas at device pixel ratio for crisp text.
  */
-export function PdfPreview({ url, pageBudget, className, busy = false, onRetry }: { url: string; pageBudget?: number; className?: string; busy?: boolean; onRetry?: () => void }) {
+export function PdfPreview({ url, data, pageBudget, className, busy = false, onRetry }: { url?: string; data?: ArrayBuffer; pageBudget?: number; className?: string; busy?: boolean; onRetry?: () => void }) {
   const viewport = useRef<HTMLDivElement>(null)
   const pagesRef = useRef<HTMLDivElement>(null)
   const [pageCount, setPageCount] = useState(0)
@@ -49,14 +57,23 @@ export function PdfPreview({ url, pageBudget, className, busy = false, onRetry }
     if (!width || !pagesRef.current) return
     let cancelled = false
     let loading: ReturnType<PdfJs["getDocument"]> | undefined
-    let task: ReturnType<import("pdfjs-dist").PDFPageProxy["render"]> | undefined
+    let task: ReturnType<import("pdfjs-dist/legacy/build/pdf.mjs").PDFPageProxy["render"]> | undefined
     const container = pagesRef.current
     ;(async () => {
       try {
         setState((value) => (value === "ready" ? value : "loading"))
         const pdfjs = await loadPdfJs()
         if (cancelled) return
-        loading = pdfjs.getDocument({ url })
+        // pdf.js gets bytes, never a URL: its loader can't read blob: URLs in every browser.
+        let bytes: Uint8Array
+        if (data) bytes = new Uint8Array(data.slice(0)) // pdf.js takes ownership of what it's given.
+        else {
+          const response = await fetch(url!)
+          if (!response.ok) throw new Error(`PDF request failed (${response.status})`)
+          bytes = new Uint8Array(await response.arrayBuffer())
+        }
+        if (cancelled) return
+        loading = pdfjs.getDocument({ data: bytes })
         const pdf = await loading.promise
         if (cancelled) return
         const canvases: HTMLCanvasElement[] = []
@@ -86,8 +103,11 @@ export function PdfPreview({ url, pageBudget, className, busy = false, onRetry }
         setPageCount(pdf.numPages)
         setCurrent((page) => Math.min(page, pdf.numPages))
         setState("ready")
-      } catch {
-        if (!cancelled) setState("error")
+      } catch (error) {
+        if (!cancelled) {
+          console.error("PDF preview failed", error)
+          setState("error")
+        }
       } finally {
         const finished = loading
         loading = undefined
@@ -100,7 +120,7 @@ export function PdfPreview({ url, pageBudget, className, busy = false, onRetry }
       void loading?.destroy().catch(() => {})
       loading = undefined
     }
-  }, [url, width, zoom])
+  }, [url, data, width, zoom])
 
   // Current page from scroll position.
   const onScroll = useCallback(() => {
@@ -151,7 +171,7 @@ export function PdfPreview({ url, pageBudget, className, busy = false, onRetry }
             <TooltipContent>Fit width</TooltipContent>
           </Tooltip>
           <Tooltip>
-            <TooltipTrigger render={<Button size="icon-sm" variant="ghost" aria-label="Open in new tab" nativeButton={false} render={<a href={url} target="_blank" rel="noreferrer" />} />}>
+            <TooltipTrigger render={<Button size="icon-sm" variant="ghost" aria-label="Open in new tab" {...(url ? { nativeButton: false, render: <a href={url} target="_blank" rel="noreferrer" /> } : { onClick: () => openBytes(data) })} />}>
               <ExternalLinkIcon />
             </TooltipTrigger>
             <TooltipContent>Open the PDF in a new tab</TooltipContent>

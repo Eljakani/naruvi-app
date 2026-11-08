@@ -4,7 +4,7 @@
  * Local Whisper: speech to text on this device. The choice lives in this browser
  * (the model is downloaded and cached per browser), not on the server.
  */
-export type DictationEngine = "browser" | "whisper"
+export type DictationEngine = "browser" | "whisper" | "cloud"
 export type WhisperModel = "tiny" | "base" | "small" | "custom"
 
 /** Built-in choices are all multilingual Whisper (so French, Arabic… work). "custom" is any transformers.js ASR model on Hugging Face. */
@@ -47,7 +47,7 @@ export function dictationPrefs(): Prefs {
     const model = raw?.model === "base" || raw?.model === "small" || raw?.model === "custom" ? raw.model : "tiny"
     const customModel = typeof raw?.customModel === "string" && validModelId(raw.customModel) ? raw.customModel : ""
     cached = {
-      engine: raw?.engine === "whisper" ? "whisper" : "browser",
+      engine: raw?.engine === "whisper" || raw?.engine === "cloud" ? raw.engine : "browser",
       model: model === "custom" && !customModel ? "tiny" : model,
       customModel,
       language: DICTATION_LANGUAGES.some((item) => item.value === raw?.language) ? raw!.language! : "auto",
@@ -148,4 +148,25 @@ export async function transcribe(blob: Blob, model: string, language: DictationL
   if (audio.length < 16_000 * 0.4) return "" // under ~0.4 s: nothing worth sending
   const whisper = DICTATION_LANGUAGES.find((item) => item.value === language)?.whisper
   return send({ type: "transcribe", model, audio, language: whisper }, progress)
+}
+
+/** 16 kHz mono 16-bit WAV: what every cloud provider accepts, whatever the browser recorded. */
+function wav(pcm: Float32Array) {
+  const out = new DataView(new ArrayBuffer(44 + pcm.length * 2))
+  const text = (offset: number, value: string) => [...value].forEach((char, i) => out.setUint8(offset + i, char.charCodeAt(0)))
+  text(0, "RIFF"); out.setUint32(4, 36 + pcm.length * 2, true); text(8, "WAVE"); text(12, "fmt ")
+  out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true); out.setUint32(24, 16_000, true)
+  out.setUint32(28, 32_000, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true); text(36, "data"); out.setUint32(40, pcm.length * 2, true)
+  for (let i = 0; i < pcm.length; i += 1) out.setInt16(44 + i * 2, Math.max(-1, Math.min(1, pcm[i])) * 0x7fff, true)
+  return new Blob([out.buffer], { type: "audio/wav" })
+}
+
+/** Sends the clip to Naruvi's server, which forwards it to the speech provider you connected. */
+export async function transcribeCloud(blob: Blob, language: DictationLanguage) {
+  const pcm = await toPcm(blob)
+  if (pcm.length < 16_000 * 0.4) return ""
+  const res = await fetch(`/api/dictation?language=${encodeURIComponent(language)}`, { method: "POST", headers: { "content-type": "audio/wav" }, body: wav(pcm) })
+  const data = await res.json().catch(() => ({})) as { text?: string; error?: string }
+  if (!res.ok) throw new Error(data.error || "Transcription failed. Try again.")
+  return data.text ?? ""
 }

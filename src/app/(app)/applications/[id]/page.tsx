@@ -102,7 +102,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
       ) : null}
       {/* 3. Where you are: progress and next step beside your documents. */}
       <section aria-label="Progress and documents" className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <ApplicationProgress applicationId={application.id} jobId={job.id} status={application.status} language={application.language} spontaneous={job.board === "spontaneous"} sourceUrl={job.sourceUrl} cvDraft={drafts.some((doc) => doc.kind === "cv" && Boolean(doc.current))} nextStep={application.nextStep} nextStepDue={application.nextStepDue} />
+        <ApplicationProgress applicationId={application.id} jobId={job.id} status={application.status} language={application.language} spontaneous={job.board === "spontaneous"} sourceUrl={job.sourceUrl} cvDraft={drafts.some((doc) => doc.kind === "cv" && Boolean(doc.current))} nextStep={application.nextStep} nextStepDue={application.nextStepDue} company={job.company?.name ?? ""} title={job.title} />
         <ApplicationDocuments
           applicationId={application.id}
           language={application.language}
@@ -121,7 +121,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
           ) : null}
           <aside className={mail.length ? "grid content-start gap-4 lg:sticky lg:top-4" : "grid gap-4 sm:grid-cols-2 lg:col-span-2"}>
             {people.length ? <ApplicationPeople applicationId={application.id} people={people} options={contactOptions.map((contact) => ({ id: contact.id, name: contact.name, title: contact.title, company: contact.company }))} /> : null}
-            <ApplicationJourney createdAt={application.createdAt} events={events} />
+            <ApplicationJourney createdAt={application.createdAt} events={events} mail={mail} drafts={drafts} />
           </aside>
         </div>
       ) : null}
@@ -151,10 +151,10 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
             <p>Draft the CV and the letter, then send them by email to the person linked here, or note that you reached out on LinkedIn by moving the application to Sent.</p>
           </CardContent>
         </Card>
-      ) : application.analysis ? <AnalysisView offGoal={fit?.verdict === "blocked"} analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} footer={!mail.length && !people.length ? <ApplicationJourney createdAt={application.createdAt} events={events} layout="horizontal" /> : undefined} /> : null
+      ) : application.analysis ? <AnalysisView offGoal={fit?.verdict === "blocked"} analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} footer={!mail.length && !people.length ? <ApplicationJourney createdAt={application.createdAt} events={events} mail={mail} drafts={drafts} /> : undefined} /> : null
       )}
       {/* With a fit check, Journey sits inside it (left column); otherwise it closes the page. */}
-      {!mail.length && !people.length && !(application.analysis && tab === "analysis" && job.board !== "spontaneous") ? <ApplicationJourney createdAt={application.createdAt} events={events} className="max-w-md" /> : null}
+      {!mail.length && !people.length && !(application.analysis && tab === "analysis" && job.board !== "spontaneous") ? <ApplicationJourney createdAt={application.createdAt} events={events} mail={mail} drafts={drafts} className="max-w-md" /> : null}
     </div>
   )
 }

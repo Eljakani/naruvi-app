@@ -138,12 +138,24 @@ function ContactRow({ contact, finder, onEdit, onSpontaneous }: { contact: Conta
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant="destructive"
-            onClick={() =>
-              startTransition(async () => {
-                const result = await deleteContactAction(contact.id)
-                if (result.ok) toast(`${contact.name} deleted`)
+            onClick={() => {
+              // Deleting can't be reversed, so it waits out an undo window first.
+              let settled = false
+              const commit = () => {
+                if (settled) return
+                settled = true
+                startTransition(async () => {
+                  const result = await deleteContactAction(contact.id)
+                  if (!result.ok) toast.error(`Couldn’t delete ${contact.name}`)
+                })
+              }
+              toast(`${contact.name} will be deleted`, {
+                duration: 5000,
+                action: { label: "Undo", onClick: () => { settled = true } },
+                onAutoClose: commit,
+                onDismiss: commit,
               })
-            }
+            }}
           >
             <TrashIcon /> Delete
           </DropdownMenuItem>

@@ -1,5 +1,6 @@
 "use client"
 
+import UndoButton from "@/components/kokonutui/undo-button"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { startTransition, useEffect, useId, useRef, useState, useTransition } from "react"
@@ -100,7 +101,7 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
   const [saved, setSaved] = useState(baseline)
   const [draftReady, setDraftReady] = useState(false)
   const [prompt, setPrompt] = useState("")
-  const [preview, setPreview] = useState<{ url: string; pages: number; key: string; attempt: number }>()
+  const [preview, setPreview] = useState<{ data: ArrayBuffer; pages: number; key: string; attempt: number }>()
   const [previewError, setPreviewError] = useState<{ key: string; attempt: number }>()
   const [attempt, setAttempt] = useState(0)
   const [fitGoal, setFitGoal] = useState(false)
@@ -123,7 +124,6 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
   const promptLabel = useId()
   const fontLabel = useId()
   const headingFontLabel = useId()
-  const previous = useRef<string | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const active = useRef(false)
   const glow = (...keys: (keyof DesignTokens)[]) => keys.some((key) => flash.has(key))
@@ -176,8 +176,6 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
     active.current = true
     return () => {
       active.current = false
-      if (previous.current) URL.revokeObjectURL(previous.current)
-      previous.current = null
       clearTimeout(flashTimer.current)
     }
   }, [])
@@ -190,12 +188,8 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
     const timer = setTimeout(async () => {
       try {
         const { data, pages } = await fetchTemplatePreview(JSON.stringify({ tokens, kind: previewKind }), controller.signal)
-        const blob = new Blob([data], { type: "application/pdf" })
         if (cancelled) return
-        const url = URL.createObjectURL(blob)
-        if (previous.current) URL.revokeObjectURL(previous.current)
-        previous.current = url
-        setPreview({ url, key: tokenKey, pages, attempt })
+        setPreview({ data, key: tokenKey, pages, attempt })
         setPreviewError(undefined)
       } catch {
         if (!cancelled) setPreviewError({ key: tokenKey, attempt })
@@ -679,7 +673,7 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
             <p>{preview ? "Couldn’t update the preview. Showing the previous design." : "Couldn’t render the preview."}</p>
             <Button size="sm" variant="outline" onClick={() => setAttempt((value) => value + 1)}>Retry preview</Button>
           </div> : null}
-          {preview?.key.startsWith(`${previewVersion}:`) ? <PdfPreview url={preview.url} busy={rendering} onRetry={failed || rendering ? undefined : () => setAttempt((value) => value + 1)} className="flex-1" /> : !failed ? <div className="flex-1 animate-pulse rounded-xl bg-muted" /> : null}
+          {preview?.key.startsWith(`${previewVersion}:`) ? <PdfPreview data={preview.data} busy={rendering} onRetry={failed || rendering ? undefined : () => setAttempt((value) => value + 1)} className="flex-1" /> : !failed ? <div className="flex-1 animate-pulse rounded-xl bg-muted" /> : null}
         </div>
       </div>
       <AlertDialog open={confirmation !== null} onOpenChange={(open) => { if (!open && !saving) setConfirmation(null) }}>
@@ -690,7 +684,7 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={saving} variant={confirmation === "delete" ? "destructive" : "default"} onClick={() => confirmation === "delete" ? remove() : confirmation && restore(confirmation)}>{confirmation === "delete" ? "Delete template" : "Restore version"}</AlertDialogAction>
+            {confirmation === "delete" ? <UndoButton label="Delete template" doneLabel="Deleted" icon={Trash2Icon} className="h-8 text-destructive" resetAfter={null} disabled={saving} onCommit={remove} /> : <AlertDialogAction disabled={saving} onClick={() => confirmation && restore(confirmation)}>Restore version</AlertDialogAction>}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

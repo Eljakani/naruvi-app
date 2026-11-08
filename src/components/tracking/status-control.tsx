@@ -42,3 +42,24 @@ export function StatusControl({ id, status, company = "", title = "" }: { id: st
     </DropdownMenu>
   )
 }
+
+/** One-click status move for the "next step" panel, e.g. "Mark as sent". */
+export function MoveStatusButton({ id, to, company = "", title = "", variant = "default", children }: { id: string; to: Status; company?: string; title?: string; variant?: "default" | "outline"; children: React.ReactNode }) {
+  const [pending, startTransition] = useTransition()
+  return (
+    <Button
+      variant={variant}
+      disabled={pending}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await moveApplicationAction(id, to)
+          if (!result.ok) toast.error(result.message ?? "Couldn’t update the status")
+          else announceStatus(to, company, title)
+        })
+      }
+    >
+      {pending ? <Loader2Icon className="animate-spin" /> : null}
+      {children}
+    </Button>
+  )
+}

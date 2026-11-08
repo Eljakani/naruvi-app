@@ -33,6 +33,6 @@ export function decryptSecret(encrypted: string, key: string, context: string): 
     decipher.setAuthTag(authTag)
     return Buffer.concat([decipher.update(Buffer.from(payload, "base64url")), decipher.final()]).toString("utf8")
   } catch {
-    throw new SettingsError("The saved API key could not be decrypted. Restore the original SETTINGS_ENCRYPTION_KEY or replace the API key in Settings.")
+    throw new SettingsError("The saved API key could not be decrypted. Restore the original SETTINGS_ENCRYPTION_KEY or replace the API key in Integrations.")
   }
 }

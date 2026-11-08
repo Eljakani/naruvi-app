@@ -20,6 +20,7 @@ const logos = {
   together: "together-color", fireworks: "fireworks-color", cerebras: "cerebras-color",
   deepinfra: "deepinfra-color", openrouter: "openrouter-color", vercel: "vercel",
   bedrock: "bedrock-color", huggingface: "huggingface-color", nvidia: "nvidia-color",
+  perplexity: "perplexity-color", cohere: "cohere-color", qwen: "qwen-color", moonshot: "moonshot", zhipu: "zhipu-color", minimax: "minimax-color",
   ollama: "ollama", lmstudio: "lmstudio", vllm: "vllm-color",
 } satisfies Record<(typeof AI_PROVIDERS)[number]["id"], string>
 

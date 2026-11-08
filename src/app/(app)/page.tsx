@@ -8,6 +8,7 @@ import { FitRing } from "@/components/applications/fit-ring"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { NeedsAttention } from "@/components/tracking/needs-attention"
 import { DashboardCalendar } from "@/components/tracking/dashboard-calendar"
+import { OutcomeFunnel } from "@/components/tracking/outcome-funnel"
 import { AddJobDialog } from "@/components/jobs/job-reader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -301,6 +302,7 @@ async function DashboardData() {
               </ul>
             </CardContent>
           </Card>
+          {data.funnel[0].count ? <OutcomeFunnel stages={data.funnel} /> : null}
         </div>
 
         <div className="grid min-w-0 content-start gap-4">

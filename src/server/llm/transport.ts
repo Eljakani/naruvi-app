@@ -10,7 +10,7 @@ export type Completion = { text: string; inputTokens: number | null; outputToken
 
 /** Shared AI SDK runtime; credentials stay server-side and errors never expose provider payloads. */
 export async function requestCompletion(config: ModelConfiguration, input: CompletionInput, { timeoutMs = 90_000, jsonMode = true, fetcher = fetch }: { timeoutMs?: number; jsonMode?: boolean; fetcher?: typeof fetch } = {}): Promise<Completion> {
-  if (!config.configured) throw new SettingsError("No language model configured. Add an API key in Settings.")
+  if (!config.configured) throw new SettingsError("No language model configured. Add an API key in Integrations.")
   let attempts = 0
   let metrics: AiRequestMetrics = { model: config.model, inputTokens: null, outputTokens: null, attempts: 0 }
   const deepseek = new URL(config.baseUrl).hostname === "api.deepseek.com"
@@ -62,9 +62,9 @@ export async function requestCompletion(config: ModelConfiguration, input: Compl
     }
     metrics = { model: config.model, inputTokens: usedIn || null, outputTokens: usedOut || null, attempts, finishReason: result.finishReason }
     if (result.finishReason === "length") throw new SettingsError("The AI response reached its output limit before completing the document. Try again or use a model with a larger output budget.")
-    if (parsed && !parsed.success) throw new SettingsError("The model returned JSON that did not match this workflow's schema. The standard draft was kept; try again or check the model in Settings.")
+    if (parsed && !parsed.success) throw new SettingsError("The model returned JSON that did not match this workflow's schema. The standard draft was kept; try again or check the model in Integrations.")
     const text = jsonMode ? JSON.stringify(parsed?.success ? parsed.data : result.output) : result.text
-    if (!text) throw new SettingsError("The model returned no usable output. Check the model in Settings.")
+    if (!text) throw new SettingsError("The model returned no usable output. Check the model in Integrations.")
     return {
       text, model: config.model,
       inputTokens: usedIn || null, outputTokens: usedOut || null,
@@ -74,9 +74,9 @@ export async function requestCompletion(config: ModelConfiguration, input: Compl
     if (NoObjectGeneratedError.isInstance(error)) metrics = { model: config.model, inputTokens: error.usage?.inputTokens ?? null, outputTokens: error.usage?.outputTokens ?? null, attempts, finishReason: error.finishReason }
     else metrics.attempts = attempts
     if (error instanceof SettingsError) throw new AiRequestError(error.message, metrics)
-    if (APICallError.isInstance(error) && error.statusCode) throw new AiRequestError(`The model endpoint returned HTTP ${error.statusCode}. Check the endpoint, model and API key in Settings.`, metrics)
+    if (APICallError.isInstance(error) && error.statusCode) throw new AiRequestError(`The model endpoint returned HTTP ${error.statusCode}. Check the endpoint, model and API key in Integrations.`, metrics)
     if (metrics.finishReason === "length") throw new AiRequestError("The AI response reached its output limit before completing the document. The original draft was kept.", metrics)
-    if (NoObjectGeneratedError.isInstance(error) || NoOutputGeneratedError.isInstance(error)) throw new AiRequestError("The model returned invalid or incomplete structured output. The standard draft was kept; check the model in Settings or try again.", metrics)
-    throw new AiRequestError("The AI request failed. Check the endpoint, model and connection in Settings, then try again.", metrics)
+    if (NoObjectGeneratedError.isInstance(error) || NoOutputGeneratedError.isInstance(error)) throw new AiRequestError("The model returned invalid or incomplete structured output. The standard draft was kept; check the model in Integrations or try again.", metrics)
+    throw new AiRequestError("The AI request failed. Check the endpoint, model and connection in Integrations, then try again.", metrics)
   }
 }

@@ -28,7 +28,7 @@ Job searching leaves a trail of tabs, documents, spreadsheets, and emails. Naruv
 
 Start with your experience and verified facts. Save a role, see where your evidence fits, then prepare a CV, cover letter, or email for review. Track the application through interviews and offers without losing the conversation.
 
-**AI is optional.** Connect your own model when you want help with analysis and writing. You control the drafts, the credentials, and the next action.
+**AI-first, with you in charge.** Connect your own model and Naruvi analyses every role, researches companies, and drafts your documents and emails. You review each draft, keep your credentials, and decide the next action.
 
 > Naruvi is under active development. Back up your database, uploaded assets, and encryption key before upgrading. The default setup is intended for a trusted local environment.
 

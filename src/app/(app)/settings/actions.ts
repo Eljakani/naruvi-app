@@ -8,6 +8,7 @@ import { llmConnectionInput, llmSettingsInput } from "@/server/settings/llm-sche
 import { listProviderModels } from "@/server/settings/model-catalog"
 import { SettingsError } from "@/server/settings/errors"
 import { saveDecisionSettings, testDecisionModel, type DecisionOverview } from "@/server/settings/decisions"
+import { saveSpeechSettings, testSpeech, type SpeechOverview } from "@/server/settings/speech"
 
 type Result = { ok: true; message?: string } | { ok: false; message: string }
 
@@ -18,6 +19,7 @@ export async function saveDocumentPhotoDefaultAction(showPhoto: boolean): Promis
   try {
     await saveDocumentPhotoDefault(showPhoto)
     revalidatePath("/settings")
+    revalidatePath("/integrations")
     revalidatePath("/templates")
     revalidatePath("/templates/[id]", "page")
     return { ok: true }
@@ -30,6 +32,7 @@ export async function setDefaultLanguageAction(language: string): Promise<Result
   try {
     await setDefaultLanguage(language)
     revalidatePath("/settings")
+    revalidatePath("/integrations")
     return { ok: true }
   } catch (error) {
     return fail(error)
@@ -58,6 +61,7 @@ export async function saveLlmSettingsAction(input: unknown): Promise<{ ok: true;
   try {
     const overview = await saveLlmSettings(parsed.data)
     revalidatePath("/settings")
+    revalidatePath("/integrations")
     revalidatePath("/")
     return { ok: true, overview }
   } catch (error) {
@@ -70,6 +74,7 @@ export async function downloadFontsAction(): Promise<Result> {
   try {
     const plan = await prepareFonts("sans", ["latin", "cjk-sc", "cjk-jp", "cjk-kr"])
     revalidatePath("/settings")
+    revalidatePath("/integrations")
     return plan.missing.length ? { ok: false, message: `Could not download: ${plan.missing.join(", ")}. Check your connection.` } : { ok: true, message: "Chinese, Japanese and Korean fonts are ready." }
   } catch (error) {
     return fail(error)
@@ -80,6 +85,7 @@ export async function saveDecisionSettingsAction(input: unknown): Promise<{ ok: 
   try {
     const overview = await saveDecisionSettings(input)
     revalidatePath("/settings")
+    revalidatePath("/integrations")
     return { ok: true, overview }
   } catch (error) {
     if (error instanceof SettingsError) return { ok: false, message: error.message }
@@ -90,4 +96,20 @@ export async function saveDecisionSettingsAction(input: unknown): Promise<{ ok: 
 
 export async function testDecisionModelAction(): Promise<Result> {
   return testDecisionModel()
+}
+
+export async function saveSpeechSettingsAction(input: unknown): Promise<{ ok: true; overview: SpeechOverview } | { ok: false; message: string }> {
+  try {
+    const overview = await saveSpeechSettings(input)
+    revalidatePath("/integrations")
+    return { ok: true, overview }
+  } catch (error) {
+    if (error instanceof SettingsError) return { ok: false, message: error.message }
+    if (error instanceof Error && error.name === "ZodError") return { ok: false, message: "Check the provider, model and key." }
+    return { ok: false, message: "Could not save the speech provider." }
+  }
+}
+
+export async function testSpeechAction(): Promise<Result> {
+  return testSpeech()
 }

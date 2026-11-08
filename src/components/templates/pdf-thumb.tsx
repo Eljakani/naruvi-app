@@ -39,7 +39,7 @@ export function PdfThumb({ tokens, className, revision, retryable = false, kind 
     const controller = new AbortController()
     let cancelled = false
     let loading: ReturnType<Awaited<ReturnType<typeof loadPdfJs>>["getDocument"]> | undefined
-    let task: ReturnType<import("pdfjs-dist").PDFPageProxy["render"]> | undefined
+    let task: ReturnType<import("pdfjs-dist/legacy/build/pdf.mjs").PDFPageProxy["render"]> | undefined
     async function render() {
       try {
         const pdfjs = await loadPdfJs()
