@@ -7,6 +7,7 @@ import { storeLogo, storePhoto } from "@/server/assets/store"
 import { db } from "@/server/db/client"
 import { entries, facts, phrasings, profiles } from "@/server/db/schema"
 import { rankFacts, supportFor, verifySupport } from "@/server/domain/grounding"
+import { searchGoals } from "@/lib/search-goals"
 import { matchLogo } from "./logo-match"
 import { parseIdentity, parsePool } from "./pool-parser"
 import { entryInput, identityInput, profileDetailEdit, type EntryInput, type IdentityInput } from "./schemas"
@@ -29,6 +30,12 @@ export async function saveIdentity(input: IdentityInput) {
   const profile = await requireProfile()
   const [saved] = await db.update(profiles).set(data).where(eq(profiles.id, profile.id)).returning()
   return saved
+}
+
+export async function saveGoals(input: unknown) {
+  const goals = searchGoals.parse(input)
+  const profile = await requireProfile()
+  await db.update(profiles).set({ goals }).where(eq(profiles.id, profile.id))
 }
 
 /** Apply just the approved edit and reject it if the original value has changed. */

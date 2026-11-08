@@ -21,6 +21,7 @@ import {
 import { EntryCard } from "@/components/profile/entry-card"
 import Link from "next/link"
 import { IdentityDialog } from "@/components/profile/identity-dialog"
+import { SearchGoals } from "@/components/profile/search-goals"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -214,6 +215,8 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
           </div>
         </CardContent>
       </Card>
+
+      <SearchGoals goals={profile?.goals ?? []} location={profile?.location ?? ""} />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1">

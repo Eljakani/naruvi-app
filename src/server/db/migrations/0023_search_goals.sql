@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "goals" jsonb DEFAULT '[]'::jsonb NOT NULL;

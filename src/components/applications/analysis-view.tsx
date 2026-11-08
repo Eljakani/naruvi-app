@@ -205,7 +205,7 @@ function FilterTabs({ value, onChange, options }: { value: Filter; onChange: (va
 
 type Filter = "all" | "attention" | "proven"
 
-export function AnalysisView({ analysis, facts, research, footer }: { /** Shown under the requirements, in the main column (fills the space beside the tall side column). */ footer?: React.ReactNode; analysis: StoredAnalysis; facts: FactRow[]; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null; researching?: boolean; logoPath?: string | null } }) {
+export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /** The job misses the person's search goal: the skills verdict says so. */ offGoal?: boolean; /** Shown under the requirements, in the main column (fills the space beside the tall side column). */ footer?: React.ReactNode; analysis: StoredAnalysis; facts: FactRow[]; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null; researching?: boolean; logoPath?: string | null } }) {
   const counts = analysis.counts
   const needsWork = counts.partial + counts.gap + counts.judgement
   const [filter, setFilter] = useState<Filter>(needsWork && needsWork < analysis.requirements.length ? "attention" : "all")
@@ -221,7 +221,7 @@ export function AnalysisView({ analysis, facts, research, footer }: { /** Shown 
   }, [analysis.requirements, filter])
   const score = displayFitScore(analysis)
   const reviewStatus = analysis.requirementFilter?.status
-  const verdict = score === null ? "No score yet." : score >= 75 ? "Strong match: you can back up most of what they ask." : score >= 50 ? "Worth a shot, with a few gaps to be upfront about." : "A stretch for now. Go for it only if it really excites you."
+  const verdict = score === null ? "No score yet." : offGoal ? (score >= 50 ? "Your skills fit, but the job misses your search goal." : "A stretch, and it misses your search goal.") : score >= 75 ? "Strong match: you can back up most of what they ask." : score >= 50 ? "Worth a shot, with a few gaps to be upfront about." : "A stretch for now. Go for it only if it really excites you."
   const method = analysis.modelReview
     ? `Rules, then a model review (${analysis.modelReview.reviewed} items checked, ${analysis.modelReview.changed} adjusted).`
     : reviewStatus === "empty" ? "AI review skipped: no requirements were extracted."

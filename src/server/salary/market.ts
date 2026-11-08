@@ -3,6 +3,7 @@ import { desc, eq, ne } from "drizzle-orm"
 import { z } from "zod"
 import { env } from "@/lib/env"
 import { median, parseSalary, type SalaryRange } from "@/lib/salary"
+import { countryIn } from "@/lib/geo"
 import { titleSimilarity } from "@/lib/similar"
 import { db } from "@/server/db/client"
 import { companies, jobs, settings } from "@/server/db/schema"
@@ -43,28 +44,12 @@ export async function saveSalaryData(input: { appId: string; appKey: string }) {
 
 /* ---------------------------------- market ---------------------------------- */
 
-const COUNTRIES: Record<string, string[]> = {
-  fr: ["france", "paris", "lyon", "marseille", "toulouse", "lille", "bordeaux", "nantes", "nice", "rennes", "strasbourg", "montpellier", "grenoble"],
-  gb: ["united kingdom", "uk", "england", "london", "manchester", "edinburgh", "scotland", "bristol", "birmingham", "leeds", "cambridge"],
-  de: ["germany", "deutschland", "berlin", "munich", "münchen", "hamburg", "frankfurt", "cologne", "köln", "stuttgart"],
-  nl: ["netherlands", "amsterdam", "rotterdam", "utrecht", "eindhoven", "the hague"],
-  be: ["belgium", "belgique", "brussels", "bruxelles", "antwerp", "ghent"],
-  ch: ["switzerland", "suisse", "zurich", "zürich", "geneva", "genève", "lausanne", "basel"],
-  es: ["spain", "españa", "madrid", "barcelona", "valencia"],
-  it: ["italy", "italia", "milan", "milano", "rome", "roma", "turin"],
-  at: ["austria", "vienna", "wien"],
-  pl: ["poland", "warsaw", "kraków", "krakow", "wrocław"],
-  ca: ["canada", "toronto", "montreal", "montréal", "vancouver", "ottawa"],
-  au: ["australia", "sydney", "melbourne", "brisbane"],
-  us: ["united states", "usa", "new york", "san francisco", "seattle", "boston", "austin", "chicago", "los angeles", "remote us"],
-  in: ["india", "bangalore", "bengaluru", "mumbai", "delhi", "hyderabad", "pune"],
-  sg: ["singapore"],
-}
 const CURRENCY: Record<string, string> = { fr: "EUR", de: "EUR", nl: "EUR", be: "EUR", es: "EUR", it: "EUR", at: "EUR", gb: "GBP", ch: "CHF", pl: "PLN", ca: "CAD", au: "AUD", us: "USD", in: "INR", sg: "SGD" }
 
+/** Adzuna market for a location; the posting's language is only a fallback when no place is named. */
 export function countryFor(location: string, language: string): string | null {
-  const text = location.toLowerCase()
-  for (const [code, words] of Object.entries(COUNTRIES)) if (words.some((word) => text.includes(word))) return code
+  const code = countryIn(location)
+  if (code) return code in CURRENCY ? code : null
   return language === "fr" ? "fr" : language === "de" ? "de" : null
 }
 

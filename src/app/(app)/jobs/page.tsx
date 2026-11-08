@@ -11,6 +11,9 @@ import { Card } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FitRing } from "@/components/applications/fit-ring"
+import { GoalFitBadge } from "@/components/applications/goal-fit"
+import { goalFit } from "@/lib/search-goals"
+import { getProfile } from "@/server/profile/repository"
 import { ClearFilters, SearchBox, UrlSelect } from "@/components/list-toolbar"
 import { CONTRACT_LABEL, SENIORITY_LABEL, WORK_MODE_LABEL } from "@/lib/job-labels"
 import { STATUS_LABEL } from "@/lib/stages"
@@ -64,7 +67,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
     sort: pick(one(params.sort), JOB_SORTS),
     page: Number(one(params.page)) || 1,
   }
-  const [tags, leads] = await Promise.all([allTags(), newLeads()])
+  const [tags, leads, profile] = await Promise.all([allTags(), newLeads(), getProfile()])
   const tag = one(params.tag)
   const [result, facets] = await Promise.all([searchJobs({ ...filter, tag: tag && tags.some((item) => item.tag === tag) ? tag : undefined }), jobFacets()])
   if (!facets.total && !leads.length) {
@@ -101,6 +104,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
         <div className="grid gap-2">
           {result.jobs.map((job) => {
             const closed = Boolean(job.archivedAt) || job.status === "rejected" || job.status === "withdrawn"
+            const fit = profile && job.board !== "spontaneous" ? goalFit(profile.goals, job, profile.location) : null
             const details = [job.insights?.workMode && WORK_MODE_LABEL[job.insights.workMode], job.insights?.contract && CONTRACT_LABEL[job.insights.contract], job.insights?.seniority && SENIORITY_LABEL[job.insights.seniority]].filter(Boolean)
             return (
               <Link key={job.id} href={`/jobs/${job.id}`} className="group block rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
@@ -127,6 +131,7 @@ async function JobList({ searchParams }: { searchParams: Search }) {
                         </span>
                       ) : null}
                       {details.length ? <span>{details.join(" · ")}</span> : job.remote ? <span>{job.remote}</span> : null}
+                      <GoalFitBadge fit={fit} />
                     </div>
                   </div>
                   <div className="hidden items-center gap-2 sm:flex">

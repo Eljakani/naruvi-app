@@ -8,6 +8,9 @@ import { displayFitScore } from "@/server/analysis/match"
 import { SectionTabs } from "@/components/applications/section-tabs"
 import { JobOverview } from "@/components/jobs/job-overview"
 import { AnalysisView } from "@/components/applications/analysis-view"
+import { GoalFitNote } from "@/components/applications/goal-fit"
+import { goalFit, type GoalJob } from "@/lib/search-goals"
+import { getProfile } from "@/server/profile/repository"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
 import { ApplicationJourney } from "@/components/applications/application-journey"
 import { ApplicationProgress } from "@/components/applications/application-progress"
@@ -47,12 +50,13 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
   const { id } = await params
   const { tab: tabParam } = await searchParams
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
-  const [application, events, mail, mailConnected, people, contactOptions] = await Promise.all([getApplication(id), listEvents(id), mailFor(id), hasMailbox(), contactsForApplication(id), listContacts()])
+  const [application, events, mail, mailConnected, people, contactOptions, profile] = await Promise.all([getApplication(id), listEvents(id), mailFor(id), hasMailbox(), contactsForApplication(id), listContacts(), getProfile()])
   const drafts = await db.select({ kind: documents.kind, language: documents.language, updatedAt: documents.updatedAt, current: documents.currentRevisionId }).from(documents).where(eq(documents.applicationId, id))
   if (!application) notFound()
   // Opening the application counts as reading its emails.
   if (mail.some((message) => !message.readAt)) after(() => markRead(id))
   const { job } = application
+  const fit = profile ? goalFit(profile.goals, { ...job, insights: job.insights as GoalJob["insights"] }, profile.location) : null
   // Not analyzed yet: open on the posting. Otherwise on the analysis, unless asked.
   const tab = tabParam === "overview" || (!application.analysis && tabParam !== "analysis") ? "overview" : "analysis"
   // No research yet: start it in the background; the card fills in when it lands.
@@ -121,6 +125,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
           </aside>
         </div>
       ) : null}
+      {job.board === "spontaneous" ? null : <GoalFitNote fit={fit} />}
       {job.board === "spontaneous" ? null : (
         <SectionTabs applicationId={application.id} current={tab === "overview" ? "overview" : "analysis"} fit={application.analysis ? displayFitScore(application.analysis) : null} />
       )}
@@ -146,7 +151,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
             <p>Draft the CV and the letter, then send them by email to the person linked here, or note that you reached out on LinkedIn by moving the application to Sent.</p>
           </CardContent>
         </Card>
-      ) : application.analysis ? <AnalysisView analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} footer={!mail.length && !people.length ? <ApplicationJourney createdAt={application.createdAt} events={events} layout="horizontal" /> : undefined} /> : null
+      ) : application.analysis ? <AnalysisView offGoal={fit?.verdict === "blocked"} analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? "the company", language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} footer={!mail.length && !people.length ? <ApplicationJourney createdAt={application.createdAt} events={events} layout="horizontal" /> : undefined} /> : null
       )}
       {/* With a fit check, Journey sits inside it (left column); otherwise it closes the page. */}
       {!mail.length && !people.length && !(application.analysis && tab === "analysis" && job.board !== "spontaneous") ? <ApplicationJourney createdAt={application.createdAt} events={events} className="max-w-md" /> : null}
