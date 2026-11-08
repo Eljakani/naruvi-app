@@ -75,8 +75,6 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
         </div>
       </div>
 
-      <CareersWatch companyId={company.id} name={company.name} board={company.careers as CareersBoard | null} checkedAt={company.careersCheckedAt} suggested={suggested} />
-
       {sent.length ? (
         <Alert>
           <CalendarClockIcon />
@@ -88,11 +86,7 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
       ) : null}
 
       <div className="grid items-start gap-5 @4xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <CompanyOverview research={research} name={company.name} />
-        <div className="grid gap-5">
-          <Suspense fallback={<Card><CardContent><AITextLoading texts={["Looking up public records", "Reading Wikidata", "Checking the registry"]} label="Looking up company facts" className="text-sm" /></CardContent></Card>}>
-            <Facts company={company} />
-          </Suspense>
+        <div className="grid min-w-0 gap-5">
           <Card className="h-fit gap-0 py-0">
             <CardHeader className="border-b py-3">
               <CardTitle>Jobs and applications <span className="ml-1 font-normal text-muted-foreground">{company.jobs.length}</span></CardTitle>
@@ -121,7 +115,13 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
               })}
             </ul>
           </Card>
-
+          <CompanyOverview research={research} name={company.name} />
+        </div>
+        <div className="grid min-w-0 gap-5">
+          <Suspense fallback={<Card><CardContent><AITextLoading texts={["Looking up public records", "Reading Wikidata", "Checking the registry"]} label="Looking up company facts" className="text-sm" /></CardContent></Card>}>
+            <Facts company={company} />
+          </Suspense>
+          <CareersWatch companyId={company.id} name={company.name} board={company.careers as CareersBoard | null} checkedAt={company.careersCheckedAt} suggested={suggested} />
           {people.length ? (
             <Card className="gap-0 py-0">
               <CardHeader className="border-b py-3">

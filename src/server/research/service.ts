@@ -11,7 +11,7 @@ import { robotsAllows } from "./robots"
 import { ANGLES_PROMPT_VERSION, companyAngles } from "./ai-angles"
 import { completionForRun } from "@/server/llm/client"
 import { getLlmOverview } from "@/server/settings/llm"
-import { summarizeCompany, SUMMARY_PROMPT_VERSION } from "./company-summary"
+import { NO_OVERVIEW_NOTE, summarizeCompany, SUMMARY_PROMPT_VERSION } from "./company-summary"
 import { companyRedirectAllowed } from "./site-domain"
 import { companyFactsEnabled, companyProfile } from "@/server/companies/profile"
 import { publicResearchSources } from "./public-sources"
@@ -144,9 +144,11 @@ async function researchCompany(company: typeof companies.$inferSelect, options: 
     const brief = buildBrief({ company: company.name, website: company.website ?? "", pages, jobText: job?.rawText ?? "", language, notes })
     if (aiConfigured && pages.length) {
       try {
-        const result = await run.step("AI company overview", () => summarizeCompany({ company: company.name, language, pages }, completionForRun(run, "company overview", SUMMARY_PROMPT_VERSION)), (value) => `${value.summary.sources.length} cited source(s)`)
-        brief.summary = result.summary
-        brief.summaryModel = result.model
+        const result = await run.step("AI company overview", () => summarizeCompany({ company: company.name, language, pages }, completionForRun(run, "company overview", SUMMARY_PROMPT_VERSION)), (value) => value.summary ? `${value.summary.sources.length} cited source(s)` : "sources don’t say what the company does")
+        if (result.summary) {
+          brief.summary = result.summary
+          brief.summaryModel = result.model
+        } else notes.push(NO_OVERVIEW_NOTE)
       } catch (error) {
         if (!job) throw error
         notes.push("The AI overview couldn’t be generated. Refresh research to try again.")

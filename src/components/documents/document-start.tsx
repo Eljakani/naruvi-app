@@ -106,12 +106,12 @@ export function DocumentStart({
 
 /** A letter-shaped sketch in the chosen design's colours (the real letter appears after drafting). */
 function LetterSketch({ design }: { design: DesignTokens }) {
-  const line = (width: string, key: number) => <span key={key} className="h-1.5 rounded-full bg-muted" style={{ width }} />
+  const line = (width: string, key: number) => <span key={key} className="h-1.5 rounded-full bg-zinc-200" style={{ width }} />
   return (
     <div className="grid aspect-[210/297] content-start gap-6 rounded-md bg-white p-[9%] shadow-lg ring-1 ring-border">
       <div className="grid gap-2">
         <span className="h-3 w-2/5 rounded-full" style={{ backgroundColor: design.accentName ? design.accent : design.ink }} />
-        <span className="h-1.5 w-3/5 rounded-full bg-muted" />
+        <span className="h-1.5 w-3/5 rounded-full bg-zinc-200" />
       </div>
       <span className="h-px w-full" style={{ backgroundColor: design.accent, opacity: 0.5 }} />
       <div className="grid gap-2">{["30%", "22%"].map(line)}</div>

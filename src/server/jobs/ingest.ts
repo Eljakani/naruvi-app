@@ -1,4 +1,5 @@
 import "server-only"
+import { wikidataWebsite } from "@/server/companies/profile"
 import { eq } from "drizzle-orm"
 import { sniffImage } from "@/server/assets/image"
 import { safeFetch, safeFetchText } from "@/server/assets/safe-fetch"
@@ -200,7 +201,12 @@ export async function previewJob(input: { url?: string; text?: string }): Promis
       ? [...new Set(sources.map((source) => linkedInTopcard(source.html).logo).filter(Boolean))]
       : []
     if (!site.url && job.company) {
-      // The posting never links the site (LinkedIn, Indeed…): try likely domains, keep one whose page names the company.
+      // The posting never links the site: Wikidata's official website first, since another company can own the obvious domain.
+      const official = await run.step("official site (Wikidata)", () => wikidataWebsite(job.company).catch(() => null), (value) => value || "none listed")
+      if (official) Object.assign(site, { url: official, source: "Wikidata official website", confidence: 0.85 })
+    }
+    if (!site.url && job.company) {
+      // Still nothing (LinkedIn, Indeed…): try likely domains, keep one whose page names the company.
       const guessed = await run.step("guess company site", () => guessCompanySite(job.company, job.location, quickHtml), (value) => value || "no verified match")
       if (guessed) Object.assign(site, { url: guessed, source: "domain guess (page names the company)", confidence: 0.7 })
     }

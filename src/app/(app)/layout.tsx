@@ -5,6 +5,7 @@ import { Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { CommandMenu } from "@/components/command-menu"
 import { NotificationBell } from "@/components/notifications/notification-bell"
+import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { AssistantHeaderButton, AssistantPanel, AssistantProvider } from "@/components/assistant/assistant-panel"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Separator } from "@/components/ui/separator"
@@ -29,6 +30,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             </div>
             <div className="ml-auto flex min-w-0 items-center justify-end gap-1 px-4">
               <AssistantHeaderButton />
+              <ThemeToggle />
               <Suspense fallback={null}>
                 <NotificationBell />
               </Suspense>
