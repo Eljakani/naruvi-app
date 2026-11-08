@@ -38,6 +38,7 @@ Start with your experience and verified facts. Save a role, see where your evide
 | :--- | :--- |
 | **Capture opportunities** | Import a job URL, paste a posting, or save a page with the browser extension. Turn job-alert emails into leads. |
 | **Check your fit** | Compare requirements with verified profile evidence, inspect gaps, and distinguish real qualifications from benefits or interview instructions. |
+| **Research companies** | Generate source-linked AI overviews from official websites, verified Wikidata facts, and Wikipedia. Research a company before adding a job or application. |
 | **Tell your story** | Tailor CVs and cover letters from your existing facts. Review AI rewrites, restore earlier wording, and export documents. |
 | **Keep applications moving** | Track stages, next steps, interviews, and offers. See what needs attention on the dashboard and export applications as CSV. |
 | **Handle the conversation** | Match application emails using company names, domains, roles, recruiters, and thread history. Draft replies and follow-ups in context. |
