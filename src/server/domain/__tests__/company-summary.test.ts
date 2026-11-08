@@ -34,7 +34,7 @@ test("public enrichment remains in the AI context after six company website page
     assert.match(input.system, /historical claims/)
     return completion(summary, ["S8"])
   })
-  assert.deepEqual(result.summary.sources, [pages[7].url])
+  assert.deepEqual(result.summary?.sources, [pages[7].url])
 })
 
 test("empty evidence and provider failures never produce a fabricated fallback", async () => {
@@ -56,4 +56,9 @@ test("company homepages can redirect to the same brand's country domain", () => 
   for (const target of ["https://unrelated.example/", "https://example.com.attacker.org/", "https://www.linkedin.com/company/example", "http://example.fr/", "https://user:password@example.fr/"]) {
     assert.equal(companyRedirectAllowed("https://example.com", target), false, target)
   }
+})
+
+test("a reply that can't say what the company does is not stored as an overview", async () => {
+  const result = await summarizeCompany({ company: "Northwind", language: "fr", pages: [page] }, async () => ({ text: JSON.stringify({ established: false, text: "Les sources ne disent pas ce que fait Northwind.", sources: ["S1"] }), model: "test-model", inputTokens: null, outputTokens: null }))
+  assert.deepEqual(result, { summary: null, model: "test-model" })
 })

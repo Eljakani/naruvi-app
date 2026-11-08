@@ -10,8 +10,13 @@ import { applications, companies, jobs } from "@/server/db/schema"
 
 const fitOf = (analysis: unknown) => displayFitScore(analysis as Pick<Analysis, "fitScore" | "counts"> | null)
 
-/** Every company with how many jobs and applications it has, most recent activity first. */
-export async function listCompanies(q?: string) {
+export const COMPANY_SORTS = { recent: "Recent activity", active: "Most active", name: "Name A–Z" } as const
+export const COMPANY_FILTERS = { all: "All companies", active: "In progress", applied: "Applied", untouched: "No application yet", watching: "Watching job board" } as const
+export type CompanySort = keyof typeof COMPANY_SORTS
+export type CompanyFilter = keyof typeof COMPANY_FILTERS
+
+/** Every company with how many jobs and applications it has; most recent activity first by default. */
+export async function listCompanies(q?: string, { sort = "recent", filter = "all" }: { sort?: CompanySort; filter?: CompanyFilter } = {}) {
   const rows = await db
     .select({
       id: companies.id,
@@ -24,6 +29,8 @@ export async function listCompanies(q?: string) {
       active: sql<number>`count(distinct ${applications.id}) filter (where ${applications.archivedAt} is null and ${applications.status} not in ('rejected', 'withdrawn'))`.mapWith(Number),
       sent: sql<number>`count(distinct ${applications.id}) filter (where ${applications.status} in ('submitted', 'interviewing', 'offer', 'rejected'))`.mapWith(Number),
       last: sql<Date>`greatest(max(${jobs.createdAt}), max(${applications.updatedAt}), ${companies.updatedAt})`.mapWith((value) => new Date(value)),
+      statuses: sql<string[]>`coalesce(array_agg(distinct ${applications.status}::text) filter (where ${applications.id} is not null and ${applications.archivedAt} is null), '{}')`,
+      watching: sql<boolean>`${companies.careers} is not null`,
       description: sql<string | null>`coalesce(nullif(btrim(${companies.research}->'summary'->>'text'), ''), nullif(btrim(${companies.profile}->>'description'), ''), nullif(btrim(${companies.research}->'about'->0->>'text'), ''))`,
     })
     .from(companies)
@@ -31,8 +38,11 @@ export async function listCompanies(q?: string) {
     .leftJoin(applications, eq(applications.jobId, jobs.id))
     .where(q?.trim() ? sql`${companies.name} ilike ${likePattern(q)}` : undefined)
     .groupBy(companies.id)
-    .orderBy(desc(sql`9`), asc(companies.name))
-  return rows
+    .orderBy(asc(companies.name))
+  const kept = rows.filter((row) => filter === "all" || (filter === "active" ? row.active > 0 : filter === "applied" ? row.sent > 0 : filter === "untouched" ? row.applications === 0 : row.watching))
+  if (sort === "recent") kept.sort((a, b) => b.last.getTime() - a.last.getTime())
+  if (sort === "active") kept.sort((a, b) => b.active - a.active || b.sent - a.sent || b.last.getTime() - a.last.getTime())
+  return kept
 }
 
 /** One company with all its jobs, their applications and the research brief. */

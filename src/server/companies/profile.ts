@@ -127,6 +127,20 @@ async function fromWikidata(name: string, website: string | null): Promise<Omit<
   return { description, facts, links, match, url: `https://www.wikidata.org/wiki/${entity.id}` }
 }
 
+/**
+ * The official website Wikidata lists for a company with exactly this name,
+ * when exactly one company-like entity has one. Beats guessing domains:
+ * safran.com names "Safran" but is a different company from Safran SA.
+ */
+export async function wikidataWebsite(name: string): Promise<string | null> {
+  const search = (await getJson(`https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&type=item&limit=7&language=en&search=${encodeURIComponent(name)}`)) as { search?: { id: string }[] }
+  const candidates = Object.values(await entities((search.search ?? []).map((item) => item.id)))
+    .filter((candidate) => normalize(label(candidate) ?? "") === normalize(name) && (values(candidate, "P1128").length || values(candidate, "P452").length))
+  const sites = [...new Set(candidates.flatMap((candidate) => values(candidate, "P856").map(String)).filter((url) => /^https?:\/\//.test(url)))]
+  const hosts = new Set(sites.map((url) => bareHost(url)))
+  return hosts.size === 1 ? new URL(sites[0]).origin : null
+}
+
 /* ------------------------- French business registry ------------------------- */
 
 const HEADCOUNT: Record<string, string> = {

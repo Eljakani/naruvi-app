@@ -125,10 +125,10 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
           </aside>
         </div>
       ) : null}
-      {job.board === "spontaneous" ? null : <GoalFitNote fit={fit} />}
       {job.board === "spontaneous" ? null : (
         <SectionTabs applicationId={application.id} current={tab === "overview" ? "overview" : "analysis"} fit={application.analysis ? displayFitScore(application.analysis) : null} />
       )}
+      {job.board === "spontaneous" ? null : <GoalFitNote fit={fit} />}
       {tab === "overview" && job.board !== "spontaneous" ? (
         <JobOverview job={job} />
       ) : !application.analysis && job.board !== "spontaneous" ? (

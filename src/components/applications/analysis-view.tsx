@@ -230,7 +230,7 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
     : "Rules only."
 
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:grid-rows-[auto_auto_1fr]">
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:grid-rows-[auto_auto_auto_1fr]">
         <Card className="xl:col-start-1 xl:row-start-1">
           <CardContent className="flex flex-wrap items-center gap-5">
             {score === null ? <p className="shrink-0 text-sm font-medium">Fit not scored</p> : <FitRing score={score} />}
@@ -259,7 +259,7 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
           </CardContent>
         </Card>
 
-      <aside className="grid min-w-0 content-start gap-4 md:grid-cols-2 xl:col-start-2 xl:row-span-3 xl:row-start-1 xl:grid-cols-1">
+      <aside className="grid min-w-0 content-start gap-4 md:grid-cols-2 xl:sticky xl:top-4 xl:col-start-2 xl:row-span-4 xl:row-start-1 xl:grid-cols-1 xl:self-start">
         <Card className="gap-4">
           <CardHeader className="flex flex-row items-center gap-3">
             <EntryLogo path={research.logoPath ?? null} name={research.company} size={36} className="rounded-lg" />
@@ -297,6 +297,57 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
           </Card>
         ) : null}
 
+      </aside>
+
+        <Card id="requirements" className="scroll-mt-4 xl:col-start-1 xl:row-start-2">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+            <div className="grid gap-1">
+              <CardTitle>Requirements & evidence</CardTitle>
+              <CardDescription>Each line shows the facts from your profile that back it.</CardDescription>
+            </div>
+            <FilterTabs
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { value: "attention", label: "Needs attention", count: counts.partial + counts.gap + counts.judgement },
+                { value: "proven", label: "Proven", count: counts.met },
+                { value: "all", label: "All", count: analysis.requirements.length },
+              ]}
+            />
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            {groups.length ? (
+              groups.map((group) => (
+                <section key={group.kind}>
+                  <h2 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    {KIND_TITLE[group.kind]} · {group.items.length}
+                  </h2>
+                  <ul>
+                    {group.items.map((match) => (
+                      <Requirement key={match.id} match={match} facts={facts} />
+                    ))}
+                  </ul>
+                </section>
+              ))
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                {analysis.requirements.length ? "Nothing in this filter." : analysis.requirementFilter?.excluded.length ? "No candidate requirements remained after filtering. Inspect the excluded posting details below." : "No requirements were extracted. Check the imported job description and run the fit check again."}
+              </p>
+            )}
+            {analysis.requirementFilter?.excluded.length ? <details className="border-t pt-4 text-sm">
+              <summary className="cursor-pointer font-medium">Excluded posting details ({analysis.requirementFilter.excluded.length})</summary>
+              <p className="mt-2 text-xs text-muted-foreground">Interview steps, benefits and company information are kept here for transparency. They are not treated as missing skills.</p>
+              <ul className="mt-3 divide-y">
+                {analysis.requirementFilter.excluded.map((item) => <li key={item.requirement.id} className="grid gap-1.5 py-3">
+                  <p className="text-[13px] leading-6 [overflow-wrap:anywhere]">{item.requirement.text}</p>
+                  <p className="text-xs text-muted-foreground">{item.source === "model" ? "AI" : "Rules"} · {item.category.replaceAll("_", " ")} · {item.reason}</p>
+                </li>)}
+              </ul>
+            </details> : null}
+          </CardContent>
+        </Card>
+        {/* CV guidance sits under the requirements it comes from, two-up, so both columns end together. */}
+        <div className="grid min-w-0 items-start gap-4 md:grid-cols-2 xl:col-start-1 xl:row-start-3">
         <Card className="gap-3">
           <CardHeader>
             <CardTitle className="text-sm">Lead with these entries</CardTitle>
@@ -370,56 +421,8 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
             )}
           </CardContent>
         </Card>
-      </aside>
-
-        <Card id="requirements" className="scroll-mt-4 xl:col-start-1 xl:row-start-2">
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
-            <div className="grid gap-1">
-              <CardTitle>Requirements & evidence</CardTitle>
-              <CardDescription>Each line shows the facts from your profile that back it.</CardDescription>
-            </div>
-            <FilterTabs
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: "attention", label: "Needs attention", count: counts.partial + counts.gap + counts.judgement },
-                { value: "proven", label: "Proven", count: counts.met },
-                { value: "all", label: "All", count: analysis.requirements.length },
-              ]}
-            />
-          </CardHeader>
-          <CardContent className="grid gap-6">
-            {groups.length ? (
-              groups.map((group) => (
-                <section key={group.kind}>
-                  <h2 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    {KIND_TITLE[group.kind]} · {group.items.length}
-                  </h2>
-                  <ul>
-                    {group.items.map((match) => (
-                      <Requirement key={match.id} match={match} facts={facts} />
-                    ))}
-                  </ul>
-                </section>
-              ))
-            ) : (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                {analysis.requirements.length ? "Nothing in this filter." : analysis.requirementFilter?.excluded.length ? "No candidate requirements remained after filtering. Inspect the excluded posting details below." : "No requirements were extracted. Check the imported job description and run the fit check again."}
-              </p>
-            )}
-            {analysis.requirementFilter?.excluded.length ? <details className="border-t pt-4 text-sm">
-              <summary className="cursor-pointer font-medium">Excluded posting details ({analysis.requirementFilter.excluded.length})</summary>
-              <p className="mt-2 text-xs text-muted-foreground">Interview steps, benefits and company information are kept here for transparency. They are not treated as missing skills.</p>
-              <ul className="mt-3 divide-y">
-                {analysis.requirementFilter.excluded.map((item) => <li key={item.requirement.id} className="grid gap-1.5 py-3">
-                  <p className="text-[13px] leading-6 [overflow-wrap:anywhere]">{item.requirement.text}</p>
-                  <p className="text-xs text-muted-foreground">{item.source === "model" ? "AI" : "Rules"} · {item.category.replaceAll("_", " ")} · {item.reason}</p>
-                </li>)}
-              </ul>
-            </details> : null}
-          </CardContent>
-        </Card>
-        {footer ? <div className="min-w-0 xl:col-start-1 xl:row-start-3">{footer}</div> : null}
+        </div>
+        {footer ? <div className="min-w-0 xl:col-start-1 xl:row-start-4">{footer}</div> : null}
     </div>
   )
 }

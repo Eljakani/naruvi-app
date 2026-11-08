@@ -23,7 +23,7 @@ export function GoalFitNote({ fit }: { fit: GoalFit | null }) {
   const title = fit.verdict === "ok" ? `Fits your goal “${fit.goal.name}”` : fit.verdict === "blocked" ? `Doesn’t fit your goal “${fit.goal.name}”` : fit.implicit ? "Check this against where you are" : `Check this against “${fit.goal.name}”`
   const shown = fit.verdict === "ok" ? fit.checks : fit.checks.filter((item) => item.status !== "ok")
   return (
-    <section aria-label="Search goal check" className={cn("grid gap-2 rounded-xl border px-4 py-3", look.frame)}>
+    <section aria-label="Search goal check" className={cn("grid gap-1.5 rounded-lg border px-3.5 py-2.5", look.frame)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm font-medium"><look.icon className={cn("size-4", look.className)} /> {title}</p>
         <Link href="/profile" className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">{fit.implicit ? "Set search goals" : "Edit goals"}</Link>

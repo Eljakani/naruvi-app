@@ -5,7 +5,7 @@ import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  // No theme provider in the app: the UI is light, so toasts must be too (not the OS setting).
+  // Follows the app theme (next-themes), light until it resolves.
   const { resolvedTheme } = useTheme()
   const theme = resolvedTheme ?? "light"
 
