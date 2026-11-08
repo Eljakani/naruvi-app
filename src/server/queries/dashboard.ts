@@ -7,12 +7,12 @@ import { listApplications, type StoredAnalysis } from "@/server/applications/rep
 import { displayFitScore } from "@/server/analysis/match"
 import { stageSince } from "@/server/tracking/service"
 import { mailInbox } from "@/server/mail/classify"
-import { applications, entries, facts, jobs, profiles, runs } from "@/server/db/schema"
+import { applicationEvents, applications, entries, facts, jobs, profiles, runs } from "@/server/db/schema"
 
 export async function getDashboard() {
   await connection()
   const latest = db.select().from(runs).orderBy(desc(runs.createdAt), desc(runs.id)).limit(6).as("latest_runs")
-  const [[jobCount], [factCount], [profileCount], recentRuns, active, since, inbox] = await Promise.all([
+  const [[jobCount], [factCount], [profileCount], recentRuns, active, since, inbox, history] = await Promise.all([
     db.select({ n: count() }).from(jobs),
     db.select({ n: count() }).from(facts).innerJoin(entries, eq(facts.entryId, entries.id)).where(eq(entries.status, "verified")),
     db.select({ n: count(), name: sql<string>`min(${profiles.fullName})` }).from(profiles),
@@ -26,6 +26,9 @@ export async function getDashboard() {
     listApplications(),
     stageSince(),
     mailInbox(),
+    // Every status each application has ever had (archived ones too): how far it got, not where it is now.
+    db.select({ status: applications.status, reached: sql<string[]>`coalesce(array_agg(distinct ${applicationEvents.toStatus}::text) filter (where ${applicationEvents.toStatus} is not null), '{}')` })
+      .from(applications).leftJoin(applicationEvents, eq(applicationEvents.applicationId, applications.id)).groupBy(applications.id),
   ])
   const recent = active.slice(0, 6)
   const now = Date.now()
@@ -55,8 +58,17 @@ export async function getDashboard() {
     .map((application) => ({ id: application.id, title: application.job.title, company: application.job.company?.name ?? "", logoPath: application.job.company?.logoPath ?? null, nextStep: application.nextStep, due: application.nextStepDue!.toISOString() }))
   const statusCounts: Record<string, number> = {}
   for (const application of active) statusCounts[application.status] = (statusCounts[application.status] ?? 0) + 1
+  // Rejected counts as sent: you can only be turned down after applying.
+  const got = (statuses: string[]) => history.filter((row) => [row.status, ...row.reached].some((status) => statuses.includes(status))).length
+  const funnel = [
+    { id: "tracked", label: "Tracked", count: history.length },
+    { id: "sent", label: "Sent", count: got(["submitted", "interviewing", "offer", "rejected"]) },
+    { id: "interviewing", label: "Interviews", count: got(["interviewing", "offer"]) },
+    { id: "offer", label: "Offers", count: got(["offer"]) },
+  ]
   return {
     statusCounts,
+    funnel,
     applications: active.length,
     jobs: jobCount.n,
     verifiedFacts: factCount.n,

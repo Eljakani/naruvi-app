@@ -1,0 +1,45 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+
+type Stage = { id: string; label: string; count: number }
+
+const pct = (part: number, whole: number) => (whole ? Math.round((part / whole) * 100) : 0)
+
+/** How far applications got: tracked → sent → interviews → offers, with the rate at each step. */
+export function OutcomeFunnel({ stages }: { stages: Stage[] }) {
+  const top = stages[0]?.count ?? 0
+  const sent = stages.find((stage) => stage.id === "sent")?.count ?? 0
+  const offers = stages.at(-1)?.count ?? 0
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle><h2>Outcomes</h2></CardTitle>
+        <CardDescription>{sent ? `${pct(offers, sent)}% of sent applications led to an offer` : "Send an application to start the funnel"}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ol className="grid gap-2.5">
+          {stages.map((stage, index) => {
+            const previous = index ? stages[index - 1] : null
+            const rate = previous ? pct(stage.count, previous.count) : null
+            const sentence = previous ? `${stage.count} ${stage.label.toLowerCase()}: ${rate}% of ${previous.count} ${previous.label.toLowerCase()}` : `${stage.count} applications tracked`
+            return (
+              <li key={stage.id} title={sentence} className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-center gap-3 text-sm">
+                <span aria-hidden className="text-muted-foreground">{stage.label}</span>
+                <span aria-hidden className="h-5 overflow-hidden rounded bg-muted">
+                  <span
+                    className="block h-full origin-left rounded bg-brand transition-transform duration-700 ease-out starting:scale-x-0 motion-reduce:transition-none rtl:origin-right"
+                    style={{ width: stage.count ? `max(4px, ${(stage.count / Math.max(top, 1)) * 100}%)` : 0 }}
+                  />
+                </span>
+                <span className="flex min-w-16 items-baseline justify-end gap-2 tabular-nums">
+                  <span aria-hidden className="font-medium">{stage.count}</span>
+                  <span aria-hidden className="w-9 text-end text-xs text-muted-foreground">{rate === null ? "" : `${rate}%`}</span>
+                  <span className="sr-only">{sentence}</span>
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      </CardContent>
+    </Card>
+  )
+}
