@@ -205,7 +205,7 @@ export async function generateLetter(applicationId: string, language?: string, a
         content.paragraphs = content.paragraphs.map((paragraph) => paragraph.kind === "motivation" ? { ...motivation, originalText: undefined } : paragraph)
       }
     }
-    if (!(await getLlmOverview().catch(() => null))?.configured) throw new Error("Connect a language model in Settings, then try again.")
+    if (!(await getLlmOverview().catch(() => null))?.configured) throw new Error("Connect a language model in Integrations, then try again.")
     content = await draftLetter(run, application, content)
     if (content.aiAssistance?.status === "fallback") throw new Error(content.aiAssistance.reason ?? "Couldn’t draft the letter. Try again.")
     if (content.paragraphs.some((paragraph) => paragraph.included && (paragraph.placeholder || isPlaceholder(paragraph.text)))) {
@@ -242,7 +242,7 @@ async function draftLetter(run: Awaited<ReturnType<typeof startRun>>, applicatio
 export async function suggestLetter(applicationId: string, draft: LetterDocument, instruction: string) {
   const application = await getApplication(applicationId)
   if (!application) throw new Error("Application not found.")
-  if (!(await getLlmOverview().catch(() => null))?.configured) throw new Error("Connect a language model in Settings first.")
+  if (!(await getLlmOverview().catch(() => null))?.configured) throw new Error("Connect a language model in Integrations first.")
   const run = await startRun("letter.revise", { applicationId, language: draft.language }, applicationId)
   try {
     const proposal = await draftLetter(run, application, draft, instruction)

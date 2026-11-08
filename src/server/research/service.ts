@@ -119,7 +119,7 @@ async function researchCompany(company: typeof companies.$inferSelect, options: 
   const fresh = company.researchedAt && Date.now() - company.researchedAt.getTime() < CACHE_DAYS * 86_400_000
   if (fresh && !options.force && company.research) return company.research as unknown as CompanyResearch
   const aiConfigured = (await getLlmOverview().catch(() => null))?.configured
-  if (!job && !aiConfigured) throw new Error("Configure an AI model in Settings to generate a company overview.")
+  if (!job && !aiConfigured) throw new Error("Configure an AI model in Integrations to generate a company overview.")
 
   const run = await startRun("company.research", { companyId: company.id, website: company.website })
   try {

@@ -479,7 +479,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
                       <p className="text-pretty">{friendlyError(error.message)}</p>
                       <div className="flex flex-wrap gap-1.5">
                         <Button size="xs" onClick={retry}><RotateCcwIcon /> Try again</Button>
-                        {/model|settings|api key/i.test(error.message) ? <Button size="xs" variant="outline" nativeButton={false} render={<Link href="/settings" onClick={onNavigate} />}>Open settings</Button> : null}
+                        {/model|settings|api key/i.test(error.message) ? <Button size="xs" variant="outline" nativeButton={false} render={<Link href="/integrations#ai" onClick={onNavigate} />}>Open AI settings</Button> : null}
                       </div>
                     </div>
                   </div>
@@ -546,10 +546,10 @@ function ChatImage({ part, className }: { part: FileUIPart; className: string })
 
 function friendlyError(message: string) {
   if (/image|vision|multimodal/i.test(message)) {
-    return "The AI model couldn’t process this image. Check that your model in Settings supports images."
+    return "The AI model couldn’t process this image. Check that your model in Integrations supports images."
   }
   if (/model|settings|api key/i.test(message)) return message
-  return "Something went wrong. Try again, or check your AI model in Settings."
+  return "Something went wrong. Try again, or check your AI model in Integrations."
 }
 
 const greeting = () => {

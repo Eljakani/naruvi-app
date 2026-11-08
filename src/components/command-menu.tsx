@@ -18,7 +18,8 @@ const PAGES: { label: string; href: string; icon: LucideIcon; keywords?: string 
   { label: "Profile", href: "/profile", icon: UserIcon, keywords: "experience facts" },
   { label: "Templates", href: "/templates", icon: LayoutTemplateIcon, keywords: "design themes" },
   { label: "Runs", href: "/runs", icon: ActivityIcon, keywords: "traces ai" },
-  { label: "Settings", href: "/settings", icon: SettingsIcon, keywords: "model api key" },
+  { label: "Settings", href: "/settings", icon: SettingsIcon, keywords: "documents fonts data export" },
+  { label: "AI models", href: "/integrations#ai", icon: SettingsIcon, keywords: "model api key llm openai gemini claude dictation whisper" },
   { label: "Setup guide", href: "/setup", icon: SparklesIcon, keywords: "onboarding start install first run" },
 ]
 

@@ -295,7 +295,7 @@ error or its response body.
 
 ## 17. AI at every step
 
-Every workflow has a deterministic baseline and an optional AI pass. The model proposes; local checks decide what is kept. With no model configured, the baseline runs alone.
+Naruvi is AI-first: the model does the work at every step below, and deterministic local checks guard what it returns. The model proposes; the checks decide what is kept. The same rules also give a deterministic fallback when a call fails or no model is reachable.
 
 | Step | AI pass | What is checked locally |
 | --- | --- | --- |

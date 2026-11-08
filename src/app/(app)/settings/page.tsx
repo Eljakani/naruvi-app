@@ -15,7 +15,7 @@ export default function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        description="AI models, document defaults and your local data."
+        description="Document defaults, fonts and your local data."
         actions={<Button variant="outline" size="sm" nativeButton={false} render={<Link href="/setup" />}><BookOpenIcon /> Setup guide</Button>}
       />
       <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>

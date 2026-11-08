@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { Loader2Icon, MicIcon } from "lucide-react"
-import { dictationPrefs, modelId, serverPrefs, subscribePrefs, transcribe } from "@/lib/whisper/client"
+import { dictationPrefs, modelId, serverPrefs, subscribePrefs, transcribe, transcribeCloud } from "@/lib/whisper/client"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -84,8 +84,10 @@ function meter(stream: MediaStream, target: () => HTMLElement | null) {
  */
 export function useDictation(onText: (text: string) => void, lang?: string) {
   const prefs = useSyncExternalStore(subscribePrefs, dictationPrefs, serverPrefs)
-  const whisper = prefs.engine === "whisper"
-  const supported = useSyncExternalStore(subscribe, () => (dictationPrefs().engine === "whisper" ? typeof MediaRecorder !== "undefined" : recognitionClass() !== null), () => false)
+  // Whisper and cloud both record a clip and transcribe it when you stop.
+  const whisper = prefs.engine === "whisper" || prefs.engine === "cloud"
+  const cloud = prefs.engine === "cloud"
+  const supported = useSyncExternalStore(subscribe, () => (dictationPrefs().engine !== "browser" ? typeof MediaRecorder !== "undefined" : recognitionClass() !== null), () => false)
   // Local Whisper only: after you stop, the clip is transcribed on this device (first use downloads the model).
   const [transcribing, setTranscribing] = useState<string | null>(null)
   const recorder = useRef<MediaRecorder | null>(null)
@@ -129,11 +131,12 @@ export function useDictation(onText: (text: string) => void, lang?: string) {
         const blob = new Blob(chunks, { type: rec.mimeType })
         setTranscribing("Transcribing…")
         try {
-          const text = await transcribe(blob, modelId(prefs), prefs.language, (loaded, total) => setTranscribing(total ? `Getting Whisper ready ${Math.round((loaded / total) * 100)}%` : "Getting Whisper ready…"))
+          const text = cloud ? await transcribeCloud(blob, prefs.language) : await transcribe(blob, modelId(prefs), prefs.language, (loaded, total) => setTranscribing(total ? `Getting Whisper ready ${Math.round((loaded / total) * 100)}%` : "Getting Whisper ready…"))
           if (text) append.current(text)
           else setError("I didn’t catch anything. Try speaking a little longer.")
         } catch (failure) {
-          setError(failure instanceof Error && /fetch|network/i.test(failure.message) ? "Couldn’t download the Whisper model. Check your connection." : "Local Whisper couldn’t transcribe that. Try again, or switch to browser dictation in Settings.")
+          if (cloud) { setError(failure instanceof Error ? failure.message : "Transcription failed. Try again."); return }
+          setError(failure instanceof Error && /fetch|network/i.test(failure.message) ? "Couldn’t download the Whisper model. Check your connection." : "Local Whisper couldn’t transcribe that. Try again, or switch to browser dictation in Integrations.")
         } finally {
           setTranscribing(null)
           recorder.current = null
@@ -174,11 +177,11 @@ export function useDictation(onText: (text: string) => void, lang?: string) {
     }
     recognition.current = instance
     try { instance.start() } catch { wanted.current = false; release(); setListening(false); setError("Dictation couldn’t start. Try again.") }
-  }, [lang, release, whisper, prefs])
+  }, [lang, release, whisper, cloud, prefs])
   useEffect(() => () => { wanted.current = false; recognition.current?.abort(); if (recorder.current?.state === "recording") recorder.current.stop(); release() }, [release])
   // Callback ref for the element that shows the level (the hook owns the ref).
   const bindLevel = useCallback((node: HTMLElement | null) => { levelTarget.current = node }, [])
-  return { supported, listening, interim, error, start, stop, bindLevel, transcribing, whisper }
+  return { supported, listening, interim, error, start, stop, bindLevel, transcribing, whisper, cloud }
 }
 
 /** A microphone toggle for a text field. Appends what you say to `value`. */
@@ -188,7 +191,7 @@ export function DictateButton({ value, onChange, lang, className }: { value: str
     latest.current = value
   }, [value])
   const reduced = useReducedMotion()
-  const { supported, listening, interim, error, start, stop, bindLevel, transcribing, whisper } = useDictation((text) => {
+  const { supported, listening, interim, error, start, stop, bindLevel, transcribing, whisper, cloud } = useDictation((text) => {
     const current = latest.current
     const next = `${current}${current && !/\s$/.test(current) ? " " : ""}${text}`
     latest.current = next
@@ -242,12 +245,12 @@ export function DictateButton({ value, onChange, lang, className }: { value: str
       {supported ? (
         <Tooltip>
           <TooltipTrigger render={button} />
-          <TooltipContent className="max-w-64">{whisper ? "Speak, then tap again. Whisper turns it into text on this device: your audio never leaves your computer." : "Speak naturally; your words appear as you talk. Your browser’s speech service turns audio into text (in Chrome that’s Google). Prefer on-device? Choose local Whisper in Settings."}</TooltipContent>
+          <TooltipContent className="max-w-64">{cloud ? "Speak, then tap again. The clip goes to the speech provider you connected in Integrations." : whisper ? "Speak, then tap again. Whisper turns it into text on this device: your audio never leaves your computer." : "Speak naturally; your words appear as you talk. Your browser’s speech service turns audio into text (in Chrome that’s Google). Prefer on-device? Choose local Whisper in Integrations."}</TooltipContent>
         </Tooltip>
       ) : (
         <Tooltip>
           <TooltipTrigger render={<span tabIndex={0}>{button}</span>} />
-          <TooltipContent>{whisper ? "This browser can’t record audio." : "Browser dictation needs Chrome, Edge or Safari. Local Whisper in Settings works in Firefox too."}</TooltipContent>
+          <TooltipContent>{whisper ? "This browser can’t record audio." : "Browser dictation needs Chrome, Edge or Safari. Local Whisper in Integrations works in Firefox too."}</TooltipContent>
         </Tooltip>
       )}
       {listening && interim ? <span className="truncate text-xs text-muted-foreground italic" aria-live="polite">{interim}…</span> : null}

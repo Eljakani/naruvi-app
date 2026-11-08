@@ -11,7 +11,7 @@ async function readStored() {
   const row = await db.query.settings.findFirst({ where: eq(settings.key, LLM_SETTINGS_KEY) })
   if (!row) return null
   const parsed = storedLlmSettings.safeParse(row.value)
-  if (!parsed.success) throw new SettingsError("The saved model configuration is invalid. Save it again in Settings.")
+  if (!parsed.success) throw new SettingsError("The saved model configuration is invalid. Save it again in Integrations.")
   return parsed.data
 }
 

@@ -116,7 +116,7 @@ const suggestInput = z.object({
 export async function suggestBulletsAction(input: unknown): Promise<{ ok: true; bullets: BulletSuggestion[]; model: string } | { ok: false; message: string }> {
   const parsed = suggestInput.safeParse(input)
   if (!parsed.success) return { ok: false, message: "Invalid entry." }
-  if (!(await getLlmOverview().catch(() => null))?.configured) return { ok: false, message: "No language model configured. Add one in Settings." }
+  if (!(await getLlmOverview().catch(() => null))?.configured) return { ok: false, message: "No language model configured. Add one in Integrations." }
   const run = await startRun("profile.bullets", { facts: parsed.data.facts.length })
   try {
     const result = await run.step("AI suggest bullets", () => suggestBullets(parsed.data, completionForRun(run, "bullet suggestions", BULLETS_PROMPT_VERSION)), (value) => `${value.bullets.length} grounded suggestion(s)`)
@@ -141,7 +141,7 @@ export async function suggestBulletsAction(input: unknown): Promise<{ ok: true; 
 /* ------------------------------------------------------------------ */
 
 async function withModel<T>(workflow: string, task: string, version: string, fn: (complete: ReturnType<typeof completionForRun>, run: Awaited<ReturnType<typeof startRun>>) => Promise<T>): Promise<{ ok: true; data: T } | { ok: false; message: string }> {
-  if (!(await getLlmOverview().catch(() => null))?.configured) return { ok: false, message: "No language model configured. Add one in Settings." }
+  if (!(await getLlmOverview().catch(() => null))?.configured) return { ok: false, message: "No language model configured. Add one in Integrations." }
   const run = await startRun(workflow, {})
   try {
     const data = await fn(completionForRun(run, task, version), run)

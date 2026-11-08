@@ -226,7 +226,7 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
     ? `Rules, then a model review (${analysis.modelReview.reviewed} items checked, ${analysis.modelReview.changed} adjusted).`
     : reviewStatus === "empty" ? "AI review skipped: no requirements were extracted."
     : analysis.requirementFilter?.reviewed ? "AI sorted the posting items, then rules matched the evidence."
-    : reviewStatus === "not_configured" ? "Rules only. Set up an AI model in Settings for a review."
+    : reviewStatus === "not_configured" ? "Rules only. Set up an AI model in Integrations for a review."
     : "Rules only."
 
   return (

@@ -44,7 +44,7 @@ export async function aiDesignAction(input: { tokens: DesignTokens; prompt: stri
   const turn = z.object({ request: z.string().max(500), outcome: z.string().max(20), summary: z.string().max(300), changes: z.record(z.string(), z.unknown()) })
   const parsed = z.object({ tokens: designTokens, prompt: z.string().trim().min(1, "Describe the change you want.").max(500), history: z.array(turn).max(10).optional(), viewing: z.enum(["cv", "letter"]).default("cv") }).safeParse(input)
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid request." }
-  if (!(await getLlmOverview().catch(() => null))?.configured) return { ok: false, message: "No language model configured. Add one in Settings." }
+  if (!(await getLlmOverview().catch(() => null))?.configured) return { ok: false, message: "No language model configured. Add one in Integrations." }
   const run = await startRun("template.design", { prompt: parsed.data.prompt.slice(0, 120) })
   try {
     const complete = completionForRun(run, "design round", DESIGN_AGENT_VERSION)

@@ -106,7 +106,7 @@ function approvalContext(messages: UIMessage[]) {
 
 export async function streamAssistant(messages: UIMessage[], context: { path: string; signal?: AbortSignal }) {
   const config = await getLlmConfiguration()
-  if (!config.configured) throw new SettingsError("Connect an AI model in Settings to use the assistant.")
+  if (!config.configured) throw new SettingsError("Connect an AI model in Integrations to use the assistant.")
   const deepseek = new URL(config.baseUrl).hostname === "api.deepseek.com"
   const now = new Date()
   const today = `${now.toLocaleDateString("en-CA")} (${now.toLocaleDateString("en-GB", { weekday: "long" })})`

@@ -70,7 +70,7 @@ export async function suggestLetterAction(applicationId: string, draft: unknown,
 export async function reviseCvAction(applicationId: string, draft: unknown, request: string, bulletId?: string) {
   const parsed = z.object({ applicationId: uuid, draft: cvDocument, request: z.string().trim().min(2, "Say what you want changed.").max(600), bulletId: z.string().max(80).optional() }).safeParse({ applicationId, draft, request, bulletId })
   if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid request." }
-  if (!(await getLlmOverview().catch(() => null))?.configured) return { ok: false as const, error: "No language model configured. Add one in Settings." }
+  if (!(await getLlmOverview().catch(() => null))?.configured) return { ok: false as const, error: "No language model configured. Add one in Integrations." }
   const [application, entries] = await Promise.all([getApplication(parsed.data.applicationId), listEntries()])
   const facts = new Map(entries.filter((entry) => entry.status === "verified").flatMap((entry) => entry.facts.map((fact) => [fact.id, fact.statement] as const)))
   const run = await startRun("cv.revise", { request: parsed.data.request.slice(0, 120), scope: parsed.data.bulletId ? "line" : "cv" }, parsed.data.applicationId)

@@ -62,7 +62,7 @@ export function jevClient(config: DecisionConfig, { fetcher = fetch, timeoutMs =
         continue
       }
       // Never surface the provider's body: it may echo the request.
-      if (res.status === 401) throw new DecisionError("The decision model rejected the API key. Check it in Settings.", 401)
+      if (res.status === 401) throw new DecisionError("The decision model rejected the API key. Check it in Integrations.", 401)
       if (!res.ok) throw new DecisionError(`The decision model returned HTTP ${res.status}.`, res.status)
       const parsed = response.safeParse(await res.json().catch(() => null))
       if (!parsed.success) throw new DecisionError("The decision model returned an unexpected response.")

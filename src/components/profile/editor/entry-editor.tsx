@@ -1,5 +1,6 @@
 "use client"
 
+import UndoButton from "@/components/kokonutui/undo-button"
 import { Presence, PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
@@ -577,9 +578,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             <Button variant="outline" onClick={() => (setConfirmDelete(false), patch({ status: "archived" }))}>
               Archive instead
             </Button>
-            <AlertDialogAction variant="destructive" onClick={remove}>
-              Delete
-            </AlertDialogAction>
+            <UndoButton label="Delete" doneLabel="Deleted" icon={TrashIcon} className="h-8 text-destructive" resetAfter={null} disabled={pending} onCommit={remove} />
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

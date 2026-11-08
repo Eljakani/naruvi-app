@@ -1,5 +1,6 @@
 "use client"
 
+import UndoButton from "@/components/kokonutui/undo-button"
 import { useState, useTransition } from "react"
 import { CheckIcon, CopyIcon, KeyRoundIcon, Loader2Icon, PlusIcon, PuzzleIcon, TrashIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -64,20 +65,20 @@ export function ApiSettings({ keys, origin, folder }: { keys: Key[]; origin: str
                       <span className="font-mono">{key.prefix}…</span> · created {date(key.createdAt)} · last used {date(key.lastUsedAt)}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-muted-foreground"
+                  <UndoButton
+                    label="Revoke"
+                    doneLabel="Revoked"
+                    icon={TrashIcon}
+                    className="h-8"
+                    resetAfter={null}
                     disabled={pending}
-                    onClick={() =>
+                    onCommit={() =>
                       startTransition(async () => {
                         await revokeApiKeyAction(key.id)
                         toast(`Key “${key.name}” revoked`)
                       })
                     }
-                  >
-                    <TrashIcon /> Revoke
-                  </Button>
+                  />
                 </li>
               ))}
             </ul>
