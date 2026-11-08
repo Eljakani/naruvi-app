@@ -15,6 +15,7 @@ export const AI_STEPS = {
   bullets: ["Reading your facts", "Drafting bullets in each language", "Checking each one against its facts"],
   cvImport: ["Reading your CV", "Finding each job, school and project", "Splitting achievements into facts", "Picking out skills and dates", "Checking every number against your CV"],
   describe: ["Reading what you wrote", "Finding role, dates and place", "Turning it into facts", "Picking out skills"],
+  extras: ["Reading your facts", "Picking out skills they name", "Finding topics for job matching", "Drafting rules against overstating"],
   translate: ["Translating titles and dates", "Translating bullets", "Checking every number is unchanged"],
 } as const
 

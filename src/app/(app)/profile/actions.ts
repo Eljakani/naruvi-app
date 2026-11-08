@@ -11,7 +11,7 @@ import { BULLETS_PROMPT_VERSION, suggestBullets, type BulletSuggestion } from "@
 import { completionForRun } from "@/server/llm/client"
 import { startRun } from "@/server/runs/tracer"
 import { getLlmOverview } from "@/server/settings/llm"
-import { describeEntry, importProfileText, IMPORT_PROMPT_VERSION, translateEntry } from "@/server/profile/ai-import"
+import { describeEntry, importProfileText, IMPORT_PROMPT_VERSION, suggestEntryExtras, translateEntry } from "@/server/profile/ai-import"
 import { linkedinImport } from "@/lib/linkedin-export"
 import { pdfText } from "@/server/profile/pdf-text"
 import { entriesForMatching, mergeIntoEntry, saveImportedProfile } from "@/server/profile/repository"
@@ -240,5 +240,15 @@ export async function translateEntryAction(input: { from: string; to: string; di
   if (!parsed.success) return { ok: false as const, message: "Invalid input." }
   return withModel("profile.translate", "entry translation", IMPORT_PROMPT_VERSION, (complete, run) =>
     run.step(`translate ${parsed.data.from} → ${parsed.data.to}`, () => translateEntry(parsed.data, complete), (value) => `${value.bullets.length}/${parsed.data.bullets.length} bullets kept`),
+  )
+}
+
+/** Skills (named in the facts), matching keywords and "never say" rules for one entry. Nothing is saved. */
+export async function suggestEntryExtrasAction(input: unknown) {
+  const list = (max: number, len: number) => z.array(z.string().max(len)).max(max)
+  const parsed = z.object({ kind: z.string().max(40), role: z.string().max(200), organization: z.string().max(200), facts: list(60, 600).min(1, "Add a fact first."), skills: list(80, 60), keywords: list(80, 60), rules: list(40, 300), confidential: z.boolean() }).safeParse(input)
+  if (!parsed.success) return { ok: false as const, message: parsed.error.issues[0]?.message ?? "Invalid input." }
+  return withModel("profile.extras", "entry skills and rules", IMPORT_PROMPT_VERSION, (complete, run) =>
+    run.step("suggest skills, keywords and rules", () => suggestEntryExtras(parsed.data, complete), (value) => `${value.skills.length} skills · ${value.keywords.length} keywords · ${value.rules.length} rules`),
   )
 }
