@@ -22,6 +22,7 @@
 
 <p align="center">
   <a href="#quick-start"><strong>Quick start</strong></a> ·
+  <a href="#see-it-in-action">Demos</a> ·
   <a href="#features">Features</a> ·
   <a href="docs/SELF-HOSTING.md">Self-hosting guide</a> ·
   <a href="#documentation">Docs</a> ·
@@ -43,6 +44,40 @@
 </table>
 
 <p align="center"><sub>Screenshots use a demo workspace with made-up people and companies.</sub></p>
+
+## See it in action
+
+<details open>
+<summary><strong>Add a job, check your fit</strong>: Paste a posting. Naruvi reads it, you review and save, and one click compares every requirement with your verified facts.</summary>
+<br />
+<p align="center"><img src="docs/assets/demos/add-job.gif" alt="Add a job, check your fit: Paste a posting. Naruvi reads it, you review and save, and one click compares every requirement with your verified facts." width="100%" /></p>
+</details>
+
+<details>
+<summary><strong>A reply arrives</strong>: A recruiter writes back. Naruvi links the email to the right application and offers to move it to Interviewing.</summary>
+<br />
+<p align="center"><img src="docs/assets/demos/email.gif" alt="A reply arrives: A recruiter writes back. Naruvi links the email to the right application and offers to move it to Interviewing." width="100%" /></p>
+</details>
+
+<details>
+<summary><strong>Tailor your CV</strong>: One click writes a CV for this job from your verified facts, then lets you refine it by asking.</summary>
+<br />
+<p align="center"><img src="docs/assets/demos/cv.gif" alt="Tailor your CV: One click writes a CV for this job from your verified facts, then lets you refine it by asking." width="100%" /></p>
+</details>
+
+<details>
+<summary><strong>Keep applications moving</strong>: Drag a card across the board, or mark an application as sent from its page.</summary>
+<br />
+<p align="center"><img src="docs/assets/demos/move-along.gif" alt="Keep applications moving: Drag a card across the board, or mark an application as sent from its page." width="100%" /></p>
+</details>
+
+<details>
+<summary><strong>Ask Naruvi</strong>: Ask about your search in plain words. Naruvi answers from your workspace.</summary>
+<br />
+<p align="center"><img src="docs/assets/demos/ask.gif" alt="Ask Naruvi: Ask about your search in plain words. Naruvi answers from your workspace." width="100%" /></p>
+</details>
+
+<p align="center"><sub>Recorded on a demo workspace with made-up people and companies.</sub></p>
 
 ## Why Naruvi
 
