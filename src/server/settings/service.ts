@@ -1,4 +1,5 @@
 import "server-only"
+import { APP_VERSION } from "@/server/version"
 import { designTokens } from "@/lib/design"
 import { templateIds } from "@/server/documents/model"
 import { getDecisionOverview } from "./decisions"
@@ -84,7 +85,7 @@ export async function getSystemOverview() {
     llm,
     decisions,
     fonts,
-    appVersion: process.env.npm_package_version ?? "0.1.0",
+    appVersion: APP_VERSION,
   }
 }
 

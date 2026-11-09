@@ -61,13 +61,37 @@ The installer puts a `naruvi` command in the installation directory and offers t
 | `naruvi setup-link` | New private owner setup link (before an owner exists) |
 | `naruvi reset-password` | New owner password; signs out every session |
 | `naruvi backup` | Database, uploaded files and `.env` into `backups/<timestamp>` |
-| `naruvi update [ref]` | Back up, fetch the version, rebuild and restart |
+| `naruvi version` | Installed version, and whether a newer release exists |
+| `naruvi update` | Install the newest signed release: verify, back up, migrate, roll back on failure |
+| `naruvi restore backups/<timestamp>` | Put a backup's database and files back |
 | `naruvi compose …` | Any `docker compose` command for this installation |
 | `naruvi uninstall` | Remove containers; keeps data volumes and files |
 
 The installation directory is a normal Compose project: `.env` sets `COMPOSE_PROJECT_NAME=naruvi` and `COMPOSE_FILE`, so plain `docker compose ps` works there too.
 
-`.env` holds the database password and the key that encrypts saved credentials. Keep it private and keep it with your backups: a database backup without it cannot decrypt stored API keys. Never use `docker compose down -v` unless you mean to delete your data. Updates do not overwrite your copied `compose.yaml` or mode file; `naruvi update` tells you when the bundled versions changed so you can review them. Migrations may prevent a simple downgrade; restore a backup instead.
+`.env` holds the database password and the key that encrypts saved credentials. Keep it private and keep it with your backups: a database backup without it cannot decrypt stored API keys. Never use `docker compose down -v` unless you mean to delete your data. Updates replace the `naruvi` command but not your copied `compose.yaml` or mode file; `naruvi update` tells you when the bundled versions changed so you can review them. Migrations may prevent a simple downgrade; restore a backup instead.
+
+## Updates
+
+Updates run from a terminal; the app only tells you one is available (Settings → Version & updates) and never updates itself.
+
+```bash
+naruvi update --check   # is there a newer release?
+naruvi update           # install it
+```
+
+`naruvi update` picks the newest `vX.Y.Z` release tag and:
+
+1. **Verifies it.** Every release tag is signed. The signature must match a key in `trusted-signers`, copied into the installation directory once at install time. Updates never replace that file, so a tampered download cannot bring its own key. Unsigned or unknown tags are refused.
+2. **Shows what changes** (the new changelog entries) and asks before going on.
+3. **Backs up** the database, uploaded files and `.env` into `backups/<timestamp>`.
+4. **Builds the new version while the current one keeps running.** A failed build changes nothing.
+5. **Migrates and restarts**, then waits for the app to answer.
+6. **Rolls back on failure.** If migrations fail or the app does not start, it restores the database from step 3 and puts the previous images back.
+
+Base images are pinned by digest and npm packages by `package-lock.json`, so a release builds the same way everywhere. `naruvi update v1.2.0` installs a specific release; `naruvi update --ref main --allow-unsigned` follows a branch, without verification. Downgrades are refused: restore a backup instead. The Settings check asks GitHub for the latest release at most twice a day; set `NARUVI_UPDATE_CHECK=off` in `.env` to turn it off.
+
+Installations from before signed releases get the new `naruvi` command from their own `source` folder once: `cp source/deploy/naruvi naruvi` after a `git -C source pull`, then `naruvi update`. Until a release key is in `trusted-signers`, updates need `--allow-unsigned`.
 
 Running the installer again on an existing installation changes nothing and points to `naruvi`. It also refuses a non-empty directory, so secrets are never regenerated for an existing database. One installer-managed stack runs per Docker engine (project `naruvi`).
 

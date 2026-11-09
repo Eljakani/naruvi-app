@@ -350,6 +350,7 @@ if [[ -n ${NARUVI_SOURCE_DIR:-} ]]; then
 else
   run 'Download source' git clone --depth 1 --branch "$ref" https://github.com/Eljakani/naruvi.git "$root/source"
 fi
+chmod -R go+rX "$root/source" # public code; the image runs as `node` and must read it despite umask 077
 cp "$root/source/deploy/compose.yaml" "$root/compose.yaml"
 overlay=$mode.yaml
 cp "$root/source/deploy/$overlay" "$root/$overlay"
@@ -369,6 +370,8 @@ cp "$root/source/deploy/$overlay" "$root/$overlay"
 chmod 600 "$root/.env"
 check ok 'Generate secrets' '.env, private to you'
 cp "$root/source/deploy/naruvi" "$root/naruvi"; chmod 700 "$root/naruvi"
+# Keys that may sign release tags. Copied once; `naruvi update` never replaces it.
+cp "$root/source/deploy/trusted-signers" "$root/trusted-signers"; chmod 600 "$root/trusted-signers"
 cd "$root"
 run 'Validate configuration' docker compose config --quiet
 [[ $mode != hosted ]] || run 'Validate HTTPS gateway' docker compose run --rm --no-deps gateway caddy validate --config /etc/caddy/Caddyfile
