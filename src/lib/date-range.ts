@@ -77,9 +77,11 @@ export function formatDateRange(range: DateRange, language: "en" | "fr"): string
 }
 
 /** Whole months between start and end (or today), for "2 yrs 3 mos". Null without months on both sides. */
-export function durationMonths(range: DateRange, today = new Date()): number | null {
+export function durationMonths(range: DateRange, today?: Date): number | null {
   if (!range.start || range.start.month === null || !range.end) return null
-  const end = range.end === "present" ? { year: today.getFullYear(), month: today.getMonth() } : range.end
+  // Read the clock only for "present": prerendering an empty range must not touch the current time.
+  const now = range.end === "present" ? (today ?? new Date()) : null
+  const end = now ? { year: now.getFullYear(), month: now.getMonth() } : (range.end as MonthYear)
   if (end.month === null) return null
   const months = (end.year - range.start.year) * 12 + (end.month - range.start.month) + 1
   return months > 0 ? months : null

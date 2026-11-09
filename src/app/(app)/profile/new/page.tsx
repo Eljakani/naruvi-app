@@ -6,7 +6,7 @@ export const metadata = { title: "New entry" }
 
 export default function NewEntryPage({ searchParams }: PageProps<"/profile/new">) {
   return (
-    <Suspense fallback={<EntryEditor entry={null} />}>
+    <Suspense fallback={null}>
       <WithKind searchParams={searchParams} />
     </Suspense>
   )
