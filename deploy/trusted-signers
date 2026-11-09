@@ -1,0 +1,5 @@
+# Keys allowed to sign Naruvi release tags (git "allowed signers" format, SSH keys).
+# The installer copies this file next to your installation once. `naruvi update` checks every
+# release tag against that copy and never replaces it, so a compromised download can't add a key.
+# One line per key:  <email> namespaces="git" ssh-ed25519 AAAA...
+59035087+Eljakani@users.noreply.github.com namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICo+RyLfekcSultJp77i4OOljlP5hHvBpaafDlzVAZV5 eljakani@omen

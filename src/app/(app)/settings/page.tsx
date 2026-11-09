@@ -7,6 +7,7 @@ import { connection } from "next/server"
 import { SettingsView } from "@/components/settings/settings-view"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getDocumentDefaults, getSystemOverview } from "@/server/settings/service"
+import { getAvailableUpdate, getChangelog } from "@/server/version"
 
 export const metadata = { title: "Settings" }
 
@@ -27,6 +28,6 @@ export default function SettingsPage() {
 
 async function Loader() {
   await connection()
-  const [overview, defaults] = await Promise.all([getSystemOverview(), getDocumentDefaults()])
-  return <SettingsView overview={overview} defaults={defaults} />
+  const [overview, defaults, changelog, update] = await Promise.all([getSystemOverview(), getDocumentDefaults(), getChangelog(), getAvailableUpdate()])
+  return <SettingsView overview={overview} defaults={defaults} changelog={changelog} update={update} />
 }

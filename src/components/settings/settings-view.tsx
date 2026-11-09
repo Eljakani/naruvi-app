@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState, useTransition } from "react"
-import { ArrowDownToLineIcon, ArrowRightIcon, DatabaseIcon, FileTextIcon, Loader2Icon, PaletteIcon, SparklesIcon, TypeIcon } from "lucide-react"
+import { ArrowDownToLineIcon, ArrowRightIcon, DatabaseIcon, ExternalLinkIcon, FileTextIcon, HistoryIcon, Loader2Icon, PaletteIcon, SparklesIcon, TypeIcon } from "lucide-react"
 import { toast } from "sonner"
 import { downloadFontsAction, saveDocumentPhotoDefaultAction, setDefaultLanguageAction } from "@/app/(app)/settings/actions"
 import { SectionLayout, SectionNav, SettingsSection } from "@/components/section-nav"
@@ -13,6 +13,7 @@ import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldSep
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import type { DocumentDefaults, getSystemOverview } from "@/server/settings/service"
+import type { getAvailableUpdate, Release } from "@/server/version"
 
 type Overview = Awaited<ReturnType<typeof getSystemOverview>>
 
@@ -28,10 +29,11 @@ const FONT_NAMES: Record<string, string> = { SC: "Chinese (Simplified)", JP: "Ja
 const sections = [
   { id: "documents", title: "Documents", icon: FileTextIcon },
   { id: "data", title: "Data & storage", icon: DatabaseIcon },
+  { id: "version", title: "Version & updates", icon: HistoryIcon },
 ] as const
 
 
-export function SettingsView({ overview, defaults: initialDefaults }: { overview: Overview; defaults: DocumentDefaults }) {
+export function SettingsView({ overview, defaults: initialDefaults, changelog, update }: { overview: Overview; defaults: DocumentDefaults; changelog: Release[]; update: Awaited<ReturnType<typeof getAvailableUpdate>> }) {
   const [showPhoto, setShowPhoto] = useState(initialDefaults.showPhoto)
   const [language, setLanguage] = useState(overview.defaultLanguage)
   const [pending, startTransition] = useTransition()
@@ -190,9 +192,54 @@ export function SettingsView({ overview, defaults: initialDefaults }: { overview
                 <dl className="mt-3 grid gap-2 text-sm">
                   <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">Database</dt><dd>{overview.database}</dd></div>
                   <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">Files</dt><dd className="break-all font-mono text-xs">{overview.assetsDir}</dd></div>
-                  <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">Version</dt><dd>{overview.appVersion}</dd></div>
                 </dl>
               </details>
+            </CardContent>
+          </Card>
+        </SettingsSection>
+
+        <SettingsSection id="version" title="Version & updates" description="Updates run from a terminal, with a backup first. The app never updates itself.">
+          <Card>
+            <CardHeader className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle><h3>Naruvi {overview.appVersion}</h3></CardTitle>
+                <CardDescription>{update ? `Version ${update.version} is available.` : "You're on the latest version we know of."}</CardDescription>
+              </div>
+              {update ? <Badge>Update available</Badge> : <Badge variant="secondary">Up to date</Badge>}
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {update && (
+                <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
+                  <p>To update, run this where Naruvi is installed:</p>
+                  <code className="w-fit rounded bg-background px-2 py-1 font-mono text-xs">naruvi update</code>
+                  <a href={update.url} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline">
+                    What&apos;s new in {update.version} <ExternalLinkIcon className="size-3" aria-hidden />
+                  </a>
+                </div>
+              )}
+              {changelog.length > 0 && (
+                <div className="grid gap-4 border-t pt-4">
+                  <h4 className="text-sm font-medium">Changelog</h4>
+                  {changelog.map((release, index) => (
+                    <details key={release.version} open={index === 0} className="group">
+                      <summary className="w-fit cursor-pointer rounded text-sm focus-visible:outline-2 focus-visible:outline-ring">
+                        <span className="font-medium">{release.version}</span>
+                        {release.date && <span className="text-muted-foreground"> · {release.date}</span>}
+                      </summary>
+                      <div className="mt-2 grid gap-3 pl-4">
+                        {release.groups.map((group, i) => (
+                          <div key={i} className="grid gap-1">
+                            {group.title && <p className="text-xs font-medium text-muted-foreground">{group.title}</p>}
+                            <ul className="list-disc space-y-1 pl-4 text-sm">
+                              {group.items.map((item) => <li key={item}>{item.replace(/[`*]/g, "")}</li>)}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </SettingsSection>
