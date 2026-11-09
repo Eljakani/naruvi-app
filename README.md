@@ -1,69 +1,74 @@
+<a id="readme-top"></a>
+
 <p align="center">
   <img src="docs/assets/naruvi-banner.png" alt="Naruvi — Your career. Your workspace. A self-hosted, AI-assisted career workspace with Naruvi the otter." width="100%" />
 </p>
 
+<h3 align="center">A calmer way to find your next role.</h3>
+
 <p align="center">
-  <strong>A calmer way to find your next role.</strong><br />
-  Save opportunities, understand your fit, tailor your documents, and keep every conversation in one place.
+  Save opportunities, understand your fit, tailor your documents, and keep every conversation in one place.<br />
+  Self-hosted, AI-first, and grounded in facts you’ve verified.
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-a95832?style=flat-square" /></a>
-  <img alt="Self-hosted" src="https://img.shields.io/badge/self--hosted-your_workspace-6c7864?style=flat-square" />
-  <img alt="Node.js 24" src="https://img.shields.io/badge/Node.js-24-353535?style=flat-square" />
-  <a href="CONTRIBUTING.md"><img alt="Contributions welcome" src="https://img.shields.io/badge/contributions-welcome-a95832?style=flat-square" /></a>
+  <a href="https://github.com/Eljakani/naruvi/actions/workflows/checks.yml"><img alt="Checks" src="https://img.shields.io/github/actions/workflow/status/Eljakani/naruvi/checks.yml?branch=main&style=flat-square&label=checks&labelColor=2b2b2b" /></a>
+  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-a95832?style=flat-square&labelColor=2b2b2b" /></a>
+  <a href="docs/INSTALLATION.md"><img alt="Self-hosted with Docker" src="https://img.shields.io/badge/self--hosted-Docker-a95832?style=flat-square&labelColor=2b2b2b&logo=docker&logoColor=white" /></a>
+  <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-a95832?style=flat-square&labelColor=2b2b2b&logo=nextdotjs&logoColor=white" />
+  <a href="https://github.com/Eljakani/naruvi/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/Eljakani/naruvi?style=flat-square&labelColor=2b2b2b&color=a95832" /></a>
+  <a href="CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-a95832?style=flat-square&labelColor=2b2b2b" /></a>
 </p>
 
 <p align="center">
-  <a href="#what-you-can-do">Features</a> ·
-  <a href="#get-started">Get started</a> ·
+  <a href="#quick-start"><strong>Quick start</strong></a> ·
+  <a href="#features">Features</a> ·
   <a href="docs/SELF-HOSTING.md">Self-hosting guide</a> ·
+  <a href="#documentation">Docs</a> ·
   <a href="CONTRIBUTING.md">Contribute</a> ·
   <a href="https://github.com/Eljakani/naruvi/issues">Issues</a>
 </p>
 
-## Meet Naruvi
+---
 
-Job searching leaves a trail of tabs, documents, spreadsheets, and emails. Naruvi brings that work together in a workspace you run yourself, with an otter companion to help you take the next step.
+## Why Naruvi
+
+Job searching leaves a trail of tabs, documents, spreadsheets, and emails. Naruvi brings that work together in a workspace **you run yourself**, with an otter companion to help you take the next step.
 
 Start with your experience and verified facts. Save a role, see where your evidence fits, then prepare a CV, cover letter, or email for review. Track the application through interviews and offers without losing the conversation.
 
-**AI-first, with you in charge.** Connect your own model and Naruvi analyses every role, researches companies, and drafts your documents and emails. You review each draft, keep your credentials, and decide the next action.
+- 🧠 **AI-first, you in charge.** Connect your own model. Naruvi analyses every role, researches companies, and drafts documents and emails. You review every draft and decide the next action.
+- 🔎 **Evidence before eloquence.** Drafts are built from facts you’ve verified, and document checks flag claims you can’t back up.
+- 🏠 **Your data, your server.** One PostgreSQL database and your own asset storage. Saved credentials are encrypted at rest.
+- 🔌 **Bring your model.** Native Anthropic support and any OpenAI-compatible endpoint, including local Ollama.
 
-> Naruvi is under active development. Back up your database, uploaded assets, and encryption key before upgrading. The default setup is intended for a trusted local environment.
+> [!NOTE]
+> Naruvi is under active development. Back up your database, uploaded assets, and encryption key before upgrading. The default setup is meant for a trusted local environment.
 
-## What you can do
+## Quick start
 
-| From opportunity to offer | In your workspace |
-| :--- | :--- |
-| **Capture opportunities** | Import a job URL, paste a posting, or save a page with the browser extension. Turn job-alert emails into leads. |
-| **Check your fit** | Compare requirements with verified profile evidence, inspect gaps, and distinguish real qualifications from benefits or interview instructions. |
-| **Research companies** | Generate source-linked AI overviews from official websites, verified Wikidata facts, and Wikipedia. Research a company before adding a job or application. |
-| **Tell your story** | Tailor CVs and cover letters from your existing facts. Review AI rewrites, restore earlier wording, and export documents. |
-| **Keep applications moving** | Track stages, next steps, interviews, and offers. See what needs attention on the dashboard and export applications as CSV. |
-| **Handle the conversation** | Match application emails using company names, domains, roles, recruiters, and thread history. Draft replies and follow-ups in context. |
-| **Plan the next step** | Save interview appointments or tentative holds, download `.ics` events, and subscribe to your private calendar feed. |
-| **Build relationships** | Manage recruiters and contacts, import CSV/Excel or LinkedIn connections, and start spontaneous applications. |
-| **Ask Naruvi** | Work with an assistant that understands your workspace and presents proposed actions for review. |
+You need Docker with Compose v2, Git, and OpenSSL. Node.js isn’t needed on the host.
 
-### Your model, your workflow
+```bash
+curl -fsSLo install-naruvi.sh https://raw.githubusercontent.com/Eljakani/naruvi/main/install.sh
+less install-naruvi.sh   # read it first
+bash install-naruvi.sh
+```
 
-- **Bring your model:** native Anthropic support and OpenAI-compatible endpoints, including local Ollama setups.
-- **Evidence before eloquence:** verified facts and document checks help keep drafts grounded; you still review every claim.
-- **A visible process:** inspect AI workflow status, attempts, latency, and available token usage in Runs.
-- **Connect what you use:** IMAP/SMTP, Google or Microsoft OAuth with your registered app, calendar feeds, ntfy, a browser extension, REST API, and MCP.
+The guided installer asks where Naruvi runs, then sets it up:
 
-Mailbox authentication depends on the provider. Some accounts require OAuth or provider-specific app passwords; IMAP/SMTP access must be enabled. See the [integration details](docs/SELF-HOSTING.md#integrations).
+- **Local:** on this computer.
+- **Hosted:** on your domain, with automatic HTTPS.
+- **Behind your proxy:** Coolify, Traefik, or nginx.
 
-## Get started
+It ends with a private owner setup link. After that, the `naruvi` command handles status, logs, backups, and updates. To try the installer screens without installing anything, run it with `--preview`. See the [installation guide](docs/INSTALLATION.md) for details.
 
-### Interactive installer
+<details>
+<summary><strong>Docker Compose from a checkout</strong></summary>
 
-Run `bash install.sh` for a guided install: **Local** (this computer), **Hosted** (your domain with automatic HTTPS) or **Behind your proxy** (Coolify, Traefik, nginx). It ends with a private owner setup link, and the `naruvi` command handles status, logs, backups and updates. Requires Docker Compose, Git, and OpenSSL. See the [installation guide](docs/INSTALLATION.md) for prerequisites and authentication details.
+<br />
 
-### Docker
-
-Requires **Git, Node.js 24, and Docker Compose**. Node is used to generate the local encryption key; the app runs in containers.
+Requires Git, Node.js 24, and Docker Compose. Node is only used to generate the encryption key; the app runs in containers.
 
 ```bash
 git clone https://github.com/Eljakani/naruvi.git
@@ -73,9 +78,14 @@ npm run settings:key -- .env
 docker compose --profile full up --build -d
 ```
 
-Open **[localhost:3000](http://localhost:3000)** and follow the setup guide. Compose starts PostgreSQL, applies migrations, and launches the app and worker. Data and uploaded assets persist in named volumes.
+Open **[localhost:3000](http://localhost:3000)** and follow the setup guide. Compose starts PostgreSQL, applies migrations, and launches the app and the worker. Data and uploaded assets persist in named volumes.
 
-### Local development
+</details>
+
+<details>
+<summary><strong>Local development</strong></summary>
+
+<br />
 
 ```bash
 npm ci
@@ -87,34 +97,105 @@ npm run db:migrate
 npm run dev
 ```
 
-Run `npm run worker` in a second terminal for queued background jobs. Configure your model in **Settings → Language model**.
+Run `npm run worker` in a second terminal for queued background jobs. Then set up your model in **Settings → Language model**.
 
-For browser dependencies, credentials, backups, and existing installations, read the [self-hosting guide](docs/SELF-HOSTING.md).
+</details>
 
-## Data and control
+## Features
 
-Your workspace is stored in your own PostgreSQL database and asset storage. Saved model credentials are encrypted with AES-256-GCM; keep `SETTINGS_ENCRYPTION_KEY` backed up separately and shared between the app and worker.
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <img src="public/mascot/web/finding-opportunity.webp" alt="" width="64" /><br />
+      <strong>Capture opportunities</strong><br />
+      <sub>Import a job URL, paste a posting, or save a page with the browser extension. Job-alert emails become leads.</sub>
+    </td>
+    <td width="33%" valign="top">
+      <img src="public/mascot/web/reviewing-cv.webp" alt="" width="64" /><br />
+      <strong>Check your fit</strong><br />
+      <sub>Compare each requirement with your verified evidence, see the gaps, and tell real qualifications apart from perks and instructions.</sub>
+    </td>
+    <td width="33%" valign="top">
+      <img src="public/mascot/web/reading-stack.webp" alt="" width="64" /><br />
+      <strong>Research companies</strong><br />
+      <sub>AI overviews with sources, built from official websites, verified Wikidata facts, and Wikipedia.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="public/mascot/web/tailoring-cv.webp" alt="" width="64" /><br />
+      <strong>Tell your story</strong><br />
+      <sub>Tailor CVs and cover letters from your facts. Review AI rewrites, restore earlier wording, and export the result.</sub>
+    </td>
+    <td valign="top">
+      <img src="public/mascot/web/planning-next-step.webp" alt="" width="64" /><br />
+      <strong>Keep applications moving</strong><br />
+      <sub>Track stages, next steps, interviews, and offers. The dashboard shows what needs you and how far your applications get.</sub>
+    </td>
+    <td valign="top">
+      <img src="public/mascot/web/good-news-mail.webp" alt="" width="64" /><br />
+      <strong>Handle the conversation</strong><br />
+      <sub>Emails are matched to applications by company, domain, role, recruiter, and thread. Draft replies and follow-ups in context.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="public/mascot/web/interview-practice.webp" alt="" width="64" /><br />
+      <strong>Plan the next step</strong><br />
+      <sub>Save interviews or tentative holds, download <code>.ics</code> events, and subscribe to your private calendar feed.</sub>
+    </td>
+    <td valign="top">
+      <img src="public/mascot/web/offering-reassurance.webp" alt="" width="64" /><br />
+      <strong>Build relationships</strong><br />
+      <sub>Manage recruiters and contacts, import CSV, Excel, or LinkedIn connections, and start spontaneous applications.</sub>
+    </td>
+    <td valign="top">
+      <img src="public/mascot/web/thinking.webp" alt="" width="64" /><br />
+      <strong>Ask Naruvi</strong><br />
+      <sub>An assistant that knows your workspace and proposes actions for you to review before anything changes.</sub>
+    </td>
+  </tr>
+</table>
 
-Self-hosting does not make external services offline: configured model providers receive the context needed for the requested workflow, and connected email or notification services receive their relevant data. Local models can reduce dependence on hosted AI services.
+### Connect what you use
 
-The default Compose ports bind to localhost. The app requires an owner account initialized through a private terminal link. Use HTTPS and appropriate network protections for internet access. See [security guidance](SECURITY.md).
-
-## Built with
-
-**Next.js · React · TypeScript · PostgreSQL / pgvector · Drizzle · Vercel AI SDK · pg-boss · Tailwind CSS**
-
-| Documentation | What you’ll find |
+| Area | Integrations |
 | :--- | :--- |
-| [Self-hosting](docs/SELF-HOSTING.md) | Installation, model configuration, integrations, and migration notes |
-| [Architecture](docs/ARCHITECTURE.md) | Design principles and implementation context |
+| **Models** | Anthropic, any OpenAI-compatible API, local Ollama |
+| **Mail** | IMAP/SMTP, Google or Microsoft OAuth with your own registered app |
+| **Calendar & alerts** | `.ics` downloads, a private calendar feed, ntfy notifications |
+| **Speech** | Local Whisper in the browser, or a cloud provider with your own key |
+| **Automation** | Browser extension, [REST API](docs/API.md), MCP server |
+| **Transparency** | Every AI workflow’s status, attempts, latency, and token usage in **Runs** |
+
+Mailbox sign-in depends on the provider. Some accounts need OAuth or an app password, and IMAP/SMTP access must be turned on. See the [integration details](docs/SELF-HOSTING.md#integrations).
+
+## Data and privacy
+
+- **Where data lives:** your workspace is stored in your own PostgreSQL database and asset storage.
+- **Credentials:** saved model credentials are encrypted with AES-256-GCM. Back up `SETTINGS_ENCRYPTION_KEY` separately, and share it between the app and the worker.
+- **What leaves your server:** self-hosting doesn’t make external services offline. Your model provider receives the context a workflow needs, and connected email or notification services receive their relevant data. Local models reduce reliance on hosted AI.
+- **Access:** default Compose ports bind to localhost, and the owner account is created through a private terminal link. Use HTTPS and network protections before exposing Naruvi to the internet. See the [security policy](SECURITY.md).
+
+## Documentation
+
+| Guide | What you’ll find |
+| :--- | :--- |
+| [Installation](docs/INSTALLATION.md) | The guided installer, its modes, and unattended installs |
+| [Self-hosting](docs/SELF-HOSTING.md) | Model setup, integrations, backups, and migration notes |
+| [Architecture](docs/ARCHITECTURE.md) | Design principles and how the pieces fit |
 | [REST API](docs/API.md) | API keys and programmatic access |
 | [Browser extension](extension/README.md) | Save postings and contacts from your browser |
-| [Document generation](docs/adr/0001-cv-rendering-and-generation.md) | Rendering and generation decisions |
+| [Document generation](docs/adr/0001-cv-rendering-and-generation.md) | How CVs and letters are rendered and generated |
 | [Naruvi’s voice](docs/NARUVI-VOICE.md) | The companion’s tone and product identity |
 
-## Make Naruvi better
+**Built with** Next.js · React · TypeScript · PostgreSQL + pgvector · Drizzle · Vercel AI SDK · pg-boss · Tailwind CSS
 
-Bug reports, documentation fixes, accessibility improvements, integration work, and tests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), or [open an issue](https://github.com/Eljakani/naruvi/issues/new/choose) with a focused problem or proposal.
+## Contributing
+
+Bug reports, documentation fixes, accessibility improvements, integrations, and tests are all welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), or [open an issue](https://github.com/Eljakani/naruvi/issues/new/choose) with a focused problem or proposal.
+
+Before opening a pull request, run:
 
 ```bash
 npm run typecheck
@@ -122,10 +203,17 @@ npm run lint
 npm test
 ```
 
-Please use synthetic profiles and sanitized emails in reports and fixtures. Never share real credentials, private CVs, or mailbox exports.
+> [!IMPORTANT]
+> Use synthetic profiles and sanitized emails in reports and fixtures. Never share real credentials, private CVs, or mailbox exports.
+
+<a href="https://github.com/Eljakani/naruvi/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Eljakani/naruvi" alt="Contributors" />
+</a>
 
 ## License and credits
 
-Naruvi is licensed under [Apache License 2.0](LICENSE). Third-party components and assets retain their own licenses, including [Rare UI](licenses/rare-ui.txt) and [provider logos](public/provider-logos/LICENSE.txt).
+Naruvi is licensed under the [Apache License 2.0](LICENSE). Third-party components and assets keep their own licenses, including [Rare UI](licenses/rare-ui.txt) and the [provider logos](public/provider-logos/LICENSE.txt).
 
-The Naruvi otter is the project’s visual companion. The README banner uses the app’s **Geist** typeface and existing logo; its background was generated with AI. [Asset notes](docs/assets/README.md).
+The Naruvi otter is the project’s companion. The banner uses the app’s **Geist** typeface and logo; its background was generated with AI. See the [asset notes](docs/assets/README.md).
+
+<p align="right"><a href="#readme-top">Back to top ↑</a></p>
