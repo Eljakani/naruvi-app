@@ -31,6 +31,19 @@
 
 ---
 
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/dashboard-dark.webp" /><img src="docs/assets/screenshots/dashboard-light.webp" alt="Naruvi dashboard: what needs you today, an offer to review, and how your applications are moving" width="100%" /></picture>
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/board-dark.webp" /><img src="docs/assets/screenshots/board-light.webp" alt="Applications board with columns from saved to offer, each card showing its fit score" width="100%" /></picture><p align="center"><sub>Every application on one board, with its fit score</sub></p></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/application-dark.webp" /><img src="docs/assets/screenshots/application-light.webp" alt="An application page: progress stepper, next step, and a fit check backed by verified facts" width="100%" /></picture><p align="center"><sub>Progress, next step, and a fit check you can trust</sub></p></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Screenshots use a demo workspace with made-up people and companies.</sub></p>
+
 ## Why Naruvi
 
 Job searching leaves a trail of tabs, documents, spreadsheets, and emails. Naruvi brings that work together in a workspace **you run yourself**, with an otter companion to help you take the next step.
