@@ -4,7 +4,7 @@ import UndoButton from "@/components/kokonutui/undo-button"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { startTransition, useEffect, useId, useRef, useState, useTransition } from "react"
-import { ArrowLeftIcon, CheckCircle2Icon, CopyIcon, EllipsisIcon, EyeIcon, FileTextIcon, HistoryIcon, MailIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, SparklesIcon, StarIcon, Trash2Icon } from "lucide-react"
+import { ArrowLeftIcon, CheckCircle2Icon, CopyIcon, EllipsisIcon, EyeIcon, FileTextIcon, HistoryIcon, Loader2Icon, MailIcon, PaletteIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, StarIcon, Trash2Icon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { designIdeas } from "@/lib/design-ideas"
 import { AgentComposer, AgentThread } from "@/components/agent/agent-chat"
@@ -14,7 +14,7 @@ import { aiDesignAction, deleteTemplateAction, restoreTemplateVersionAction, sav
 import { PdfThumb } from "@/components/templates/pdf-thumb"
 import { fetchTemplatePreview } from "@/lib/template-preview"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { TemplateVersion } from "@/server/templates/service"
 import { PdfPreview } from "@/components/documents/pdf-preview"
 import { Button } from "@/components/ui/button"
@@ -121,7 +121,6 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
   const [historyLoading, setHistoryLoading] = useState(false)
   const [lastPrompt, setLastPrompt] = useState("")
   const [confirmation, setConfirmation] = useState<"delete" | TemplateVersion | null>(null)
-  const promptLabel = useId()
   const fontLabel = useId()
   const headingFontLabel = useId()
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -341,19 +340,10 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
           <Input value={name} maxLength={80} disabled={saving || !draftReady} onChange={(event) => setName(event.target.value)} aria-label="Template name" className="h-7 max-w-80 border-transparent bg-transparent px-1.5 text-base font-semibold shadow-none hover:border-input focus-visible:border-ring dark:bg-transparent" />
           <div className="flex min-w-0 items-center gap-2 px-1.5 text-xs text-muted-foreground">
             <span className="truncate">{initial.customDefault ? "Custom default" : `Based on ${PRESETS[initial.basedOn]?.name ?? "Classic"}`}</span>
-            <span aria-hidden>·</span>
-            <span role="status" key={dirty ? "dirty" : initial.id ? "saved" : "new"} className="cb-fade flex shrink-0 items-center gap-1.5">
-              {dirty ? <><span className="size-1.5 rounded-full bg-primary" /> Unsaved changes</> : initial.id ? <><CheckCircle2Icon className="size-3" /> Saved</> : "Not saved yet"}
-            </span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <Button size="sm" variant="outline" className="lg:hidden" onClick={() => setMobilePreview((value) => !value)} aria-pressed={mobilePreview}><EyeIcon /> Preview</Button>
-          {dirty && initial.id ? (
-            <Button size="sm" variant="ghost" className="cb-fade hidden sm:inline-flex" onClick={() => { setName(saved.name); setTokens(saved.tokens); setLastPrompt(""); setFitGoal(false) }} disabled={busy}>
-              Discard
-            </Button>
-          ) : null}
           <Button size="sm" variant="ghost" className="hidden sm:inline-flex" onClick={makeDefault} disabled={busy}>
             <StarIcon /> Use as default
           </Button>
@@ -362,7 +352,6 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem className="sm:hidden" onClick={makeDefault}><StarIcon /> Use as default</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setTokens(PRESETS[initial.basedOn]?.tokens ?? PRESETS.classic.tokens)}><RotateCcwIcon /> Reset to {PRESETS[initial.basedOn]?.name ?? "preset"}</DropdownMenuItem>
-              {dirty ? <DropdownMenuItem className="sm:hidden" onClick={() => { setName(saved.name); setTokens(saved.tokens); setLastPrompt(""); setFitGoal(false) }}>Discard unsaved edits</DropdownMenuItem> : null}
               {initial.id ? <>
                 <DropdownMenuItem onClick={() => save(true)}><CopyIcon /> Save as copy</DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -370,27 +359,25 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
               </> : null}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" onClick={() => save()} disabled={busy || (!dirty && Boolean(initial.id))}>
-            <SaveIcon /> {initial.id ? "Save" : "Save template"}
-          </Button>
         </div>
       </div>
 
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
         <Tabs value={panel} onValueChange={(value) => { setPanel(value); if (value === "history" && !versions) void loadHistory() }} className={cn("min-h-0 min-w-0 flex-col gap-0 bg-background lg:flex lg:border-r", mobilePreview ? "hidden" : "flex")}>
-          <TabsList variant="line" className="w-full justify-start gap-1 border-b px-3">
-            <TabsTrigger value="design">Design</TabsTrigger>
-            <TabsTrigger value="history" disabled={!initial.id} className="gap-1.5"><HistoryIcon className="size-3.5" /> History</TabsTrigger>
-          </TabsList>
+          <div className="border-b px-3 py-2">
+            {/* Same pill switcher as the CV and letter editors. */}
+            <TabsList className="relative grid h-auto! w-full grid-cols-2 gap-0 rounded-lg bg-muted p-0.5 [&_[data-slot=tabs-trigger]]:z-10 [&_[data-slot=tabs-trigger]]:h-7 [&_[data-slot=tabs-trigger]]:gap-1.5 [&_[data-slot=tabs-trigger]]:text-xs [&_[data-slot=tabs-trigger]]:text-muted-foreground [&_[data-slot=tabs-trigger]]:data-active:bg-transparent [&_[data-slot=tabs-trigger]]:data-active:text-foreground [&_[data-slot=tabs-trigger]]:data-active:shadow-none [&_[data-slot=tabs-trigger]_svg]:size-3.5">
+              <TabsTrigger value="design"><PaletteIcon /> Look</TabsTrigger>
+              <TabsTrigger value="history" disabled={!initial.id}><HistoryIcon /> History</TabsTrigger>
+              <TabsIndicator className="top-(--active-tab-top) bottom-auto h-(--active-tab-height) rounded-md bg-background shadow-xs ring-1 ring-foreground/5" />
+            </TabsList>
+          </div>
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-            <TabsContent value="design" className="grid gap-4 p-4">
-              <section aria-labelledby={promptLabel} className="grid gap-3 rounded-xl border bg-muted/30 p-3">
-                <div id={promptLabel} className="flex items-center gap-2 text-sm font-medium">
-                  <SparklesIcon className={cn("size-4", asking && "cb-breathe")} /> Design agent
-                  <span className="font-normal text-muted-foreground">· {previewKind === "letter" ? "cover letter" : "CV"}</span>
-                </div>
+            <TabsContent value="design" className="grid gap-4 p-4 [animation:cb-rise_200ms_var(--ease-out)_both]">
+              <section aria-label="Ask Naruvi to change this design" className="grid gap-3 rounded-lg border bg-muted/20 p-3">
                 <AgentThread
                   pose="working-on-it"
+                  intro={<>Tell me how this {previewKind === "letter" ? "cover letter" : "CV"} should look. I’ll change fonts, colours and spacing, and check every page before I apply it.</>}
                   steps={DESIGN_STEPS}
                   working={asking ? working : null}
                   turns={history.map((turn, index) => {
@@ -417,20 +404,20 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                   })}
                 />
                 <AgentComposer
-                  label="Describe what you want"
+                  label="Ask Naruvi to change this design"
                   value={prompt}
                   onChange={setPrompt}
                   onSend={(text) => ask(text)}
                   busy={busy}
                   minLength={history.length ? 1 : 3}
-                  placeholder={history.length ? "Ask for a change, or say “more”, “undo that”…" : "e.g. Make it look more premium, with a navy accent and a bit more space"}
+                  placeholder={history.length ? "Ask for a change, or say “more”, “undo that”…" : "Ask Naruvi to change this design…"}
                   suggestions={designIdeas(tokens, { pages: preview?.pages, seed: ideaSeed, exclude: lastPrompt ? [lastPrompt] : [] })}
                 />
                 {fitGoal ? <p role="status" className="text-xs text-muted-foreground">{failed ? "Couldn’t verify page fit. Retry the preview." : rendering ? "Checking page count…" : preview?.pages === 1 ? "Verified: the preview fits on one page." : `The preview still needs ${preview?.pages || "multiple"} pages. No content was removed.`}</p> : null}
               </section>
 
               <fieldset disabled={saving || !draftReady} className="contents">
-              <Accordion multiple defaultValue={["type", "colour", "layout"]} className="grid">
+              <Accordion multiple defaultValue={["type", "colour", "layout"]} className="grid [&_[data-slot=accordion-trigger]]:text-xs [&_[data-slot=accordion-trigger]]:font-semibold [&_[data-slot=accordion-trigger]]:tracking-wide [&_[data-slot=accordion-trigger]]:uppercase [&_[data-slot=accordion-trigger]]:hover:no-underline">
                 <AccordionItem value="type">
                   <AccordionTrigger>Typography</AccordionTrigger>
                   <AccordionContent>
@@ -631,7 +618,7 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
               </fieldset>
             </TabsContent>
 
-            <TabsContent value="history" className="grid gap-2 p-4">
+            <TabsContent value="history" className="grid gap-2 p-4 [animation:cb-rise_200ms_var(--ease-out)_both]">
               <p className="text-xs text-muted-foreground">Showing up to 50 recent versions. Restoring a name and design creates a new version.</p>
               {historyError ? (
                 <div role="status" className="flex flex-wrap items-center gap-2 text-sm">Couldn’t load history. <Button size="sm" variant="outline" onClick={() => void loadHistory()}>Retry</Button></div>
@@ -659,6 +646,24 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                 </ol>
               )}
             </TabsContent>
+          </div>
+          <div className={cn("flex items-center gap-2 border-t px-4 py-2.5 transition-colors", dirty || !initial.id ? "bg-muted" : "bg-background")}>
+            {dirty || !initial.id ? (
+              <>
+                <span className="text-xs text-muted-foreground">{initial.id ? "Unsaved changes" : "Not saved yet"}</span>
+                <div className="ml-auto flex gap-1.5">
+                  {dirty && initial.id ? <Button size="sm" variant="ghost" onClick={() => { setName(saved.name); setTokens(saved.tokens); setLastPrompt(""); setFitGoal(false) }} disabled={busy}>Discard</Button> : null}
+                  <Button size="sm" onClick={() => save()} disabled={busy}>
+                    {saving ? <Loader2Icon className="animate-spin" /> : <SaveIcon />} {initial.id ? "Save" : "Save template"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <span role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {saving ? <Loader2Icon className="size-3 animate-spin" /> : <CheckCircle2Icon className="size-3" />}
+                <span key={saving ? "saving" : "saved"} className="cb-fade">{saving ? "Saving…" : "All changes saved"}</span>
+              </span>
+            )}
           </div>
         </Tabs>
         <div className={cn("min-h-0 min-w-0 flex-col gap-2 p-3 sm:p-4 lg:flex", mobilePreview ? "flex" : "hidden")}>

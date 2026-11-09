@@ -142,7 +142,7 @@ export function PdfPreview({ url, data, pageBudget, className, busy = false, onR
   const over = pageBudget !== undefined && pageCount > pageBudget
 
   return (
-    <div className={cn("flex min-h-0 flex-col overflow-hidden rounded-xl border bg-muted/50", className)}>
+    <div className={cn("flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-muted/50", className)}>
       <div className="flex flex-wrap items-center gap-1 border-b bg-background px-2 py-1.5">
         <span className={cn("rounded-md px-2 py-0.5 text-xs tabular-nums", over ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400" : "text-muted-foreground")}>
           {pageCount ? `Page ${current} of ${pageCount}` : "—"}
