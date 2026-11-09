@@ -1,6 +1,6 @@
 # Contributing to Naruvi
 
-Thanks for helping make job searching more manageable. Focused changes, clear bug reports, documentation, and accessibility improvements are all valuable.
+Thanks for helping make job searching more manageable. Focused changes, clear bug reports, documentation, and accessibility improvements are all valuable. Taking part means following the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Before starting
 
@@ -28,3 +28,11 @@ Run `npm run build` for production or framework changes. Browser-import changes 
 - Never commit `.env` files, credentials, real CVs, private mail, or database dumps.
 
 Describe the problem, the resulting behavior, and validation in your pull request. Mention limitations honestly. Contributions are provided under the project’s Apache-2.0 license; retain applicable third-party notices.
+
+## Releasing
+
+1. Bump `version` in `package.json` and add a `## X.Y.Z — YYYY-MM-DD` section at the top of `CHANGELOG.md`. Settings shows that file.
+2. Sign the tag with an SSH key listed in `deploy/trusted-signers`: `git tag -s vX.Y.Z -m vX.Y.Z` (with `git config gpg.format ssh` and `user.signingkey` set), then `git push origin vX.Y.Z`.
+3. Publish a GitHub release for the tag with the changelog section as notes. The in-app update notice reads the latest release.
+
+Adding or rotating a key in `deploy/trusted-signers` only reaches new installations; existing ones keep the file they were installed with.
