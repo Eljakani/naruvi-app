@@ -1,37 +1,39 @@
 import { Building2Icon, CompassIcon, ContactRoundIcon, FileTextIcon, LayoutDashboardIcon, PaletteIcon, PlugIcon, ScrollTextIcon, Settings2Icon, UserRoundIcon, type LucideIcon } from "lucide-react"
 
-export type NavItem = { title: string; url: string; icon: LucideIcon; description: string }
+/** Titles and descriptions live in the `nav` message catalog under `items.<key>`. */
+export type NavKey = "dashboard" | "jobs" | "applications" | "companies" | "contacts" | "profile" | "templates" | "integrations" | "runs" | "settings"
+export type NavItem = { key: NavKey; url: string; icon: LucideIcon }
 
 /** The sidebar, in the order of a job search: find and track, prepare your material, connect and inspect. */
-export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+export const NAV_GROUPS: { key: "search" | "material" | "workspace"; items: NavItem[] }[] = [
   {
-    label: "Job search",
+    key: "search",
     items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboardIcon, description: "Pipeline and next actions" },
-      { title: "Jobs", url: "/jobs", icon: CompassIcon, description: "New postings to look at, not tracked yet" },
-      { title: "Applications", url: "/applications", icon: FileTextIcon, description: "Every job you're pursuing, saved to offer" },
-      { title: "Companies", url: "/companies", icon: Building2Icon, description: "Every job and application per company" },
-      { title: "Contacts", url: "/contacts", icon: ContactRoundIcon, description: "Recruiters, HR and hiring managers" },
+      { key: "dashboard", url: "/", icon: LayoutDashboardIcon },
+      { key: "jobs", url: "/jobs", icon: CompassIcon },
+      { key: "applications", url: "/applications", icon: FileTextIcon },
+      { key: "companies", url: "/companies", icon: Building2Icon },
+      { key: "contacts", url: "/contacts", icon: ContactRoundIcon },
     ],
   },
   {
-    label: "Your material",
+    key: "material",
     items: [
-      { title: "Profile", url: "/profile", icon: UserRoundIcon, description: "Verified facts — the source of truth" },
-      { title: "Templates", url: "/templates", icon: PaletteIcon, description: "How your documents look" },
+      { key: "profile", url: "/profile", icon: UserRoundIcon },
+      { key: "templates", url: "/templates", icon: PaletteIcon },
     ],
   },
   {
-    label: "Workspace",
+    key: "workspace",
     items: [
-      { title: "Integrations", url: "/integrations", icon: PlugIcon, description: "Email, calendar and other connections" },
-      { title: "Naruvi’s work", url: "/runs", icon: ScrollTextIcon, description: "What Naruvi did, step by step" },
+      { key: "integrations", url: "/integrations", icon: PlugIcon },
+      { key: "runs", url: "/runs", icon: ScrollTextIcon },
     ],
   },
 ]
 
 /** Kept at the bottom of the sidebar, next to the user menu. */
-export const settingsItem: NavItem = { title: "Settings", url: "/settings", icon: Settings2Icon, description: "Documents, fonts and data" }
+export const settingsItem: NavItem = { key: "settings", url: "/settings", icon: Settings2Icon }
 
 /** Every page, for breadcrumbs and lookups. */
 export const navItems: NavItem[] = [...NAV_GROUPS.flatMap((group) => group.items), settingsItem]

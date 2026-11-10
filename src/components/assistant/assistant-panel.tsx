@@ -3,8 +3,10 @@
 import { ComposeEmail } from "@/components/mail/compose-email"
 import { PresenceList } from "@/components/presence"
 import Link from "next/link"
+import { useFormatter, useTranslations } from "next-intl"
 import { NaruviAvatar, Otter } from "@/components/naruvi/otter"
 import { usePathname, useRouter } from "next/navigation"
+import { useDirection } from "@base-ui/react/direction-provider"
 import { useChat } from "@ai-sdk/react"
 import { Collapsible } from "@animate-ui/react/primitives/base-ui/collapsible"
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, lastAssistantMessageIsCompleteWithToolCalls, type FileUIPart, type InferUITools, type UIMessage } from "ai"
@@ -111,26 +113,28 @@ function useShortcutLabel() {
 }
 
 export function AssistantSidebarItem() {
+  const t = useTranslations("assistantTrigger")
   const { open, toggle } = useContext(AssistantContext)
   const shortcut = useShortcutLabel()
   return (
-    <SidebarMenuButton tooltip={`Ask Naruvi (${shortcut})`} aria-controls={PANEL_ID} aria-expanded={open} isActive={open} onClick={toggle}
+    <SidebarMenuButton tooltip={t("shortcut", { shortcut })} aria-controls={PANEL_ID} aria-expanded={open} isActive={open} onClick={toggle}
       className="text-sidebar-foreground/75 hover:bg-sidebar-accent/60 data-active:text-sidebar-foreground">
       <NaruviAvatar size={16} className="-my-0.5" />
-      <span>Ask Naruvi</span>
-      <Kbd className="ml-auto bg-transparent opacity-60 group-data-[collapsible=icon]:hidden">{shortcut}</Kbd>
+      <span>{t("ask")}</span>
+      <Kbd className="ms-auto bg-transparent opacity-60 group-data-[collapsible=icon]:hidden">{shortcut}</Kbd>
     </SidebarMenuButton>
   )
 }
 
 export function AssistantHeaderButton() {
+  const t = useTranslations("assistantTrigger")
   const { open, toggle } = useContext(AssistantContext)
   return (
     <Button
       id="assistant-toggle"
       size="sm"
       variant="ghost"
-      aria-label={open ? "Close Naruvi" : "Wake Naruvi up"}
+      aria-label={open ? t("close") : t("wake")}
       aria-controls={PANEL_ID}
       aria-expanded={open}
       onClick={toggle}
@@ -141,7 +145,7 @@ export function AssistantHeaderButton() {
         <NaruviAvatar size={24} className="naruvi-trigger-face" />
         <span aria-hidden="true" className="naruvi-sleep pointer-events-none absolute -end-1 -top-1.5 text-[9px] font-bold text-brand"><span className="naruvi-z inline-block">z</span></span>
       </span>
-      <span className="hidden text-sm @min-[30rem]/workspace:inline">{open ? "Naruvi is here" : "Ask Naruvi"}</span>
+      <span className="hidden text-sm @min-[30rem]/workspace:inline">{open ? t("open") : t("ask")}</span>
     </Button>
   )
 }
@@ -152,6 +156,7 @@ export function AssistantPanel() {
 }
 
 function DockedAssistant() {
+  const inlineDirection = useDirection() === "rtl" ? -1 : 1
   const { open, queued, close, clearQueue } = useContext(AssistantContext)
   const [width, setWidth] = useState(() => {
     const stored = Number(localStorage.getItem(WIDTH_KEY))
@@ -211,7 +216,7 @@ function DockedAssistant() {
       className={cn(
         "flex h-dvh w-full min-w-0 flex-col bg-background outline-none lg:w-[min(var(--assistant-width),42vw)] lg:border-s",
         "transition-[opacity,translate] duration-300 ease-[var(--ease-drawer)] motion-reduce:translate-x-0 motion-reduce:transition-opacity",
-        shown ? "translate-x-0 opacity-100" : "translate-x-8 opacity-0",
+        shown ? "translate-x-0 opacity-100" : "translate-x-8 opacity-0 rtl:-translate-x-8",
       )}
       onKeyDown={(event) => {
         if (event.key === "Escape" && !event.defaultPrevented && event.target instanceof Node && event.currentTarget.contains(event.target)) {
@@ -234,13 +239,13 @@ function DockedAssistant() {
           setResizing(true)
         }}
         onPointerMove={(event) => {
-          if (drag.current) resize(drag.current.startWidth + drag.current.startX - event.clientX)
+          if (drag.current) resize(drag.current.startWidth + (drag.current.startX - event.clientX) * inlineDirection)
         }}
         onLostPointerCapture={() => { drag.current = null; setResizing(false) }}
         onKeyDown={(event) => {
           const current = panel.current?.offsetWidth ?? width
           const step = event.shiftKey ? 64 : 16
-          const target = { ArrowLeft: current + step, ArrowRight: current - step, Home: MIN_WIDTH, End: MAX_WIDTH }[event.key]
+          const target = { ArrowLeft: current + step * inlineDirection, ArrowRight: current - step * inlineDirection, Home: MIN_WIDTH, End: MAX_WIDTH }[event.key]
           if (target !== undefined) {
             event.preventDefault()
             resize(target)
@@ -259,25 +264,23 @@ function DockedAssistant() {
 
 const STORAGE = "naruvi-assistant-v2"
 type Suggestion = { icon: LucideIcon; text: string }
-const GENERAL: Suggestion[] = [
-  { icon: CalendarClockIcon, text: "What should I do today?" },
-  { icon: GaugeIcon, text: "Which saved jobs fit me best?" },
-  { icon: SendIcon, text: "Start a spontaneous application" },
-  { icon: UserPlusIcon, text: "Add a recruiter to my contacts" },
-]
-
-/** What Naruvi is looking at, and what's most useful to ask there. */
-function pageContext(path: string): { label: string; suggestions: Suggestion[] } {
-  if (/^\/applications\/[^/]+\/letter/.test(path)) return { label: "this cover letter", suggestions: [{ icon: MailIcon, text: "Make this letter shorter and more direct" }, { icon: GlobeIcon, text: "Add something specific about the company" }, { icon: UserRoundIcon, text: "Who should I send it to?" }] }
-  if (/^\/applications\/[^/]+\/cv/.test(path)) return { label: "this CV", suggestions: [{ icon: FileTextIcon, text: "What's missing from this CV for the job?" }, { icon: GaugeIcon, text: "Which requirements am I weakest on?" }, { icon: MailIcon, text: "Draft the cover letter too" }] }
-  if (/^\/applications\/[^/]+/.test(path)) return { label: "this application", suggestions: [{ icon: GaugeIcon, text: "Summarize where this application stands" }, { icon: MailIcon, text: "Draft the cover letter" }, { icon: CalendarClockIcon, text: "Set a follow-up for next week" }, { icon: UserRoundIcon, text: "Who should I contact here?" }] }
-  if (/^\/jobs\/[^/]+/.test(path) && !path.startsWith("/jobs/new")) return { label: "this job", suggestions: [{ icon: GaugeIcon, text: "Is this job a good fit for me?" }, { icon: BriefcaseBusinessIcon, text: "Start an application for this job" }, { icon: GlobeIcon, text: "Research this company" }] }
-  if (path.startsWith("/jobs")) return { label: "your jobs", suggestions: [{ icon: GaugeIcon, text: "Which saved jobs fit me best?" }, { icon: BriefcaseBusinessIcon, text: "Add a job from a link" }, { icon: CalendarClockIcon, text: "Which jobs haven't I applied to yet?" }] }
-  if (path.startsWith("/contacts")) return { label: "your contacts", suggestions: [{ icon: UserPlusIcon, text: "Add a recruiter to my contacts" }, { icon: MailSearchIcon, text: "Which contacts have no email yet?" }, { icon: SendIcon, text: "Start a spontaneous application" }] }
-  if (path.startsWith("/companies")) return { label: "your companies", suggestions: [{ icon: GlobeIcon, text: "Which companies have I applied to most?" }, { icon: SendIcon, text: "Start a spontaneous application" }] }
-  if (path.startsWith("/profile")) return { label: "your profile", suggestions: [{ icon: UserRoundIcon, text: "What's missing from my profile?" }, { icon: FileTextIcon, text: "Which entries have no facts yet?" }, { icon: GaugeIcon, text: "What are my strongest skills?" }] }
-  if (path === "/applications") return { label: "your applications", suggestions: [{ icon: CalendarClockIcon, text: "Which applications have had no news?" }, { icon: GaugeIcon, text: "Which application should I push next?" }, { icon: SendIcon, text: "Start a spontaneous application" }] }
-  return { label: "your dashboard", suggestions: GENERAL }
+function pageContext(path: string, t: ReturnType<typeof useTranslations<"assistantWelcome">>): { label: string; suggestions: Suggestion[] } {
+  const general: Suggestion[] = [
+    { icon: CalendarClockIcon, text: t("today") },
+    { icon: GaugeIcon, text: t("bestFit") },
+    { icon: SendIcon, text: t("spontaneous") },
+    { icon: UserPlusIcon, text: t("recruiter") },
+  ]
+  if (/^\/applications\/[^/]+\/letter/.test(path)) return { label: t("letter"), suggestions: [{ icon: MailIcon, text: t("shorter") }, { icon: GlobeIcon, text: t("specific") }, { icon: UserRoundIcon, text: t("recipient") }] }
+  if (/^\/applications\/[^/]+\/cv/.test(path)) return { label: t("cv"), suggestions: [{ icon: FileTextIcon, text: t("missingCv") }, { icon: GaugeIcon, text: t("weak") }, { icon: MailIcon, text: t("letterToo") }] }
+  if (/^\/applications\/[^/]+/.test(path)) return { label: t("application"), suggestions: [{ icon: GaugeIcon, text: t("progress") }, { icon: MailIcon, text: t("draftLetter") }, { icon: CalendarClockIcon, text: t("followUp") }, { icon: UserRoundIcon, text: t("who") }] }
+  if (/^\/jobs\/[^/]+/.test(path) && !path.startsWith("/jobs/new")) return { label: t("job"), suggestions: [{ icon: GaugeIcon, text: t("fit") }, { icon: BriefcaseBusinessIcon, text: t("start") }, { icon: GlobeIcon, text: t("research") }] }
+  if (path.startsWith("/jobs")) return { label: t("jobs"), suggestions: [{ icon: GaugeIcon, text: t("bestFit") }, { icon: BriefcaseBusinessIcon, text: t("jobLink") }, { icon: CalendarClockIcon, text: t("notApplied") }] }
+  if (path.startsWith("/contacts")) return { label: t("contacts"), suggestions: [{ icon: UserPlusIcon, text: t("recruiter") }, { icon: MailSearchIcon, text: t("noEmail") }, { icon: SendIcon, text: t("spontaneous") }] }
+  if (path.startsWith("/companies")) return { label: t("companies"), suggestions: [{ icon: GlobeIcon, text: t("mostApplied") }, { icon: SendIcon, text: t("spontaneous") }] }
+  if (path.startsWith("/profile")) return { label: t("profile"), suggestions: [{ icon: UserRoundIcon, text: t("missingProfile") }, { icon: FileTextIcon, text: t("noFacts") }, { icon: GaugeIcon, text: t("skills") }] }
+  if (path === "/applications") return { label: t("applications"), suggestions: [{ icon: CalendarClockIcon, text: t("noNews") }, { icon: GaugeIcon, text: t("nextApp") }, { icon: SendIcon, text: t("spontaneous") }] }
+  return { label: t("dashboard"), suggestions: general }
 }
 
 
@@ -295,6 +298,7 @@ function loadMessages(): UIMessage[] {
 }
 
 function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null; onQueuedSent: () => void; onClose: () => void }) {
+  const t = useTranslations("assistantWelcome")
   const router = useRouter()
   const [initial] = useState(loadMessages)
   const transport = useMemo(() => new DefaultChatTransport({
@@ -417,7 +421,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
     ? last.parts.slice(last.parts.findLastIndex((part) => part.type === "step-start") + 1)
     : []
   const toolOwnsStatus = latestStep.some((part) => isTool(part) && (
-    READS[toolName(part)] || ACTIONS[toolName(part)] || toolName(part) === "ask_user"
+    isReadTool(toolName(part)) || ACTIONS[toolName(part)] || toolName(part) === "ask_user"
   ) && (
     part.state === "input-streaming" || part.state === "input-available" ||
     part.state === "approval-requested" ||
@@ -425,9 +429,9 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
   ))
   const working = busy && !toolOwnsStatus
   // Safe here: the panel only renders after the user opens it, never while prerendering.
-  const context = pageContext(usePathname())
+  const context = pageContext(usePathname(), t)
   const writing = status === "streaming" && latestStep.some((part) => part.type === "text" && part.state === "streaming" && part.text.trim())
-  const mood = !busy ? null : writing ? "Writing" : toolOwnsStatus ? "Working on it" : "Thinking"
+  const mood = !busy ? null : writing ? t("writing") : toolOwnsStatus ? t("working") : t("thinking")
   const retry = () => { setTurnStartedAt(Date.now()); clearError(); void regenerate() }
 
 
@@ -438,15 +442,15 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
         <div className="min-w-0 flex-1">
           <h2 id="assistant-title" className="text-sm font-semibold">Naruvi</h2>
           <p key={mood ?? context.label} aria-live="polite" className={cn("cb-fade truncate text-xs", mood ? "font-medium text-brand" : "text-muted-foreground")}>
-            {mood ? `${mood}…` : `Looking at ${context.label}`}
+            {mood ?? t("context", { page: context.label })}
           </p>
         </div>
         {messages.length ? (
-          <Button size="icon-sm" variant="ghost" aria-label="New conversation" title="New conversation" disabled={busy} onClick={() => { setMessages([]); sessionStorage.removeItem(STORAGE) }}>
+          <Button size="icon-sm" variant="ghost" aria-label={t("newChat")} title={t("newChat")} disabled={busy} onClick={() => { setMessages([]); sessionStorage.removeItem(STORAGE) }}>
             <SquarePenIcon />
           </Button>
         ) : null}
-        <Button size="icon-sm" variant="ghost" aria-label="Close assistant" title="Close assistant" onClick={onClose}>
+        <Button size="icon-sm" variant="ghost" aria-label={t("close")} title={t("close")} onClick={onClose}>
           <XIcon />
         </Button>
       </header>
@@ -500,7 +504,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
         attachmentCount={images.length}
         attachmentLimit={CHAT_IMAGE_MAX}
         accept={CHAT_IMAGE_TYPES.join(",")}
-        placeholder={busy ? (followUp ? "Naruvi will read your follow-up next…" : "Add a follow-up, it goes out when Naruvi finishes…") : messages.length ? "Reply, or ask something else…" : "Ask anything, or tell Naruvi what to do…"}
+        placeholder={busy ? (followUp ? t("queuedPlaceholder") : t("followUpPlaceholder")) : messages.length ? t("replyPlaceholder") : t("askPlaceholder")}
         responding={busy}
         queued={followUp ? (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
@@ -525,7 +529,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
                     aria-label={`Remove ${part.filename || `image ${index + 1}`}`}
                     title="Remove"
                     onClick={() => { setImages((current) => current.filter((_, i) => i !== index)); setImageError("") }}
-                    className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                    className="absolute -top-1.5 -end-1.5 flex size-5 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
                   >
                     <XIcon className="size-3" />
                   </button>
@@ -552,12 +556,13 @@ function friendlyError(message: string) {
   return "Something went wrong. Try again, or check your AI model in Integrations."
 }
 
-const greeting = () => {
+const greeting = (): "late" | "morning" | "afternoon" | "evening" => {
   const hour = new Date().getHours()
-  return hour < 5 ? "Up late?" : hour < 12 ? "Good morning." : hour < 18 ? "Good afternoon." : "Good evening."
+  return hour < 5 ? "late" : hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening"
 }
 
 function Welcome({ onPick, suggestions, label }: { onPick: (text: string) => void; suggestions: Suggestion[]; label: string }) {
+  const t = useTranslations("assistantWelcome")
   const [hello] = useState(greeting)
   // Sits just above the composer, where the eye already is, instead of floating mid-panel.
   return (
@@ -567,17 +572,17 @@ function Welcome({ onPick, suggestions, label }: { onPick: (text: string) => voi
           <span className="absolute inset-x-3 bottom-0 h-5 rounded-[50%] bg-brand/15 blur-md" aria-hidden />
           <Otter pose="concept" height={132} className="relative" priority />
         </div>
-        <div className="relative mb-6 grid gap-1 rounded-2xl rounded-bl-sm border bg-background px-3.5 py-3 shadow-xs">
-          <p className="text-base font-semibold tracking-tight">{hello} I’m Naruvi.</p>
-          <p className="text-sm text-pretty text-muted-foreground">I know your jobs, applications, contacts and profile. Tell me what you need and I’ll get it ready. Nothing changes until you say so.</p>
+        <div className="relative mb-6 grid gap-1 rounded-2xl rounded-es-sm border bg-background px-3.5 py-3 shadow-xs">
+          <p className="text-base font-semibold tracking-tight">{t(hello)}</p>
+          <p className="text-sm text-pretty text-muted-foreground">{t("intro")}</p>
         </div>
       </div>
       <div className="grid gap-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Ideas for {label}</p>
+        <p className="text-xs font-medium text-muted-foreground">{t("ideas", { page: label })}</p>
         <ul key={suggestions[0]?.text} className="cb-stagger grid divide-y overflow-hidden rounded-xl border bg-background">
           {suggestions.map(({ icon: Icon, text }) => (
             <li key={text}>
-              <button type="button" onClick={() => onPick(text)} className="group/suggestion flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none">
+              <button type="button" onClick={() => onPick(text)} className="group/suggestion flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-start text-sm transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none">
                 <Icon className="size-4 shrink-0 text-muted-foreground transition-colors group-hover/suggestion:text-foreground" />
                 <span className="flex-1">{text}</span>
                 <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-[opacity,translate] duration-150 group-hover/suggestion:translate-x-0.5 group-hover/suggestion:opacity-100 group-focus-visible/suggestion:opacity-100" />
@@ -592,20 +597,22 @@ function Welcome({ onPick, suggestions, label }: { onPick: (text: string) => voi
 
 /* ───────────────────────────── assistant turn ───────────────────────────── */
 
-const READS: Record<string, [running: string, done: string]> = {
-  what_needs_attention: ["Checking what needs attention", "Checked what needs attention"],
-  list_applications: ["Looking through your applications", "Looked through your applications"],
-  get_application: ["Opening an application", "Opened an application"],
-  search_jobs: ["Searching your saved jobs", "Searched your saved jobs"],
-  get_job: ["Reading a job posting", "Read a job posting"],
-  list_companies: ["Looking through companies", "Looked through companies"],
-  get_company: ["Opening a company", "Opened a company"],
-  read_careers_page: ["Checking the careers link", "Checked the careers link"],
-  list_contacts: ["Looking through your contacts", "Looked through your contacts"],
-  profile_overview: ["Reading your profile", "Read your profile"],
-  read_profile_details: ["Checking profile details", "Checked profile details"],
-  find_profile_entries: ["Finding the profile entry", "Checked matching profile entries"],
-}
+const READS = [
+  "what_needs_attention",
+  "list_applications",
+  "get_application",
+  "search_jobs",
+  "get_job",
+  "list_companies",
+  "get_company",
+  "read_careers_page",
+  "list_contacts",
+  "profile_overview",
+  "read_profile_details",
+  "find_profile_entries",
+] as const
+
+const isReadTool = (name: string): name is (typeof READS)[number] => READS.some((tool) => tool === name)
 
 // The SDK keeps completed message objects stable while replacing the streaming one.
 const TranscriptMessage = memo(function TranscriptMessage(props: Parameters<typeof AssistantMessage>[0]) {
@@ -643,7 +650,7 @@ function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, sta
     reads = []
   }
   message.parts.forEach((part, index) => {
-    if (isTool(part) && READS[toolName(part)]) return void reads.push(part)
+    if (isTool(part) && isReadTool(toolName(part))) return void reads.push(part)
     flush()
     if (!hasAction && part.type === "text" && part.text.trim()) blocks.push(<Markdown key={index} text={part.text} onNavigate={onNavigate} streaming={busy && part.state === "streaming"} />)
     else if (isTool(part) && toolName(part) === "ask_user" && (busy || part.state !== "input-streaming")) blocks.push(<AskCard key={index} part={part} onAnswer={onAnswer} disabled={busy && part.state !== "input-available"} />)
@@ -733,8 +740,10 @@ function ProfileCard({ profile, onNavigate }: { profile: ProfileResult; onNaviga
 }
 
 function ApplicationResults({ applications, onNavigate }: { applications: ApplicationResult[]; onNavigate: () => void }) {
+  const t = useTranslations("assistantResults")
+  const status = useTranslations("labels.status")
   return (
-    <ul aria-label="Applications" className="grid gap-2">
+    <ul aria-label={t("applications")} className="grid gap-2">
       {applications.map((application) => (
         <li key={application.id} className="min-w-0">
           <Link
@@ -749,7 +758,7 @@ function ApplicationResults({ applications, onNavigate }: { applications: Applic
                 <span className="text-xs text-muted-foreground">{[application.company, application.location].filter(Boolean).join(" · ")}</span>
               ) : null}
               <Badge variant={application.status === "ready" && !application.archived ? "default" : "secondary"} className="mt-1">
-                {application.archived ? "Archived" : application.stage}
+                {application.archived ? t("archived") : status.has(application.status) ? status(application.status) : application.stage}
               </Badge>
             </div>
             {application.fit != null ? <FitRing score={application.fit} /> : null}
@@ -762,12 +771,14 @@ function ApplicationResults({ applications, onNavigate }: { applications: Applic
 }
 
 function ReadTrace({ parts, busy }: { parts: ToolPart[]; busy: boolean }) {
+  const t = useTranslations("assistantResults")
   const reducedMotion = useReducedMotion()
-  const steps = parts.map((part) => {
-    const [running, done] = READS[toolName(part)]
+  const steps = parts.flatMap((part) => {
+    const name = toolName(part)
+    if (!isReadTool(name)) return []
     const pending = part.state === "input-streaming" || part.state === "input-available"
     const failed = part.state === "output-error" || Boolean(part.output?.error) || (toolName(part) === "read_careers_page" && part.output?.page === null)
-    return { part, pending, failed, label: failed ? "Lookup failed" : pending ? running : done }
+    return [{ part, pending, failed, label: failed ? t("failed") : t(`reads.${name}.${pending ? "running" : "done"}`) }]
   }).filter((step) => busy || !step.pending)
   if (!steps.length) return null
   const active = steps.find((step) => step.pending)
@@ -787,7 +798,7 @@ function ReadTrace({ parts, busy }: { parts: ToolPart[]; busy: boolean }) {
               <TraceLine status={failed ? "error" : undefined} className="text-xs">
                 <TraceIcon>{failed ? <CircleAlertIcon className="size-3.5" /> : <CheckIcon className="size-3.5" />}</TraceIcon>
                 <TraceTitle>{label}</TraceTitle>
-                {!failed ? <TraceDescription>{countOf(part.output)}</TraceDescription> : null}
+                {!failed ? <TraceDescription>{countOf(part.output, t)}</TraceDescription> : null}
               </TraceLine>
             )}
             {source ? <CareersSource source={source} /> : null}
@@ -800,10 +811,10 @@ function ReadTrace({ parts, busy }: { parts: ToolPart[]; busy: boolean }) {
 
   return (
     <Collapsible.Root className="min-w-0 rounded-lg border bg-muted/25">
-      <Collapsible.Trigger className="group/activity flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+      <Collapsible.Trigger className="group/activity flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-start text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
         {active ? <span aria-hidden><AiStatusIcon state="researching" /></span> : failed ? <CircleAlertIcon className="size-3.5 shrink-0 text-destructive" /> : <CheckIcon className="size-3.5 shrink-0" />}
-        <span className="min-w-0 flex-1 font-medium">{active ? active.label : failed ? `Lookups · ${failed} failed` : `${steps.length} lookups completed`}</span>
-        {active ? <span className="shrink-0 tabular-nums">{settled} of {steps.length}</span> : null}
+        <span className="min-w-0 flex-1 font-medium">{active ? active.label : failed ? t("failures", { count: failed }) : t("completed", { count: steps.length })}</span>
+        {active ? <span className="shrink-0 tabular-nums">{t("progress", { settled, total: steps.length })}</span> : null}
         <ChevronDownIcon className="size-3.5 shrink-0 group-data-[panel-open]/activity:rotate-180 motion-safe:transition-transform motion-safe:duration-150" />
       </Collapsible.Trigger>
       <Collapsible.Panel transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.23, 1, 0.32, 1] }}>
@@ -826,11 +837,11 @@ function CareersSource({ source }: { source: { url?: string; title?: string } })
   )
 }
 
-function countOf(output: Record<string, unknown> | undefined) {
+function countOf(output: Record<string, unknown> | undefined, t: ReturnType<typeof useTranslations<"assistantResults">>) {
   if (!output) return null
-  for (const key of ["applications", "jobs", "contacts", "companies", "entries", "attention"]) {
+  for (const key of ["applications", "jobs", "contacts", "companies", "entries", "attention"] as const) {
     const value = output[key]
-    if (Array.isArray(value)) return `${value.length} ${key === "attention" ? "items" : key}`
+    if (Array.isArray(value)) return t(`counts.${key}`, { count: value.length })
   }
   return null
 }
@@ -870,7 +881,7 @@ function Markdown({ text, onNavigate, streaming }: { text: string; onNavigate: (
 
 function OpenButton({ path, label, onNavigate }: { path: string; label: string; onNavigate: () => void }) {
   return (
-    <Button variant="outline" size="sm" className="cb-step h-auto min-h-8 w-fit max-w-full py-1.5 text-left whitespace-normal wrap-anywhere" nativeButton={false} render={<Link href={path} onClick={onNavigate} />}>
+    <Button variant="outline" size="sm" className="cb-step h-auto min-h-8 w-fit max-w-full py-1.5 text-start whitespace-normal wrap-anywhere" nativeButton={false} render={<Link href={path} onClick={onNavigate} />}>
       {label} <ArrowRightIcon />
     </Button>
   )
@@ -890,16 +901,16 @@ function AskCard({ part, onAnswer, disabled }: { part: ToolPart; onAnswer: (tool
         <span className="min-w-0">{question}</span>
       </p>
       {answered !== null ? (
-        <p className="flex items-start gap-1.5 pl-6 text-sm text-muted-foreground"><CheckIcon className="cb-pop mt-0.5 size-3.5 shrink-0 text-primary" /> <span className="min-w-0 wrap-anywhere">{answered}</span></p>
+        <p className="flex items-start gap-1.5 ps-6 text-sm text-muted-foreground"><CheckIcon className="cb-pop mt-0.5 size-3.5 shrink-0 text-primary" /> <span className="min-w-0 wrap-anywhere">{answered}</span></p>
       ) : (
         <>
-          {options.length ? <div className="cb-stagger flex min-w-0 flex-wrap gap-1.5 pl-6">
+          {options.length ? <div className="cb-stagger flex min-w-0 flex-wrap gap-1.5 ps-6">
             {options.map((option) => (
-              <Button key={option} size="sm" variant="outline" className="h-auto min-h-8 max-w-full py-1.5 text-left whitespace-normal wrap-anywhere" disabled={disabled} onClick={() => onAnswer(part.toolCallId, option)}>{option}</Button>
+              <Button key={option} size="sm" variant="outline" className="h-auto min-h-8 max-w-full py-1.5 text-start whitespace-normal wrap-anywhere" disabled={disabled} onClick={() => onAnswer(part.toolCallId, option)}>{option}</Button>
             ))}
           </div> : null}
           {!options.length || part.input?.allowOther !== false ? (
-            <form className="pl-6" onSubmit={(event) => { event.preventDefault(); if (other.trim()) onAnswer(part.toolCallId, other.trim()) }}>
+            <form className="ps-6" onSubmit={(event) => { event.preventDefault(); if (other.trim()) onAnswer(part.toolCallId, other.trim()) }}>
               <InputGroup className="h-8">
                 <InputGroupInput value={other} onChange={(event) => setOther(event.target.value)} placeholder={options.length ? "Something else…" : "Type your answer…"} aria-label={options.length ? "Other answer" : question} disabled={disabled} />
                 <InputGroupAddon align="inline-end">
@@ -914,21 +925,23 @@ function AskCard({ part, onAnswer, disabled }: { part: ToolPart; onAnswer: (tool
   )
 }
 
-const THINKING_PHRASES = ["Naruvi is thinking", "Working on it", "Figuring this out"]
+const THINKING_PHRASES = ["thinking", "working", "figuring"] as const
 
 /** Ticks on its own, so the once-a-second update re-renders one span, not the whole indicator. */
 function Elapsed({ since }: { since: number }) {
+  const format = useFormatter()
   const [now, setNow] = useState(since)
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [])
   const seconds = Math.max(0, Math.floor((now - since) / 1000))
-  return seconds >= 3 ? <span className="cb-pop text-xs text-muted-foreground tabular-nums">{seconds}s</span> : null
+  return seconds >= 3 ? <span className="cb-pop text-xs text-muted-foreground tabular-nums">{format.number(seconds, { style: "unit", unit: "second", unitDisplay: "narrow" })}</span> : null
 }
 
 /** Naruvi beside a quiet typing bubble; the phrase and timer only appear if it takes a while. */
 function ThinkingIndicator({ startedAt }: { startedAt: number | null }) {
+  const t = useTranslations("assistantWelcome.thinkingPhrases")
   const reduced = !!useReducedMotion()
   const [mountedAt] = useState(() => Date.now())
   const [phraseIndex, setPhraseIndex] = useState(0)
@@ -937,7 +950,7 @@ function ThinkingIndicator({ startedAt }: { startedAt: number | null }) {
     const timer = setInterval(() => setPhraseIndex((i) => (i + 1) % THINKING_PHRASES.length), 3500)
     return () => clearInterval(timer)
   }, [reduced])
-  const phrase = THINKING_PHRASES[phraseIndex]!
+  const phrase = t(THINKING_PHRASES[phraseIndex]!)
   return (
     <motion.div
       initial={reduced ? false : { opacity: 0, y: 6 }}
@@ -946,7 +959,7 @@ function ThinkingIndicator({ startedAt }: { startedAt: number | null }) {
       transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
       className="flex items-center gap-2.5"
       role="status"
-      aria-label="Naruvi is thinking"
+      aria-label={t("thinking")}
     >
       <NaruviAvatar size={26} />
       <span className="naruvi-typing" aria-hidden="true"><i /><i /><i /></span>
@@ -1124,7 +1137,7 @@ function ActionCard({ part, busy, stale, onApproval, onNavigate }: { part: ToolP
       {running && busy ? (
         <PendingActivity analyzing label={action.working} className="ps-9.5" />
       ) : null}
-      {failed ? <p className="flex items-start gap-1.5 pl-9.5 text-xs text-destructive"><CircleAlertIcon className="mt-px size-3.5 shrink-0" /> {part.errorText || "That didn’t work."}</p> : null}
+      {failed ? <p className="flex items-start gap-1.5 ps-9.5 text-xs text-destructive"><CircleAlertIcon className="mt-px size-3.5 shrink-0" /> {part.errorText || "That didn’t work."}</p> : null}
     </div>
   )
 }

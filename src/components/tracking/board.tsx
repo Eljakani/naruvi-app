@@ -2,14 +2,14 @@
 
 import { useFormStatus } from "react-dom"
 import { ScanSearchIcon, SparklesIcon } from "lucide-react"
-import { analyzeJobAction } from "@/app/(app)/applications/actions"
+import { analyzeJobAction } from "@/app/[locale]/(app)/applications/actions"
 
 import Link from "next/link"
 import { useOptimistic, useState, useTransition } from "react"
 import { ArchiveIcon, CalendarClockIcon, EllipsisIcon, InboxIcon } from "lucide-react"
 import { toast } from "sonner"
 import { announceStatus } from "@/components/naruvi/moments"
-import { archiveApplicationAction, moveApplicationAction } from "@/app/(app)/applications/actions"
+import { archiveApplicationAction, moveApplicationAction } from "@/app/[locale]/(app)/applications/actions"
 import { FitRing } from "@/components/applications/fit-ring"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Badge } from "@/components/ui/badge"
@@ -17,8 +17,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { dueLabel, dueTone } from "@/lib/attention"
-import { COLUMNS, columnOf, MANUAL_STATUSES, STATUS_LABEL, statusForColumn, type ColumnId, type Status } from "@/lib/stages"
+import { COLUMNS, columnOf, MANUAL_STATUSES, statusForColumn, type ColumnId, type Status } from "@/lib/stages"
 import { cn } from "@/lib/utils"
+import { useLocale, useTranslations } from "next-intl"
 
 export type BoardItem = {
   id: string
@@ -34,14 +35,14 @@ export type BoardItem = {
   unread?: number
 }
 
-function age(iso: string) {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
-  return days <= 0 ? "today" : days === 1 ? "1 day" : `${days} days`
-}
+const age = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000))
 
 /** The board shows work in progress; closed applications collapse into a link. */
 export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: string }) {
   const [now] = useState(() => Date.now())
+  const t = useTranslations("board")
+  const tl = useTranslations("labels")
+  const locale = useLocale()
   const [moved, applyMove] = useOptimistic(items, (state, move: { id: string; status: Status }) => state.map((item) => (item.id === move.id ? { ...item, status: move.status, since: new Date().toISOString() } : item)))
   const [optimistic, applyHide] = useOptimistic(moved, (state, id: string) => state.filter((item) => item.id !== id))
   const [, startTransition] = useTransition()
@@ -54,7 +55,7 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
     startTransition(async () => {
       applyMove({ id, status })
       const result = await moveApplicationAction(id, status)
-      if (!result.ok) toast.error(result.message ?? "Couldn’t move the application")
+      if (!result.ok) toast.error(result.message ?? t("moveFailed"))
       else announceStatus(status, item.company, item.title)
     })
   }
@@ -63,8 +64,8 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
     startTransition(async () => {
       applyHide(item.id)
       const result = await archiveApplicationAction(item.id, true)
-      if (!result.ok) toast.error(result.message ?? "Couldn’t archive the application")
-      else toast(`${item.title} archived`, { action: { label: "Undo", onClick: () => void archiveApplicationAction(item.id, false) } })
+      if (!result.ok) toast.error(result.message ?? t("archiveFailed"))
+      else toast(t("archived", { title: item.title }), { action: { label: t("undo"), onClick: () => void archiveApplicationAction(item.id, false) } })
     })
 
   return (
@@ -76,15 +77,15 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
             return (
               <Link key={column.id} href={closedHref} className="flex min-h-64 flex-col items-center justify-center gap-1 rounded-xl border border-dashed p-3 text-center text-sm text-muted-foreground hover:bg-muted/40">
                 <ArchiveIcon className="size-4" />
-                <span className="font-medium text-foreground">{column.title}</span>
-                <span className="text-xs">{cards.length ? `${cards.length} application${cards.length === 1 ? "" : "s"}` : "None"}</span>
+                <span className="font-medium text-foreground">{tl(`column.${column.id}`)}</span>
+                <span className="text-xs">{cards.length ? t("count", { count: cards.length }) : t("none")}</span>
               </Link>
             )
           }
           return (
             <section
               key={column.id}
-              aria-label={column.title}
+              aria-label={tl(`column.${column.id}`)}
               onDragOver={(event) => {
                 if (!dragging) return
                 event.preventDefault()
@@ -101,7 +102,7 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
               className={cn("flex min-h-64 flex-col gap-2 rounded-xl bg-muted/50 p-2 transition-colors", over === column.id && "bg-muted")}
             >
               <header className="flex items-center justify-between px-1.5 py-1">
-                <h2 className="text-sm font-medium">{column.title}</h2>
+                <h2 className="text-sm font-medium">{tl(`column.${column.id}`)}</h2>
                 <span className="text-xs text-muted-foreground tabular-nums">{cards.length}</span>
               </header>
               {cards.map((item) => (
@@ -128,22 +129,22 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
                         <div className="truncate text-xs text-muted-foreground">{item.company}</div>
                       </Link>
                       <DropdownMenu>
-                        <DropdownMenuTrigger render={<Button size="icon-xs" variant="ghost" aria-label={`Move ${item.title}`} />}>
+                        <DropdownMenuTrigger render={<Button size="icon-xs" variant="ghost" aria-label={t("move", { title: item.title })} />}>
                           <EllipsisIcon />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
                           <DropdownMenuGroup>
-                            <DropdownMenuLabel>Move to</DropdownMenuLabel>
+                            <DropdownMenuLabel>{t("moveTo")}</DropdownMenuLabel>
                             {MANUAL_STATUSES.map((status) => (
                               <DropdownMenuItem key={status} disabled={item.status === status} onClick={() => move(item.id, status)}>
-                                {STATUS_LABEL[status]}
+                                {tl(`status.${status}`)}
                               </DropdownMenuItem>
                             ))}
                           </DropdownMenuGroup>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem render={<Link href={`/applications/${item.id}`} />}>Open</DropdownMenuItem>
+                          <DropdownMenuItem render={<Link href={`/applications/${item.id}`} />}>{t("open")}</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => archive(item)}>
-                            <ArchiveIcon /> Archive
+                            <ArchiveIcon /> {t("archive")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -151,7 +152,7 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
                     {item.nextStepDue || item.nextStep ? (
                       <p className={cn("flex min-w-0 items-center gap-1 text-xs", item.nextStepDue && dueTone(new Date(item.nextStepDue), now) === "overdue" ? "text-destructive" : "text-muted-foreground")}>
                         <CalendarClockIcon className="size-3 shrink-0" />
-                        <span className="truncate">{item.nextStep || "Next step"}{item.nextStepDue ? ` · ${dueLabel(new Date(item.nextStepDue), now)}` : ""}</span>
+                        <span className="truncate">{item.nextStep || t("nextStep")}{item.nextStepDue ? ` · ${dueLabel(new Date(item.nextStepDue), now, (key, values) => tl(`due.${key}`, values), locale)}` : ""}</span>
                       </p>
                     ) : null}
                     {(item.status === "draft" || item.status === "parsed") && item.jobId ? (
@@ -161,19 +162,19 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
                       </form>
                     ) : null}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="secondary">{STATUS_LABEL[item.status]}</Badge>
+                      <Badge variant="secondary">{tl(`status.${item.status}`)}</Badge>
                       {item.unread ? (
-                        <span className="inline-flex items-center gap-1 font-medium text-foreground" title={`${item.unread} new email${item.unread === 1 ? "" : "s"}`}>
+                        <span className="inline-flex items-center gap-1 font-medium text-foreground" title={t("unread", { count: item.unread })}>
                           <InboxIcon className="size-3" /> {item.unread}
                         </span>
                       ) : null}
-                      <span>{age(item.since)}</span>
-                      {item.fit !== null ? <FitRing score={item.fit} size={28} className="ml-auto" /> : null}
+                      <span>{t("age", { days: age(item.since) })}</span>
+                      {item.fit !== null ? <FitRing score={item.fit} size={28} className="ms-auto" /> : null}
                     </div>
                   </CardContent>
                 </Card>
               ))}
-              {!cards.length ? <p className="px-1.5 py-6 text-center text-xs text-muted-foreground">{dragging ? "Drop here" : "Nothing here"}</p> : null}
+              {!cards.length ? <p className="px-1.5 py-6 text-center text-xs text-muted-foreground">{dragging ? t("dropHere") : t("nothingHere")}</p> : null}
             </section>
           )
         })}
@@ -184,9 +185,10 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
 
 function AnalyzeCardButton() {
   const { pending } = useFormStatus()
+  const t = useTranslations("board")
   return (
     <Button type="submit" size="xs" variant="outline" disabled={pending} className="w-full border-brand/30 text-brand hover:bg-brand-soft" draggable={false}>
-      {pending ? <SparklesIcon className="cb-breathe" /> : <ScanSearchIcon />} {pending ? "Checking fit…" : "Check my fit"}
+      {pending ? <SparklesIcon className="cb-breathe" /> : <ScanSearchIcon />} {pending ? t("checkingFit") : t("checkFit")}
     </Button>
   )
 }

@@ -4,26 +4,28 @@ import { useEffect, useRef, useState, useTransition } from "react"
 import { FileTextIcon, GaugeIcon, SparklesIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { reviseCvAction } from "@/app/(app)/applications/[id]/cv/actions"
+import { reviseCvAction } from "@/app/[locale]/(app)/applications/[id]/cv/actions"
 import { AgentComposer, AgentThread, type AgentTurn } from "@/components/agent/agent-chat"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import type { CvDocument } from "@/server/documents/model"
+import { useTranslations } from "next-intl"
 
-const IDEAS = ["Make it shorter", "Fit on one page", "Stress leadership", "More technical", "Simpler words", "Lead with results"]
-const STEPS = ["Reading your request", "Rewriting with your facts only", "Rendering and scoring the CV", "Fixing what the checks flag", "Keeping the best version"]
-const LINE_ACTIONS = [
-  { label: "Shorter", request: "Make this line shorter and punchier, same meaning." },
-  { label: "Stronger verb", request: "Start this line with a stronger action verb." },
-  { label: "More technical", request: "Make this line more technical and specific, using only its facts." },
-  { label: "Simpler", request: "Rewrite this line in simpler, plainer words." },
-  { label: "Lead with the result", request: "Rewrite this line to lead with the outcome its facts state." },
+// Suggestions are shown and sent in the reader's language (`cvAssistant.ideas`); the model understands either.
+const IDEAS = ["shorter", "onePage", "leadership", "technical", "simpler", "results"] as const
+const STEPS = ["read", "rewrite", "render", "fix", "keep"] as const
+const LINE_ACTIONS: { label: "shorter" | "verb" | "technical" | "simpler" | "result"; request: string }[] = [
+  { label: "shorter", request: "Make this line shorter and punchier, same meaning." },
+  { label: "verb", request: "Start this line with a stronger action verb." },
+  { label: "technical", request: "Make this line more technical and specific, using only its facts." },
+  { label: "simpler", request: "Rewrite this line in simpler, plainer words." },
+  { label: "result", request: "Rewrite this line to lead with the outcome its facts state." },
 ]
 
 type Outcome = { kind: "done" | "none" | "error" | "conflict"; note: string; scoreBefore: number; scoreAfter: number; pages: number; rounds: number; rejected: number; apply?: () => void }
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 function useRevise(applicationId: string, draft: CvDocument, apply: (doc: CvDocument) => void, report?: (outcome: Outcome, request: string) => void) {
+  const t = useTranslations("cvAssistant")
   const [pending, start] = useTransition()
   // The latest draft, so a result can tell whether you edited the CV while Naruvi was working.
   const latest = useRef(draft)
@@ -31,7 +33,7 @@ function useRevise(applicationId: string, draft: CvDocument, apply: (doc: CvDocu
   const run = (request: string, bulletId?: string) =>
     start(async () => {
       const sent = draft
-      const result = await reviseCvAction(applicationId, sent, request, bulletId).catch(() => ({ ok: false as const, error: "Couldn’t reach Naruvi. Check your connection and try again." }))
+      const result = await reviseCvAction(applicationId, sent, request, bulletId).catch(() => ({ ok: false as const, error: t("unreachable") }))
       if (!result.ok) {
         if (report) report({ kind: "error", note: result.error, scoreBefore: 0, scoreAfter: 0, pages: 0, rounds: 0, rejected: 0 }, request)
         else toast.error(result.error)
@@ -40,17 +42,17 @@ function useRevise(applicationId: string, draft: CvDocument, apply: (doc: CvDocu
       const { doc, changed, rejected, note, scoreBefore, scoreAfter, pages, rounds } = result.data
       // Never overwrite edits you made meanwhile: ask first.
       if (changed && latest.current !== sent) {
-        const outcome: Outcome = { kind: "conflict", note: "You edited the CV while I was working, so I didn’t replace your changes.", scoreBefore, scoreAfter, pages, rounds, rejected, apply: () => apply(doc) }
+        const outcome: Outcome = { kind: "conflict", note: t("conflict"), scoreBefore, scoreAfter, pages, rounds, rejected, apply: () => apply(doc) }
         if (report) report(outcome, request)
-        else toast("You edited the CV meanwhile", { description: "Naruvi’s version wasn’t applied.", action: { label: "Use it anyway", onClick: () => apply(doc) } })
+        else toast(t("conflictTitle"), { description: t("conflictBody"), action: { label: t("useAnyway"), onClick: () => apply(doc) } })
         return
       }
       // When nothing changed, the model's note describes an edit that didn't survive: say what actually happened instead.
-      const fallback = changed ? "Done" : rejected ? "Nothing I tried passed the fact check, so your CV is unchanged." : "Nothing I tried scored better than your current CV, so I left it as it is."
+      const fallback = changed ? t("done") : rejected ? t("rejectedAll") : t("noBetter")
       const outcome: Outcome = { kind: changed ? "done" : "none", note: changed ? (note || fallback) : fallback, scoreBefore, scoreAfter, pages, rounds, rejected }
       if (changed) apply(doc)
       if (report) report(outcome, request)
-      else if (changed) toast.success(outcome.note, { description: "Review it, then Save. Discard undoes it." })
+      else if (changed) toast.success(outcome.note, { description: t("reviewThenSave") })
       else toast(outcome.note)
     })
   return { pending, run }
@@ -78,6 +80,7 @@ export function useCheckFix(applicationId: string, draft: CvDocument, apply: (do
 
 /** "Ask AI" for the whole CV, as a short conversation. Changes land in the draft for review. */
 export function CvAssistant({ applicationId, draft, apply }: { applicationId: string; draft: CvDocument; apply: (doc: CvDocument) => void }) {
+  const t = useTranslations("cvAssistant")
   const [text, setText] = useState("")
   const [working, setWorking] = useState("")
   const [turns, setTurns] = useState<AgentTurn[]>([])
@@ -95,14 +98,14 @@ export function CvAssistant({ applicationId, draft, apply }: { applicationId: st
           outcome.kind === "done" && outcome.scoreAfter ? (
             <span className="grid gap-1">
               <span className="flex flex-wrap gap-1">
-                <Badge variant="secondary" className="gap-1"><GaugeIcon className="size-3" /> {outcome.scoreBefore === outcome.scoreAfter ? `Score ${outcome.scoreAfter}` : `Score ${outcome.scoreBefore} → ${outcome.scoreAfter}`}</Badge>
-                <Badge variant="secondary" className="gap-1"><FileTextIcon className="size-3" /> {outcome.pages} page{outcome.pages === 1 ? "" : "s"}</Badge>
-                {outcome.rounds > 1 ? <Badge variant="secondary">{outcome.rounds} rounds</Badge> : null}
+                <Badge variant="secondary" className="gap-1"><GaugeIcon className="size-3" /> {outcome.scoreBefore === outcome.scoreAfter ? t("score", { score: outcome.scoreAfter }) : t("scoreChange", { before: outcome.scoreBefore, after: outcome.scoreAfter })}</Badge>
+                <Badge variant="secondary" className="gap-1"><FileTextIcon className="size-3" /> {t("pages", { count: outcome.pages })}</Badge>
+                {outcome.rounds > 1 ? <Badge variant="secondary">{t("rounds", { count: outcome.rounds })}</Badge> : null}
               </span>
-              Not saved yet: review it, then Save.
+              {t("notSaved")}
             </span>
-          ) : outcome.rejected ? `${plural(outcome.rejected, "idea")} would have claimed things your facts don’t say.` : undefined,
-        actions: outcome.kind === "conflict" && outcome.apply ? <Button size="xs" variant="outline" onClick={outcome.apply}>Use Naruvi’s version anyway</Button> : outcome.kind === "error" ? <Button size="xs" variant="outline" onClick={() => sendRef.current(request)}>Try again</Button> : undefined,
+          ) : outcome.rejected ? t("rejected", { count: outcome.rejected }) : undefined,
+        actions: outcome.kind === "conflict" && outcome.apply ? <Button size="xs" variant="outline" onClick={outcome.apply}>{t("useVersion")}</Button> : outcome.kind === "error" ? <Button size="xs" variant="outline" onClick={() => sendRef.current(request)}>{t("tryAgain")}</Button> : undefined,
       },
     ].slice(-6)),
   )
@@ -114,26 +117,27 @@ export function CvAssistant({ applicationId, draft, apply }: { applicationId: st
   useEffect(() => { sendRef.current = send })
   return (
     <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
-      <AgentThread turns={turns} working={pending ? working : null} steps={STEPS} pose="tailoring-cv" intro="Tell me what to change on this CV. I’ll reword and reorder, but I only use what your verified facts back up." />
-      <AgentComposer label="Ask Naruvi to change this CV" value={text} onChange={setText} onSend={send} busy={pending} placeholder="Ask Naruvi to change this CV…" suggestions={turns.length ? IDEAS.slice(0, 3) : IDEAS} />
+      <AgentThread turns={turns} working={pending ? working : null} steps={STEPS.map((step) => t(`steps.${step}`))} pose="tailoring-cv" intro={t("intro")} />
+      <AgentComposer label={t("ask")} value={text} onChange={setText} onSend={send} busy={pending} placeholder={t("askPlaceholder")} suggestions={(turns.length ? IDEAS.slice(0, 3) : IDEAS).map((idea) => t(`ideas.${idea}`))} />
     </div>
   )
 }
 
 /** Sparkle menu on one CV line. */
 export function LineAssistant({ applicationId, draft, bulletId, apply }: { applicationId: string; draft: CvDocument; bulletId: string; apply: (doc: CvDocument) => void }) {
+  const t = useTranslations("cvAssistant")
   const { pending, run } = useRevise(applicationId, draft, apply)
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button type="button" size="icon-xs" variant="ghost" aria-label="Ask Naruvi to improve this line" disabled={pending} className="text-muted-foreground" />}>
+      <DropdownMenuTrigger render={<Button type="button" size="icon-xs" variant="ghost" aria-label={t("improveLine")} disabled={pending} className="text-muted-foreground" />}>
         <SparklesIcon className={pending ? "cb-breathe" : undefined} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Improve this line</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("improveTitle")}</DropdownMenuLabel>
           {LINE_ACTIONS.map((action) => (
             <DropdownMenuItem key={action.label} onClick={() => run(action.request, bulletId)}>
-              {action.label}
+              {t(`line.${action.label}`)}
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>

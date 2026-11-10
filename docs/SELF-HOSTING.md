@@ -22,8 +22,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Open [Naruvi](http://localhost:3000). A new install starts with the **setup guide** (`/setup`): secure storage, an AI model, your profile (import a CV or LinkedIn export, or answer guided questions by typing or dictating), a look, and your first job. Run `npm run worker` in another terminal
-for background jobs. Configure optional model access in **Settings → Language model**.
+Open [Naruvi](http://localhost:3000). A new install starts with the **setup guide** (`/setup`): secure storage, an AI model, your profile (import a CV or LinkedIn export, or answer guided questions by typing or dictating), a look, and your first job. Configure optional model access in **Integrations → Language model**. To check the queue connection, run `npm run worker` in another terminal.
 
 URL imports try structured job-board APIs and direct HTTP first. If the extracted
 posting is incomplete or needs JavaScript, Naruvi retries it in headless Chromium

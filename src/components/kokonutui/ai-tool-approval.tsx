@@ -407,7 +407,7 @@ function ApprovalCard({
           {call.title}
         </h3>
         {call.destructive && (
-          <span className="ml-auto rounded-md bg-red-50 px-1.5 py-0.5 font-medium text-[11px] text-red-600 dark:bg-red-500/10 dark:text-red-400">
+          <span className="ms-auto rounded-md bg-red-50 px-1.5 py-0.5 font-medium text-[11px] text-red-600 dark:bg-red-500/10 dark:text-red-400">
             Destructive
           </span>
         )}
@@ -420,7 +420,7 @@ function ApprovalCard({
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className="text-xs text-muted-foreground">Needs your approval</span>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ms-auto flex items-center gap-1.5">
           <button
             className="h-8 rounded-lg px-3 text-sm text-zinc-600 outline-hidden transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
             onClick={() => onRespond(false, false)}
@@ -561,7 +561,7 @@ function TraceLine({ call }: { call: ToolCall }) {
       <button
         aria-controls={hasOutput ? outputId : undefined}
         aria-expanded={hasOutput ? showOutput : undefined}
-        className="group/line flex w-full items-center gap-2.5 rounded-md py-1.5 text-left text-[13px] leading-5 outline-hidden focus-visible:ring-2 focus-visible:ring-zinc-400/40 disabled:cursor-default"
+        className="group/line flex w-full items-center gap-2.5 rounded-md py-1.5 text-start text-[13px] leading-5 outline-hidden focus-visible:ring-2 focus-visible:ring-zinc-400/40 disabled:cursor-default"
         disabled={!hasOutput || isRunning}
         onClick={() => setOpen((value) => !value)}
         type="button"
@@ -593,7 +593,7 @@ function TraceLine({ call }: { call: ToolCall }) {
           <ChevronRight
             aria-hidden="true"
             className={cn(
-              "ml-auto size-3.5 shrink-0 text-zinc-400 transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover/line:text-zinc-600 dark:group-hover/line:text-zinc-300",
+              "ms-auto size-3.5 shrink-0 text-zinc-400 transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover/line:text-zinc-600 dark:group-hover/line:text-zinc-300",
               open && "rotate-90"
             )}
           />
@@ -609,7 +609,7 @@ function TraceLine({ call }: { call: ToolCall }) {
             initial={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: EASE_OUT }}
           >
-            <pre className="mb-1.5 ml-6.5 overflow-x-auto rounded-lg bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-600 leading-5 ring-1 ring-black/5 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10">
+            <pre className="mb-1.5 ms-6.5 overflow-x-auto rounded-lg bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-600 leading-5 ring-1 ring-black/5 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10">
               {call.output?.join("\n")}
             </pre>
           </motion.div>

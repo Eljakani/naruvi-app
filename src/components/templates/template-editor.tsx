@@ -10,7 +10,7 @@ import { designIdeas } from "@/lib/design-ideas"
 import { AgentComposer, AgentThread } from "@/components/agent/agent-chat"
 import { toast } from "sonner"
 import type { AgentResult, DesignTurn } from "@/server/templates/design-agent"
-import { aiDesignAction, deleteTemplateAction, restoreTemplateVersionAction, saveTemplateAction, setDefaultDesignAction, templateVersionsAction } from "@/app/(app)/templates/actions"
+import { aiDesignAction, deleteTemplateAction, restoreTemplateVersionAction, saveTemplateAction, setDefaultDesignAction, templateVersionsAction } from "@/app/[locale]/(app)/templates/actions"
 import { PdfThumb } from "@/components/templates/pdf-thumb"
 import { fetchTemplatePreview } from "@/lib/template-preview"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -29,15 +29,16 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { affectedDocuments, designTokens, FONTS, ALL_PRESETS as PRESETS, type DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
 import { mergeDesignChanges } from "@/lib/template-edit"
+import { useLocale, useTranslations } from "next-intl"
 
 const ACCENTS = ["#2563eb", "#0f766e", "#4338ca", "#7c3aed", "#be123c", "#c2410c", "#1e3a5f", "#111827"]
-const DESIGN_STEPS = ["Planning the change", "Rendering your CV", "Measuring pages and readability", "Fixing what didn’t pass", "Final check against your request"]
+const DESIGN_STEPS = ["plan", "render", "measure", "fix", "final"] as const
 
 type Initial = { id?: string; name: string; basedOn: string; tokens: DesignTokens; customDefault?: boolean }
 
 /** "fonts and colours", "the header"… for the confirmation line. */
-function changeAreas(keys: string[]) {
-  const areas = new Set<string>()
+function changeAreas(keys: string[], word: (area: "text" | "colours" | "header" | "spacing" | "page" | "layout") => string) {
+  const areas = new Set<"text" | "colours" | "header" | "spacing" | "page" | "layout">()
   for (const key of keys) {
     if (/font|size|lineHeight|nameSpacing|nameCase/i.test(key)) areas.add("text")
     else if (/accent|ink|Band|Tint/i.test(key)) areas.add("colours")
@@ -46,7 +47,7 @@ function changeAreas(keys: string[]) {
     else if (/page|textAlign|bullet/i.test(key)) areas.add("page")
     else areas.add("layout")
   }
-  return [...areas].join(", ")
+  return [...areas].map(word).join(", ")
 }
 
 /** Keys the AI just changed glow briefly, so you can see what moved. */
@@ -94,6 +95,10 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
 
 /** Visual template editor: controls, AI prompt, live preview with your own CV. */
 export function TemplateEditor({ initial, previewVersion }: { initial: Initial; previewVersion: string }) {
+  const tIdeas = useTranslations("designIdeas")
+  const t = useTranslations("templateEditor")
+  const td = useTranslations("templateEditor.d")
+  const locale = useLocale()
   const router = useRouter()
   const [baseline] = useState({ name: initial.name, tokens: initial.tokens })
   const [name, setName] = useState(initial.name)
@@ -243,7 +248,7 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
         }
         applyChanges(tokens, changes, result.data.changed, text)
       } catch {
-        if (active.current) toast.error("Couldn’t apply the design request. Try again.")
+        if (active.current) toast.error(t("applyFailed"))
       }
     })
   }
@@ -252,17 +257,17 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
     startSaving(async () => {
       try {
         const cleanName = name.trim()
-        const result = await saveTemplateAction({ id: asCopy ? undefined : initial.id, name: asCopy && cleanName ? `${cleanName.slice(0, 73)} (copy)` : cleanName, basedOn: initial.basedOn, tokens, note: lastPrompt ? `AI: ${lastPrompt}`.slice(0, 200) : undefined })
+        const result = await saveTemplateAction({ id: asCopy ? undefined : initial.id, name: asCopy && cleanName ? t("copyName", { name: cleanName.slice(0, 73) }) : cleanName, basedOn: initial.basedOn, tokens, note: lastPrompt ? `AI: ${lastPrompt}`.slice(0, 200) : undefined })
         if (!active.current) return
         if (!result.ok) return void toast.error(result.message)
         setLastPrompt("")
         setVersions(null)
         setName(cleanName)
         setSaved({ name: cleanName, tokens })
-        toast.success(asCopy ? "Saved as a new template" : "Template saved", { description: "Pick it in any CV or letter, under Look." })
+        toast.success(asCopy ? t("savedCopy") : t("saved"), { description: t("savedBody") })
         if (!initial.id || asCopy) router.replace(`/templates/${result.data.id}`)
       } catch {
-        if (active.current) toast.error("Couldn’t save the template. Your edits are still here.")
+        if (active.current) toast.error(t("saveFailed"))
       }
     })
 
@@ -274,10 +279,10 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
         if (!result.ok) return void toast.error(result.message)
         try { localStorage.removeItem(draftKey) } catch { /* Nothing to clear. */ }
         setConfirmation(null)
-        toast.success("Template deleted")
+        toast.success(t("deleted"))
         router.replace("/templates")
       } catch {
-        toast.error("Couldn’t delete the template. Try again.")
+        toast.error(t("deleteFailed"))
       }
     })
 
@@ -289,9 +294,9 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
         const matchesSavedDesign = JSON.stringify(tokens) === JSON.stringify(saved.tokens)
         const result = await setDefaultDesignAction({ templateRef: initial.id && matchesSavedDesign ? initial.id : undefined, preset: untouchedPreset ? initial.basedOn : undefined, tokens })
         if (!result.ok) return void toast.error(result.message)
-        toast.success("Set as your default design", { description: "New CVs and letters will start with it. Existing ones keep their look." })
+        toast.success(t("defaultSet"), { description: t("defaultSetBody") })
       } catch {
-        toast.error("Couldn’t update the default design. Try again.")
+        toast.error(t("defaultFailed"))
       }
     })
 
@@ -323,9 +328,9 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
         setVersions(null)
         setConfirmation(null)
         setPanel("design")
-        toast.success("Version restored", { description: "The name and design were saved as a new version." })
+        toast.success(t("restored"), { description: t("restoredBody") })
       } catch {
-        toast.error("Couldn’t restore the version. Try again.")
+        toast.error(t("restoreFailed"))
       }
     })
 
@@ -334,28 +339,28 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
   return (
     <div className="-mx-4 -mt-4 flex h-[calc(100svh-3.5rem)] min-w-0 flex-col md:-mx-6 md:-mt-6">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background px-4 py-2 md:px-6">
-        <Button variant="ghost" size="icon-sm" className="shrink-0" aria-label="Back to templates" nativeButton={false} render={<Link href="/templates" />}><ArrowLeftIcon /></Button>
+        <Button variant="ghost" size="icon-sm" className="shrink-0" aria-label={td("backToTemplates")} nativeButton={false} render={<Link href="/templates" />}><ArrowLeftIcon /></Button>
         <div className="grid min-w-0 flex-1 gap-0.5">
           {/* The name reads as a title and becomes a field on hover/focus. */}
-          <Input value={name} maxLength={80} disabled={saving || !draftReady} onChange={(event) => setName(event.target.value)} aria-label="Template name" className="h-7 max-w-80 border-transparent bg-transparent px-1.5 text-base font-semibold shadow-none hover:border-input focus-visible:border-ring dark:bg-transparent" />
+          <Input value={name} maxLength={80} disabled={saving || !draftReady} onChange={(event) => setName(event.target.value)} aria-label={td("templateName")} className="h-7 max-w-80 border-transparent bg-transparent px-1.5 text-base font-semibold shadow-none hover:border-input focus-visible:border-ring dark:bg-transparent" />
           <div className="flex min-w-0 items-center gap-2 px-1.5 text-xs text-muted-foreground">
-            <span className="truncate">{initial.customDefault ? "Custom default" : `Based on ${PRESETS[initial.basedOn]?.name ?? "Classic"}`}</span>
+            <span className="truncate">{initial.customDefault ? t("customDefault") : t("basedOn", { name: PRESETS[initial.basedOn]?.name ?? "Classic" })}</span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Button size="sm" variant="outline" className="lg:hidden" onClick={() => setMobilePreview((value) => !value)} aria-pressed={mobilePreview}><EyeIcon /> Preview</Button>
+          <Button size="sm" variant="outline" className="lg:hidden" onClick={() => setMobilePreview((value) => !value)} aria-pressed={mobilePreview}><EyeIcon /> {td("preview")}</Button>
           <Button size="sm" variant="ghost" className="hidden sm:inline-flex" onClick={makeDefault} disabled={busy}>
-            <StarIcon /> Use as default
+            <StarIcon /> {t("useDefault")}
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label="More template actions" disabled={busy} />}><EllipsisIcon /></DropdownMenuTrigger>
+            <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={td("moreTemplateActions")} disabled={busy} />}><EllipsisIcon /></DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem className="sm:hidden" onClick={makeDefault}><StarIcon /> Use as default</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTokens(PRESETS[initial.basedOn]?.tokens ?? PRESETS.classic.tokens)}><RotateCcwIcon /> Reset to {PRESETS[initial.basedOn]?.name ?? "preset"}</DropdownMenuItem>
+              <DropdownMenuItem className="sm:hidden" onClick={makeDefault}><StarIcon /> {t("useDefault")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTokens(PRESETS[initial.basedOn]?.tokens ?? PRESETS.classic.tokens)}><RotateCcwIcon /> {t("resetTo", { name: PRESETS[initial.basedOn]?.name ?? "Classic" })}</DropdownMenuItem>
               {initial.id ? <>
-                <DropdownMenuItem onClick={() => save(true)}><CopyIcon /> Save as copy</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => save(true)}><CopyIcon /> {t("saveCopy")}</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={() => setConfirmation("delete")}><Trash2Icon /> Delete template</DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" onClick={() => setConfirmation("delete")}><Trash2Icon /> {td("deleteTemplate")}</DropdownMenuItem>
               </> : null}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -363,22 +368,22 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
       </div>
 
       <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
-        <Tabs value={panel} onValueChange={(value) => { setPanel(value); if (value === "history" && !versions) void loadHistory() }} className={cn("min-h-0 min-w-0 flex-col gap-0 bg-background lg:flex lg:border-r", mobilePreview ? "hidden" : "flex")}>
+        <Tabs value={panel} onValueChange={(value) => { setPanel(value); if (value === "history" && !versions) void loadHistory() }} className={cn("min-h-0 min-w-0 flex-col gap-0 bg-background lg:flex lg:border-e", mobilePreview ? "hidden" : "flex")}>
           <div className="border-b px-3 py-2">
             {/* Same pill switcher as the CV and letter editors. */}
             <TabsList className="relative grid h-auto! w-full grid-cols-2 gap-0 rounded-lg bg-muted p-0.5 [&_[data-slot=tabs-trigger]]:z-10 [&_[data-slot=tabs-trigger]]:h-7 [&_[data-slot=tabs-trigger]]:gap-1.5 [&_[data-slot=tabs-trigger]]:text-xs [&_[data-slot=tabs-trigger]]:text-muted-foreground [&_[data-slot=tabs-trigger]]:data-active:bg-transparent [&_[data-slot=tabs-trigger]]:data-active:text-foreground [&_[data-slot=tabs-trigger]]:data-active:shadow-none [&_[data-slot=tabs-trigger]_svg]:size-3.5">
-              <TabsTrigger value="design"><PaletteIcon /> Look</TabsTrigger>
-              <TabsTrigger value="history" disabled={!initial.id}><HistoryIcon /> History</TabsTrigger>
+              <TabsTrigger value="design"><PaletteIcon /> {t("look")}</TabsTrigger>
+              <TabsTrigger value="history" disabled={!initial.id}><HistoryIcon /> {t("history")}</TabsTrigger>
               <TabsIndicator className="top-(--active-tab-top) bottom-auto h-(--active-tab-height) rounded-md bg-background shadow-xs ring-1 ring-foreground/5" />
             </TabsList>
           </div>
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
             <TabsContent value="design" className="grid gap-4 p-4 [animation:cb-rise_200ms_var(--ease-out)_both]">
-              <section aria-label="Ask Naruvi to change this design" className="grid gap-3 rounded-lg border bg-muted/20 p-3">
+              <section aria-label={td("askNaruviToChangeThisDesign")} className="grid gap-3 rounded-lg border bg-muted/20 p-3">
                 <AgentThread
                   pose="working-on-it"
-                  intro={<>Tell me how this {previewKind === "letter" ? "cover letter" : "CV"} should look. I’ll change fonts, colours and spacing, and check every page before I apply it.</>}
-                  steps={DESIGN_STEPS}
+                  intro={previewKind === "letter" ? t("introLetter") : t("introCv")}
+                  steps={DESIGN_STEPS.map((step) => t(`steps.${step}`))}
                   working={asking ? working : null}
                   turns={history.map((turn, index) => {
                     const last = index === history.length - 1
@@ -387,230 +392,230 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                       id: `${index}-${turn.request}`,
                       request: turn.request,
                       outcome: turn.outcome === "applied" ? "applied" : turn.outcome === "unchanged" ? "unchanged" : "rejected",
-                      summary: turn.outcome === "applied" ? turn.summary : turn.outcome === "unchanged" ? "Already looks like that" : turn.summary || "Can’t do that one",
+                      summary: turn.outcome === "applied" ? turn.summary : turn.outcome === "unchanged" ? t("already") : turn.summary || t("cant"),
                       detail: last && pendingBoth && !asking
-                        ? <>This also changes your {pendingBoth.other === "letter" ? "cover letter" : "CV"} ({changeAreas(pendingBoth.keys)}), because both share this template.</>
+                        ? (pendingBoth.other === "letter" ? t("alsoLetter", { areas: changeAreas(pendingBoth.keys, (area) => t(`areas.${area}`)) }) : t("alsoCv", { areas: changeAreas(pendingBoth.keys, (area) => t(`areas.${area}`)) }))
                         : result && result.outcome === "applied"
-                          ? <span className="flex flex-wrap gap-1"><Badge variant="secondary" className="gap-1"><ShieldCheckIcon className="size-3" /> Verified</Badge><Badge variant="secondary" className="gap-1"><FileTextIcon className="size-3" /> {result.pages} page{result.pages === 1 ? "" : "s"}</Badge><Badge variant="secondary">{result.changed.length} setting{result.changed.length === 1 ? "" : "s"}</Badge></span>
-                          : result && result.outcome === "rejected" ? "Nothing was changed." : undefined,
+                          ? <span className="flex flex-wrap gap-1"><Badge variant="secondary" className="gap-1"><ShieldCheckIcon className="size-3" /> {t("verified")}</Badge><Badge variant="secondary" className="gap-1"><FileTextIcon className="size-3" /> {t("pages", { count: result.pages })}</Badge><Badge variant="secondary">{t("settings", { count: result.changed.length })}</Badge></span>
+                          : result && result.outcome === "rejected" ? t("nothingChanged") : undefined,
                       actions: last && pendingBoth && !asking ? (
                         <>
-                          <Button size="xs" onClick={() => { applyChanges(pendingBoth.before, pendingBoth.changes, pendingBoth.keys, pendingBoth.text); setPendingBoth(null) }}>Apply to both</Button>
-                          <Button size="xs" variant="outline" onClick={() => { setPreviewKind(pendingBoth.other); applyChanges(pendingBoth.before, pendingBoth.changes, pendingBoth.keys, pendingBoth.text); setPendingBoth(null) }}>Apply and show the {pendingBoth.other === "letter" ? "letter" : "CV"}</Button>
-                          <Button size="xs" variant="ghost" onClick={() => setPendingBoth(null)}>Cancel</Button>
+                          <Button size="xs" onClick={() => { applyChanges(pendingBoth.before, pendingBoth.changes, pendingBoth.keys, pendingBoth.text); setPendingBoth(null) }}>{t("applyBoth")}</Button>
+                          <Button size="xs" variant="outline" onClick={() => { setPreviewKind(pendingBoth.other); applyChanges(pendingBoth.before, pendingBoth.changes, pendingBoth.keys, pendingBoth.text); setPendingBoth(null) }}>{pendingBoth.other === "letter" ? t("applyShowLetter") : t("applyShowCv")}</Button>
+                          <Button size="xs" variant="ghost" onClick={() => setPendingBoth(null)}>{t("cancel")}</Button>
                         </>
                       ) : undefined,
                     }
                   })}
                 />
                 <AgentComposer
-                  label="Ask Naruvi to change this design"
+                  label={td("askNaruviToChangeThisDesign")}
                   value={prompt}
                   onChange={setPrompt}
                   onSend={(text) => ask(text)}
                   busy={busy}
                   minLength={history.length ? 1 : 3}
-                  placeholder={history.length ? "Ask for a change, or say “more”, “undo that”…" : "Ask Naruvi to change this design…"}
-                  suggestions={designIdeas(tokens, { pages: preview?.pages, seed: ideaSeed, exclude: lastPrompt ? [lastPrompt] : [] })}
+                  placeholder={history.length ? t("askMore") : t("askPlaceholder")}
+                  suggestions={designIdeas(tokens, { pages: preview?.pages, seed: ideaSeed, exclude: lastPrompt ? [lastPrompt] : [] }, (key, values) => tIdeas(key as never, values as never))}
                 />
-                {fitGoal ? <p role="status" className="text-xs text-muted-foreground">{failed ? "Couldn’t verify page fit. Retry the preview." : rendering ? "Checking page count…" : preview?.pages === 1 ? "Verified: the preview fits on one page." : `The preview still needs ${preview?.pages || "multiple"} pages. No content was removed.`}</p> : null}
+                {fitGoal ? <p role="status" className="text-xs text-muted-foreground">{failed ? t("fit.failed") : rendering ? t("fit.checking") : preview?.pages === 1 ? t("fit.one") : t("fit.more", { pages: preview?.pages || 2 })}</p> : null}
               </section>
 
               <fieldset disabled={saving || !draftReady} className="contents">
               <Accordion multiple defaultValue={["type", "colour", "layout"]} className="grid [&_[data-slot=accordion-trigger]]:text-xs [&_[data-slot=accordion-trigger]]:font-semibold [&_[data-slot=accordion-trigger]]:tracking-wide [&_[data-slot=accordion-trigger]]:uppercase [&_[data-slot=accordion-trigger]]:hover:no-underline">
                 <AccordionItem value="type">
-                  <AccordionTrigger>Typography</AccordionTrigger>
+                  <AccordionTrigger>{td("typography")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-4 pt-1">
                       <Flash on={glow("font", "headingFont")}>
                         <div className="grid grid-cols-2 gap-3">
                           <Field>
-                            <FieldLabel id={fontLabel}>Text font</FieldLabel>
+                            <FieldLabel id={fontLabel}>{td("textFont")}</FieldLabel>
                             <Select items={fontOptions} value={tokens.font} onValueChange={(value) => value && set("font", value as DesignTokens["font"])}>
                               <SelectTrigger aria-labelledby={fontLabel} className="w-full min-w-0"><SelectValue /></SelectTrigger>
                               <SelectContent>{fontOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
                             </Select>
                           </Field>
                           <Field>
-                            <FieldLabel id={headingFontLabel}>Heading font</FieldLabel>
-                            <Select items={[{ value: "same", label: "Same as text" }, ...fontOptions]} value={tokens.headingFont} onValueChange={(value) => value && set("headingFont", value)}>
+                            <FieldLabel id={headingFontLabel}>{td("headingFont")}</FieldLabel>
+                            <Select items={[{ value: "same", label: td("sameAsText") }, ...fontOptions]} value={tokens.headingFont} onValueChange={(value) => value && set("headingFont", value)}>
                               <SelectTrigger aria-labelledby={headingFontLabel} className="w-full min-w-0"><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="same">Same as text</SelectItem>
+                                <SelectItem value="same">{td("sameAsText")}</SelectItem>
                                 {fontOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           </Field>
                         </div>
                       </Flash>
-                      <Flash on={glow("size")}><Range label="Text size" value={tokens.size} min={8} max={11.5} step={0.1} unit=" pt" onChange={(value) => set("size", value)} /></Flash>
-                      <Flash on={glow("nameSize")}><Range label="Name size" value={tokens.nameSize} min={14} max={32} step={1} unit=" pt" onChange={(value) => set("nameSize", value)} /></Flash>
-                      <Flash on={glow("lineHeight")}><Range label="Line height" value={tokens.lineHeight} min={1.15} max={1.7} step={0.01} onChange={(value) => set("lineHeight", value)} /></Flash>
+                      <Flash on={glow("size")}><Range label={td("textSize")} value={tokens.size} min={8} max={11.5} step={0.1} unit=" pt" onChange={(value) => set("size", value)} /></Flash>
+                      <Flash on={glow("nameSize")}><Range label={td("nameSize")} value={tokens.nameSize} min={14} max={32} step={1} unit=" pt" onChange={(value) => set("nameSize", value)} /></Flash>
+                      <Flash on={glow("lineHeight")}><Range label={td("lineHeight")} value={tokens.lineHeight} min={1.15} max={1.7} step={0.01} onChange={(value) => set("lineHeight", value)} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="colour">
-                  <AccordionTrigger>Colour</AccordionTrigger>
+                  <AccordionTrigger>{td("colour")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-3 pt-1">
                       <Flash on={glow("accent")}>
                         <div className="flex flex-wrap items-center gap-2">
                           {ACCENTS.map((color) => (
-                            <button key={color} type="button" onClick={() => set("accent", color)} aria-label={`Accent ${color}`} aria-pressed={tokens.accent === color} className={cn("size-7 rounded-full ring-offset-2 ring-offset-background transition-[box-shadow,transform] duration-150 active:scale-95", tokens.accent === color && "ring-2 ring-foreground")} style={{ backgroundColor: color }} />
+                            <button key={color} type="button" onClick={() => set("accent", color)} aria-label={t("accentColor", { color })} aria-pressed={tokens.accent === color} className={cn("size-7 rounded-full ring-offset-2 ring-offset-background transition-[box-shadow,transform] duration-150 active:scale-95", tokens.accent === color && "ring-2 ring-foreground")} style={{ backgroundColor: color }} />
                           ))}
-                          <label className="relative size-7 cursor-pointer overflow-hidden rounded-full border" title="Any colour">
-                            <input type="color" value={tokens.accent} onChange={(event) => set("accent", event.target.value)} className="absolute -inset-2 size-12 cursor-pointer" aria-label="Custom accent colour" />
+                          <label className="relative size-7 cursor-pointer overflow-hidden rounded-full border" title={t("anyColour")}>
+                            <input type="color" value={tokens.accent} onChange={(event) => set("accent", event.target.value)} className="absolute -inset-2 size-12 cursor-pointer" aria-label={td("customAccentColour")} />
                           </label>
                         </div>
                       </Flash>
-                      <Flash on={glow("accentName")}><Toggle label="Name in accent" checked={tokens.accentName} onChange={(value) => set("accentName", value)} /></Flash>
-                      <Flash on={glow("accentHeadings")}><Toggle label="Headings in accent" checked={tokens.accentHeadings} onChange={(value) => set("accentHeadings", value)} /></Flash>
-                      <Flash on={glow("accentBullets")}><Toggle label="Bullets in accent" checked={tokens.accentBullets} onChange={(value) => set("accentBullets", value)} /></Flash>
+                      <Flash on={glow("accentName")}><Toggle label={td("nameInAccent")} checked={tokens.accentName} onChange={(value) => set("accentName", value)} /></Flash>
+                      <Flash on={glow("accentHeadings")}><Toggle label={td("headingsInAccent")} checked={tokens.accentHeadings} onChange={(value) => set("accentHeadings", value)} /></Flash>
+                      <Flash on={glow("accentBullets")}><Toggle label={td("bulletsInAccent")} checked={tokens.accentBullets} onChange={(value) => set("accentBullets", value)} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="layout">
-                  <AccordionTrigger>Layout</AccordionTrigger>
+                  <AccordionTrigger>{td("layout")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-4 pt-1">
                       <Flash on={glow("layout")}>
                         <Field>
-                          <FieldLabel>Columns</FieldLabel>
-                          <Choice label="Columns" value={tokens.layout} onChange={(value) => set("layout", value)} options={[{ value: "single", label: "One column" }, { value: "sidebar", label: "Side column" }]} />
+                          <FieldLabel>{td("columns")}</FieldLabel>
+                          <Choice label={td("columns")} value={tokens.layout} onChange={(value) => set("layout", value)} options={[{ value: "single", label: td("oneColumn") }, { value: "sidebar", label: td("sideColumn") }]} />
                           {tokens.layout === "sidebar" ? <FieldDescription>Skills, languages and certifications move to a side column.</FieldDescription> : null}
                         </Field>
                       </Flash>
                       <Flash on={glow("headerAlign")}>
                         <Field>
-                          <FieldLabel>Header</FieldLabel>
-                          <Choice label="Header alignment" value={tokens.headerAlign} onChange={(value) => set("headerAlign", value)} options={[{ value: "left", label: "Left" }, { value: "center", label: "Centred" }]} />
+                          <FieldLabel>{td("header")}</FieldLabel>
+                          <Choice label={td("headerAlignment")} value={tokens.headerAlign} onChange={(value) => set("headerAlign", value)} options={[{ value: "left", label: td("left") }, { value: "center", label: td("centred") }]} />
                         </Field>
                       </Flash>
-                      <Flash on={glow("headerBand")}><Toggle label="Coloured header band" checked={tokens.headerBand} onChange={(value) => set("headerBand", value)} /></Flash>
-                      <Flash on={glow("margin")}><Range label="Page margins" value={tokens.margin} min={20} max={60} step={1} unit=" pt" onChange={(value) => set("margin", value)} /></Flash>
-                      <Flash on={glow("spacing")}><Range label="Spacing between parts" value={tokens.spacing} min={0.6} max={1.6} step={0.05} unit="×" onChange={(value) => set("spacing", value)} /></Flash>
+                      <Flash on={glow("headerBand")}><Toggle label={td("colouredHeaderBand")} checked={tokens.headerBand} onChange={(value) => set("headerBand", value)} /></Flash>
+                      <Flash on={glow("margin")}><Range label={td("pageMargins")} value={tokens.margin} min={20} max={60} step={1} unit=" pt" onChange={(value) => set("margin", value)} /></Flash>
+                      <Flash on={glow("spacing")}><Range label={td("spacingBetweenParts")} value={tokens.spacing} min={0.6} max={1.6} step={0.05} unit="×" onChange={(value) => set("spacing", value)} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="headings">
-                  <AccordionTrigger>Section headings</AccordionTrigger>
+                  <AccordionTrigger>{td("sectionHeadings")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-3 pt-1">
-                      <Flash on={glow("headingStyle")}><Choice label="Heading style" value={tokens.headingStyle} onChange={(value) => set("headingStyle", value)} options={[{ value: "rule", label: "Line" }, { value: "underline-accent", label: "Accent line" }, { value: "bar", label: "Side bar" }, { value: "filled", label: "Filled" }, { value: "plain", label: "Plain" }]} /></Flash>
-                      <Flash on={glow("sectionIcons")}><Toggle label="Icons on section headings" hint="Experience, education, skills…" checked={tokens.sectionIcons} onChange={(value) => set("sectionIcons", value)} /></Flash>
-                      <Flash on={glow("headingCase")}><Choice label="Heading case" value={tokens.headingCase} onChange={(value) => set("headingCase", value)} options={[{ value: "upper", label: "UPPERCASE" }, { value: "none", label: "Normal" }]} /></Flash>
+                      <Flash on={glow("headingStyle")}><Choice label={td("headingStyle")} value={tokens.headingStyle} onChange={(value) => set("headingStyle", value)} options={[{ value: "rule", label: td("line") }, { value: "underline-accent", label: td("accentLine") }, { value: "bar", label: td("sideBar") }, { value: "filled", label: td("filled") }, { value: "plain", label: td("plain") }]} /></Flash>
+                      <Flash on={glow("sectionIcons")}><Toggle label={td("iconsOnSectionHeadings")} hint={td("experienceEducationSkills")} checked={tokens.sectionIcons} onChange={(value) => set("sectionIcons", value)} /></Flash>
+                      <Flash on={glow("headingCase")}><Choice label={td("headingCase")} value={tokens.headingCase} onChange={(value) => set("headingCase", value)} options={[{ value: "upper", label: td("uppercase") }, { value: "none", label: td("normal") }]} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="details">
-                  <AccordionTrigger>Details</AccordionTrigger>
+                  <AccordionTrigger>{td("details")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-4 pt-1">
                       <Flash on={glow("bullet")}>
                         <Field>
-                          <FieldLabel>Bullets</FieldLabel>
-                          <Choice label="Bullet style" value={tokens.bullet} onChange={(value) => set("bullet", value)} options={[{ value: "dot", label: "•" }, { value: "dash", label: "–" }, { value: "arrow", label: "›" }, { value: "square", label: "▪" }, { value: "none", label: "None" }]} />
+                          <FieldLabel>{td("bullets")}</FieldLabel>
+                          <Choice label={td("bulletStyle")} value={tokens.bullet} onChange={(value) => set("bullet", value)} options={[{ value: "dot", label: "•" }, { value: "dash", label: "–" }, { value: "arrow", label: "›" }, { value: "square", label: "▪" }, { value: "none", label: td("none") }]} />
                         </Field>
                       </Flash>
                       <Flash on={glow("datePosition")}>
                         <Field>
-                          <FieldLabel>Dates</FieldLabel>
-                          <Choice label="Date position" value={tokens.datePosition} onChange={(value) => set("datePosition", value)} options={[{ value: "right", label: "On the right" }, { value: "below", label: "Under the title" }]} />
+                          <FieldLabel>{td("dates")}</FieldLabel>
+                          <Choice label={td("datePosition")} value={tokens.datePosition} onChange={(value) => set("datePosition", value)} options={[{ value: "right", label: td("onTheRight") }, { value: "below", label: td("underTheTitle") }]} />
                         </Field>
                       </Flash>
                       <Flash on={glow("photoShape")}>
                         <Field>
-                          <FieldLabel>Photo shape</FieldLabel>
-                          <Choice label="Photo shape" value={tokens.photoShape} onChange={(value) => set("photoShape", value)} options={[{ value: "circle", label: "Circle" }, { value: "rounded", label: "Rounded" }, { value: "square", label: "Square" }]} />
+                          <FieldLabel>{td("photoShape")}</FieldLabel>
+                          <Choice label={td("photoShape")} value={tokens.photoShape} onChange={(value) => set("photoShape", value)} options={[{ value: "circle", label: td("circle") }, { value: "rounded", label: td("rounded") }, { value: "square", label: td("square") }]} />
                         </Field>
                       </Flash>
-                      <Flash on={glow("showLogos")}><Toggle label="Company logos" checked={tokens.showLogos} onChange={(value) => set("showLogos", value)} /></Flash>
-                      <Flash on={glow("orgItalic")}><Toggle label="Company names in italics" checked={tokens.orgItalic} onChange={(value) => set("orgItalic", value)} /></Flash>
+                      <Flash on={glow("showLogos")}><Toggle label={td("companyLogos")} checked={tokens.showLogos} onChange={(value) => set("showLogos", value)} /></Flash>
+                      <Flash on={glow("orgItalic")}><Toggle label={td("companyNamesInItalics")} checked={tokens.orgItalic} onChange={(value) => set("orgItalic", value)} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="header">
-                  <AccordionTrigger>Name, photo &amp; contact</AccordionTrigger>
+                  <AccordionTrigger>{td("namePhotoAmpContact")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-4 pt-1">
-                      <Flash on={glow("nameCase")}><Field><FieldLabel>Name style</FieldLabel><Choice label="Name case" value={tokens.nameCase} onChange={(value) => set("nameCase", value)} options={[{ value: "none", label: "Normal" }, { value: "upper", label: "UPPERCASE" }]} /></Field></Flash>
-                      <Flash on={glow("nameSpacing")}><Range label="Name letter spacing" value={tokens.nameSpacing} min={0} max={4} step={0.1} unit=" pt" onChange={(value) => set("nameSpacing", value)} /></Flash>
-                      <Flash on={glow("photoPosition")}><Field><FieldLabel>Photo position</FieldLabel><Choice label="Photo position" value={tokens.photoPosition} onChange={(value) => set("photoPosition", value)} options={[{ value: "left", label: "Left" }, { value: "right", label: "Right" }]} /></Field></Flash>
-                      <Flash on={glow("photoSize")}><Range label="Photo size" value={tokens.photoSize} min={36} max={90} step={1} unit=" pt" onChange={(value) => set("photoSize", value)} /></Flash>
-                      <Flash on={glow("contactLayout")}><Field><FieldLabel>Contact details</FieldLabel><Choice label="Contact layout" value={tokens.contactLayout} onChange={(value) => set("contactLayout", value)} options={[{ value: "inline", label: "On one line" }, { value: "stacked", label: "One per line" }]} /></Field></Flash>
-                      {tokens.contactLayout === "inline" ? <Flash on={glow("contactSeparator")}><Field><FieldLabel>Separator</FieldLabel><Choice label="Contact separator" value={tokens.contactSeparator} onChange={(value) => set("contactSeparator", value)} options={[{ value: "space", label: "Space" }, { value: "dot", label: "·" }, { value: "pipe", label: "|" }]} /></Field></Flash> : null}
-                      <Flash on={glow("linkStyle")}><Field><FieldLabel>Links show</FieldLabel><Choice label="Link style" value={tokens.linkStyle} onChange={(value) => set("linkStyle", value)} options={[{ value: "url", label: "The address" }, { value: "label", label: "The name (LinkedIn…)" }]} /></Field></Flash>
-                      <Flash on={glow("accentLinks")}><Toggle label="Links in accent" checked={tokens.accentLinks} onChange={(value) => set("accentLinks", value)} /></Flash>
-                      <Flash on={glow("contactIcons")}><Toggle label="Icons next to contact details" hint="Email, phone, city and links" checked={tokens.contactIcons} onChange={(value) => set("contactIcons", value)} /></Flash>
+                      <Flash on={glow("nameCase")}><Field><FieldLabel>{td("nameStyle")}</FieldLabel><Choice label={td("nameCase")} value={tokens.nameCase} onChange={(value) => set("nameCase", value)} options={[{ value: "none", label: td("normal") }, { value: "upper", label: td("uppercase") }]} /></Field></Flash>
+                      <Flash on={glow("nameSpacing")}><Range label={td("nameLetterSpacing")} value={tokens.nameSpacing} min={0} max={4} step={0.1} unit=" pt" onChange={(value) => set("nameSpacing", value)} /></Flash>
+                      <Flash on={glow("photoPosition")}><Field><FieldLabel>{td("photoPosition")}</FieldLabel><Choice label={td("photoPosition")} value={tokens.photoPosition} onChange={(value) => set("photoPosition", value)} options={[{ value: "left", label: td("left") }, { value: "right", label: td("right") }]} /></Field></Flash>
+                      <Flash on={glow("photoSize")}><Range label={td("photoSize")} value={tokens.photoSize} min={36} max={90} step={1} unit=" pt" onChange={(value) => set("photoSize", value)} /></Flash>
+                      <Flash on={glow("contactLayout")}><Field><FieldLabel>{td("contactDetails")}</FieldLabel><Choice label={td("contactLayout")} value={tokens.contactLayout} onChange={(value) => set("contactLayout", value)} options={[{ value: "inline", label: td("onOneLine") }, { value: "stacked", label: td("onePerLine") }]} /></Field></Flash>
+                      {tokens.contactLayout === "inline" ? <Flash on={glow("contactSeparator")}><Field><FieldLabel>{td("separator")}</FieldLabel><Choice label={td("contactSeparator")} value={tokens.contactSeparator} onChange={(value) => set("contactSeparator", value)} options={[{ value: "space", label: td("space") }, { value: "dot", label: "·" }, { value: "pipe", label: "|" }]} /></Field></Flash> : null}
+                      <Flash on={glow("linkStyle")}><Field><FieldLabel>{td("linksShow")}</FieldLabel><Choice label={td("linkStyle")} value={tokens.linkStyle} onChange={(value) => set("linkStyle", value)} options={[{ value: "url", label: td("theAddress") }, { value: "label", label: td("theNameLinkedin") }]} /></Field></Flash>
+                      <Flash on={glow("accentLinks")}><Toggle label={td("linksInAccent")} checked={tokens.accentLinks} onChange={(value) => set("accentLinks", value)} /></Flash>
+                      <Flash on={glow("contactIcons")}><Toggle label={td("iconsNextToContactDetails")} hint={td("emailPhoneCityAndLinks")} checked={tokens.contactIcons} onChange={(value) => set("contactIcons", value)} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="summary">
-                  <AccordionTrigger>Summary paragraph</AccordionTrigger>
+                  <AccordionTrigger>{td("summaryParagraph")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-4 pt-1">
-                      <Flash on={glow("summaryStyle")}><Field><FieldLabel>Style</FieldLabel><Choice label="Summary style" value={tokens.summaryStyle} onChange={(value) => set("summaryStyle", value)} options={[{ value: "plain", label: "Plain" }, { value: "italic", label: "Italic" }, { value: "bar", label: "Accent bar" }, { value: "box", label: "Tinted box" }]} /></Field></Flash>
-                      <Flash on={glow("summaryAlign")}><Field><FieldLabel>Alignment</FieldLabel><Choice label="Summary alignment" value={tokens.summaryAlign} onChange={(value) => set("summaryAlign", value)} options={[{ value: "auto", label: "Like the text" }, { value: "left", label: "Left" }, { value: "justify", label: "Justified" }, { value: "center", label: "Centred" }]} /></Field></Flash>
-                      <Flash on={glow("summarySize")}><Range label="Text size" value={tokens.summarySize} min={0.9} max={1.2} step={0.05} unit="×" onChange={(value) => set("summarySize", value)} /></Flash>
-                      <Flash on={glow("summaryLineHeight")}><Range label="Line spacing" value={tokens.summaryLineHeight} min={1.15} max={1.7} step={0.01} onChange={(value) => set("summaryLineHeight", value)} /></Flash>
-                      <Flash on={glow("summaryTitle")}><Toggle label="Show a “Profile” heading" hint="Uses the same style as the other section headings" checked={tokens.summaryTitle} onChange={(value) => set("summaryTitle", value)} /></Flash>
+                      <Flash on={glow("summaryStyle")}><Field><FieldLabel>{td("style")}</FieldLabel><Choice label={td("summaryStyle")} value={tokens.summaryStyle} onChange={(value) => set("summaryStyle", value)} options={[{ value: "plain", label: td("plain") }, { value: "italic", label: td("italic") }, { value: "bar", label: td("accentBar") }, { value: "box", label: td("tintedBox") }]} /></Field></Flash>
+                      <Flash on={glow("summaryAlign")}><Field><FieldLabel>{td("alignment")}</FieldLabel><Choice label={td("summaryAlignment")} value={tokens.summaryAlign} onChange={(value) => set("summaryAlign", value)} options={[{ value: "auto", label: td("likeTheText") }, { value: "left", label: td("left") }, { value: "justify", label: td("justified") }, { value: "center", label: td("centred") }]} /></Field></Flash>
+                      <Flash on={glow("summarySize")}><Range label={td("textSize")} value={tokens.summarySize} min={0.9} max={1.2} step={0.05} unit="×" onChange={(value) => set("summarySize", value)} /></Flash>
+                      <Flash on={glow("summaryLineHeight")}><Range label={td("lineSpacing")} value={tokens.summaryLineHeight} min={1.15} max={1.7} step={0.01} onChange={(value) => set("summaryLineHeight", value)} /></Flash>
+                      <Flash on={glow("summaryTitle")}><Toggle label={td("showAProfileHeading")} hint={td("usesTheSameStyleAsTheOtherSectionHeading")} checked={tokens.summaryTitle} onChange={(value) => set("summaryTitle", value)} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="sections">
-                  <AccordionTrigger>Spacing &amp; skills</AccordionTrigger>
+                  <AccordionTrigger>{td("spacingAmpSkills")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-4 pt-1">
-                      <Flash on={glow("headingSize")}><Range label="Heading size" value={tokens.headingSize} min={0.85} max={1.6} step={0.05} unit="×" onChange={(value) => set("headingSize", value)} /></Flash>
-                      <Flash on={glow("itemSpacing")}><Range label="Space between entries" value={tokens.itemSpacing} min={0.4} max={2} step={0.05} unit="×" onChange={(value) => set("itemSpacing", value)} /></Flash>
-                      <Flash on={glow("bulletSpacing")}><Range label="Space between bullets" value={tokens.bulletSpacing} min={0} max={4} step={0.25} unit=" pt" onChange={(value) => set("bulletSpacing", value)} /></Flash>
-                      <Flash on={glow("textAlign")}><Field><FieldLabel>Text alignment</FieldLabel><Choice label="Text alignment" value={tokens.textAlign} onChange={(value) => set("textAlign", value)} options={[{ value: "left", label: "Left" }, { value: "justify", label: "Justified" }]} /></Field></Flash>
-                      <Flash on={glow("skillsStyle")}><Field><FieldLabel>Skills look like</FieldLabel><Choice label="Skills style" value={tokens.skillsStyle} onChange={(value) => set("skillsStyle", value)} options={[{ value: "inline", label: "A · B · C" }, { value: "tags", label: "Tags" }, { value: "list", label: "A list" }]} /></Field></Flash>
+                      <Flash on={glow("headingSize")}><Range label={td("headingSize")} value={tokens.headingSize} min={0.85} max={1.6} step={0.05} unit="×" onChange={(value) => set("headingSize", value)} /></Flash>
+                      <Flash on={glow("itemSpacing")}><Range label={td("spaceBetweenEntries")} value={tokens.itemSpacing} min={0.4} max={2} step={0.05} unit="×" onChange={(value) => set("itemSpacing", value)} /></Flash>
+                      <Flash on={glow("bulletSpacing")}><Range label={td("spaceBetweenBullets")} value={tokens.bulletSpacing} min={0} max={4} step={0.25} unit=" pt" onChange={(value) => set("bulletSpacing", value)} /></Flash>
+                      <Flash on={glow("textAlign")}><Field><FieldLabel>{td("textAlignment")}</FieldLabel><Choice label={td("textAlignment")} value={tokens.textAlign} onChange={(value) => set("textAlign", value)} options={[{ value: "left", label: td("left") }, { value: "justify", label: td("justified") }]} /></Field></Flash>
+                      <Flash on={glow("skillsStyle")}><Field><FieldLabel>{td("skillsLookLike")}</FieldLabel><Choice label={td("skillsStyle")} value={tokens.skillsStyle} onChange={(value) => set("skillsStyle", value)} options={[{ value: "inline", label: "A · B · C" }, { value: "tags", label: td("tags") }, { value: "list", label: td("aList") }]} /></Field></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
 
                 {tokens.layout === "sidebar" ? (
                   <AccordionItem value="sidebar">
-                    <AccordionTrigger>Side column</AccordionTrigger>
+                    <AccordionTrigger>{td("sideColumn")}</AccordionTrigger>
                     <AccordionContent>
                       <FieldGroup className="gap-4 pt-1">
-                        <Flash on={glow("sidebarSide")}><Field><FieldLabel>Side</FieldLabel><Choice label="Side column position" value={tokens.sidebarSide} onChange={(value) => set("sidebarSide", value)} options={[{ value: "left", label: "Left" }, { value: "right", label: "Right" }]} /></Field></Flash>
-                        <Flash on={glow("sidebarWidth")}><Range label="Width" value={tokens.sidebarWidth} min={24} max={40} step={1} unit="%" onChange={(value) => set("sidebarWidth", value)} /></Flash>
-                        <Flash on={glow("sidebarTint")}><Toggle label="Tinted background" hint="A light wash of the accent colour" checked={tokens.sidebarTint} onChange={(value) => set("sidebarTint", value)} /></Flash>
+                        <Flash on={glow("sidebarSide")}><Field><FieldLabel>{td("side")}</FieldLabel><Choice label={td("sideColumnPosition")} value={tokens.sidebarSide} onChange={(value) => set("sidebarSide", value)} options={[{ value: "left", label: td("left") }, { value: "right", label: td("right") }]} /></Field></Flash>
+                        <Flash on={glow("sidebarWidth")}><Range label={td("width")} value={tokens.sidebarWidth} min={24} max={40} step={1} unit="%" onChange={(value) => set("sidebarWidth", value)} /></Flash>
+                        <Flash on={glow("sidebarTint")}><Toggle label={td("tintedBackground")} hint={td("aLightWashOfTheAccentColour")} checked={tokens.sidebarTint} onChange={(value) => set("sidebarTint", value)} /></Flash>
                       </FieldGroup>
                     </AccordionContent>
                   </AccordionItem>
                 ) : null}
 
                 <AccordionItem value="letter">
-                  <AccordionTrigger>Cover letter</AccordionTrigger>
+                  <AccordionTrigger>{td("coverLetter")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-4 pt-1">
                       <p className="text-xs text-muted-foreground">Letters use the same fonts, colours and header as the CV. These only change the letter.</p>
-                      <Flash on={glow("letterHeadline")}><Toggle label="Headline under the name" checked={tokens.letterHeadline} onChange={(value) => { set("letterHeadline", value); setPreviewKind("letter") }} /></Flash>
-                      <Flash on={glow("letterPhoto")}><Toggle label="Photo in the header" checked={tokens.letterPhoto} onChange={(value) => { set("letterPhoto", value); setPreviewKind("letter") }} /></Flash>
-                      <Flash on={glow("letterRecipient")}><Toggle label="Company block" hint="Company name and city above the subject" checked={tokens.letterRecipient} onChange={(value) => { set("letterRecipient", value); setPreviewKind("letter") }} /></Flash>
-                      <Flash on={glow("letterDateAlign")}><Field><FieldLabel>Date</FieldLabel><Choice label="Date position" value={tokens.letterDateAlign} onChange={(value) => { set("letterDateAlign", value); setPreviewKind("letter") }} options={[{ value: "right", label: "On the right" }, { value: "left", label: "Under the company" }]} /></Field></Flash>
-                      <Flash on={glow("letterSubject")}><Field><FieldLabel>Subject line</FieldLabel><Choice label="Subject style" value={tokens.letterSubject} onChange={(value) => { set("letterSubject", value); setPreviewKind("letter") }} options={[{ value: "plain", label: "Bold" }, { value: "accent", label: "Accent colour" }, { value: "caps", label: "CAPITALS" }]} /></Field></Flash>
-                      <Flash on={glow("letterSignature")}><Field><FieldLabel>Signature</FieldLabel><Choice label="Signature" value={tokens.letterSignature} onChange={(value) => { set("letterSignature", value); setPreviewKind("letter") }} options={[{ value: "name", label: "Name" }, { value: "headline", label: "Name + headline" }, { value: "contact", label: "Name + contact" }]} /></Field></Flash>
-                      <Flash on={glow("letterSpacing")}><Range label="Space between paragraphs" value={tokens.letterSpacing} min={0.6} max={1.8} step={0.05} unit="×" onChange={(value) => { set("letterSpacing", value); setPreviewKind("letter") }} /></Flash>
+                      <Flash on={glow("letterHeadline")}><Toggle label={td("headlineUnderTheName")} checked={tokens.letterHeadline} onChange={(value) => { set("letterHeadline", value); setPreviewKind("letter") }} /></Flash>
+                      <Flash on={glow("letterPhoto")}><Toggle label={td("photoInTheHeader")} checked={tokens.letterPhoto} onChange={(value) => { set("letterPhoto", value); setPreviewKind("letter") }} /></Flash>
+                      <Flash on={glow("letterRecipient")}><Toggle label={td("companyBlock")} hint={td("companyNameAndCityAboveTheSubject")} checked={tokens.letterRecipient} onChange={(value) => { set("letterRecipient", value); setPreviewKind("letter") }} /></Flash>
+                      <Flash on={glow("letterDateAlign")}><Field><FieldLabel>{td("date")}</FieldLabel><Choice label={td("datePosition")} value={tokens.letterDateAlign} onChange={(value) => { set("letterDateAlign", value); setPreviewKind("letter") }} options={[{ value: "right", label: td("onTheRight") }, { value: "left", label: td("underTheCompany") }]} /></Field></Flash>
+                      <Flash on={glow("letterSubject")}><Field><FieldLabel>{td("subjectLine")}</FieldLabel><Choice label={td("subjectStyle")} value={tokens.letterSubject} onChange={(value) => { set("letterSubject", value); setPreviewKind("letter") }} options={[{ value: "plain", label: td("bold") }, { value: "accent", label: td("accentColour") }, { value: "caps", label: td("capitals") }]} /></Field></Flash>
+                      <Flash on={glow("letterSignature")}><Field><FieldLabel>{td("signature")}</FieldLabel><Choice label={td("signature")} value={tokens.letterSignature} onChange={(value) => { set("letterSignature", value); setPreviewKind("letter") }} options={[{ value: "name", label: td("name") }, { value: "headline", label: td("nameHeadline") }, { value: "contact", label: td("nameContact") }]} /></Field></Flash>
+                      <Flash on={glow("letterSpacing")}><Range label={td("spaceBetweenParagraphs")} value={tokens.letterSpacing} min={0.6} max={1.8} step={0.05} unit="×" onChange={(value) => { set("letterSpacing", value); setPreviewKind("letter") }} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="page">
-                  <AccordionTrigger>Page</AccordionTrigger>
+                  <AccordionTrigger>{td("page")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-4 pt-1">
-                      <Flash on={glow("pageSize")}><Field><FieldLabel>Paper size</FieldLabel><Choice label="Paper size" value={tokens.pageSize} onChange={(value) => set("pageSize", value)} options={[{ value: "A4", label: "A4 (most countries)" }, { value: "LETTER", label: "US Letter" }]} /></Field></Flash>
-                      <Flash on={glow("pageNumbers")}><Toggle label="Page numbers" hint="Only shown when the document has more than one page" checked={tokens.pageNumbers} onChange={(value) => set("pageNumbers", value)} /></Flash>
+                      <Flash on={glow("pageSize")}><Field><FieldLabel>{td("paperSize")}</FieldLabel><Choice label={td("paperSize")} value={tokens.pageSize} onChange={(value) => set("pageSize", value)} options={[{ value: "A4", label: td("a4MostCountries") }, { value: "LETTER", label: td("usLetter") }]} /></Field></Flash>
+                      <Flash on={glow("pageNumbers")}><Toggle label={td("pageNumbers")} hint={td("onlyShownWhenTheDocumentHasMoreThanOnePa")} checked={tokens.pageNumbers} onChange={(value) => set("pageNumbers", value)} /></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
@@ -619,13 +624,13 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
             </TabsContent>
 
             <TabsContent value="history" className="grid gap-2 p-4 [animation:cb-rise_200ms_var(--ease-out)_both]">
-              <p className="text-xs text-muted-foreground">Showing up to 50 recent versions. Restoring a name and design creates a new version.</p>
+              <p className="text-xs text-muted-foreground">{t("historyHint")}</p>
               {historyError ? (
-                <div role="status" className="flex flex-wrap items-center gap-2 text-sm">Couldn’t load history. <Button size="sm" variant="outline" onClick={() => void loadHistory()}>Retry</Button></div>
+                <div role="status" className="flex flex-wrap items-center gap-2 text-sm">{t("historyFailed")} <Button size="sm" variant="outline" onClick={() => void loadHistory()}>{t("retry")}</Button></div>
               ) : !versions ? (
-                <p role="status" className="text-sm text-muted-foreground">Loading versions…</p>
+                <p role="status" className="text-sm text-muted-foreground">{t("loadingVersions")}</p>
               ) : versions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No saved versions yet.</p>
+                <p className="text-sm text-muted-foreground">{t("noVersions")}</p>
               ) : (
                 <ol className="cb-stagger grid gap-2">
                   {versions.map((version, index) => (
@@ -633,12 +638,12 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                       <PdfThumb tokens={version.tokens} className="w-14 shrink-0" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium">{version.name}</div>
-                        <div className="text-xs text-muted-foreground">{index === 0 ? "Latest save" : new Date(version.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</div>
-                        <div className="truncate text-xs text-muted-foreground">{version.note.startsWith("restored") ? "Restored an earlier version" : version.note === "created" ? "Created" : version.note === "saved" ? "Saved" : version.note}</div>
+                        <div className="text-xs text-muted-foreground">{index === 0 ? t("latest") : new Date(version.createdAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })}</div>
+                        <div className="truncate text-xs text-muted-foreground">{version.note.startsWith("restored") ? t("note.restored") : version.note === "created" ? t("note.created") : version.note === "saved" ? t("note.saved") : version.note}</div>
                       </div>
                       {index > 0 ? (
                         <Button size="xs" variant="outline" onClick={() => dirty ? setConfirmation(version) : restore(version)} disabled={busy}>
-                          Restore
+                          {t("restore")}
                         </Button>
                       ) : null}
                     </li>
@@ -650,33 +655,33 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
           <div className={cn("flex items-center gap-2 border-t px-4 py-2.5 transition-colors", dirty || !initial.id ? "bg-muted" : "bg-background")}>
             {dirty || !initial.id ? (
               <>
-                <span className="text-xs text-muted-foreground">{initial.id ? "Unsaved changes" : "Not saved yet"}</span>
-                <div className="ml-auto flex gap-1.5">
-                  {dirty && initial.id ? <Button size="sm" variant="ghost" onClick={() => { setName(saved.name); setTokens(saved.tokens); setLastPrompt(""); setFitGoal(false) }} disabled={busy}>Discard</Button> : null}
+                <span className="text-xs text-muted-foreground">{initial.id ? t("unsaved") : t("notSaved")}</span>
+                <div className="ms-auto flex gap-1.5">
+                  {dirty && initial.id ? <Button size="sm" variant="ghost" onClick={() => { setName(saved.name); setTokens(saved.tokens); setLastPrompt(""); setFitGoal(false) }} disabled={busy}>{t("discard")}</Button> : null}
                   <Button size="sm" onClick={() => save()} disabled={busy}>
-                    {saving ? <Loader2Icon className="animate-spin" /> : <SaveIcon />} {initial.id ? "Save" : "Save template"}
+                    {saving ? <Loader2Icon className="animate-spin" /> : <SaveIcon />} {initial.id ? t("save") : t("saveTemplate")}
                   </Button>
                 </div>
               </>
             ) : (
               <span role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 {saving ? <Loader2Icon className="size-3 animate-spin" /> : <CheckCircle2Icon className="size-3" />}
-                <span key={saving ? "saving" : "saved"} className="cb-fade">{saving ? "Saving…" : "All changes saved"}</span>
+                <span key={saving ? "saving" : "saved"} className="cb-fade">{saving ? t("saving") : t("allSaved")}</span>
               </span>
             )}
           </div>
         </Tabs>
         <div className={cn("min-h-0 min-w-0 flex-col gap-2 p-3 sm:p-4 lg:flex", mobilePreview ? "flex" : "hidden")}>
           <div className="flex items-center gap-2">
-            <ToggleGroup value={[previewKind]} onValueChange={(value) => value[0] && setPreviewKind(value[0] as "cv" | "letter")} variant="outline" size="sm" aria-label="Preview">
-              <ToggleGroupItem value="cv"><FileTextIcon /> CV</ToggleGroupItem>
-              <ToggleGroupItem value="letter"><MailIcon /> Cover letter</ToggleGroupItem>
+            <ToggleGroup value={[previewKind]} onValueChange={(value) => value[0] && setPreviewKind(value[0] as "cv" | "letter")} variant="outline" size="sm" aria-label={td("preview")}>
+              <ToggleGroupItem value="cv"><FileTextIcon /> {t("cv")}</ToggleGroupItem>
+              <ToggleGroupItem value="letter"><MailIcon /> {td("coverLetter")}</ToggleGroupItem>
             </ToggleGroup>
-            <p className="text-xs text-muted-foreground" role="status">One template styles both. {rendering ? "Updating…" : ""}</p>
+            <p className="text-xs text-muted-foreground" role="status">{t("stylesBoth")} {rendering ? t("updating") : ""}</p>
           </div>
           {failed ? <div role="status" className="flex flex-wrap items-center gap-2 text-sm">
-            <p>{preview ? "Couldn’t update the preview. Showing the previous design." : "Couldn’t render the preview."}</p>
-            <Button size="sm" variant="outline" onClick={() => setAttempt((value) => value + 1)}>Retry preview</Button>
+            <p>{preview ? t("previewStale") : t("previewFailed")}</p>
+            <Button size="sm" variant="outline" onClick={() => setAttempt((value) => value + 1)}>{t("retryPreview")}</Button>
           </div> : null}
           {preview?.key.startsWith(`${previewVersion}:`) ? <PdfPreview data={preview.data} busy={rendering} onRetry={failed || rendering ? undefined : () => setAttempt((value) => value + 1)} className="flex-1" /> : !failed ? <div className="flex-1 animate-pulse rounded-xl bg-muted" /> : null}
         </div>
@@ -684,12 +689,12 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
       <AlertDialog open={confirmation !== null} onOpenChange={(open) => { if (!open && !saving) setConfirmation(null) }}>
         <AlertDialogContent className="max-w-[calc(100%-2rem)]">
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirmation === "delete" ? "Delete template?" : "Restore this version?"}</AlertDialogTitle>
-            <AlertDialogDescription>{confirmation === "delete" ? `“${saved.name}” and its version history will be permanently deleted. Existing documents keep their design.` : "This replaces your unsaved edits with the selected version’s name and design."}</AlertDialogDescription>
+            <AlertDialogTitle>{confirmation === "delete" ? t("confirm.deleteTitle") : t("confirm.restoreTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmation === "delete" ? t("confirm.deleteBody", { name: saved.name }) : t("confirm.restoreBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
-            {confirmation === "delete" ? <UndoButton label="Delete template" doneLabel="Deleted" icon={Trash2Icon} className="h-8 text-destructive" resetAfter={null} disabled={saving} onCommit={remove} /> : <AlertDialogAction disabled={saving} onClick={() => confirmation && restore(confirmation)}>Restore version</AlertDialogAction>}
+            <AlertDialogCancel disabled={saving}>{t("cancel")}</AlertDialogCancel>
+            {confirmation === "delete" ? <UndoButton label={td("deleteTemplate")} doneLabel={t("deletedShort")} icon={Trash2Icon} className="h-8 text-destructive" resetAfter={null} disabled={saving} onCommit={remove} /> : <AlertDialogAction disabled={saving} onClick={() => confirmation && restore(confirmation)}>{t("restoreVersion")}</AlertDialogAction>}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

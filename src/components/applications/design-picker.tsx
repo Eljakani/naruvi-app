@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { ALL_PRESETS, DEFAULT_PRESET, PRESETS, presetTokens, type DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 const ACCENTS = ["#2563eb", "#0f766e", "#4338ca", "#7c3aed", "#be123c", "#c2410c", "#1e3a5f", "#111827"]
 
@@ -34,6 +35,7 @@ export function DesignPicker({
   photo?: { available: boolean; shown: boolean }
   disabled?: boolean
 }) {
+  const t = useTranslations("designPicker")
   const current = design ?? { ...presetTokens(template), accent }
   const customizeHref = templateRef ? `/templates/${templateRef}` : `/templates/new?from=${ALL_PRESETS[template] ? template : DEFAULT_PRESET}`
   const options = [
@@ -47,9 +49,9 @@ export function DesignPicker({
   ]
   return (
     <div className="grid gap-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Design">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup" aria-label={t("design")}>
         {options.map((option) => (
-          <button key={option.key} type="button" role="radio" aria-checked={option.active} disabled={disabled} onClick={option.pick} className="group grid gap-1.5 text-left disabled:opacity-60">
+          <button key={option.key} type="button" role="radio" aria-checked={option.active} disabled={disabled} onClick={option.pick} className="group grid gap-1.5 text-start disabled:opacity-60">
             <PdfThumb tokens={option.tokens} className={cn("transition-shadow", option.active ? "ring-2 ring-foreground" : "group-hover:shadow-md")} />
             <span className="flex items-center justify-between gap-1 text-xs font-medium">
               <span className="truncate">{option.name}</span>
@@ -59,15 +61,15 @@ export function DesignPicker({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Accent colour">
-        <span className="text-xs text-muted-foreground">Accent</span>
+      <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label={t("accentLabel")}>
+        <span className="text-xs text-muted-foreground">{t("accent")}</span>
         {ACCENTS.map((color) => (
           <button
             key={color}
             type="button"
             role="radio"
             aria-checked={current.accent === color}
-            aria-label={`Accent ${color}`}
+            aria-label={t("accentColor", { color })}
             disabled={disabled}
             onClick={() => onChange(design ? { design: { ...design, accent: color }, accent: color } : { accent: color })}
             className={cn("size-5 rounded-full ring-offset-2 ring-offset-background transition-shadow", current.accent === color && "ring-2 ring-foreground")}
@@ -79,15 +81,15 @@ export function DesignPicker({
       {photo ? (
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="show-photo" className="text-xs font-normal">
-            Show photo
-            <span className="ml-1 text-muted-foreground">{photo.available ? "(common in FR/DE/ES; avoid for US/UK)" : "(add one in Profile first)"}</span>
+            {t("photo")}
+            <span className="ms-1 text-muted-foreground">{photo.available ? t("photoHint") : t("photoMissing")}</span>
           </Label>
           <Switch id="show-photo" size="sm" checked={photo.shown} disabled={disabled || !photo.available} onCheckedChange={(value) => onChange({ showPhoto: value })} />
         </div>
       ) : null}
 
       <Button variant="outline" size="sm" className="w-fit" nativeButton={false} render={<Link href={customizeHref} />}>
-        <PaletteIcon /> Customise fonts, colours and layout
+        <PaletteIcon /> {t("customise")}
       </Button>
     </div>
   )

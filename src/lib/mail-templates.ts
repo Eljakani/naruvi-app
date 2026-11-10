@@ -18,6 +18,12 @@ const TEMPLATES: Record<string, Templates> = {
     thank_you: ({ name, title, subject }) => ({ subject: re(subject, `Thank you – ${title}`), body: `Hello,\n\nThank you for taking the time to speak with me about the ${title} role. I enjoyed our conversation and am even more interested in joining the team.\n\nKind regards,\n${name}` }),
     reply: ({ name, subject, title }) => ({ subject: re(subject, title), body: `Hello,\n\n\n\nKind regards,\n${name}` }),
   },
+  ar: {
+    apply: ({ name, title, company }) => ({ subject: `التقديم لشغل وظيفة ${title} – ${name}`, body: `مرحبًا،\n\nأرفق لكم سيرتي الذاتية ورسالة التقديم لشغل وظيفة ${title} لدى ${company}.\n\nيسعدني أن أناقش معكم كيف يمكنني المساهمة في عمل الفريق.\n\nمع خالص التحية،\n${name}` }),
+    follow_up: ({ name, title, company, subject }) => ({ subject: re(subject, `متابعة طلب التوظيف لشغل وظيفة ${title}`), body: `مرحبًا،\n\nتقدّمت مؤخرًا لشغل وظيفة ${title} لدى ${company}، وأودّ الاستفسار عن آخر مستجدات طلبي. لا تزال هذه الفرصة تهمّني كثيرًا.\n\nمع خالص التحية،\n${name}` }),
+    thank_you: ({ name, title, subject }) => ({ subject: re(subject, `شكرًا على المقابلة لوظيفة ${title}`), body: `مرحبًا،\n\nشكرًا لكم على الوقت الذي خصّصتموه للحديث معي عن وظيفة ${title}. سعدت بلقائكم، وزاد حديثنا من اهتمامي بالانضمام إلى الفريق.\n\nمع خالص التحية،\n${name}` }),
+    reply: ({ name, subject, title }) => ({ subject: re(subject, title), body: `مرحبًا،\n\n\n\nمع خالص التحية،\n${name}` }),
+  },
   fr: {
     apply: ({ name, title, company }) => ({ subject: `Candidature : ${title} – ${name}`, body: `Bonjour,\n\nVeuillez trouver ci-joint ma candidature au poste de ${title} chez ${company} : mon CV et une lettre de motivation.\n\nJe serais ravi(e) d’échanger avec vous sur ce que je pourrais apporter à l’équipe.\n\nBien cordialement,\n${name}` }),
     follow_up: ({ name, title, company, subject }) => ({ subject: re(subject, `Suivi de ma candidature : ${title}`), body: `Bonjour,\n\nJ’ai récemment postulé au poste de ${title} chez ${company} et je me permets de revenir vers vous pour savoir où en est ma candidature. Le poste m’intéresse toujours beaucoup.\n\nBien cordialement,\n${name}` }),
@@ -45,6 +51,7 @@ export function composeDraft(kind: ComposeKind, language: string, input: Input):
     const files = input.attachments
     const introductions: Record<string, string> = {
       en: `I am writing to apply for the ${input.title} position at ${input.company}.${files.cv || files.letter ? ` Please find attached ${[files.cv && "my CV", files.letter && "my cover letter"].filter(Boolean).join(" and ")}.` : ""}`,
+      ar: `أتقدّم إليكم لشغل وظيفة ${input.title} لدى ${input.company}.${files.cv || files.letter ? ` أرفق لكم ${[files.cv && "سيرتي الذاتية", files.letter && "رسالة التقديم"].filter(Boolean).join(" و")}.` : ""}`,
       fr: `Je vous adresse ma candidature au poste de ${input.title} chez ${input.company}.${files.cv || files.letter ? ` Vous trouverez en pièce jointe ${[files.cv && "mon CV", files.letter && "ma lettre de motivation"].filter(Boolean).join(" et ")}.` : ""}`,
       de: `Hiermit bewerbe ich mich für die Position ${input.title} bei ${input.company}.${files.cv || files.letter ? ` Im Anhang finden Sie ${[files.cv && "meinen Lebenslauf", files.letter && "mein Anschreiben"].filter(Boolean).join(" und ")}.` : ""}`,
       es: `Le envío mi candidatura para el puesto de ${input.title} en ${input.company}.${files.cv || files.letter ? ` Adjunto ${[files.cv && "mi CV", files.letter && "mi carta de presentación"].filter(Boolean).join(" y ")}.` : ""}`,

@@ -5,15 +5,9 @@ import { MoveStatusButton } from "@/components/tracking/status-control"
 import { Button } from "@/components/ui/button"
 import type { Status } from "@/lib/stages"
 import { cn } from "@/lib/utils"
+import { useLocale, useTranslations } from "next-intl"
 
-const STEPS = [
-  { id: "saved", label: "Saved" },
-  { id: "analyzed", label: "Fit checked" },
-  { id: "documents", label: "CV & letter" },
-  { id: "sent", label: "Sent" },
-  { id: "interviewing", label: "Interviews" },
-  { id: "offer", label: "Offer" },
-] as const
+const STEPS = [{ id: "saved" }, { id: "analyzed" }, { id: "documents" }, { id: "sent" }, { id: "interviewing" }, { id: "offer" }] as const
 
 const STEP_OF: Record<Status, number> = { draft: 0, parsed: 0, analyzed: 1, generated: 2, ready: 2, submitted: 3, interviewing: 4, offer: 5, rejected: -1, withdrawn: -1 }
 
@@ -37,6 +31,8 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
   nextStep?: string
   nextStepDue?: Date | null
 }) {
+  const t = useTranslations("application.progress")
+  const locale = useLocale()
   const status: Status = saved === "analyzed" && cvDraft ? "generated" : saved
   const current = STEP_OF[status]
   const closed = current === -1
@@ -48,34 +44,34 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
     ? null
     : status === "draft" || status === "parsed"
       ? spontaneous
-        ? { title: "Write your CV", body: "No posting to match, so your CV leads with your strongest verified entries.", action: <Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> Open CV</Button> }
-        : { title: "Check your fit", body: "Naruvi compares each requirement with your verified facts and picks what to lead with. About a minute.", action: <AnalyzeButton jobId={jobId} /> }
+        ? { title: t("next.write.title"), body: t("next.write.body"), action: <Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> {t("openCv")}</Button> }
+        : { title: t("next.check.title"), body: t("next.check.body"), action: <AnalyzeButton jobId={jobId} /> }
       : status === "analyzed"
-        ? { title: "Make your CV for this job", body: "Built from the analysis: your best-matching entries first, nothing you can’t back up.", action: <Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> Create CV</Button> }
+        ? { title: t("next.make.title"), body: t("next.make.body"), action: <Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> {t("createCv")}</Button> }
         : status === "generated"
-          ? { title: "Review your CV", body: "Check the draft, then mark it ready.", action: <><Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> Open CV</Button><MoveStatusButton id={applicationId} to="ready" company={company} title={title} variant="outline"><CheckIcon /> Mark ready</MoveStatusButton></> }
+          ? { title: t("next.review.title"), body: t("next.review.body"), action: <><Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> {t("openCv")}</Button><MoveStatusButton id={applicationId} to="ready" company={company} title={title} variant="outline"><CheckIcon /> {t("markReady")}</MoveStatusButton></> }
           : status === "ready"
-            ? { title: "Send your application", body: "Apply on the posting, then mark it sent so Naruvi can remind you to follow up.", action: <>{sourceUrl ? <Button variant="outline" nativeButton={false} render={<a href={sourceUrl} target="_blank" rel="noreferrer" />}>Apply on the posting <ExternalLinkIcon /></Button> : null}<MoveStatusButton id={applicationId} to="submitted" company={company} title={title}><SendIcon /> Mark as sent</MoveStatusButton></> }
+            ? { title: t("next.send.title"), body: t("next.send.body"), action: <>{sourceUrl ? <Button variant="outline" nativeButton={false} render={<a href={sourceUrl} target="_blank" rel="noreferrer" />}>{t("apply")} <ExternalLinkIcon /></Button> : null}<MoveStatusButton id={applicationId} to="submitted" company={company} title={title}><SendIcon /> {t("markSent")}</MoveStatusButton></> }
             : null
 
   // After sending there's no document to make: say what's going on, and surface your own next step if you set one.
-  const due = nextStepDue ? nextStepDue.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) : null
+  const due = nextStepDue ? nextStepDue.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" }) : null
   const overdue = nextStepDue ? nextStepDue.getTime() < new Date().setHours(0, 0, 0, 0) : false
-  const own = nextStep.trim() ? { title: nextStep.trim(), body: due ? `${overdue ? "Overdue since" : "Due"} ${due}. Change it from Add next step above.` : "No date yet. Add one so Naruvi can remind you.", action: null, icon: CalendarClockIcon, tone: overdue ? "warn" as const : undefined } : null
+  const own = nextStep.trim() ? { title: nextStep.trim(), body: due ? t(overdue ? "own.overdue" : "own.due", { date: due }) : t("own.noDate"), action: null, icon: CalendarClockIcon, tone: overdue ? "warn" as const : undefined } : null
   const later: { title: string; body: string; action: React.ReactNode; icon: LucideIcon; tone?: "warn" | "good" } | null = closed
-    ? { title: saved === "rejected" ? "This one didn’t work out" : "You withdrew from this one", body: "It stays here for reference. What you learned still counts: your verified facts carry over to the next application.", action: null, icon: ArchiveIcon }
+    ? { title: saved === "rejected" ? t("later.rejected") : t("later.withdrawn"), body: t("later.closedBody"), action: null, icon: ArchiveIcon }
     : status === "submitted"
-      ? own ?? { title: "Waiting to hear back", body: "Naruvi watches your inbox for their reply. No news in a week? Set a follow-up with Add next step.", action: null, icon: HourglassIcon }
+      ? own ?? { title: t("later.waiting.title"), body: t("later.waiting.body"), action: null, icon: HourglassIcon }
       : status === "interviewing"
-        ? own ?? { title: "Prepare for your interview", body: "Go over your proven strengths and the company talking points from the fit check.", action: <Button variant="outline" nativeButton={false} render={<Link href={`/applications/${applicationId}`} scroll={false} />}><MessagesSquareIcon /> Talking points</Button>, icon: MessagesSquareIcon }
+        ? own ?? { title: t("later.interview.title"), body: t("later.interview.body"), action: <Button variant="outline" nativeButton={false} render={<Link href={`/applications/${applicationId}`} scroll={false} />}><MessagesSquareIcon /> {t("talkingPoints")}</Button>, icon: MessagesSquareIcon }
         : status === "offer"
-          ? own ?? { title: "You have an offer", body: "Take your time. Ask Naruvi to compare it with your other applications before you decide.", action: null, icon: PartyPopperIcon, tone: "good" }
+          ? own ?? { title: t("later.offer.title"), body: t("later.offer.body"), action: null, icon: PartyPopperIcon, tone: "good" }
           : null
 
   const panel = next
-    ? { ...next, icon: status === "draft" || status === "parsed" ? ScanSearchIcon : status === "ready" ? SendIcon : FileTextIcon, tone: undefined, kicker: "Next" }
+    ? { ...next, icon: status === "draft" || status === "parsed" ? ScanSearchIcon : status === "ready" ? SendIcon : FileTextIcon, tone: undefined, kicker: t("kicker.next") }
     : later
-      ? { ...later, kicker: closed ? null : own && later === own ? "Your next step" : "Now" }
+      ? { ...later, kicker: closed ? null : own && later === own ? t("kicker.own") : t("kicker.now") }
       : null
   // The track runs from the first node's centre to the last; the fill reaches the current step.
   const fill = closed ? 0 : (index / (steps.length - 1)) * 100
@@ -84,10 +80,10 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
     <div className={cn("flex flex-col justify-center gap-4 rounded-xl border bg-card p-3 sm:p-4", next && current <= 0 && "border-brand/30 bg-brand-soft/50")}>
       <div>
         <p className="mb-3 flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Progress</span>
-          <span className="tabular-nums">{closed ? (status === "rejected" ? "Closed: not selected" : "Closed: withdrawn") : `Step ${index + 1} of ${steps.length}`}</span>
+          <span className="font-medium text-foreground">{t("title")}</span>
+          <span className="tabular-nums">{closed ? (status === "rejected" ? t("closedRejected") : t("closedWithdrawn")) : t("step", { current: index + 1, total: steps.length })}</span>
         </p>
-        <ol className="relative grid" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label="Application progress">
+        <ol className="relative grid" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label={t("label")}>
           <span aria-hidden className="absolute top-3 h-0.5 -translate-y-1/2 rounded-full bg-border" style={{ insetInline: `calc(100% / ${steps.length * 2})` }}>
             <span className="block h-full rounded-full bg-emerald-500 transition-[width] duration-700 ease-out motion-reduce:transition-none" style={{ width: `${fill}%` }} />
           </span>
@@ -108,8 +104,8 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
                   <span aria-hidden className="relative">{done ? <CheckIcon className="size-3.5" strokeWidth={3} /> : position + 1}</span>
                 </span>
                 <span className={cn("text-[11px] leading-tight text-balance sm:text-xs", here ? "font-medium text-foreground" : done ? "text-foreground/70" : "text-muted-foreground")}>
-                  {step.label}
-                  <span className="sr-only">{done ? " (done)" : here ? " (current)" : ""}</span>
+                  {t(`steps.${step.id}`)}
+                  <span className="sr-only">{done ? ` ${t("done")}` : here ? ` ${t("current")}` : ""}</span>
                 </span>
               </li>
             )

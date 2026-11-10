@@ -9,6 +9,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Kbd } from "@/components/ui/kbd"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 const EASE = [0.23, 1, 0.32, 1] as const
 
@@ -61,6 +62,7 @@ export function LineList({
   /** Shown instead of the list when there is nothing yet. */
   empty?: React.ReactNode
 }) {
+  const t = useTranslations("inputs")
   const refs = useRef(new Map<string, HTMLTextAreaElement>())
   const [focused, setFocused] = useState<string | null>(null)
   const focus = (key?: string, at?: "start" | "end") =>
@@ -91,7 +93,7 @@ export function LineList({
           <PresenceItem key={item.key} className="group/line" onMouseEnter={() => onHover?.(item.key)} onMouseLeave={() => onHover?.(null)}>
             <div className="flex items-start gap-1.5">
               {numbered ? (
-                <span className={cn("mt-2 w-6 shrink-0 text-right text-xs tabular-nums transition-colors", focused === item.key ? "font-medium text-foreground" : "text-muted-foreground/70")}>{index + 1}</span>
+                <span className={cn("mt-2 w-6 shrink-0 text-end text-xs tabular-nums transition-colors", focused === item.key ? "font-medium text-foreground" : "text-muted-foreground/70")}>{index + 1}</span>
               ) : (
                 <span className={cn("mt-[15px] ms-2 size-1.5 shrink-0 rounded-full transition-colors", focused === item.key ? "bg-foreground" : "bg-muted-foreground/40")} />
               )}
@@ -149,7 +151,7 @@ export function LineList({
                 size="icon-sm"
                 variant="ghost"
                 className="mt-1 text-muted-foreground opacity-0 transition-opacity group-hover/line:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
-                aria-label={`Remove line ${index + 1}`}
+                aria-label={t("removeLine", { n: index + 1 })}
                 onClick={() => onChange(items.filter((current) => current.key !== item.key))}
               >
                 <XIcon />
@@ -165,7 +167,7 @@ export function LineList({
         </Button>
         {items.length > 1 ? (
           <span className="hidden items-center gap-1 text-[11px] text-muted-foreground/80 sm:inline-flex">
-            <Kbd>Enter</Kbd> new line <span aria-hidden>·</span> <Kbd>Alt ↑↓</Kbd> reorder <span aria-hidden>·</span> paste a list to split it
+            <Kbd>Enter</Kbd> {t("newLine")} <span aria-hidden>·</span> <Kbd>Alt ↑↓</Kbd> {t("reorder")} <span aria-hidden>·</span> {t("pasteList")}
           </span>
         ) : null}
       </div>
@@ -175,6 +177,7 @@ export function LineList({
 
 /** Tag-style input: Enter, comma or paste adds; Backspace on empty removes the last one. */
 export function ChipInput({ values, onChange, placeholder, label }: { values: string[]; onChange: (values: string[]) => void; placeholder: string; label?: string }) {
+  const t = useTranslations("inputs")
   const [text, setText] = useState("")
   const add = (raw: string) => {
     const seen = new Set(values.map((value) => value.toLowerCase()))
@@ -202,7 +205,7 @@ export function ChipInput({ values, onChange, placeholder, label }: { values: st
             className="inline-flex h-6 items-center gap-1 rounded-md bg-secondary ps-2 pe-0.5 text-xs font-medium text-secondary-foreground"
           >
             {value}
-            <button type="button" aria-label={`Remove ${value}`} className="grid size-5 place-content-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground" onClick={() => onChange(values.filter((item) => item !== value))}>
+            <button type="button" aria-label={t("remove", { value })} className="grid size-5 place-content-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground" onClick={() => onChange(values.filter((item) => item !== value))}>
               <XIcon className="size-3" />
             </button>
           </motion.span>
@@ -226,7 +229,7 @@ export function ChipInput({ values, onChange, placeholder, label }: { values: st
             commit()
           } else if (event.key === "Backspace" && !text && values.length) onChange(values.slice(0, -1))
         }}
-        placeholder={values.length ? "Add more…" : placeholder}
+        placeholder={values.length ? t("addMore") : placeholder}
         className="h-6 min-w-32 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground"
       />
     </div>
@@ -239,6 +242,7 @@ export function ChipInput({ values, onChange, placeholder, label }: { values: st
  */
 export function SuggestChips({ items, onAdd, source, icon }: { items: string[]; onAdd: (items: string[]) => void; source: string; icon?: React.ReactNode }) {
   const reduce = useReducedMotion()
+  const t = useTranslations("inputs")
   if (!items.length) return null
   return (
     <div className="cb-fade flex flex-wrap items-center gap-1.5">
@@ -265,7 +269,7 @@ export function SuggestChips({ items, onAdd, source, icon }: { items: string[]; 
       </PresenceList>
       {items.length > 1 ? (
         <Button size="xs" variant="ghost" className="text-muted-foreground" onClick={() => onAdd(items)}>
-          Add all
+          {t("addAll")}
         </Button>
       ) : null}
     </div>
@@ -274,16 +278,17 @@ export function SuggestChips({ items, onAdd, source, icon }: { items: string[]; 
 
 /** Searchable multi-select of facts for a bullet. Facts keep their number from the list above. */
 export function FactPicker({ facts, selected, onChange }: { facts: { key: string; statement: string }[]; selected: string[]; onChange: (keys: string[]) => void }) {
+  const t = useTranslations("inputs")
   return (
     <Popover>
       <PopoverTrigger render={<Button size="xs" variant="ghost" className="text-muted-foreground" />}>
-        <LinkIcon /> {selected.length ? "Link another" : "Link a fact"}
+        <LinkIcon /> {selected.length ? t("linkAnother") : t("linkFact")}
       </PopoverTrigger>
       <PopoverContent className="w-[26rem] max-w-[calc(100vw-2rem)] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search facts…" />
+          <CommandInput placeholder={t("searchFacts")} />
           <CommandList>
-            <CommandEmpty>{facts.some((fact) => fact.statement.trim()) ? "No fact matches." : "Add facts in “What you did” first."}</CommandEmpty>
+            <CommandEmpty>{facts.some((fact) => fact.statement.trim()) ? t("noFact") : t("addFactsFirst")}</CommandEmpty>
             <CommandGroup>
               {facts.map((fact, index) => {
                 if (!fact.statement.trim()) return null

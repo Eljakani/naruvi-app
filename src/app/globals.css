@@ -9,9 +9,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-ui);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-ui);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -257,7 +257,7 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
 @keyframes cb-scan { from { transform: translateY(-2.5rem); } to { transform: translateY(14rem); } }
 .cb-scan { animation: cb-scan 1.8s var(--ease-in-out) infinite; }
 
-/* Page changes (React ViewTransition in app/(app)/template.tsx).
+/* Page changes (React ViewTransition in app/[locale]/(app)/template.tsx).
    The sidebar and header stay put; only the page area hands over:
    old page leaves fast (90ms), new one fades in right behind it. */
 ::view-transition-group(root),
@@ -328,9 +328,19 @@ svg.animate-spin { animation: spin 0.7s linear infinite, cb-pop 180ms var(--ease
     @apply bg-background text-foreground;
   }
   html {
+    --font-ui: var(--font-geist-sans);
     @apply font-sans;
   }
+  html:lang(ar) {
+    --font-ui: "IBM Plex Sans Arabic", var(--font-geist-sans);
+  }
 }
+
+/* Arrows and chevrons point the way you read: mirrored in right-to-left languages. */
+:is(.lucide-arrow-right, .lucide-arrow-left, .lucide-chevron-right, .lucide-chevron-left, .lucide-chevrons-right, .lucide-chevrons-left, .lucide-arrow-up-right, .lucide-move-right, .lucide-corner-down-left, .lucide-undo-2, .lucide-redo-2, .lucide-reply, .lucide-send, .lucide-log-out, .lucide-panel-left, .lucide-external-link):dir(rtl) { scale: -1 1; }
+/* A chevron turned to point down (expanded) points down in any direction. */
+:is(.lucide-chevron-right, .lucide-chevron-left):dir(rtl):is(.rotate-90, .-rotate-90),
+[data-slot="calendar"] :is(.lucide-chevron-left, .lucide-chevron-right) { scale: none; }
 
 /* A sparkle in a button means "Naruvi does this": it wears the brand copper (not on copper buttons). */
 [data-slot="button"]:not(.bg-brand) > .lucide-sparkles,

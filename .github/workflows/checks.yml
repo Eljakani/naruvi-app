@@ -18,3 +18,9 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - run: python3 -m unittest discover -s tests/installer
+      - run: npm run build
+        env:
+          DATABASE_URL: postgres://build:build@127.0.0.1:5432/build
+          SETTINGS_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+          NEXT_TELEMETRY_DISABLED: '1'

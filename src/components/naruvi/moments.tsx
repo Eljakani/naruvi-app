@@ -2,23 +2,36 @@
 
 import { toast } from "sonner"
 import { Otter, type OtterPose } from "@/components/naruvi/otter"
-import { STATUS_LABEL, type Status } from "@/lib/stages"
+import type { Status } from "@/lib/stages"
+import { useTranslations } from "next-intl"
 
 /**
  * What Naruvi says when an application changes stage. Warm, specific and
  * short: real wins get a small celebration, a rejection gets a kind word and
  * a next step, everything else a plain confirmation.
  */
-const MOMENTS: Partial<Record<Status, { pose: OtterPose; title: (company: string) => string; body: string }>> = {
-  submitted: { pose: "celebrating-progress", title: (company) => `Sent to ${company}`, body: "Nicely done. Unless you planned something else, I’ve set a follow-up for a week from now." },
-  interviewing: { pose: "interview-practice", title: (company) => `Interview with ${company}`, body: "They want to talk. Ask me and I’ll gather what’s worth mentioning about them." },
-  offer: { pose: "celebrating-progress", title: (company) => `An offer from ${company}`, body: "Take a moment to enjoy this one. When you’re ready, we can look at it together." },
-  rejected: { pose: "offering-reassurance", title: (company) => `${company} said no this time`, body: "That stings, and it says little about you. Your other applications are still moving." },
+const MOMENTS = { submitted: "celebrating-progress", interviewing: "interview-practice", offer: "celebrating-progress", rejected: "offering-reassurance" } as const satisfies Partial<Record<Status, OtterPose>>
+type Moment = keyof typeof MOMENTS
+
+/** Toasts render inside the intl provider, so their text is translated where it's shown. */
+function StatusMoved({ status, title }: { status: Status; title: string }) {
+  const t = useTranslations("labels")
+  return <>{title} → {t(`status.${status}`)}</>
+}
+
+function MomentText({ status, company }: { status: Moment; company: string }) {
+  const t = useTranslations("moments")
+  return (
+    <>
+      <p className="text-sm font-medium">{t(`${status}.title`, { company: company || t("them") })}</p>
+      <p className="text-xs text-muted-foreground">{t(`${status}.body`)}</p>
+    </>
+  )
 }
 
 export function announceStatus(status: Status, company: string, title: string) {
-  const moment = MOMENTS[status]
-  if (!moment) return void toast(`${title} → ${STATUS_LABEL[status]}`)
+  if (!(status in MOMENTS)) return void toast(<StatusMoved status={status} title={title} />)
+  const moment = { pose: MOMENTS[status as Moment] }
   toast.custom(
     (id) => (
       <div
@@ -28,8 +41,7 @@ export function announceStatus(status: Status, company: string, title: string) {
       >
         <Otter pose={moment.pose} height={76} className="-mb-3 -ms-1" />
         <div className="grid min-w-0 gap-0.5 pb-0.5">
-          <p className="text-sm font-medium">{moment.title(company || "them")}</p>
-          <p className="text-xs text-muted-foreground">{moment.body}</p>
+          <MomentText status={status as Moment} company={company} />
         </div>
       </div>
     ),

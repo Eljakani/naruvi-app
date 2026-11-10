@@ -5,7 +5,9 @@
  */
 import { FONTS, type DesignTokens } from "./design"
 
-type Idea = { text: string; weight: number }
+type Idea = { key: string; text: string; weight: number; values?: Record<string, string> }
+/** Words for a suggestion: the UI passes its translator (`designIdeas.*`); English otherwise. */
+export type IdeaWords = (key: string, values?: Record<string, string>) => string
 
 const COLOURS = [
   { name: "navy", hex: "#1e3a5f" },
@@ -16,35 +18,35 @@ const COLOURS = [
   { name: "charcoal", hex: "#1f2937" },
 ]
 
-export function designIdeas(tokens: DesignTokens, context: { pages?: number; seed?: number; exclude?: string[] } = {}): string[] {
+export function designIdeas(tokens: DesignTokens, context: { pages?: number; seed?: number; exclude?: string[] } = {}, words?: IdeaWords): string[] {
   const ideas: Idea[] = []
-  const add = (text: string, weight = 1) => ideas.push({ text, weight })
+  const add = (key: string, text: string, weight = 1, values?: Record<string, string>) => ideas.push({ key, text: words ? words(key, values) : text, weight, values })
   const serif = FONTS[tokens.font]?.kind === "serif"
 
-  if ((context.pages ?? 1) > 1) add("Make it fit on one page", 5)
-  else add("Add a little more breathing room", 1.5)
-  if (tokens.layout === "single") add("Two columns with skills on the side", 2)
+  if ((context.pages ?? 1) > 1) add("makeItFitOnOnePage", "Make it fit on one page", 5)
+  else add("addALittleMoreBreathingRoom", "Add a little more breathing room", 1.5)
+  if (tokens.layout === "single") add("twoColumnsWithSkillsOnTheSide", "Two columns with skills on the side", 2)
   else {
-    add(tokens.sidebarSide === "left" ? "Move the side column to the right" : "Move the side column to the left", 1.5)
-    if (!tokens.sidebarTint) add("Give the side column a soft tint", 1.5)
-    add("Back to a single column", 0.8)
+    add(tokens.sidebarSide === "left" ? "sideRight" : "sideLeft", tokens.sidebarSide === "left" ? "Move the side column to the right" : "Move the side column to the left", 1.5)
+    if (!tokens.sidebarTint) add("giveTheSideColumnASoftTint", "Give the side column a soft tint", 1.5)
+    add("backToASingleColumn", "Back to a single column", 0.8)
   }
-  add(tokens.headerAlign === "left" ? "Bigger name, centred header" : "Left-aligned header, cleaner look", 1.4)
-  add(serif ? "Switch to a clean modern sans font" : "Try an elegant serif font", 1.3)
+  add(tokens.headerAlign === "left" ? "centreHeader" : "leftHeader", tokens.headerAlign === "left" ? "Bigger name, centred header" : "Left-aligned header, cleaner look", 1.4)
+  add(serif ? "sans" : "serif", serif ? "Switch to a clean modern sans font" : "Try an elegant serif font", 1.3)
   const current = COLOURS.find((colour) => colour.hex.toLowerCase() === tokens.accent.toLowerCase())
   const others = COLOURS.filter((colour) => colour !== current)
   const colour = others[(context.seed ?? 0) % others.length]
-  add(`Use a ${colour.name} accent`, 1.2)
-  if (tokens.skillsStyle !== "tags") add("Show skills as tags", 1.2)
-  if (!tokens.headerBand) add("Add a coloured band behind my name", 0.9)
-  if (tokens.headingStyle === "plain" || tokens.headingStyle === "rule") add("Bolder section headings", 1.1)
-  else add("Quieter, more minimal headings", 1.1)
-  if (tokens.spacing > 1.15) add("Make it more compact", 1)
-  if (tokens.size < 9.2) add("Make the text a bit larger", 1.2)
-  if (!tokens.accentHeadings && !tokens.accentName) add("Add a touch of colour to headings", 1)
-  if (tokens.accentHeadings || tokens.accentName || tokens.headerBand) add("More elegant and minimal", 1)
-  if (tokens.photoShape === "circle") add("Square photo, sharper look", 0.6)
-  if (!tokens.pageNumbers && (context.pages ?? 1) > 1) add("Add page numbers", 0.8)
+  add("accent", `Use a ${colour.name} accent`, 1.2, { colour: words ? words(`colours.${colour.name.replace(" ", "_")}`) : colour.name })
+  if (tokens.skillsStyle !== "tags") add("showSkillsAsTags", "Show skills as tags", 1.2)
+  if (!tokens.headerBand) add("addAColouredBandBehindMyName", "Add a coloured band behind my name", 0.9)
+  if (tokens.headingStyle === "plain" || tokens.headingStyle === "rule") add("bolderSectionHeadings", "Bolder section headings", 1.1)
+  else add("quieterMoreMinimalHeadings", "Quieter, more minimal headings", 1.1)
+  if (tokens.spacing > 1.15) add("makeItMoreCompact", "Make it more compact", 1)
+  if (tokens.size < 9.2) add("makeTheTextABitLarger", "Make the text a bit larger", 1.2)
+  if (!tokens.accentHeadings && !tokens.accentName) add("addATouchOfColourToHeadings", "Add a touch of colour to headings", 1)
+  if (tokens.accentHeadings || tokens.accentName || tokens.headerBand) add("moreElegantAndMinimal", "More elegant and minimal", 1)
+  if (tokens.photoShape === "circle") add("squarePhotoSharperLook", "Square photo, sharper look", 0.6)
+  if (!tokens.pageNumbers && (context.pages ?? 1) > 1) add("addPageNumbers", "Add page numbers", 0.8)
 
   // Stable shuffle: weight, then a seeded tiebreak so the set rotates between requests.
   const seed = context.seed ?? 0

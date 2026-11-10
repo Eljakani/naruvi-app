@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 export type SectionNavItem = { id: string; label: string; icon?: ReactNode; status?: boolean | null }
 
@@ -12,6 +13,7 @@ export type SectionNavItem = { id: string; label: string; icon?: ReactNode; stat
  */
 export function SectionNav({ items, label }: { items: SectionNavItem[]; label: string }) {
   const [active, setActive] = useState(items[0]?.id)
+  const t = useTranslations("common")
   useEffect(() => {
     const targets = items.map((item) => document.getElementById(item.id)).filter((node): node is HTMLElement => Boolean(node))
     const observer = new IntersectionObserver(
@@ -43,9 +45,9 @@ export function SectionNav({ items, label }: { items: SectionNavItem[]; label: s
             {item.icon ? <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4" aria-hidden>{item.icon}</span> : null}
             <span className="flex-1 whitespace-nowrap">{item.label}</span>
             {item.status === undefined || item.status === null ? null : (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground" title={item.status ? "Connected" : "Not set up"}>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground" title={item.status ? t("connected") : t("notSetUp")}>
                 <span className={cn("size-1.5 rounded-full", item.status ? "bg-primary" : "bg-muted-foreground/30")} aria-hidden />
-                <span className="sr-only @4xl/workspace:not-sr-only">{item.status ? "On" : "Off"}</span>
+                <span className="sr-only @4xl/workspace:not-sr-only">{item.status ? t("on") : t("off")}</span>
               </span>
             )}
           </a>

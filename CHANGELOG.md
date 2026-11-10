@@ -3,6 +3,12 @@
 Each release is a signed Git tag `vX.Y.Z` with a GitHub release of the same name.
 Update an installation from a terminal with `naruvi update`.
 
+## Unreleased
+
+- Added English, French, and Arabic interface locales, including right-to-left layouts, Arabic assistant replies, and Arabic email templates.
+- Added Cloudflare Workers AI and OpenAI Decisions as decision-model providers.
+- Bundled the interface fonts locally and added production builds and installer tests to CI.
+
 ## 0.1.0 — 2026-11-09
 
 First public version.

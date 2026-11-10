@@ -166,14 +166,22 @@ choose() { # options as "Label|Description"; arrow keys when the terminal allows
 
 # ---------- work ----------
 log=/dev/null
+OTTER=
+otter() { # frame -> OTTER: the mascot sliding along a short track, looping
+  local w=14 x=$(($1 % 15)) c trail= ahead= face='•ᴥ•' ripples='∼˜∼⁓'
+  [[ $(($1 % 40)) -lt 37 ]] || face='-ᴥ-'
+  for ((c = 0; c < x; c++)); do trail+='─'; done
+  for ((c = x; c < w; c++)); do ahead+='·'; done
+  OTTER="$dim$trail$reset$copper${ripples:$(($1 / 2 % 4)):1}($reset$bold$face$reset$copper)$reset$dim$ahead$reset"
+}
 run() { # title command...
   local title=$1; shift
-  local started=$SECONDS frame=0 frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' status=0
+  local started=$SECONDS frame=0 status=0
   if fancy; then out '\033[?25l'; else out '  ... %s\n' "$title"; fi
   "$@" >> "$log" 2>&1 &
   worker_pid=$!
   while kill -0 "$worker_pid" 2>/dev/null; do
-    if fancy; then out '\r\033[2K  %s%s%s %s %s%ss%s' "$copper" "${frames:frame%10:1}" "$reset" "$title" "$dim" "$((SECONDS-started))" "$reset"; fi
+    if fancy; then otter "$frame"; out '\r\033[2K  %s  %s %s%ss%s' "$OTTER" "$title" "$dim" "$((SECONDS-started))" "$reset"; fi
     frame=$((frame+1)); sleep 0.1
   done
   wait "$worker_pid" || status=$?

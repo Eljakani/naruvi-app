@@ -8,7 +8,7 @@ Search existing issues first. For a substantial feature or architectural change,
 
 ## Development
 
-Follow the [local setup](README.md#local-development), using Node.js 24 and Docker Compose. Read [AGENTS.md](AGENTS.md), the [architecture](docs/ARCHITECTURE.md), and the relevant local Next.js documentation before changing framework behavior.
+Expand **Local development** in the [quick start](README.md#quick-start), using Node.js 24 and Docker Compose. Read [AGENTS.md](AGENTS.md), the [architecture](docs/ARCHITECTURE.md), and the relevant local Next.js documentation before changing framework behavior.
 
 1. Fork the repository and create a focused branch.
 2. Make the smallest coherent change that solves the problem.
@@ -25,7 +25,7 @@ Run `npm run build` for production or framework changes. Browser-import changes 
 - Preserve review steps for consequential actions.
 - Support keyboard navigation, responsive layouts, and reduced motion.
 - Keep Naruvi’s voice warm, practical, and clear.
-- Never commit `.env` files, credentials, real CVs, private mail, or database dumps.
+- Never commit `.env` files, credentials, real CVs, private mail, or database dumps. Before committing captured job pages, remove embedded API keys and analytics tokens.
 
 Describe the problem, the resulting behavior, and validation in your pull request. Mention limitations honestly. Contributions are provided under the project’s Apache-2.0 license; retain applicable third-party notices.
 

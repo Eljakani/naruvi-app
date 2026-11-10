@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 /** Change one URL parameter (and go back to page 1), keeping the others. */
 function useUrlParam() {
@@ -34,6 +35,7 @@ export function SearchBox({ placeholder, className }: { placeholder: string; cla
   const [value, setValue] = useState(current)
   const [synced, setSynced] = useState(current)
   const input = useRef<HTMLInputElement>(null)
+  const t = useTranslations("common")
   // Back/forward or a cleared filter changes the URL: follow it.
   if (current !== synced) {
     setSynced(current)
@@ -62,7 +64,7 @@ export function SearchBox({ placeholder, className }: { placeholder: string; cla
       <InputGroupInput ref={input} type="text" role="searchbox" enterKeyHint="search" aria-label={placeholder} placeholder={placeholder} value={value} onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => event.key === "Escape" && setValue("")} />
       {value ? (
         <InputGroupAddon align="inline-end">
-          <InputGroupButton size="icon-xs" aria-label="Clear search" onClick={() => setValue("")}>
+          <InputGroupButton size="icon-xs" aria-label={t("clearSearch")} onClick={() => setValue("")}>
             <XIcon />
           </InputGroupButton>
         </InputGroupAddon>
@@ -98,10 +100,11 @@ export function UrlSelect({ name, label, options, className }: { name: string; l
 /** Clears every listed filter at once; hidden when none is set. */
 export function ClearFilters({ names }: { names: string[] }) {
   const { params, set } = useUrlParam()
+  const t = useTranslations("common")
   if (!names.some((name) => params.get(name))) return null
   return (
     <Button variant="ghost" size="sm" onClick={() => set(Object.fromEntries(names.map((name) => [name, undefined])))}>
-      <XIcon /> Clear
+      <XIcon /> {t("clear")}
     </Button>
   )
 }

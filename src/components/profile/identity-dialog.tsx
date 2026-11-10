@@ -4,19 +4,23 @@ import { PresenceItem, PresenceList } from "@/components/presence"
 import { useRef, useState, useTransition } from "react"
 import { ImageUpIcon, Loader2Icon, PlusIcon, TrashIcon, UserRoundIcon } from "lucide-react"
 import { toast } from "sonner"
-import { saveIdentityAction, uploadPhotoAction } from "@/app/(app)/profile/actions"
+import { saveIdentityAction, uploadPhotoAction } from "@/app/[locale]/(app)/profile/actions"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { MAX_IMAGE_BYTES } from "@/lib/asset-limits"
-import { LanguageSwitch, LANGUAGE_NAMES } from "@/components/profile/language-switch"
+import { LanguageSwitch } from "@/components/profile/language-switch"
 import type { profiles } from "@/server/db/schema"
+import { useLocale, useTranslations } from "next-intl"
+import { languageName } from "@/i18n/config"
 
 type Profile = typeof profiles.$inferSelect
 
 export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean; onOpenChange: (open: boolean) => void; profile: Profile | null }) {
+  const t = useTranslations("identity")
+  const locale = useLocale()
   const [form, setForm] = useState(() => ({
     fullName: profile?.fullName ?? "",
     headlines: { en: profile?.headlines?.en ?? "", fr: profile?.headlines?.fr ?? "" },
@@ -36,8 +40,8 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
       const headlines = Object.fromEntries(Object.entries(form.headlines).filter(([, value]) => value.trim()))
       const summaries = Object.fromEntries(Object.entries(form.summaries).filter(([, value]) => value.trim()))
       const result = await saveIdentityAction({ ...form, headlines, summaries })
-      if (!result.ok) return void toast.error("Could not save", { description: result.error })
-      toast.success("Identity saved")
+      if (!result.ok) return void toast.error(t("saveFailed"), { description: result.error })
+      toast.success(t("saved"))
       onOpenChange(false)
     })
   const [lang, setLang] = useState<"en" | "fr">("en")
@@ -49,76 +53,76 @@ export function IdentityDialog({ open, onOpenChange, profile }: { open: boolean;
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Identity & contact</DialogTitle>
-          <DialogDescription>Copied as-is into every CV and letter. AI never changes these.</DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         <div className="-mx-4 grid min-h-0 flex-1 content-start gap-6 overflow-y-auto overscroll-contain px-4 pb-1">
           <section className="grid gap-4" aria-labelledby="identity-who">
-            <h3 id="identity-who" className="sr-only">Who you are</h3>
+            <h3 id="identity-who" className="sr-only">{t("who")}</h3>
             <div className="flex items-center gap-4">
               <PhotoField pending={uploading || pending} startUpload={startUpload} value={form.photoPath} name={form.fullName} onChange={(photoPath) => setForm((current) => ({ ...current, photoPath }))} />
               <div className="grid flex-1 gap-2">
-                <Field id="fullName" label="Full name" value={form.fullName} onChange={set("fullName")} autoComplete="name" />
+                <Field id="fullName" label={t("fullName")} value={form.fullName} onChange={set("fullName")} autoComplete="name" />
               </div>
             </div>
           </section>
 
           <section className="grid gap-3 rounded-lg border p-3" aria-labelledby="identity-intro">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 id="identity-intro" className="flex-1 text-sm font-medium">How you introduce yourself</h3>
+              <h3 id="identity-intro" className="flex-1 text-sm font-medium">{t("intro")}</h3>
               <LanguageSwitch value={lang} onChange={setLang} languages={["en", "fr"] as const} filled={(code) => Boolean(form.headlines[code].trim())} />
             </div>
             <div key={lang} className="cb-fade grid gap-3">
               <div className="grid gap-1.5">
-                <Label htmlFor="headline">Headline</Label>
+                <Label htmlFor="headline">{t("headline")}</Label>
                 <Input id="headline" value={form.headlines[lang]} onChange={(event) => setText("headlines", event.target.value)} placeholder={lang === "en" ? "e.g. Registered Nurse · Pediatrics" : "ex. Infirmière diplômée · Pédiatrie"} />
-                <p className="text-xs text-muted-foreground">The line under your name. A job can adjust it; it never invents seniority.</p>
+                <p className="text-xs text-muted-foreground">{t("headlineHint")}</p>
               </div>
               <div className="grid gap-1.5">
-                <Label htmlFor="summary">About you <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                <Label htmlFor="summary">{t("about")} <span className="font-normal text-muted-foreground">{t("optional")}</span></Label>
                 <Textarea id="summary" value={form.summaries[lang]} onChange={(event) => setText("summaries", event.target.value)} placeholder={lang === "en" ? "2–3 sentences: what you do, for whom, and what you’re known for." : "2–3 phrases : ce que vous faites, pour qui, et ce qui vous distingue."} className="min-h-20" maxLength={1200} />
-                <p className="text-xs text-muted-foreground">A short paragraph at the top of your CV. AI can tailor it per job using only your verified facts.</p>
+                <p className="text-xs text-muted-foreground">{t("aboutHint")}</p>
               </div>
               {!form.headlines[lang].trim() && !form.summaries[lang].trim() && (form.headlines[other].trim() || form.summaries[other].trim()) ? (
                 <Button size="sm" variant="outline" className="w-fit" onClick={() => setForm((current) => ({ ...current, headlines: { ...current.headlines, [lang]: current.headlines[other] }, summaries: { ...current.summaries, [lang]: current.summaries[other] } }))}>
-                  Start from the {LANGUAGE_NAMES[other]} text
+                  {t("startFrom", { language: languageName(other, locale) })}
                 </Button>
               ) : null}
             </div>
           </section>
 
           <section className="grid gap-3" aria-labelledby="identity-contact">
-            <h3 id="identity-contact" className="text-sm font-medium">Contact</h3>
+            <h3 id="identity-contact" className="text-sm font-medium">{t("contact")}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field id="email" label="Email" value={form.email} onChange={set("email")} type="email" autoComplete="email" />
-              <Field id="phone" label="Phone" value={form.phone} onChange={set("phone")} type="tel" autoComplete="tel" />
-              <Field id="location" label="Location" value={form.location} onChange={set("location")} placeholder="City, country" />
-              <Field id="availability" label="Availability" value={form.availability} onChange={set("availability")} placeholder="e.g. Immediately, March 2027" />
+              <Field id="email" label={t("email")} value={form.email} onChange={set("email")} type="email" autoComplete="email" />
+              <Field id="phone" label={t("phone")} value={form.phone} onChange={set("phone")} type="tel" autoComplete="tel" />
+              <Field id="location" label={t("location")} value={form.location} onChange={set("location")} placeholder={t("locationPlaceholder")} />
+              <Field id="availability" label={t("availability")} value={form.availability} onChange={set("availability")} placeholder={t("availabilityPlaceholder")} />
             </div>
           </section>
 
           <section className="grid gap-2" aria-labelledby="identity-links">
-            <h3 id="identity-links" className="text-sm font-medium">Links</h3>
+            <h3 id="identity-links" className="text-sm font-medium">{t("links")}</h3>
             <PresenceList>
             {form.links.map((link, index) => (
               <PresenceItem key={linkKeys[index] ?? index} className="flex gap-2">
-                <Input aria-label="Label" className="w-32" value={link.label} placeholder="LinkedIn" onChange={(event) => setForm({ ...form, links: form.links.map((item, i) => (i === index ? { ...item, label: event.target.value } : item)) })} />
-                <Input aria-label="URL" type="url" value={link.url} onChange={(event) => setForm({ ...form, links: form.links.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)) })} />
-                <Button size="icon" variant="ghost" aria-label="Remove link" onClick={() => { setForm({ ...form, links: form.links.filter((_, i) => i !== index) }); setLinkKeys((keys) => keys.filter((_, i) => i !== index)) }}>
+                <Input aria-label={t("linkLabel")} className="w-32" value={link.label} placeholder="LinkedIn" onChange={(event) => setForm({ ...form, links: form.links.map((item, i) => (i === index ? { ...item, label: event.target.value } : item)) })} />
+                <Input aria-label={t("linkUrl")} type="url" value={link.url} onChange={(event) => setForm({ ...form, links: form.links.map((item, i) => (i === index ? { ...item, url: event.target.value } : item)) })} />
+                <Button size="icon" variant="ghost" aria-label={t("removeLink")} onClick={() => { setForm({ ...form, links: form.links.filter((_, i) => i !== index) }); setLinkKeys((keys) => keys.filter((_, i) => i !== index)) }}>
                   <TrashIcon />
                 </Button>
               </PresenceItem>
             ))}
             </PresenceList>
             <Button size="sm" variant="outline" className="w-fit" onClick={() => { setForm({ ...form, links: [...form.links, { label: "", url: "https://" }] }); setLinkKeys((keys) => [...keys, crypto.randomUUID()]) }}>
-              <PlusIcon /> Add link
+              <PlusIcon /> {t("addLink")}
             </Button>
           </section>
         </div>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="outline" />}>{t("cancel")}</DialogClose>
           <Button onClick={save} disabled={pending || uploading}>
-            {pending ? <Loader2Icon className="animate-spin" /> : null} {pending ? "Saving…" : "Save"}
+            {pending ? <Loader2Icon className="animate-spin" /> : null} {pending ? t("saving") : t("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -159,6 +163,7 @@ async function preparePhoto(file: File): Promise<Blob> {
 }
 
 function PhotoField({ value, name, onChange, pending, startUpload }: { value: string | null; name: string; onChange: (path: string | null) => void; pending: boolean; startUpload: React.TransitionStartFunction }) {
+  const t = useTranslations("identity")
   const input = useRef<HTMLInputElement>(null)
   const upload = (file: File | undefined) => {
     if (!file || pending) return
@@ -168,11 +173,11 @@ function PhotoField({ value, name, onChange, pending, startUpload }: { value: st
         const form = new FormData()
         form.set("file", photo, photo === file ? file.name : "profile-photo")
         const result = await uploadPhotoAction(form)
-        if (!result.ok) return void toast.error("Photo not added", { description: result.error })
+        if (!result.ok) return void toast.error(t("photoFailed"), { description: result.error })
         onChange(result.data!.path)
         if (result.data!.warning) toast.warning(result.data!.warning)
       } catch {
-        toast.error("Photo not added", { description: "Try a JPEG, PNG or WebP photo under 2 MB." })
+        toast.error(t("photoFailed"), { description: t("photoHint") })
       }
     })
   }
@@ -188,11 +193,11 @@ function PhotoField({ value, name, onChange, pending, startUpload }: { value: st
           upload(event.dataTransfer.files[0])
         }}
         className="group relative size-20 overflow-hidden rounded-full border bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        aria-label={value ? "Replace photo" : "Add photo"}
+        aria-label={value ? t("replacePhoto") : t("addPhoto")}
       >
         {value ? (
           // eslint-disable-next-line @next/next/no-img-element -- local asset
-          <img src={`/api/assets/${value}`} alt={`${name} photo`} className="size-full object-cover" />
+          <img src={`/api/assets/${value}`} alt={t("photoAlt", { name })} className="size-full object-cover" />
         ) : (
           <UserRoundIcon className="mx-auto size-8 text-muted-foreground" />
         )}
@@ -202,10 +207,10 @@ function PhotoField({ value, name, onChange, pending, startUpload }: { value: st
       </button>
       {value ? (
         <button type="button" disabled={pending} className="text-xs text-muted-foreground hover:text-foreground" onClick={() => onChange(null)}>
-          Remove
+          {t("remove")}
         </button>
       ) : (
-        <span className="text-xs text-muted-foreground">Optional</span>
+        <span className="text-xs text-muted-foreground">{t("optionalShort")}</span>
       )}
       <input
         ref={input}

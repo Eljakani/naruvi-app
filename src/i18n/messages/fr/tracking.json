@@ -1,0 +1,161 @@
+{
+  "labels": {
+    "status": { "draft": "Enregistrée", "parsed": "Enregistrée", "analyzed": "Correspondance vérifiée", "generated": "CV rédigé", "ready": "Prête à envoyer", "submitted": "Envoyée", "interviewing": "Entretiens", "offer": "Offre", "rejected": "Refusée", "withdrawn": "Retirée" },
+    "column": { "preparing": "Enregistrées et vérifiées", "documents": "Documents", "sent": "Envoyées", "interviewing": "Entretiens", "offer": "Offre", "closed": "Clôturées" },
+    "runStatus": { "queued": "En attente", "running": "En cours", "succeeded": "Terminé", "failed": "Échec", "cancelled": "Annulé" },
+    "workflow": {
+      "application_analyze": "Vérification de correspondance", "mail_classify": "Lecture des réponses par e-mail", "mail_draft": "Brouillon d’e-mail", "mail_send": "E-mail envoyé",
+      "assistant_chat": "Discussion avec Naruvi", "company_research": "Recherche sur l’entreprise", "cv_generate": "Génération du CV", "cv_revise": "Révision du CV",
+      "letter_generate": "Génération de la lettre de motivation", "letter_revise": "Révision de la lettre de motivation", "job_preview": "Import d’offre", "job_enrich": "Enrichissement de l’offre",
+      "profile_bullets": "Suggestions de puces", "profile_describe": "Description du profil", "template_design": "Conception de modèle",
+      "ai_sdk_smoke": "Test de connexion au modèle", "ai_sdk_large_cv_check": "Test de la limite de sortie du modèle"
+    },
+    "stepKind": { "ai": "Requête IA", "decision": "Décision", "render": "Rendu", "step": "Étape" },
+    "workMode": { "remote": "Télétravail", "hybrid": "Hybride", "onsite": "Sur site" },
+    "contract": { "permanent": "CDI", "fixed_term": "CDD", "freelance": "Freelance", "internship": "Stage", "apprenticeship": "Apprentissage / alternance", "student_job": "Job étudiant", "volunteer": "Volontariat (VIE…)", "temporary": "Intérim", "seasonal": "Saisonnier" },
+    "seniority": { "intern": "Stagiaire", "junior": "Junior", "mid": "Confirmé", "senior": "Senior", "lead": "Lead / staff", "manager": "Manager", "executive": "Direction" },
+    "due": {
+      "overdue": "{days, plural, one {en retard de # jour} other {en retard de # jours}}",
+      "today": "aujourd’hui",
+      "tomorrow": "demain",
+      "inDays": "dans {days} jours"
+    }
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "description": "Où en sont vos candidatures et quoi faire ensuite.",
+    "addJob": "Ajouter une offre",
+    "open": "Ouvrir",
+    "greeting": { "late": "Vous travaillez tard", "morning": "Bonjour", "afternoon": "Bon après-midi", "evening": "Bonsoir", "named": "{greeting}, {name}" },
+    "summary": {
+      "due": "{count, plural, one {# chose vous attend} other {# choses vous attendent}}",
+      "nothing": "Rien ne vous attend pour le moment",
+      "upcoming": "{count, plural, one {# prochaine étape à venir} other {# prochaines étapes à venir}}",
+      "sentence": "{summary}."
+    },
+    "setup": {
+      "title": "Pour commencer",
+      "progress": "{done} sur {total} terminé(s)",
+      "guide": "Guide de démarrage",
+      "start": "Commencer",
+      "profile": { "label": "Construire votre profil", "detail": "Ajoutez vos expériences et vérifiez les faits que vos documents citeront." },
+      "job": { "label": "Ajouter une offre", "detail": "Collez un lien ou la description de n’importe quelle annonce." },
+      "fit": { "label": "Vérifier la correspondance", "detail": "Ouvrez la candidature et lancez la vérification." }
+    },
+    "note": {
+      "offers": {
+        "title": "{count, plural, one {# offre sur la table} other {# offres sur la table}}",
+        "text": "{count, plural, one {C’est un vrai progrès. Quand vous serez prêt, je peux vous aider à la comparer à vos autres options.} other {C’est un vrai progrès. Quand vous serez prêt, je peux vous aider à les comparer.}}",
+        "cta": "{count, plural, one {Voir l’offre} other {Voir les offres}}"
+      },
+      "replies": {
+        "title": "{count, plural, one {Une entreprise a répondu} other {# entreprises ont répondu}}",
+        "text": "{count, plural, one {Lisez-la en premier. J’ai relié chaque réponse à sa candidature.} other {Lisez-les en premier. J’ai relié chaque réponse à sa candidature.}}",
+        "cta": "{count, plural, one {Lire la réponse} other {Lire les réponses}}"
+      },
+      "due": { "text": "Commencez par la première ci-dessous, c’est la plus urgente.", "cta": "Me montrer" },
+      "interviews": { "title": "{count, plural, one {# entretien en cours} other {# entretiens en cours}}", "text": "Demandez-moi et je rassemblerai ce qui vaut la peine d’être mentionné sur l’entreprise.", "cta": "Ouvrir les entretiens" },
+      "unchecked": { "title": "{count, plural, one {# offre enregistrée à vérifier} other {# offres enregistrées à vérifier}}", "text": "Une vérification prend environ une minute et vous dit si l’offre vaut votre temps.", "cta": "Les vérifier" },
+      "caughtUp": { "title": "Vous êtes à jour", "text": "Le bon moment pour ajouter une nouvelle offre ou vérifier quelques faits de plus dans votre profil." }
+    },
+    "stats": {
+      "active": { "title": "Actives", "hint": "candidatures en cours" },
+      "ready": { "title": "Prêtes à envoyer", "hint": "toutes les vérifications passées" },
+      "sent": { "title": "Envoyées", "hint": "{count} en entretien" },
+      "facts": { "title": "Faits vérifiés", "hint": "utilisables par vos documents" }
+    },
+    "recent": {
+      "title": "Candidatures récentes", "description": "Reprenez là où vous en étiez.", "viewAll": "Tout voir",
+      "role": "Poste", "stage": "Étape", "fit": "Correspondance", "updated": "Mise à jour",
+      "emptyTitle": "Aucune candidature pour l’instant", "emptyBody": "Ajoutez une offre et vérifiez la correspondance pour en démarrer une."
+    },
+    "pipeline": { "title": "Pipeline", "active": "{count, plural, one {# candidature active} other {# candidatures actives}}", "none": "Aucune candidature active", "board": "Tableau" },
+    "activity": { "title": "Activité récente", "allRuns": "Toutes les exécutions", "empty": "Les imports d’offres, analyses et brouillons de documents apparaîtront ici." }
+  },
+  "board": {
+    "moveFailed": "Impossible de déplacer la candidature",
+    "archiveFailed": "Impossible d’archiver la candidature",
+    "archived": "{title} archivée",
+    "undo": "Annuler",
+    "count": "{count, plural, one {# candidature} other {# candidatures}}",
+    "none": "Aucune",
+    "move": "Déplacer {title}",
+    "moveTo": "Déplacer vers",
+    "open": "Ouvrir",
+    "archive": "Archiver",
+    "restore": "Restaurer",
+    "nextStep": "Prochaine étape",
+    "unread": "{count, plural, one {# nouvel e-mail} other {# nouveaux e-mails}}",
+    "age": "{days, plural, =0 {aujourd’hui} one {# jour} other {# jours}}",
+    "dropHere": "Déposer ici",
+    "nothingHere": "Rien ici",
+    "checkingFit": "Vérification…",
+    "checkFit": "Vérifier la correspondance",
+    "status": "Statut",
+    "statusFailed": "Impossible de mettre à jour le statut",
+    "updateFailed": "Impossible de mettre à jour la candidature",
+    "restored": "Candidature restaurée",
+    "archivedOne": "Candidature archivée",
+    "archivedHint": "Retrouvez-la dans Archivées sur la page Candidatures.",
+    "archiveManyFailed": "Impossible de les archiver",
+    "archivedMany": "{count, plural, one {# candidature archivée} other {# candidatures archivées}}",
+    "archiveAll": "Tout archiver ({count})"
+  },
+  "calendar": {
+    "title": "Agenda",
+    "today": "Aujourd’hui",
+    "upcoming": "{count, plural, one {# prochaine étape à venir} other {# prochaines étapes à venir}}",
+    "noneDated": "Aucune prochaine étape datée",
+    "nothingToday": "Rien de prévu aujourd’hui.",
+    "nothingThatDay": "Rien de prévu ce jour-là.",
+    "comingUp": "À venir",
+    "hint": "Ajoutez une date à la prochaine étape d’une candidature pour la voir ici.",
+    "showDay": "Afficher ce jour",
+    "nextStep": "Prochaine étape"
+  },
+  "attention": {
+    "title": "À traiter",
+    "count": "{count, plural, one {# élément à examiner} other {# éléments à examiner}}",
+    "all": "Toutes les candidatures",
+    "newReplies": "Nouvelles réponses",
+    "replyFrom": "{title} · « {subject} » de {from}",
+    "nextStep": "Prochaine étape",
+    "reason": { "due": "Échéance", "ready": "Prête à envoyer", "quiet": "Sans réponse", "strong-fit": "Pas commencée" },
+    "message": {
+      "readyIdle": "{count, plural, one {Documents prêts depuis # jour ; envoyez-la ou fixez une date} other {Documents prêts depuis # jours ; envoyez-la ou fixez une date}}",
+      "ready": "Les documents sont prêts à être envoyés",
+      "quiet": "Aucune nouvelle depuis {count} jours ; relancez ou archivez",
+      "strongFit": "{count, plural, one {Bonne correspondance ({fit}) en attente depuis # jour ; rédigez le CV} other {Bonne correspondance ({fit}) en attente depuis # jours ; rédigez le CV}}"
+    },
+    "draftCv": "Rédiger le CV",
+    "open": "Ouvrir"
+  },
+  "nextStep": {
+    "title": "Prochaine étape",
+    "add": "Ajouter une prochaine étape",
+    "saveFailed": "Impossible d’enregistrer la prochaine étape",
+    "description": "Ce que vous prévoyez de faire et quand. Elle apparaît sur le tableau et sur votre tableau de bord à l’échéance.",
+    "what": "Quoi",
+    "when": "Quand",
+    "placeholder": "Relancer le recruteur",
+    "suggestions": { "followUp": "Relancer en l’absence de réponse", "prepare": "Préparer l’entretien", "thankYou": "Envoyer un mot de remerciement", "answerOffer": "Répondre à l’offre" },
+    "preset": "{days, select, 1 {Demain} 7 {Dans une semaine} 14 {Dans 2 semaines} other {Dans {days} jours}}",
+    "clear": "Effacer",
+    "save": "Enregistrer"
+  },
+  "funnel": {
+    "title": "Résultats",
+    "rate": "{percent} % des candidatures envoyées ont abouti à une offre",
+    "empty": "Envoyez une candidature pour démarrer l’entonnoir",
+    "stages": { "tracked": "Suivies", "sent": "Envoyées", "interviewing": "Entretiens", "offer": "Offres" },
+    "step": "{count} {stage} : {rate} % de {previous} {previousStage}",
+    "tracked": "{count, plural, one {# candidature suivie} other {# candidatures suivies}}"
+  },
+  "moments": {
+    "them": "eux",
+    "submitted": { "title": "Envoyée à {company}", "body": "Bien joué. Sauf si vous aviez prévu autre chose, j’ai programmé une relance dans une semaine." },
+    "interviewing": { "title": "Entretien avec {company}", "body": "Ils veulent vous parler. Demandez-moi et je rassemblerai ce qui vaut la peine d’être mentionné à leur sujet." },
+    "offer": { "title": "Une offre de {company}", "body": "Prenez le temps d’en profiter. Quand vous serez prêt, nous pourrons l’examiner ensemble." },
+    "rejected": { "title": "{company} a dit non cette fois", "body": "Ça pique, et cela en dit peu sur vous. Vos autres candidatures avancent toujours." }
+  }
+}

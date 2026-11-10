@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation"
 import { useRef, useState, useTransition } from "react"
 import { ArrowLeftIcon, CheckIcon, FileUpIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
-import { readCvAction, saveImportAction } from "@/app/(app)/profile/actions"
+import { readCvAction, saveImportAction } from "@/app/[locale]/(app)/profile/actions"
 import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
-import { KIND_SINGULAR } from "@/components/profile/labels"
+import { KIND_SINGULAR, type Kind } from "@/components/profile/labels"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { ProfileImport } from "@/server/profile/ai-import"
 import type { EntryMatch } from "@/server/profile/import-match"
+import { useTranslations } from "next-intl"
 
 type Result = Omit<ProfileImport, "entries"> & { entries: (ProfileImport["entries"][number] & { match: EntryMatch | null })[] }
 type Decision = "new" | "merge" | "skip"
@@ -26,6 +27,8 @@ const initialDecision = (entry: Result["entries"][number]): Decision => (!entry.
 
 /** Upload or paste a CV → review what was found → add the chosen entries as "needs review". */
 export function ProfileImport() {
+  const t = useTranslations("profileImport")
+  const tk = useTranslations("profileLabels.kindSingular")
   const router = useRouter()
   const [text, setText] = useState("")
   const [file, setFile] = useState<File | null>(null)
@@ -59,7 +62,7 @@ export function ProfileImport() {
       })
       if (!response.ok) return void toast.error(response.message)
       const { created, merged, factsAdded, reverify } = response.data
-      toast.success([created ? `${created} new entr${created === 1 ? "y" : "ies"}` : "", merged ? `${merged} updated (+${factsAdded} facts)` : ""].filter(Boolean).join(" · ") || "Nothing to add", { description: reverify ? `${reverify} verified entr${reverify === 1 ? "y needs" : "ies need"} a quick re-check for the new facts.` : "Everything new is waiting for your review." })
+      toast.success([created ? t("toast.created", { count: created }) : "", merged ? t("toast.merged", { count: merged, facts: factsAdded }) : ""].filter(Boolean).join(" · ") || t("toast.nothing"), { description: reverify ? t("toast.reverify", { count: reverify }) : t("toast.review") })
       router.push("/profile")
     })
 
@@ -70,15 +73,15 @@ export function ProfileImport() {
     return (
       <div className="mx-auto grid w-full max-w-2xl gap-4">
         <Button variant="ghost" size="sm" className="w-fit" nativeButton={false} render={<Link href="/profile" />}>
-          <ArrowLeftIcon /> Profile
+          <ArrowLeftIcon /> {t("back")}
         </Button>
         <Card>
           <CardHeader>
             <div className="flex items-end gap-4">
               <Otter pose="reading-stack" height={92} className="-mb-1 shrink-0" priority />
               <div className="grid gap-1.5">
-                <CardTitle>Start from your CV</CardTitle>
-                <CardDescription className="max-w-[30rem]">Give me your CV, your LinkedIn export or a few notes. I’ll sort it into jobs, studies, projects and skills, and split achievements into facts. I never add anything you didn’t write, and nothing is used until you verify it.</CardDescription>
+                <CardTitle>{t("title")}</CardTitle>
+                <CardDescription className="max-w-[30rem]">{t("description")}</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -92,19 +95,19 @@ export function ProfileImport() {
               className={cn("flex flex-col items-center gap-2 rounded-xl border border-dashed p-8 text-center transition-colors", dragging ? "border-ring bg-muted" : "hover:bg-muted/50")}
             >
               <FileUpIcon className="size-6 text-muted-foreground" />
-              <span className="text-sm font-medium">{file ? file.name : "Drop your CV here or click to choose"}</span>
-              <span className="text-xs text-muted-foreground">PDF, LinkedIn export (.zip) or text, up to 8 MB</span>
+              <span className="text-sm font-medium">{file ? file.name : t("drop")}</span>
+              <span className="text-xs text-muted-foreground">{t("formats")}</span>
             </button>
             <input ref={input} type="file" accept=".pdf,.txt,.md,.zip,.csv,application/pdf,text/plain,application/zip,text/csv" className="hidden" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="h-px flex-1 bg-border" /> or paste text <span className="h-px flex-1 bg-border" />
+              <span className="h-px flex-1 bg-border" /> {t("orPaste")} <span className="h-px flex-1 bg-border" />
             </div>
-            <Textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Paste your CV, your LinkedIn “About” and “Experience”, or just write about your jobs…" className="min-h-40" />
+            <Textarea value={text} onChange={(event) => setText(event.target.value)} placeholder={t("pastePlaceholder")} className="min-h-40" />
           </CardContent>
           <CardFooter className="justify-between gap-4 border-t">
-            {reading ? <AiSteps steps={AI_STEPS.cvImport} step={step} /> : <span className="text-xs text-muted-foreground">Usually 15–40 seconds. I’ll show you everything before saving.</span>}
+            {reading ? <AiSteps steps={AI_STEPS.cvImport} step={step} /> : <span className="text-xs text-muted-foreground">{t("timing")}</span>}
             <Button onClick={read} disabled={reading || (!file && text.trim().length < 80)}>
-              <SparklesIcon className={reading ? "cb-breathe" : "text-brand"} /> Read my CV
+              <SparklesIcon className={reading ? "cb-breathe" : "text-brand"} /> {t("read")}
             </Button>
           </CardFooter>
         </Card>
@@ -116,27 +119,27 @@ export function ProfileImport() {
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-4">
       <Button variant="ghost" size="sm" className="w-fit" onClick={() => setResult(null)}>
-        <ArrowLeftIcon /> Start over
+        <ArrowLeftIcon /> {t("startOver")}
       </Button>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Here’s what we found</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("found")}</h1>
           <p className="text-sm text-muted-foreground">
-            {count("new")} new · {count("merge")} to update · {count("skip")} skipped. Entries you already have are updated with only what’s new; nothing you wrote is overwritten.
+            {t("summary", { created: count("new"), merged: count("merge"), skipped: count("skip") })}
           </p>
         </div>
         <Button onClick={save} disabled={saving || count("skip") === decisions.length}>
-          <CheckIcon /> Apply
+          <CheckIcon /> {t("apply")}
         </Button>
       </div>
 
       {id.fullName || id.email || id.headline ? (
         <Card size="sm">
           <CardHeader>
-            <CardTitle>{id.fullName || "You"}</CardTitle>
+            <CardTitle>{id.fullName || t("you")}</CardTitle>
             <CardDescription>{[id.headline, id.location, id.email, id.phone].filter(Boolean).join(" · ")}</CardDescription>
             <CardAction>
-              <Badge variant="outline">Fills empty fields only</Badge>
+              <Badge variant="outline">{t("fillsEmpty")}</Badge>
             </CardAction>
           </CardHeader>
         </Card>
@@ -153,14 +156,14 @@ export function ProfileImport() {
               <CardHeader>
                 <CardTitle className="truncate">{entry.display.role || entry.title}</CardTitle>
                 <CardDescription className="truncate">
-                  {KIND_SINGULAR[entry.kind] ?? entry.kind}
+                  {entry.kind in KIND_SINGULAR ? tk(entry.kind as Kind) : entry.kind}
                   {[entry.display.organization, entry.display.dates, entry.display.location].filter(Boolean).map((part) => ` · ${part}`)}
                 </CardDescription>
                 <CardAction>
-                  <ToggleGroup value={[decision]} onValueChange={(value) => value[0] && decide(index, value[0] as Decision)} variant="outline" size="sm" aria-label={`What to do with ${entry.title}`}>
-                    {match ? <ToggleGroupItem value="merge">Update</ToggleGroupItem> : null}
-                    <ToggleGroupItem value="new">{match ? "Add as new" : "Add"}</ToggleGroupItem>
-                    <ToggleGroupItem value="skip">Skip</ToggleGroupItem>
+                  <ToggleGroup value={[decision]} onValueChange={(value) => value[0] && decide(index, value[0] as Decision)} variant="outline" size="sm" aria-label={t("whatToDo", { title: entry.title })}>
+                    {match ? <ToggleGroupItem value="merge">{t("update")}</ToggleGroupItem> : null}
+                    <ToggleGroupItem value="new">{match ? t("addNew") : t("add")}</ToggleGroupItem>
+                    <ToggleGroupItem value="skip">{t("skip")}</ToggleGroupItem>
                   </ToggleGroup>
                 </CardAction>
               </CardHeader>
@@ -168,18 +171,18 @@ export function ProfileImport() {
                 <CardContent className="grid gap-2">
                   {match ? (
                     <p className="text-xs text-muted-foreground">
-                      Matches <span className="font-medium text-foreground">{match.title}</span> in your profile
-                      {match.knownFacts ? ` · ${match.knownFacts} fact${match.knownFacts === 1 ? "" : "s"} already there` : ""}
-                      {decision === "merge" && !facts.length && !skills.length ? " · nothing new to add" : ""}
-                      {decision === "merge" && facts.length && match.status === "verified" ? " · it will need a quick re-check" : ""}
+                      {t.rich("matches", { title: match.title, b: (chunks) => <span className="font-medium text-foreground">{chunks}</span> })}
+                      {match.knownFacts ? ` · ${t("known", { count: match.knownFacts })}` : ""}
+                      {decision === "merge" && !facts.length && !skills.length ? ` · ${t("nothingNew")}` : ""}
+                      {decision === "merge" && facts.length && match.status === "verified" ? ` · ${t("recheck")}` : ""}
                     </p>
                   ) : null}
                   {decision !== "skip" && facts.length ? (
-                    <ul className="grid list-disc gap-1 pl-4 text-sm text-muted-foreground">
+                    <ul className="grid list-disc gap-1 ps-4 text-sm text-muted-foreground">
                       {facts.slice(0, 6).map((fact) => (
                         <li key={fact}>{decision === "merge" ? <span className="text-foreground">+ </span> : null}{fact}</li>
                       ))}
-                      {facts.length > 6 ? <li className="list-none text-xs">+{facts.length - 6} more</li> : null}
+                      {facts.length > 6 ? <li className="list-none text-xs">{t("more", { count: facts.length - 6 })}</li> : null}
                     </ul>
                   ) : null}
                   {decision !== "skip" && skills.length ? (
@@ -191,7 +194,7 @@ export function ProfileImport() {
                       ))}
                     </div>
                   ) : null}
-                  {entry.dropped ? <p className="text-xs text-muted-foreground">{entry.dropped} item(s) left out: their numbers weren’t in your CV.</p> : null}
+                  {entry.dropped ? <p className="text-xs text-muted-foreground">{t("dropped", { count: entry.dropped })}</p> : null}
                 </CardContent>
               ) : null}
             </Card>

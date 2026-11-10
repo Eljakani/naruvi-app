@@ -2,16 +2,11 @@ import Link from "next/link"
 import { ArrowRightIcon, CheckCircle2Icon, FileTextIcon, MailIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { useLocale, useTranslations } from "next-intl"
 
-const COVER = {
-  required: { label: "Required by the posting", variant: "destructive" },
-  optional: { label: "Optional", variant: "secondary" },
-  not_requested: { label: "Not needed", variant: "outline" },
-  not_mentioned: { label: "Not mentioned", variant: "outline" },
-} as const
+const COVER = { required: "destructive", optional: "secondary", not_requested: "outline", not_mentioned: "outline" } as const
 
 type Draft = { updatedAt: Date } | null
-const when = (date: Date) => date.toLocaleDateString(undefined, { day: "numeric", month: "short" })
 
 /**
  * The two things you came here to make, right under the title: the tailored CV
@@ -25,24 +20,27 @@ export function ApplicationDocuments({ applicationId, language, coverDecision, c
   cv: Draft
   letter: Draft
 }) {
+  const t = useTranslations("application.documents")
+  const locale = useLocale()
+  const when = (date: Date) => date.toLocaleDateString(locale, { day: "numeric", month: "short" })
   const base = `/applications/${applicationId}`
-  const cover = coverDecision ? COVER[coverDecision] : null
+  const cover = coverDecision ? { variant: COVER[coverDecision], label: t(`cover.${coverDecision}`) } : null
   const letterMatters = coverDecision === "required" || coverDecision === "optional"
   const items = [
     {
       href: `${base}/cv?lang=${language}`,
       icon: FileTextIcon,
-      title: "Tailored CV",
-      hint: cv ? `Draft saved ${when(cv.updatedAt)}` : "Built from your verified entries, ordered for this job",
-      badge: cv ? <Badge variant="secondary" className="gap-1"><CheckCircle2Icon /> Draft</Badge> : null,
+      title: t("cv"),
+      hint: cv ? t("saved", { date: when(cv.updatedAt) }) : t("cvHint"),
+      badge: cv ? <Badge variant="secondary" className="gap-1"><CheckCircle2Icon /> {t("draft")}</Badge> : null,
       primary: true,
     },
     {
       href: `${base}/letter?lang=${language}`,
       icon: MailIcon,
-      title: "Cover letter",
-      hint: letter ? `Draft saved ${when(letter.updatedAt)}` : coverEvidence ? `“${coverEvidence.slice(0, 90)}${coverEvidence.length > 90 ? "…" : ""}”` : coverDecision === "not_requested" ? "You can still write one" : "Written from your facts and their site",
-      badge: letter ? <Badge variant="secondary" className="gap-1"><CheckCircle2Icon /> Draft</Badge> : cover ? <Badge variant={cover.variant} className="font-normal">{cover.label}</Badge> : null,
+      title: t("letter"),
+      hint: letter ? t("saved", { date: when(letter.updatedAt) }) : coverEvidence ? `“${coverEvidence.slice(0, 90)}${coverEvidence.length > 90 ? "…" : ""}”` : coverDecision === "not_requested" ? t("stillWrite") : t("letterHint"),
+      badge: letter ? <Badge variant="secondary" className="gap-1"><CheckCircle2Icon /> {t("draft")}</Badge> : cover ? <Badge variant={cover.variant} className="font-normal">{cover.label}</Badge> : null,
       primary: letterMatters && !letter,
     },
   ]
@@ -66,7 +64,7 @@ export function ApplicationDocuments({ applicationId, language, coverDecision, c
             </span>
             <span className="truncate text-xs text-muted-foreground" title={item.hint}>{item.hint}</span>
           </span>
-          <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
+          <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground rtl:group-hover:-translate-x-0.5" />
         </Link>
       ))}
     </div>

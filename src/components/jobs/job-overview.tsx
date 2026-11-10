@@ -12,18 +12,19 @@ import { allTags } from "@/server/companies/repository"
 import type { getJob } from "@/server/jobs/ingest"
 import type { JobInsights as Insights } from "@/server/jobs/enrich"
 import { salaryContext } from "@/server/salary/market"
+import { getLocale, getTranslations } from "next-intl/server"
 
 type Job = NonNullable<Awaited<ReturnType<typeof getJob>>>
 
 /** The posting itself: key facts, tags, insights, pay and the original text. Shared by Jobs and the application page. */
 export async function JobOverview({ job }: { job: Job }) {
-  const tags = await allTags()
+  const [tags, t, locale] = await Promise.all([allTags(), getTranslations("jobs.overview"), getLocale()])
   const chips = [
     job.location && { icon: MapPinIcon, text: job.location },
     job.remote && { icon: GlobeIcon, text: job.remote },
     job.employmentType && { icon: BriefcaseBusinessIcon, text: job.employmentType },
     job.salary && { icon: WalletIcon, text: job.salary },
-    job.postedAt && { icon: CalendarIcon, text: `Posted ${job.postedAt.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` },
+    job.postedAt && { icon: CalendarIcon, text: t("posted", { date: job.postedAt.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) }) },
   ].filter(Boolean) as { icon: React.ElementType; text: string }[]
   return (
     <div className="grid gap-4">
@@ -55,12 +56,12 @@ export async function JobOverview({ job }: { job: Job }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Job description</CardTitle>
-          <CardDescription>Original text, kept unchanged. Treated as untrusted input by every AI step.</CardDescription>
+          <CardTitle>{t("title")}</CardTitle>
+          <CardDescription>{t("description")}</CardDescription>
           {job.sourceUrl ? (
             <CardAction>
               <Button variant="outline" size="sm" nativeButton={false} render={<a href={job.sourceUrl} target="_blank" rel="noreferrer" />}>
-                <ExternalLinkIcon /> Original posting
+                <ExternalLinkIcon /> {t("original")}
               </Button>
             </CardAction>
           ) : null}

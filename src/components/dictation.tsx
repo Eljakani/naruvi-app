@@ -7,6 +7,7 @@ import { dictationPrefs, modelId, serverPrefs, subscribePrefs, transcribe, trans
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 type Recognition = {
   lang: string
@@ -29,14 +30,9 @@ const recognitionClass = (): RecognitionConstructor | null => {
 
 const subscribe = () => () => {}
 
-/** Plain-language fixes for each way dictation can fail. */
-const ERRORS: Record<string, string> = {
-  "not-allowed": "Microphone is blocked. Allow it from the icon in the address bar, then try again.",
-  "service-not-allowed": "This browser has speech recognition turned off.",
-  "audio-capture": "No microphone found. Plug one in or check your sound settings.",
-  network: "Dictation needs an internet connection in this browser.",
-  "language-not-supported": "This language isn’t supported for dictation here.",
-}
+/** Ways dictation can fail that have a plain-language fix in the catalog. */
+const ERRORS = ["not-allowed", "service-not-allowed", "audio-capture", "network", "language-not-supported"] as const
+const errorKey = (code: string) => (ERRORS as readonly string[]).includes(code) ? code as (typeof ERRORS)[number] : null
 
 /** Asks for the microphone first, so the browser shows its normal prompt and we know why it failed. */
 async function requestMicrophone(): Promise<{ stream: MediaStream | null; error: string | null }> {
@@ -83,6 +79,7 @@ function meter(stream: MediaStream, target: () => HTMLElement | null) {
  * preview of what is being heard.
  */
 export function useDictation(onText: (text: string) => void, lang?: string) {
+  const t = useTranslations("dictation")
   const prefs = useSyncExternalStore(subscribePrefs, dictationPrefs, serverPrefs)
   // Whisper and cloud both record a clip and transcribe it when you stop.
   const whisper = prefs.engine === "whisper" || prefs.engine === "cloud"
@@ -118,10 +115,10 @@ export function useDictation(onText: (text: string) => void, lang?: string) {
     setError("")
     setListening(true)
     const mic = await requestMicrophone()
-    if (mic.error) { setListening(false); setError(ERRORS[mic.error]); return }
+    if (mic.error) { setListening(false); setError(t(`errors.${errorKey(mic.error) ?? "not-allowed"}`)); return }
     if (mic.stream) { stream.current = mic.stream; stopMeter.current = meter(mic.stream, () => levelTarget.current) }
     if (whisper) {
-      if (!mic.stream) { setListening(false); setError("This browser can’t record audio."); return }
+      if (!mic.stream) { setListening(false); setError(t("noRecording")); return }
       const chunks: Blob[] = []
       const rec = new MediaRecorder(mic.stream)
       rec.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data) }
@@ -129,14 +126,14 @@ export function useDictation(onText: (text: string) => void, lang?: string) {
         release()
         setListening(false)
         const blob = new Blob(chunks, { type: rec.mimeType })
-        setTranscribing("Transcribing…")
+        setTranscribing(t("transcribing"))
         try {
-          const text = cloud ? await transcribeCloud(blob, prefs.language) : await transcribe(blob, modelId(prefs), prefs.language, (loaded, total) => setTranscribing(total ? `Getting Whisper ready ${Math.round((loaded / total) * 100)}%` : "Getting Whisper ready…"))
+          const text = cloud ? await transcribeCloud(blob, prefs.language) : await transcribe(blob, modelId(prefs), prefs.language, (loaded, total) => setTranscribing(total ? t("preparingPercent", { percent: Math.round((loaded / total) * 100) }) : t("preparing")))
           if (text) append.current(text)
-          else setError("I didn’t catch anything. Try speaking a little longer.")
+          else setError(t("nothingHeard"))
         } catch (failure) {
-          if (cloud) { setError(failure instanceof Error ? failure.message : "Transcription failed. Try again."); return }
-          setError(failure instanceof Error && /fetch|network/i.test(failure.message) ? "Couldn’t download the Whisper model. Check your connection." : "Local Whisper couldn’t transcribe that. Try again, or switch to browser dictation in Integrations.")
+          if (cloud) { setError(failure instanceof Error ? failure.message : t("failed")); return }
+          setError(failure instanceof Error && /fetch|network/i.test(failure.message) ? t("downloadFailed") : t("whisperFailed"))
         } finally {
           setTranscribing(null)
           recorder.current = null
@@ -164,7 +161,7 @@ export function useDictation(onText: (text: string) => void, lang?: string) {
     instance.onerror = (event) => {
       if (event.error === "no-speech" || event.error === "aborted") return
       wanted.current = false
-      setError(ERRORS[event.error] ?? "Dictation stopped. Try again.")
+      { const key = errorKey(event.error); setError(key ? t(`errors.${key}`) : t("stopped")) }
     }
     instance.onend = () => {
       setInterim("")
@@ -176,8 +173,8 @@ export function useDictation(onText: (text: string) => void, lang?: string) {
       setListening(false)
     }
     recognition.current = instance
-    try { instance.start() } catch { wanted.current = false; release(); setListening(false); setError("Dictation couldn’t start. Try again.") }
-  }, [lang, release, whisper, cloud, prefs])
+    try { instance.start() } catch { wanted.current = false; release(); setListening(false); setError(t("couldNotStart")) }
+  }, [lang, release, whisper, cloud, prefs, t])
   useEffect(() => () => { wanted.current = false; recognition.current?.abort(); if (recorder.current?.state === "recording") recorder.current.stop(); release() }, [release])
   // Callback ref for the element that shows the level (the hook owns the ref).
   const bindLevel = useCallback((node: HTMLElement | null) => { levelTarget.current = node }, [])
@@ -186,6 +183,7 @@ export function useDictation(onText: (text: string) => void, lang?: string) {
 
 /** A microphone toggle for a text field. Appends what you say to `value`. */
 export function DictateButton({ value, onChange, lang, className }: { value: string; onChange: (value: string) => void; lang?: string; className?: string }) {
+  const t = useTranslations("dictation")
   const latest = useRef(value)
   useEffect(() => {
     latest.current = value
@@ -207,7 +205,7 @@ export function DictateButton({ value, onChange, lang, className }: { value: str
       disabled={!supported || Boolean(transcribing)}
       onClick={listening ? stop : () => void start()}
       aria-pressed={listening}
-      aria-label={listening ? "Stop dictating" : "Dictate"}
+      aria-label={listening ? t("stop") : t("start")}
       ref={bindLevel}
       className={cn(
         "relative gap-1.5 overflow-visible transition-[background-color,border-color,color,box-shadow] duration-200",
@@ -245,12 +243,12 @@ export function DictateButton({ value, onChange, lang, className }: { value: str
       {supported ? (
         <Tooltip>
           <TooltipTrigger render={button} />
-          <TooltipContent className="max-w-64">{cloud ? "Speak, then tap again. The clip goes to the speech provider you connected in Integrations." : whisper ? "Speak, then tap again. Whisper turns it into text on this device: your audio never leaves your computer." : "Speak naturally; your words appear as you talk. Your browser’s speech service turns audio into text (in Chrome that’s Google). Prefer on-device? Choose local Whisper in Integrations."}</TooltipContent>
+          <TooltipContent className="max-w-64">{cloud ? t("hintCloud") : whisper ? t("hintWhisper") : t("hintBrowser")}</TooltipContent>
         </Tooltip>
       ) : (
         <Tooltip>
           <TooltipTrigger render={<span tabIndex={0}>{button}</span>} />
-          <TooltipContent>{whisper ? "This browser can’t record audio." : "Browser dictation needs Chrome, Edge or Safari. Local Whisper in Integrations works in Firefox too."}</TooltipContent>
+          <TooltipContent>{whisper ? t("noRecording") : t("unsupported")}</TooltipContent>
         </Tooltip>
       )}
       {listening && interim ? <span className="truncate text-xs text-muted-foreground italic" aria-live="polite">{interim}…</span> : null}

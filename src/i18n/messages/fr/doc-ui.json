@@ -1,0 +1,71 @@
+{
+ "aiReview": {
+  "unchanged": "J’ai vérifié ce brouillon et gardé votre formulation : il se lit déjà bien.",
+  "fallback": "Je n’ai pas pu améliorer ce brouillon, j’ai donc gardé votre formulation.",
+  "editOrRegenerate": "Vous pouvez le modifier ou le régénérer.",
+  "tailored": "Adapté par Naruvi",
+  "reworded": "{count, plural, one {# ligne reformulée} other {# lignes reformulées}}",
+  "reviewed": "Relu",
+  "markReviewed": "Marquer comme relu",
+  "lookAt": "Jetez un œil aux lignes marquées <badge>IA</badge> avant de l’envoyer. Vous pouvez modifier ou annuler chacune.",
+  "sideBySide": "Voir chaque changement côte à côte",
+  "source": "Source"
+ },
+ "documentShell": {
+  "working": "En cours",
+  "regenerate": "Régénérer",
+  "back": "Retour à la candidature",
+  "noCompany": "Pas d’entreprise",
+  "score": "Score de qualité {score}/100",
+  "ready": "Prêt à envoyer",
+  "toFix": "{count, plural, one {# point à corriger} other {# points à corriger}}",
+  "download": "Télécharger le PDF",
+  "tabs": {
+   "edit": "Modifier",
+   "look": "Apparence",
+   "checks": "Contrôles",
+   "history": "Historique"
+  },
+  "checksLabel": "Contrôles, {count} à corriger",
+  "checksPassing": "Contrôles, tous validés",
+  "unsaved": "Modifications non enregistrées. L’aperçu se met à jour à l’enregistrement.",
+  "discard": "Abandonner",
+  "save": "Enregistrer",
+  "saving": "Enregistrement…",
+  "allSaved": "Tout est enregistré",
+  "notReady": "Pas encore prêt",
+  "pagesChecked": "{count, plural, one {# page} other {# pages}} · vérifié sur la version enregistrée",
+  "saveToRecheck": "Enregistrez pour revérifier vos modifications.",
+  "fixing": "Naruvi corrige…",
+  "fix": "Corriger avec Naruvi",
+  "reviewInEditor": "Revoir dans l’éditeur",
+  "versionsHint": "Chaque enregistrement crée une nouvelle version ; rien n’est jamais écrasé. Restaurer rend une ancienne version de nouveau actuelle.",
+  "origin": {
+   "generate": "Généré",
+   "manual": "Modifié",
+   "restore": "Restauré"
+  },
+  "current": "actuelle",
+  "restore": "Restaurer",
+  "docLanguage": "Langue du document",
+  "writeIn": "Rédiger ce document en",
+  "letterNote": "Vous pouvez modifier et approuver le brouillon avant de l’utiliser.",
+  "cvNote": "N’utilise que vos faits vérifiés. Vous pouvez tout modifier ensuite.",
+  "lookLike": "Il ressemblera à ceci ({name}). Le contenu est adapté à ce poste.",
+  "change": "Changer"
+ },
+ "pdfPreview": {
+  "page": "Page {current} sur {total}",
+  "budget": "limite {count}",
+  "zoomOut": "Zoom arrière",
+  "fit": "Ajuster",
+  "zoomIn": "Zoom avant",
+  "fitWidth": "Ajuster à la largeur",
+  "newTab": "Ouvrir dans un nouvel onglet",
+  "newTabHint": "Ouvrir le PDF dans un nouvel onglet",
+  "failed": "Impossible d’afficher ce PDF.",
+  "retryHint": "Réessayez ou ouvrez-le dans un nouvel onglet.",
+  "openHint": "Utilisez « Ouvrir dans un nouvel onglet ».",
+  "retry": "Réessayer l’aperçu"
+ }
+}

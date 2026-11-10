@@ -1,0 +1,361 @@
+{
+  "entryEditor": {
+    "fields": {
+      "experience": {
+        "role": "Role",
+        "organization": "Company",
+        "rolePlaceholder": "Store Manager",
+        "orgPlaceholder": "Company name"
+      },
+      "project": {
+        "role": "Project name",
+        "organization": "Context",
+        "rolePlaceholder": "Community garden app",
+        "orgPlaceholder": "Personal project"
+      },
+      "education": {
+        "role": "Degree",
+        "organization": "School",
+        "rolePlaceholder": "BSc Nursing",
+        "orgPlaceholder": "University name"
+      },
+      "certification": {
+        "role": "Certification",
+        "organization": "Issuer",
+        "rolePlaceholder": "KCNA",
+        "orgPlaceholder": "Linux Foundation"
+      },
+      "skill": {
+        "role": "Cluster label",
+        "organization": "Context",
+        "rolePlaceholder": "Customer service",
+        "orgPlaceholder": ""
+      },
+      "language": {
+        "role": "Label",
+        "organization": "Context",
+        "rolePlaceholder": "Languages",
+        "orgPlaceholder": ""
+      },
+      "achievement": {
+        "role": "Title",
+        "organization": "Event / issuer",
+        "rolePlaceholder": "1st place",
+        "orgPlaceholder": "WOCS'hAck 2026"
+      },
+      "other": {
+        "role": "Title",
+        "organization": "Organization",
+        "rolePlaceholder": "",
+        "orgPlaceholder": ""
+      }
+    },
+    "sections": {
+      "basics": "Basics",
+      "display": "How it appears",
+      "facts": "What you did",
+      "bullets": "CV lines",
+      "skills": "Skills & keywords",
+      "guardrails": "Never say"
+    },
+    "ready": {
+      "named": "Named",
+      "titleIn": "{language} title & dates",
+      "skills": "Skills listed",
+      "fact": "At least one fact",
+      "ungrounded": "{count, plural, one {# CV line without a fact} other {# CV lines without a fact}}",
+      "allBacked": "Every CV line has a fact",
+      "checked": "Checked by you"
+    },
+    "saveFailed": "Could not save",
+    "saved": "Saved",
+    "created": "Entry created",
+    "stillNeed": "{count, plural, one {# CV line still needs a fact behind it.} other {# CV lines still need a fact behind them.}}",
+    "allBackedToast": "Every CV line is backed by a fact.",
+    "deleteFailed": "Could not delete",
+    "deleted": "Entry deleted",
+    "addedLine": "Added as a CV line",
+    "addedLineBody": "Polish the wording there. It stays linked to this fact.",
+    "show": "Show",
+    "newEntry": "New entry",
+    "back": "Back to profile",
+    "unsaved": "Unsaved changes",
+    "allSaved": "All changes saved",
+    "notSaved": "Not saved yet",
+    "writingIn": "Language you're writing in",
+    "status": "Status",
+    "more": "More actions",
+    "delete": "Delete entry",
+    "saving": "Saving",
+    "save": "Save",
+    "create": "Create entry",
+    "basics": {
+      "title": "What is it?",
+      "description": "The fields below adapt to the type.",
+      "type": "Entry type",
+      "internalName": "Internal name",
+      "internalPlaceholder": "How you'll recognise it in lists",
+      "internalHint": "Only for you. Recruiters see the display fields below.",
+      "logo": {
+        "education": "School logo",
+        "certification": "Issuer logo",
+        "project": "Project logo",
+        "company": "Company logo"
+      }
+    },
+    "display": {
+      "title": "How it appears on a CV",
+      "description": "Title, place and dates in {language}. Switch language at the top.",
+      "location": "Location",
+      "startFrom": "Start from the {language} fields"
+    },
+    "facts": {
+      "title": "What you did",
+      "description": "One claim per line, in plain words. CVs and letters can only say what is written here.",
+      "onLines": "on CV lines",
+      "placeholder": "e.g. Cut average response time from 2 days to 4 hours.",
+      "add": "Add fact",
+      "emptyTitle": "What did you actually do?",
+      "emptyBody": "Start with what you’re proudest of: one claim per line, with numbers when you have them. Or use “Tell Naruvi” above and write it freely.",
+      "first": "Add your first fact",
+      "backs": "{count, plural, one {Backs # CV line} other {Backs # CV lines}}",
+      "lines": "{count, plural, one {# line} other {# lines}}",
+      "asLineHint": "Add this fact as a CV line, linked to it",
+      "asLine": "CV line",
+      "long": "Long fact. Splitting it into one claim per line makes it easier to cite.",
+      "number": "A number makes it stronger: how many, how much, how fast, for whom."
+    },
+    "bullets": {
+      "title": "CV lines",
+      "description": "The polished sentences a CV may use, shown in {language}. Each one points to the facts behind it.",
+      "backed": "backed",
+      "group": "Group",
+      "emptyTitle": "No CV lines yet",
+      "emptyBody": "Draft them from your facts above, or write your own. Group them by theme (e.g. “Cloud”, “Monitoring”) so a CV can pick the ones that match a job.",
+      "writeOne": "Write one myself",
+      "groupName": "Group name",
+      "count": "{count, plural, one {# line} other {# lines}}",
+      "addVersion": "Add the {language} version",
+      "addLine": "Add line",
+      "only": "{language} only"
+    },
+    "skills": {
+      "title": "Skills & keywords",
+      "description": "Helps match this entry to the right jobs."
+    },
+    "guardrails": {
+      "title": "Never say",
+      "description": "Limits for CVs and letters about this entry."
+    },
+    "leave": {
+      "title": "Leave with unsaved changes?",
+      "body": "Your edits to this entry will be lost.",
+      "keep": "Keep editing",
+      "discard": "Discard",
+      "save": "Save and leave"
+    },
+    "deleteDialog": {
+      "title": "Delete “{title}”?",
+      "body": "Its facts and bullets are removed too. Archiving keeps them but excludes the entry from generation.",
+      "cancel": "Cancel",
+      "archive": "Archive instead",
+      "delete": "Delete"
+    },
+    "bullet": {
+      "label": "Label: a heading, not a claim",
+      "empty": "Empty",
+      "backed": "Backed by its facts",
+      "notBacked": "Not backed by a fact yet",
+      "sectionLabel": "Section label",
+      "placeholder": "A polished CV line, e.g. Cut response time from 2 days to 4 hours by…",
+      "remove": "Remove line",
+      "unlink": "Unlink fact {n}",
+      "noFactStates": "No fact states {numbers}",
+      "link": "Link the fact that proves this"
+    },
+    "preview": {
+      "fill": "Fill in the {language} display fields to see this entry as it will appear on a CV.",
+      "wavy": "Wavy underline: not backed by a fact yet; generation will skip it.",
+      "title": "On your CV",
+      "language": "Preview language"
+    },
+    "readiness": {
+      "ready": "Ready for CVs",
+      "steps": "{count, plural, one {# step before CVs can use it} other {# steps before CVs can use it}}",
+      "allPass": "All {count} checks pass",
+      "skip": "CVs and letters skip it until then",
+      "fix": "Fix"
+    },
+    "sectionsLabel": "Sections",
+    "onThisPage": "On this page",
+    "needsSomething": "Needs something"
+  },
+  "entryAssist": {
+    "questions": {
+      "experience": {
+        "0": "What was your role, and at which company or organisation?",
+        "1": "When did it start and end, and where was it?",
+        "2": "What did you do day to day?",
+        "3": "What are you proudest of there? Numbers help: how many, how much, how fast, for whom.",
+        "4": "Which tools, methods or skills did you use?"
+      },
+      "education": {
+        "0": "What did you study, and at which school?",
+        "1": "When, and where?",
+        "2": "Which subjects, projects or thesis are worth mentioning?",
+        "3": "Any results, honours or responsibilities (student association, tutoring…)?"
+      },
+      "project": {
+        "0": "What is the project, and who was it for?",
+        "1": "What was your part in it?",
+        "2": "What came out of it? Users, results, numbers, links.",
+        "3": "Which tools or methods did you use?"
+      },
+      "certification": {
+        "0": "Which certification, and who issued it?",
+        "1": "When did you get it, and does it expire?",
+        "2": "What did you have to know or do to get it?"
+      },
+      "achievement": {
+        "0": "What did you achieve or win?",
+        "1": "When, and in what context?",
+        "2": "Why does it matter? Numbers or who recognised it."
+      }
+    },
+    "translated": "{language} version added",
+    "translatedBody": "{count, plural, one {# bullet translated with the same facts linked.} other {# bullets translated with the same facts linked.}}",
+    "waiting": "Your notes are waiting in the panel.",
+    "invite": "Tell me about it in your own words, and I’ll fill the fields and facts.",
+    "addVersion": "Add {language} version",
+    "hide": "Hide Naruvi",
+    "tell": "Tell Naruvi",
+    "dialogLabel": "Tell Naruvi about this entry",
+    "title": "Tell me about it",
+    "reading": "Reading what you wrote…",
+    "subtitle": "Like you’d tell a friend. I only use what you write.",
+    "minimise": "Minimise",
+    "minimiseEsc": "Minimise (Esc)",
+    "close": "Close and clear",
+    "how": "How to describe it",
+    "free": "Tell it freely",
+    "guided": "Answer questions",
+    "added": "{facts, plural, one {Added # fact} other {Added # facts}}",
+    "addedBoth": "Added {facts, plural, one {# fact} other {# facts}} and {skills, plural, one {# skill} other {# skills}}",
+    "dropped": "{count} left out: their numbers weren’t in what you wrote.",
+    "notSaved": "Nothing is saved until you press Save.",
+    "reviewFacts": "Review facts",
+    "freePlaceholder": "e.g. From 2021 to 2024 I ran the night shift at a 40-bed hospital ward in Lyon, trained 6 new nurses and set up the medication double-check that cut errors in half…",
+    "more": "A bit more, please",
+    "helps": "Dates, numbers and tools help most",
+    "answerPlaceholder": "Type or dictate. Skip what doesn’t apply.",
+    "previous": "Previous question",
+    "next": "Next",
+    "skip": "Skip",
+    "toFill": "to fill",
+    "filling": "Filling…",
+    "fill": "Fill from this"
+  },
+  "entryExtras": {
+    "rules": {
+      "experience": {
+        "0": "Don’t present freelance or contract work as a permanent job.",
+        "1": "Don’t claim to have led a team unless a fact says so.",
+        "2": "Don’t round numbers up or add results that aren’t listed."
+      },
+      "project": {
+        "0": "Don’t present a personal project as paid client work.",
+        "1": "Don’t claim users or results that aren’t in the facts."
+      },
+      "education": {
+        "0": "Don’t claim the degree before it was awarded.",
+        "1": "Don’t claim honours or rankings that aren’t listed."
+      },
+      "certification": {
+        "0": "Don’t list it as current after it expires."
+      },
+      "achievement": {
+        "0": "Don’t claim a higher placement than the one stated."
+      },
+      "nda": "Don’t name clients, internal systems or confidential numbers.",
+      "general": "Don’t add results that aren’t in the facts."
+    },
+    "nothingNew": "Nothing new to suggest",
+    "nothingNewBody": "Your tags and rules already cover the facts.",
+    "askHint": "Suggest skills, keywords and rules from your facts",
+    "addFactFirst": "Add a fact first",
+    "again": "Suggest again",
+    "suggest": "Suggest from facts",
+    "skills": "Skills used here",
+    "skillsHint": "Printed on CVs. Tools and abilities this entry proves.",
+    "skillsPlaceholder": "Type a skill, press Enter (e.g. Terraform, triage)",
+    "inFacts": "In your facts",
+    "keywords": "Keywords",
+    "keywordsHint": "Never printed. Topics and fields, used to match jobs.",
+    "keywordsPlaceholder": "Type a keyword, press Enter (e.g. fintech, appsec)",
+    "proof": "Proof",
+    "proofHint": "Optional. Links or documents that back this up, for you.",
+    "proofPlaceholder": "https://… or the name of a document",
+    "proofAdd": "Add a link or document",
+    "notClaim": "Things not to claim",
+    "notClaimHint": "CVs and letters about this entry follow these.",
+    "rulePlaceholder": "e.g. Don’t present this freelance work as a permanent job.",
+    "addRule": "Add a rule",
+    "noRules": "No rules yet. Pick a common one below, or write your own.",
+    "common": "Common",
+    "nda": "Under NDA",
+    "ndaOn": "CVs keep it high-level: no client names, internal systems or confidential numbers.",
+    "ndaOff": "Turn on if you can’t name clients, systems or numbers.",
+    "writeRule": "Write a rule"
+  },
+  "logoField": {
+    "failed": "Logo not added",
+    "added": "Logo added",
+    "addedSize": "{width}×{height}px · click Save to keep it",
+    "clickSave": "Click Save to keep it",
+    "shown": "Shown next to this entry on your CV.",
+    "drop": "Drop an image here, upload one, or paste its URL. A square mark works best.",
+    "replace": "Replace",
+    "upload": "Upload",
+    "fromUrl": "From URL",
+    "imageUrl": "Image URL",
+    "directLink": "A direct link to a PNG, JPG, WebP or SVG image.",
+    "add": "Add logo",
+    "remove": "Remove"
+  },
+  "bulletSuggestions": {
+    "none": "No suggestion passed the fact check",
+    "noneBody": "Add more specific facts, then try again.",
+    "addFact": "Add a fact first; every CV line is drafted from one.",
+    "unused": "{count, plural, one {# fact isn’t on a CV line yet.} other {# facts aren’t on a CV line yet.}}",
+    "allUsed": "Every fact is on a CV line. Draft more variants if you like.",
+    "cite": "Drafts cite their facts and can’t add numbers or skills.",
+    "again": "Draft again",
+    "draft": "Draft CV lines",
+    "from": "{count, plural, one {From fact {facts}} other {From facts {facts}}}",
+    "dismiss": "Dismiss this draft",
+    "keepLabel": "Keep this draft",
+    "keep": "Keep"
+  },
+  "inputs": {
+    "removeLine": "Remove line {n}",
+    "newLine": "new line",
+    "reorder": "reorder",
+    "pasteList": "paste a list to split it",
+    "remove": "Remove {value}",
+    "addMore": "Add more…",
+    "linkAnother": "Link another",
+    "linkFact": "Link a fact",
+    "searchFacts": "Search facts…",
+    "noFact": "No fact matches.",
+    "addFactsFirst": "Add facts in “What you did” first.",
+    "addAll": "Add all"
+  },
+  "dateRange": {
+    "dates": "Dates",
+    "calendar": "Use the calendar",
+    "type": "Type it instead",
+    "asIs": "Written as is. Only this language changes.",
+    "previousYear": "Previous year",
+    "nextYear": "Next year"
+  }
+}

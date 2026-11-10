@@ -1,0 +1,161 @@
+{
+  "labels": {
+    "status": { "draft": "Saved", "parsed": "Saved", "analyzed": "Fit checked", "generated": "CV drafted", "ready": "Ready to send", "submitted": "Sent", "interviewing": "Interviewing", "offer": "Offer", "rejected": "Rejected", "withdrawn": "Withdrawn" },
+    "column": { "preparing": "Saved & checked", "documents": "Documents", "sent": "Sent", "interviewing": "Interviewing", "offer": "Offer", "closed": "Closed" },
+    "runStatus": { "queued": "Queued", "running": "Running", "succeeded": "Completed", "failed": "Failed", "cancelled": "Cancelled" },
+    "workflow": {
+      "application_analyze": "Fit check", "mail_classify": "Read email replies", "mail_draft": "Drafted an email", "mail_send": "Sent an email",
+      "assistant_chat": "Chat with Naruvi", "company_research": "Company research", "cv_generate": "CV generation", "cv_revise": "CV revision",
+      "letter_generate": "Cover letter generation", "letter_revise": "Cover letter revision", "job_preview": "Job import", "job_enrich": "Job enrichment",
+      "profile_bullets": "Bullet suggestions", "profile_describe": "Profile description", "template_design": "Template design",
+      "ai_sdk_smoke": "Model connection test", "ai_sdk_large_cv_check": "Model output-limit test"
+    },
+    "stepKind": { "ai": "AI request", "decision": "Decision", "render": "Render", "step": "Step" },
+    "workMode": { "remote": "Remote", "hybrid": "Hybrid", "onsite": "On site" },
+    "contract": { "permanent": "Permanent", "fixed_term": "Fixed-term", "freelance": "Freelance", "internship": "Internship", "apprenticeship": "Apprenticeship / alternance", "student_job": "Student job", "volunteer": "Volunteer (VIE…)", "temporary": "Temp agency", "seasonal": "Seasonal" },
+    "seniority": { "intern": "Intern", "junior": "Junior", "mid": "Mid-level", "senior": "Senior", "lead": "Lead / staff", "manager": "Manager", "executive": "Executive" },
+    "due": {
+      "overdue": "{days, plural, one {# day overdue} other {# days overdue}}",
+      "today": "today",
+      "tomorrow": "tomorrow",
+      "inDays": "in {days} days"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "description": "Where your applications stand and what to do next.",
+    "addJob": "Add a job",
+    "open": "Open",
+    "greeting": { "late": "Working late", "morning": "Good morning", "afternoon": "Good afternoon", "evening": "Good evening", "named": "{greeting}, {name}" },
+    "summary": {
+      "due": "{count, plural, one {# thing needs you} other {# things need you}}",
+      "nothing": "Nothing needs you right now",
+      "upcoming": "{count, plural, one {# upcoming next step} other {# upcoming next steps}}",
+      "sentence": "{summary}."
+    },
+    "setup": {
+      "title": "Get started",
+      "progress": "{done} of {total} done",
+      "guide": "Setup guide",
+      "start": "Start",
+      "profile": { "label": "Build your profile", "detail": "Add experience and verify the facts your documents will cite." },
+      "job": { "label": "Add a job", "detail": "Paste a link or the description of any posting." },
+      "fit": { "label": "Check your fit", "detail": "Open the application and run the fit check." }
+    },
+    "note": {
+      "offers": {
+        "title": "{count, plural, one {# offer on the table} other {# offers on the table}}",
+        "text": "{count, plural, one {That’s real progress. When you’re ready, I can help you compare it with your other options.} other {That’s real progress. When you’re ready, I can help you compare them.}}",
+        "cta": "{count, plural, one {See the offer} other {See the offers}}"
+      },
+      "replies": {
+        "title": "{count, plural, one {A company wrote back} other {# companies wrote back}}",
+        "text": "{count, plural, one {Read it first. I’ve linked each reply to its application.} other {Read them first. I’ve linked each reply to its application.}}",
+        "cta": "{count, plural, one {Read the reply} other {Read the replies}}"
+      },
+      "due": { "text": "Start with the first one below, it’s the most urgent.", "cta": "Show me" },
+      "interviews": { "title": "{count, plural, one {# interview in progress} other {# interviews in progress}}", "text": "Ask me and I’ll gather what’s worth mentioning about the company.", "cta": "Open interviews" },
+      "unchecked": { "title": "{count, plural, one {# saved job to check} other {# saved jobs to check}}", "text": "A fit check takes about a minute and tells you if it’s worth your time.", "cta": "Check them" },
+      "caughtUp": { "title": "You’re all caught up", "text": "A good moment to add a new job, or to verify a few more facts in your profile." }
+    },
+    "stats": {
+      "active": { "title": "Active", "hint": "applications in progress" },
+      "ready": { "title": "Ready to send", "hint": "passed every check" },
+      "sent": { "title": "Sent", "hint": "{count} in interviews" },
+      "facts": { "title": "Verified facts", "hint": "your documents can use" }
+    },
+    "recent": {
+      "title": "Recent applications", "description": "Pick up where you left off.", "viewAll": "View all",
+      "role": "Role", "stage": "Stage", "fit": "Fit", "updated": "Updated",
+      "emptyTitle": "No applications yet", "emptyBody": "Add a job and check your fit to start one."
+    },
+    "pipeline": { "title": "Pipeline", "active": "{count, plural, one {# active application} other {# active applications}}", "none": "No active applications", "board": "Board" },
+    "activity": { "title": "Recent activity", "allRuns": "All runs", "empty": "Job imports, analyses, and document drafts will appear here." }
+  },
+  "board": {
+    "moveFailed": "Couldn’t move the application",
+    "archiveFailed": "Couldn’t archive the application",
+    "archived": "{title} archived",
+    "undo": "Undo",
+    "count": "{count, plural, one {# application} other {# applications}}",
+    "none": "None",
+    "move": "Move {title}",
+    "moveTo": "Move to",
+    "open": "Open",
+    "archive": "Archive",
+    "restore": "Restore",
+    "nextStep": "Next step",
+    "unread": "{count, plural, one {# new email} other {# new emails}}",
+    "age": "{days, plural, =0 {today} one {# day} other {# days}}",
+    "dropHere": "Drop here",
+    "nothingHere": "Nothing here",
+    "checkingFit": "Checking fit…",
+    "checkFit": "Check my fit",
+    "status": "Status",
+    "statusFailed": "Couldn’t update the status",
+    "updateFailed": "Couldn’t update the application",
+    "restored": "Application restored",
+    "archivedOne": "Application archived",
+    "archivedHint": "Find it under Archived on the Applications page.",
+    "archiveManyFailed": "Couldn’t archive them",
+    "archivedMany": "{count, plural, one {# application archived} other {# applications archived}}",
+    "archiveAll": "Archive all {count}"
+  },
+  "calendar": {
+    "title": "Calendar",
+    "today": "Today",
+    "upcoming": "{count, plural, one {# upcoming next step} other {# upcoming next steps}}",
+    "noneDated": "No dated next steps",
+    "nothingToday": "Nothing due today.",
+    "nothingThatDay": "Nothing due that day.",
+    "comingUp": "Coming up",
+    "hint": "Add a date to a next step on an application to see it here.",
+    "showDay": "Show this day",
+    "nextStep": "Next step"
+  },
+  "attention": {
+    "title": "Needs attention",
+    "count": "{count, plural, one {# item to review} other {# items to review}}",
+    "all": "All applications",
+    "newReplies": "New replies",
+    "replyFrom": "{title} · “{subject}” from {from}",
+    "nextStep": "Next step",
+    "reason": { "due": "Due", "ready": "Ready to send", "quiet": "No reply", "strong-fit": "Not started" },
+    "message": {
+      "readyIdle": "{count, plural, one {Documents ready for # day; send it or set a date} other {Documents ready for # days; send it or set a date}}",
+      "ready": "Documents are ready to send",
+      "quiet": "No news for {count} days; follow up or archive it",
+      "strongFit": "{count, plural, one {Strong fit ({fit}) waiting # day; draft the CV} other {Strong fit ({fit}) waiting # days; draft the CV}}"
+    },
+    "draftCv": "Draft CV",
+    "open": "Open"
+  },
+  "nextStep": {
+    "title": "Next step",
+    "add": "Add next step",
+    "saveFailed": "Couldn’t save the next step",
+    "description": "What you plan to do and when. It shows on the board and on your dashboard when it’s due.",
+    "what": "What",
+    "when": "When",
+    "placeholder": "Follow up with the recruiter",
+    "suggestions": { "followUp": "Follow up if there is no reply", "prepare": "Prepare for the interview", "thankYou": "Send thank-you note", "answerOffer": "Answer the offer" },
+    "preset": "{days, select, 1 {Tomorrow} 7 {In a week} 14 {In 2 weeks} other {In {days} days}}",
+    "clear": "Clear",
+    "save": "Save"
+  },
+  "funnel": {
+    "title": "Outcomes",
+    "rate": "{percent}% of sent applications led to an offer",
+    "empty": "Send an application to start the funnel",
+    "stages": { "tracked": "Tracked", "sent": "Sent", "interviewing": "Interviews", "offer": "Offers" },
+    "step": "{count} {stage}: {rate}% of {previous} {previousStage}",
+    "tracked": "{count, plural, one {# application tracked} other {# applications tracked}}"
+  },
+  "moments": {
+    "them": "them",
+    "submitted": { "title": "Sent to {company}", "body": "Nicely done. Unless you planned something else, I’ve set a follow-up for a week from now." },
+    "interviewing": { "title": "Interview with {company}", "body": "They want to talk. Ask me and I’ll gather what’s worth mentioning about them." },
+    "offer": { "title": "An offer from {company}", "body": "Take a moment to enjoy this one. When you’re ready, we can look at it together." },
+    "rejected": { "title": "{company} said no this time", "body": "That stings, and it says little about you. Your other applications are still moving." }
+  }
+}

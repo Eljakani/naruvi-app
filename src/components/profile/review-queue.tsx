@@ -16,9 +16,11 @@ import {
   TagIcon,
 } from "lucide-react"
 import { toast } from "sonner"
-import { addFactForBulletAction, linkBulletFactsAction, setBulletRoleAction, setEntryStatusAction } from "@/app/(app)/profile/actions"
+import { addFactForBulletAction, linkBulletFactsAction, setBulletRoleAction, setEntryStatusAction } from "@/app/[locale]/(app)/profile/actions"
 import { EntryLogo } from "@/components/profile/entry-logo"
-import { KIND_SINGULAR } from "@/components/profile/labels"
+import { KIND_SINGULAR, type Kind } from "@/components/profile/labels"
+
+const REASON_KEY = { "Not verified yet": "notVerified", "No facts": "noFacts" } as const
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,10 +31,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { verifySupport } from "@/server/domain/grounding"
 import type { ReviewItem } from "@/server/profile/repository"
+import { useTranslations } from "next-intl"
 
 type Outcome = "fixed" | "skipped"
 
 export function ReviewQueue({ items: initialItems }: { items: ReviewItem[] }) {
+  const t = useTranslations("reviewQueue")
   // Freeze the queue for this session: server refreshes after each action
   // would otherwise remove resolved items and shift the current position.
   const [items] = useState(initialItems)
@@ -60,20 +64,20 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewItem[] }) {
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">{total === 0 ? <BadgeCheckIcon /> : <PartyPopperIcon />}</EmptyMedia>
-            <EmptyTitle>{total === 0 ? "Nothing to review" : "Review complete"}</EmptyTitle>
+            <EmptyTitle>{total === 0 ? t("nothing") : t("complete")}</EmptyTitle>
             <EmptyDescription>
               {total === 0
-                ? "Every entry is verified and every bullet is backed by a fact."
-                : `${fixed} of ${total} item${total === 1 ? "" : "s"} resolved${total - fixed ? `, ${total - fixed} skipped for later` : ""}.`}
+                ? t("allGood")
+                : total - fixed ? t("resolvedSkipped", { fixed, total, skipped: total - fixed }) : t("resolved", { fixed, total })}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent className="flex-row justify-center gap-2">
             <Button nativeButton={false} render={<Link href="/profile" />}>
-              Back to profile
+              {t("backToProfile")}
             </Button>
             {total - fixed > 0 ? (
               <Button variant="outline" nativeButton={false} render={<Link href="/profile/review" />}>
-                Review skipped
+                {t("reviewSkipped")}
               </Button>
             ) : null}
           </EmptyContent>
@@ -86,7 +90,7 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewItem[] }) {
     <div className="mx-auto grid w-full max-w-3xl gap-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/profile" />}>
-          <ArrowLeftIcon /> Profile
+          <ArrowLeftIcon /> {t("profile")}
         </Button>
         <div className="flex flex-1 items-center gap-3">
           <Progress value={((Object.keys(outcomes).length) / total) * 100} className="flex-1" />
@@ -94,16 +98,16 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewItem[] }) {
             {index + 1} / {total}
           </span>
         </div>
-        <Button variant="ghost" size="icon-sm" aria-label="Previous" disabled={index === 0} onClick={() => setIndex(index - 1)}>
+        <Button variant="ghost" size="icon-sm" aria-label={t("previous")} disabled={index === 0} onClick={() => setIndex(index - 1)}>
           <ArrowLeftIcon />
         </Button>
-        <Button variant="ghost" size="icon-sm" aria-label="Next" disabled={index >= total - 1} onClick={() => setIndex(index + 1)}>
+        <Button variant="ghost" size="icon-sm" aria-label={t("next")} disabled={index >= total - 1} onClick={() => setIndex(index + 1)}>
           <ArrowRightIcon />
         </Button>
       </div>
 
       {outcomes[item.id] ? (
-        <p className="text-center text-xs text-muted-foreground">{outcomes[item.id] === "fixed" ? "Already resolved." : "Skipped earlier."}</p>
+        <p className="text-center text-xs text-muted-foreground">{outcomes[item.id] === "fixed" ? t("alreadyResolved") : t("skippedEarlier")}</p>
       ) : null}
 
       {item.type === "bullet" ? (
@@ -115,16 +119,18 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewItem[] }) {
       <p className="text-center text-xs text-muted-foreground">
         {item.type === "bullet" ? (
           <>
-            <Kbd>1</Kbd>–<Kbd>9</Kbd> toggle a fact ·{" "}
+            <Kbd>1</Kbd>–<Kbd>9</Kbd> {t("keys.toggle")} ·{" "}
           </>
         ) : null}
-        <Kbd>Enter</Kbd> confirm · <Kbd>S</Kbd> skip
+        <Kbd>Enter</Kbd> {t("keys.confirm")} · <Kbd>S</Kbd> {t("keys.skip")}
       </p>
     </div>
   )
 }
 
 function EntryHeader({ entry }: { entry: ReviewItem["entry"] }) {
+  const tk = useTranslations("profileLabels.kindSingular")
+  const t = useTranslations("reviewQueue")
   const display = entry.display.en ?? entry.display.fr ?? {}
   return (
     <div className="flex items-center gap-3">
@@ -132,19 +138,20 @@ function EntryHeader({ entry }: { entry: ReviewItem["entry"] }) {
       <div className="min-w-0">
         <div className="truncate text-sm font-medium">{display.role || entry.title}</div>
         <div className="truncate text-xs text-muted-foreground">
-          {KIND_SINGULAR[entry.kind]}
+          {entry.kind in KIND_SINGULAR ? tk(entry.kind as Kind) : entry.kind}
           {display.organization ? ` · ${display.organization}` : ""}
           {display.dates ? ` · ${display.dates}` : ""}
         </div>
       </div>
-      <Button size="sm" variant="ghost" className="ml-auto text-muted-foreground" nativeButton={false} render={<Link href={`/profile/${entry.id}`} />}>
-        <ExternalLinkIcon /> Open entry
+      <Button size="sm" variant="ghost" className="ms-auto text-muted-foreground" nativeButton={false} render={<Link href={`/profile/${entry.id}`} />}>
+        <ExternalLinkIcon /> {t("openEntry")}
       </Button>
     </div>
   )
 }
 
 function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bullet" }>; onDone: (outcome: Outcome) => void }) {
+  const t = useTranslations("reviewQueue")
   const { entry, bullet, suggestions } = item
   const [selected, setSelected] = useState<string[]>(() => [...new Set([...bullet.factIds, ...suggestions.filter((s) => s.score >= 0.6).map((s) => s.id)])])
   const [newFact, setNewFact] = useState<string | null>(null)
@@ -162,24 +169,24 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
       if (newFact !== null) {
         const result = await addFactForBulletAction(bullet.id, newFact, selected)
         if (!result.ok) return void toast.error(result.error)
-        toast.success(result.data?.grounded ? "Fact added — bullet is backed" : "Fact added", { description: result.data?.grounded ? undefined : `Still unbacked: ${result.data?.unsupportedNumbers.join(", ")}` })
+        toast.success(result.data?.grounded ? t("factAddedBacked") : t("factAdded"), { description: result.data?.grounded ? undefined : t("stillUnbacked", { numbers: result.data?.unsupportedNumbers.join(", ") ?? "" }) })
         if (result.data?.grounded) onDone("fixed")
         else setNewFact(null)
         return
       }
-      if (!check.grounded) return void toast.error(check.unsupportedNumbers.length ? `No selected fact contains ${check.unsupportedNumbers.join(", ")}.` : "Select at least one fact.")
+      if (!check.grounded) return void toast.error(check.unsupportedNumbers.length ? t("noFactContains", { numbers: check.unsupportedNumbers.join(", ") }) : t("selectFact"))
       const result = await linkBulletFactsAction(bullet.id, selected)
       if (!result.ok) return void toast.error(result.error)
-      toast.success("Linked — bullet is backed")
+      toast.success(t("linked"))
       onDone("fixed")
     })
-  }, [bullet.id, check.grounded, check.unsupportedNumbers, newFact, onDone, selected])
+  }, [bullet.id, check.grounded, check.unsupportedNumbers, newFact, onDone, selected, t])
 
   const markLabel = () =>
     startTransition(async () => {
       const result = await setBulletRoleAction(bullet.id, "label")
       if (!result.ok) return void toast.error(result.error)
-      toast.success("Marked as a label")
+      toast.success(t("markedLabel"))
       onDone("fixed")
     })
 
@@ -190,7 +197,7 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
     disabled: pending,
   })
 
-  const reason = check.grounded ? null : check.unsupportedNumbers.length ? `No selected fact contains ${check.unsupportedNumbers.join(", ")}` : "No supporting fact selected"
+  const reason = check.grounded ? null : check.unsupportedNumbers.length ? t("noFactContains", { numbers: check.unsupportedNumbers.join(", ") }) : t("noSupporting")
 
   return (
     <Card>
@@ -200,7 +207,7 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
       <CardContent className="grid gap-5">
         <div className="grid gap-2">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase">
-            <CircleAlertIcon className="size-3.5 text-amber-500" /> Bullet without proof
+            <CircleAlertIcon className="size-3.5 text-amber-500" /> {t("withoutProof")}
             <Badge variant="outline" className="font-mono text-[11px]">
               {bullet.language}
             </Badge>
@@ -212,7 +219,7 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
         </div>
 
         <div className="grid gap-2">
-          <div className="text-sm font-medium">Which facts prove it?</div>
+          <div className="text-sm font-medium">{t("whichFacts")}</div>
           {ordered.length ? (
             <ul className="grid gap-1.5">
               {ordered.map((fact, i) => {
@@ -225,7 +232,7 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
                       <span className="flex-1 text-sm">{fact.statement}</span>
                       {suggestion && suggestion.score >= 0.34 ? (
                         <Badge variant="secondary" className="shrink-0 text-[11px]">
-                          {suggestion.sharedNumbers.length ? `shares ${suggestion.sharedNumbers.join(", ")}` : "suggested"}
+                          {suggestion.sharedNumbers.length ? t("shares", { numbers: suggestion.sharedNumbers.join(", ") }) : t("suggested")}
                         </Badge>
                       ) : null}
                       {i < 9 ? <Kbd>{i + 1}</Kbd> : null}
@@ -235,24 +242,24 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
               })}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">This entry has no facts yet. Add the one that proves this bullet.</p>
+            <p className="text-sm text-muted-foreground">{t("noFactsYet")}</p>
           )}
         </div>
 
         {newFact !== null ? (
           <div className="grid gap-2 rounded-lg border border-dashed p-3">
-            <div className="text-sm font-medium">New fact for {entry.title}</div>
+            <div className="text-sm font-medium">{t("newFact", { title: entry.title })}</div>
             <Textarea autoFocus rows={2} value={newFact} onChange={(event) => setNewFact(event.target.value)} />
-            <p className="text-xs text-muted-foreground">Write only what you can prove. Keep the exact numbers; this becomes part of your verified profile.</p>
+            <p className="text-xs text-muted-foreground">{t("newFactHint")}</p>
             <div className="flex gap-2">
               <Button size="sm" variant="ghost" onClick={() => setNewFact(null)}>
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           </div>
         ) : (
           <Button variant="outline" size="sm" className="w-fit" onClick={() => setNewFact(bullet.text.replace(/\*\*(.+?)\*\*/g, "$1"))}>
-            <PlusIcon /> It’s true but missing — add it as a fact
+            <PlusIcon /> {t("addAsFact")}
           </Button>
         )}
       </CardContent>
@@ -262,19 +269,19 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
             <span className="text-xs text-amber-600">{reason}</span>
           ) : (
             <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
-              <CheckCircle2Icon className="size-3.5" /> Backed by {selected.length} fact{selected.length === 1 ? "" : "s"}
+              <CheckCircle2Icon className="size-3.5" /> {t("backedBy", { count: selected.length })}
             </span>
           )
         ) : null}
-        <div className="ml-auto flex flex-wrap gap-2">
+        <div className="ms-auto flex flex-wrap gap-2">
           <Button variant="ghost" size="sm" onClick={markLabel} disabled={pending}>
-            <TagIcon /> It’s a heading, not a claim
+            <TagIcon /> {t("heading")}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => onDone("skipped")} disabled={pending}>
-            <SkipForwardIcon /> Skip
+            <SkipForwardIcon /> {t("skip")}
           </Button>
           <Button size="sm" onClick={confirm} disabled={pending || (newFact === null ? !check.grounded : !newFact.trim())}>
-            {newFact !== null ? "Add fact & link" : "Link & next"}
+            {newFact !== null ? t("addAndLink") : t("linkNext")}
           </Button>
         </div>
       </CardFooter>
@@ -283,6 +290,7 @@ function BulletReview({ item, onDone }: { item: Extract<ReviewItem, { type: "bul
 }
 
 function EntryReview({ item, onDone }: { item: Extract<ReviewItem, { type: "entry" }>; onDone: (outcome: Outcome) => void }) {
+  const t = useTranslations("reviewQueue")
   const { entry, reasons } = item
   const [pending, startTransition] = useTransition()
   const ungrounded = entry.phrasings.filter((p) => p.role === "bullet" && !p.grounding.grounded).length
@@ -290,7 +298,7 @@ function EntryReview({ item, onDone }: { item: Extract<ReviewItem, { type: "entr
     startTransition(async () => {
       const result = await setEntryStatusAction(entry.id, status)
       if (!result.ok) return void toast.error(result.error)
-      toast.success(status === "verified" ? "Verified" : "Archived")
+      toast.success(status === "verified" ? t("verified") : t("archived"))
       onDone("fixed")
     })
   useShortcuts({ onEnter: () => entry.facts.length && setStatus("verified"), onSkip: () => onDone("skipped"), disabled: pending })
@@ -303,13 +311,13 @@ function EntryReview({ item, onDone }: { item: Extract<ReviewItem, { type: "entr
         <div className="flex flex-wrap gap-2">
           {reasons.map((reason) => (
             <Badge key={reason} variant="outline" className="gap-1 border-amber-300 text-amber-700 dark:text-amber-400">
-              <CircleAlertIcon className="size-3" /> {reason}
+              <CircleAlertIcon className="size-3" /> {reason in REASON_KEY ? t(`reasons.${REASON_KEY[reason as keyof typeof REASON_KEY]}`) : reason}
             </Badge>
           ))}
         </div>
         <div>
-          <CardTitle className="text-sm">Is everything here true and current?</CardTitle>
-          <CardDescription>Verified entries are the only ones Naruvi uses to write CVs.</CardDescription>
+          <CardTitle className="text-sm">{t("isTrue")}</CardTitle>
+          <CardDescription>{t("isTrueHint")}</CardDescription>
         </div>
         {entry.facts.length ? (
           <ul className="grid gap-1.5">
@@ -321,25 +329,25 @@ function EntryReview({ item, onDone }: { item: Extract<ReviewItem, { type: "entr
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">No facts yet. Open the entry and add what you can prove before verifying it.</p>
+          <p className="text-sm text-muted-foreground">{t("noFactsOpen")}</p>
         )}
-        {ungrounded ? <p className="text-xs text-amber-600">{ungrounded} bullet{ungrounded === 1 ? "" : "s"} in this entry still need a fact; they appear separately in this queue.</p> : null}
+        {ungrounded ? <p className="text-xs text-amber-600">{t("ungrounded", { count: ungrounded })}</p> : null}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2 border-t">
         <Button variant="ghost" size="sm" onClick={() => setStatus("archived")} disabled={pending}>
-          <ArchiveIcon /> Archive
+          <ArchiveIcon /> {t("archive")}
         </Button>
-        <div className="ml-auto flex gap-2">
+        <div className="ms-auto flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => onDone("skipped")} disabled={pending}>
-            <SkipForwardIcon /> Skip
+            <SkipForwardIcon /> {t("skip")}
           </Button>
           {entry.facts.length ? (
             <Button size="sm" onClick={() => setStatus("verified")} disabled={pending}>
-              <BadgeCheckIcon /> Yes, mark verified
+              <BadgeCheckIcon /> {t("markVerified")}
             </Button>
           ) : (
             <Button size="sm" nativeButton={false} render={<Link href={`/profile/${entry.id}#facts`} />}>
-              Add facts
+              {t("addFacts")}
             </Button>
           )}
         </div>

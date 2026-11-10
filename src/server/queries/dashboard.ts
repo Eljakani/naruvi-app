@@ -61,10 +61,10 @@ export async function getDashboard() {
   // Rejected counts as sent: you can only be turned down after applying.
   const got = (statuses: string[]) => history.filter((row) => [row.status, ...row.reached].some((status) => statuses.includes(status))).length
   const funnel = [
-    { id: "tracked", label: "Tracked", count: history.length },
-    { id: "sent", label: "Sent", count: got(["submitted", "interviewing", "offer", "rejected"]) },
-    { id: "interviewing", label: "Interviews", count: got(["interviewing", "offer"]) },
-    { id: "offer", label: "Offers", count: got(["offer"]) },
+    { id: "tracked" as const, label: "Tracked", count: history.length },
+    { id: "sent" as const, label: "Sent", count: got(["submitted", "interviewing", "offer", "rejected"]) },
+    { id: "interviewing" as const, label: "Interviews", count: got(["interviewing", "offer"]) },
+    { id: "offer" as const, label: "Offers", count: got(["offer"]) },
   ]
   return {
     statusCounts,

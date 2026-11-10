@@ -8,6 +8,8 @@ import { LanguageMenu, RegenerateButton } from "@/components/documents/document-
 import { PdfThumb } from "@/components/templates/pdf-thumb"
 import { Button } from "@/components/ui/button"
 import type { DesignTokens } from "@/lib/design"
+import { useTranslations } from "next-intl"
+import { useAiStepText } from "@/components/ai-progress"
 
 /**
  * First visit to a CV or letter: same frame as the editor, what will happen,
@@ -44,26 +46,28 @@ export function DocumentStart({
   design: DesignTokens
   designName: string
 }) {
+  const t = useTranslations("documentShell")
+  const stepText = useAiStepText()
   const [error, submit] = useActionState(async (_previous: string, data: FormData) => (await action(data)) ?? "", "")
   const base = `/applications/${applicationId}`
   return (
     <div className="-mx-4 -mt-4 flex h-[calc(100svh-3.5rem)] flex-col md:-mx-6 md:-mt-6">
       <div className="flex flex-wrap items-center gap-3 border-b bg-background px-4 py-2.5 md:px-6">
-        <Button variant="ghost" size="icon-sm" aria-label="Back to the application" nativeButton={false} render={<Link href={base} />}>
+        <Button variant="ghost" size="icon-sm" aria-label={t("back")} nativeButton={false} render={<Link href={base} />}>
           <ArrowLeftIcon />
         </Button>
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold">{jobTitle}</div>
           <div className="truncate text-xs text-muted-foreground">{company}</div>
         </div>
-        <div className="ml-2">
+        <div className="ms-2">
           <ApplicationNav applicationId={applicationId} current={kind} language={language} />
         </div>
         <LanguageMenu current={language} hrefFor={(code) => `${base}/${kind}?lang=${code}`} />
       </div>
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[440px_minmax(0,1fr)]">
-        <div className="flex min-h-0 flex-col overflow-y-auto border-r bg-background p-6 md:p-8">
+        <div className="flex min-h-0 flex-col overflow-y-auto border-e bg-background p-6 md:p-8">
           <div className="cb-enter my-auto grid gap-6">
             <div className="grid gap-2">
               <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
@@ -74,7 +78,7 @@ export function DocumentStart({
               {steps.map((step, index) => (
                 <li key={step} className="flex items-start gap-3 text-sm">
                   <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium tabular-nums">{index + 1}</span>
-                  <span>{step}</span>
+                  <span>{stepText(step)}</span>
                 </li>
               ))}
             </ol>
@@ -84,7 +88,7 @@ export function DocumentStart({
               {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
               <RegenerateButton label={label} steps={steps} variant="default" size="default" icon={icon} />
               <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CheckIcon className="size-3.5" /> {kind === "letter" ? "You can edit and approve the draft before using it." : "Uses only your verified facts. You can edit everything afterwards."}
+                <CheckIcon className="size-3.5" /> {kind === "letter" ? t("letterNote") : t("cvNote")}
               </p>
             </form>
           </div>
@@ -95,8 +99,8 @@ export function DocumentStart({
             <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-t from-background/80 via-transparent to-transparent" />
           </div>
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <PaletteIcon className="size-3.5" /> It will look like this ({designName}). Content is tailored to this job.
-            <Link href="/templates" className="underline underline-offset-2 hover:text-foreground">Change</Link>
+            <PaletteIcon className="size-3.5" /> {t("lookLike", { name: designName })}
+            <Link href="/templates" className="underline underline-offset-2 hover:text-foreground">{t("change")}</Link>
           </p>
         </div>
       </div>

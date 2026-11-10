@@ -10,6 +10,7 @@ import { Message, MessageContent, MessageGroup } from "@/components/ui/message"
 import { Trace, TraceDescription, TraceIcon, TraceLine, TraceTitle } from "@/components/ui/trace"
 import { NaruviAvatar, Otter, type OtterPose } from "@/components/naruvi/otter"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 /**
  * Naruvi's agent conversations, built on shadcn AI Elements (Message, Bubble,
@@ -54,7 +55,7 @@ export function AgentThread({ turns, working, steps, className, pose = "working-
     ) : null
   }
   return (
-    <MessageGroup ref={box} className={cn("max-h-[28rem] gap-3 overflow-y-auto overscroll-contain pr-1 wrap-anywhere", className)} aria-live="polite">
+    <MessageGroup ref={box} className={cn("max-h-[28rem] gap-3 overflow-y-auto overscroll-contain pe-1 wrap-anywhere", className)} aria-live="polite">
       {hidden ? (
         <button type="button" onClick={() => setShowAll(true)} className="mx-auto rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
           Show {hidden} earlier {hidden === 1 ? "request" : "requests"}
@@ -84,8 +85,8 @@ export function AgentThread({ turns, working, steps, className, pose = "working-
                     <TraceTitle className="overflow-visible text-clip whitespace-normal text-foreground">{turn.summary}</TraceTitle>
                   </TraceLine>
                 </Trace>
-                {turn.detail ? <div className="pl-6 text-xs text-muted-foreground">{turn.detail}</div> : null}
-                {index === turns.length - 1 && turn.actions ? <div className="flex flex-wrap gap-1.5 pl-6">{turn.actions}</div> : null}
+                {turn.detail ? <div className="ps-6 text-xs text-muted-foreground">{turn.detail}</div> : null}
+                {index === turns.length - 1 && turn.actions ? <div className="flex flex-wrap gap-1.5 ps-6">{turn.actions}</div> : null}
               </MessageContent>
             </Message>
           </div>
@@ -121,7 +122,9 @@ export function AgentThread({ turns, working, steps, className, pose = "working-
 }
 
 /** The message field: Enter sends, Shift+Enter adds a line; suggestions send in one click. */
-export function AgentComposer({ value, onChange, onSend, busy, placeholder, suggestions = [], minLength = 1, label = "Message" }: { value: string; onChange: (value: string) => void; onSend: (text: string) => void; busy?: boolean; placeholder: string; suggestions?: string[]; minLength?: number; label?: string }) {
+export function AgentComposer({ value, onChange, onSend, busy, placeholder, suggestions = [], minLength = 1, label }: { value: string; onChange: (value: string) => void; onSend: (text: string) => void; busy?: boolean; placeholder: string; suggestions?: string[]; minLength?: number; label?: string }) {
+  const t = useTranslations("ui")
+  label ??= t("message")
   const ready = !busy && value.trim().length >= minLength
   return (
     <div className="grid gap-2">
@@ -158,8 +161,8 @@ export function AgentComposer({ value, onChange, onSend, busy, placeholder, sugg
             className="min-h-14 text-base sm:text-sm"
           />
           <InputGroupAddon align="block-end" className="justify-between">
-            <span className="text-xs text-muted-foreground">Enter to send · Shift+Enter for a new line</span>
-            <InputGroupButton type="submit" size="icon-sm" variant="default" className="rounded-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={!ready} aria-label="Send">
+            <span className="text-xs text-muted-foreground">{t("enterToSend")}</span>
+            <InputGroupButton type="submit" size="icon-sm" variant="default" className="rounded-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={!ready} aria-label={t("send")}>
               {busy ? <LoaderCircleIcon className="animate-spin" /> : <ArrowUpIcon />}
             </InputGroupButton>
           </InputGroupAddon>

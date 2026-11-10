@@ -28,19 +28,20 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Input } from "@/components/ui/input"
 import type { profiles } from "@/server/db/schema"
 import type { ProfileEntry } from "@/server/profile/repository"
+import { useTranslations } from "next-intl"
 
 type Profile = typeof profiles.$inferSelect
 
 /** Sections in the order a CV reads. */
 const SECTIONS = [
-  { kind: "experience", title: "Experience", empty: "Jobs, internships, freelance work, volunteering." },
-  { kind: "education", title: "Education", empty: "Degrees, schools, bootcamps." },
-  { kind: "project", title: "Projects", empty: "Things you built or led, at work or on your own." },
-  { kind: "certification", title: "Certifications", empty: "Licences and certificates." },
-  { kind: "skill", title: "Skills", empty: "Groups of skills, e.g. “Cloud” or “Customer service”." },
-  { kind: "language", title: "Languages", empty: "Languages you speak and your level." },
-  { kind: "achievement", title: "Achievements", empty: "Awards, competitions, publications." },
-  { kind: "other", title: "Other", empty: "Anything else worth knowing." },
+  { kind: "experience" },
+  { kind: "education" },
+  { kind: "project" },
+  { kind: "certification" },
+  { kind: "skill" },
+  { kind: "language" },
+  { kind: "achievement" },
+  { kind: "other" },
 ] as const
 
 export function needsAttention(entry: ProfileEntry) {
@@ -48,6 +49,7 @@ export function needsAttention(entry: ProfileEntry) {
 }
 
 export function ProfileWorkspace({ profile, entries }: { profile: Profile | null; entries: ProfileEntry[] }) {
+  const t = useTranslations("profile")
   const [reviewOnly, setReviewOnly] = useState(false)
   const [query, setQuery] = useState("")
     const [identityOpen, setIdentityOpen] = useState(false)
@@ -94,17 +96,17 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
             <EmptyMedia variant="icon">
               <UserRoundIcon />
             </EmptyMedia>
-            <EmptyTitle>Start your profile</EmptyTitle>
+            <EmptyTitle>{t("start.title")}</EmptyTitle>
             <EmptyDescription>
-              Upload your CV and AI fills your profile for you, or add entries by hand. Nothing is used for generation until you verify it.
+              {t("start.body")}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent className="flex-row justify-center gap-2">
             <Button nativeButton={false} render={<Link href="/profile/import" />}>
-              <SparklesIcon /> Start from my CV
+              <SparklesIcon /> {t("start.fromCv")}
             </Button>
             <Button variant="outline" nativeButton={false} render={<Link href="/profile/new" />}>
-              <PlusIcon /> Add entry
+              <PlusIcon /> {t("addEntry")}
             </Button>
           </EmptyContent>
         </Empty>
@@ -122,7 +124,7 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
               type="button"
               onClick={() => setIdentityOpen(true)}
               className="group/photo relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              aria-label={profile?.photoPath ? "Change photo" : "Add a photo"}
+              aria-label={profile?.photoPath ? t("changePhoto") : t("addPhoto")}
             >
               {profile?.photoPath ? (
                 // eslint-disable-next-line @next/next/no-img-element -- local asset
@@ -137,17 +139,17 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
             <div className="grid min-w-0 flex-1 gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="truncate text-xl font-semibold tracking-tight">{profile?.fullName ?? "Your name"}</h2>
+                  <h2 className="truncate text-xl font-semibold tracking-tight">{profile?.fullName ?? t("yourName")}</h2>
                   {profile?.headlines?.en || profile?.headlines?.fr ? (
                     <p className="truncate text-sm text-muted-foreground">{profile.headlines.en || profile.headlines.fr}</p>
                   ) : (
                     <button type="button" onClick={() => setIdentityOpen(true)} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
-                      + Add a one-line headline
+                      {t("addHeadline")}
                     </button>
                   )}
                 </div>
                 <Button size="sm" variant="outline" onClick={() => setIdentityOpen(true)}>
-                  <PencilIcon /> Edit
+                  <PencilIcon /> {t("edit")}
                 </Button>
               </div>
               <div className="flex flex-wrap items-center gap-1.5 text-sm">
@@ -159,14 +161,14 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
                   ] as const
                 ).map(([Icon, value, label, copyable]) =>
                   value ? (
-                    copyable ? <CopyChip key={label} icon={Icon} value={value} label={label} /> : (
+                    copyable ? <CopyChip key={label} icon={Icon} value={value} label={t(`contact.${label}`)} /> : (
                       <span key={label} className="inline-flex h-7 min-w-0 items-center gap-1.5 rounded-full px-2.5 text-muted-foreground">
                         <Icon className="size-3.5 shrink-0" /> <span className="truncate">{value}</span>
                       </span>
                     )
                   ) : (
                     <button key={label} type="button" onClick={() => setIdentityOpen(true)} className="inline-flex h-7 items-center gap-1.5 rounded-full border border-dashed px-2.5 text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground">
-                      <Icon className="size-3.5" /> Add {label}
+                      <Icon className="size-3.5" /> {t("addContact", { field: t(`contact.${label}`) })}
                     </button>
                   ),
                 )}
@@ -179,7 +181,7 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
                         <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60 motion-reduce:animate-none" />
                         <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
                       </span>
-                      Available {profile.availability}
+                      {t("available", { when: profile.availability })}
                     </span>
                   ) : null}
                   {profile?.links.map((link) => (
@@ -193,23 +195,23 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
           </div>
 
           {/* Readiness: same card, separated by a rule, fixed width so both halves stay balanced. */}
-          <div className="grid gap-3 border-t pt-5 lg:w-80 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
+          <div className="grid gap-3 border-t pt-5 lg:w-80 lg:border-t-0 lg:border-s lg:pt-0 lg:ps-6">
             <div className="flex items-center gap-3">
               {stats.attention ? <ReadyRing value={active.length - stats.attention} total={active.length} /> : <Otter pose="all-checked" height={64} className="-my-2" />}
               <div className="grid min-w-0 gap-0.5">
-                <p className="text-sm font-medium">{stats.attention ? `${active.length - stats.attention} of ${active.length} entries ready` : "Every entry is ready"}</p>
+                <p className="text-sm font-medium">{stats.attention ? t("ready", { ready: active.length - stats.attention, total: active.length }) : t("allReady")}</p>
                 <p className="text-xs text-muted-foreground">
-                  {stats.facts} facts · {stats.bullets ? Math.round((stats.grounded / stats.bullets) * 100) : 100}% of CV lines backed
+                  {t("stats", { facts: stats.facts, percent: stats.bullets ? Math.round((stats.grounded / stats.bullets) * 100) : 100 })}
                 </p>
               </div>
             </div>
             {stats.attention ? (
               <Button size="sm" variant="outline" className="w-full border-amber-200 bg-amber-50/60 text-amber-800 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300" nativeButton={false} render={<Link href="/profile/review" />}>
-                <AlertTriangleIcon /> Review {stats.attention} {stats.attention === 1 ? "entry" : "entries"}
+                <AlertTriangleIcon /> {t("review", { count: stats.attention })}
               </Button>
             ) : (
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <BadgeCheckIcon className="size-4 text-emerald-600" /> Every entry checks out. Your CVs can use all of it.
+                <BadgeCheckIcon className="size-4 text-emerald-600" /> {t("checksOut")}
               </p>
             )}
           </div>
@@ -220,19 +222,19 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your profile…" className="pl-8" />
+          <SearchIcon className="pointer-events-none absolute top-1/2 start-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("search")} className="ps-8" />
         </div>
         {stats.attention ? (
           <Button variant={reviewOnly ? "secondary" : "ghost"} onClick={() => setReviewOnly(!reviewOnly)} aria-pressed={reviewOnly}>
-            <AlertTriangleIcon /> Needs a look · {stats.attention}
+            <AlertTriangleIcon /> {t("needsLook", { count: stats.attention })}
           </Button>
         ) : null}
         <Button variant="outline" nativeButton={false} render={<Link href="/profile/import" />}>
-          <SparklesIcon /> Add from CV
+          <SparklesIcon /> {t("addFromCv")}
         </Button>
         <Button nativeButton={false} render={<Link href="/profile/new" />}>
-          <PlusIcon /> Add entry
+          <PlusIcon /> {t("addEntry")}
         </Button>
       </div>
 
@@ -246,8 +248,8 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
         ) : (
           <Empty className="border">
             <EmptyHeader>
-              <EmptyTitle>Nothing matches</EmptyTitle>
-              <EmptyDescription>Try another word, or clear the filter.</EmptyDescription>
+              <EmptyTitle>{t("noMatch")}</EmptyTitle>
+              <EmptyDescription>{t("noMatchBody")}</EmptyDescription>
             </EmptyHeader>
           </Empty>
         )
@@ -260,10 +262,10 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
               <section key={section.kind} className="grid gap-2" aria-labelledby={`section-${section.kind}`}>
                 <div className="flex items-center justify-between gap-2">
                   <h2 id={`section-${section.kind}`} className="text-sm font-semibold">
-                    {section.title} <span className="font-normal text-muted-foreground tabular-nums">{items.length || ""}</span>
+                    {t(`sections.${section.kind}.title`)} <span className="font-normal text-muted-foreground tabular-nums">{items.length || ""}</span>
                   </h2>
                   <Button size="sm" variant="ghost" nativeButton={false} render={<Link href={`/profile/new?kind=${section.kind}`} />}>
-                    <PlusIcon /> Add
+                    <PlusIcon /> {t("add")}
                   </Button>
                 </div>
                 {items.length ? (
@@ -274,7 +276,7 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
                   </div>
                 ) : (
                   <Link href={`/profile/new?kind=${section.kind}`} className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/40">
-                    {section.empty}
+                    {t(`sections.${section.kind}.empty`)}
                   </Link>
                 )}
               </section>
@@ -288,11 +290,12 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
 }
 
 function CopyChip({ icon: Icon, value, label }: { icon: React.ElementType; value: string; label: string }) {
+  const t = useTranslations("profile")
   const [copied, setCopied] = useState(false)
   return (
     <button
       type="button"
-      title={`Copy ${label}`}
+      title={t("copy", { label })}
       onClick={() => {
         void navigator.clipboard.writeText(value)
         setCopied(true)
@@ -303,7 +306,7 @@ function CopyChip({ icon: Icon, value, label }: { icon: React.ElementType; value
       <Icon className="size-3.5 shrink-0" />
       <span className="truncate">{value}</span>
       {copied ? <CheckIcon className="size-3 shrink-0 text-emerald-600" /> : <CopyIcon className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />}
-      <span className="sr-only" aria-live="polite">{copied ? "Copied" : ""}</span>
+      <span className="sr-only" aria-live="polite">{copied ? t("copied") : ""}</span>
     </button>
   )
 }

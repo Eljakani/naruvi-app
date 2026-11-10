@@ -3,10 +3,11 @@
 import Link from "next/link"
 import { useOptimistic, useTransition } from "react"
 import { InboxIcon, PlusIcon, XIcon } from "lucide-react"
-import { dismissLeadAction } from "@/app/(app)/jobs/actions"
+import { dismissLeadAction } from "@/app/[locale]/(app)/jobs/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useLocale, useTranslations } from "next-intl"
 
 type Lead = { id: string; url: string; title: string; board: string; source: string; foundAt: Date }
 
@@ -14,6 +15,8 @@ const BOARD: Record<string, string> = { ashby: "Ashby", linkedin: "LinkedIn", in
 
 /** Postings found in job-alert emails or saved with the browser extension. Import reads the posting like any link; nothing is saved until you check it. */
 export function JobLeads({ leads }: { leads: Lead[] }) {
+  const t = useTranslations("jobs.leads")
+  const locale = useLocale()
   const [visible, hide] = useOptimistic(leads, (state, id: string) => state.filter((lead) => lead.id !== id))
   const [, startTransition] = useTransition()
   if (!visible.length) return null
@@ -21,9 +24,9 @@ export function JobLeads({ leads }: { leads: Lead[] }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
-          <InboxIcon className="size-4" /> Job leads
+          <InboxIcon className="size-4" /> {t("title")}
         </CardTitle>
-        <CardDescription className="text-xs">{visible.length} posting{visible.length === 1 ? "" : "s"} from your job alerts and browser, not saved yet. Import one to read and check it.</CardDescription>
+        <CardDescription className="text-xs">{t("description", { count: visible.length })}</CardDescription>
       </CardHeader>
       <CardContent>
         <ul className="divide-y rounded-lg border">
@@ -33,17 +36,17 @@ export function JobLeads({ leads }: { leads: Lead[] }) {
                 <a href={lead.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-medium hover:underline">
                   {lead.title || lead.url.replace(/^https?:\/\/(www\.)?/, "")}
                 </a>
-                <p className="truncate text-xs text-muted-foreground">{lead.source} · {new Date(lead.foundAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</p>
+                <p className="truncate text-xs text-muted-foreground">{lead.source} · {new Date(lead.foundAt).toLocaleDateString(locale, { day: "numeric", month: "short" })}</p>
               </div>
               <Badge variant="outline" className="font-normal">{BOARD[lead.board] ?? lead.board}</Badge>
               <div className="flex gap-1">
                 <Button size="sm" variant="outline" nativeButton={false} render={<Link href={`/jobs/new?lead=${lead.id}`} />}>
-                  <PlusIcon /> Import
+                  <PlusIcon /> {t("import")}
                 </Button>
                 <Button
                   size="icon-sm"
                   variant="ghost"
-                  aria-label={`Dismiss ${lead.title || "this posting"}`}
+                  aria-label={t("dismiss", { title: lead.title || t("thisPosting") })}
                   onClick={() =>
                     startTransition(async () => {
                       hide(lead.id)

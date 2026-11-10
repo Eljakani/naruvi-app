@@ -1,4 +1,4 @@
-export const KIND_LABELS: Record<string, string> = {
+export const KIND_LABELS = {
   experience: "Experience",
   project: "Projects",
   skill: "Skills",
@@ -7,7 +7,7 @@ export const KIND_LABELS: Record<string, string> = {
   language: "Languages",
   achievement: "Achievements",
   other: "Other",
-}
+} as const
 
 export const KIND_SINGULAR: Record<string, string> = {
   experience: "Experience",
@@ -25,3 +25,6 @@ export const STATUS_LABELS: Record<string, string> = {
   needs_review: "Needs review",
   archived: "Archived",
 }
+
+/** Keys of the `profileLabels.kind*` messages; the English maps above stay for code that isn't UI. */
+export type Kind = keyof typeof KIND_LABELS

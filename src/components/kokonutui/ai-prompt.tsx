@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 /**
  * @author: @kokonutui
  * @description: AI Prompt Input
@@ -46,13 +48,14 @@ function SendButton({
   canSend: boolean;
   onStop: () => void;
 }) {
+  const t = useTranslations("assistantWelcome");
   // One button with two faces. The faces crossfade with a little blur, so
   // Send turning into Stop reads as the same control changing state.
   const face =
     "absolute inset-0 flex items-center justify-center transition-[opacity,filter] duration-200 motion-reduce:transition-none ease-[cubic-bezier(0.23,1,0.32,1)]";
   return (
     <button
-      aria-label={responding ? "Stop" : "Send"}
+      aria-label={responding ? t("stop") : t("send")}
       className={cn(
         "relative size-8 shrink-0 rounded-full",
         "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
@@ -94,20 +97,21 @@ export default function AIPrompt({
   responding, readingAttachment, canSend, attachment, queued, attachmentError,
   attachmentCount = 0, attachmentLimit = 1,
 }: AIPromptProps) {
+  const t = useTranslations("assistantWelcome");
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 56, maxHeight: 160 });
   const [isDragging, setIsDragging] = useState(false);
   const dragDepth = useRef(0);
   const full = attachmentCount >= attachmentLimit;
   const attachmentDisabled = responding || readingAttachment || full;
   const hint = readingAttachment
-    ? "Reading images…"
+    ? t("reading")
     : attachmentCount
-      ? `${attachmentCount} of ${attachmentLimit} image${attachmentLimit === 1 ? "" : "s"}${full ? " · that’s the limit" : ""}`
+      ? full ? t("imageLimit") : t("imageCount", { count: attachmentCount, limit: attachmentLimit })
       : responding && value.trim()
-        ? "Enter to queue it for when Naruvi finishes"
+        ? t("queuedHint")
         : value.trim()
-        ? "Enter to send · Shift+Enter for a new line"
-        : "Paste or drop images · changes wait for your approval";
+        ? t("sendHint")
+        : t("hint");
 
   useEffect(() => {
     adjustHeight(!value);
@@ -155,7 +159,7 @@ export default function AIPrompt({
         >
           {attachment && <div className="min-w-0 px-3 pt-3">{attachment}</div>}
           <Textarea
-            aria-label="Message Naruvi"
+            aria-label={t("message")}
             className="min-h-14 w-full resize-none rounded-none border-none bg-transparent px-4 pt-3 pb-1 text-base shadow-none focus-visible:ring-0 sm:text-sm dark:bg-transparent"
             maxLength={4000}
             onChange={(event) => onChange(event.target.value)}
@@ -183,7 +187,7 @@ export default function AIPrompt({
             )} title={full ? `Up to ${attachmentLimit} images` : "Add images"}>
               <input
                 accept={accept}
-                aria-label="Add images"
+                aria-label={t("addImages")}
                 multiple={attachmentLimit > 1}
                 className="sr-only"
                 disabled={attachmentDisabled}

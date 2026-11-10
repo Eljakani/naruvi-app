@@ -34,6 +34,7 @@ import {
 } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export type ParticleButtonStatus = "idle" | "pending" | "success" | "error";
 
@@ -271,16 +272,16 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 }
 
 export default function ParticleButton({
-  children = "Save changes",
+  children,
   onClick,
   onSuccess,
   onError,
   status: controlledStatus,
   successDuration = 1600,
   errorDuration = 3200,
-  pendingLabel = "Saving",
-  successLabel = "Saved",
-  errorLabel = "Try again",
+  pendingLabel,
+  successLabel,
+  errorLabel,
   icon,
   particles = true,
   variant,
@@ -289,6 +290,11 @@ export default function ParticleButton({
   disabled,
   ...props
 }: ParticleButtonProps) {
+  const t = useTranslations("ui");
+  children ??= t("saveChanges");
+  pendingLabel ??= t("saving");
+  successLabel ??= t("saved");
+  errorLabel ??= t("tryAgain");
   const [internalStatus, setInternalStatus] =
     useState<ParticleButtonStatus>("idle");
   const status = controlledStatus ?? internalStatus;

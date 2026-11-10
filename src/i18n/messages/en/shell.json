@@ -1,0 +1,320 @@
+{
+  "meta": { "description": "Truthful, tailored, verified job applications — locally." },
+  "common": {
+    "connected": "Connected", "notSetUp": "Not set up", "on": "On", "off": "Off",
+    "clearSearch": "Clear search", "clear": "Clear"
+  },
+  "assistantResults": {
+    "reads": {
+      "what_needs_attention": {
+        "running": "Checking what needs attention",
+        "done": "Checked what needs attention"
+      },
+      "list_applications": {
+        "running": "Looking through your applications",
+        "done": "Looked through your applications"
+      },
+      "get_application": {
+        "running": "Opening an application",
+        "done": "Opened an application"
+      },
+      "search_jobs": {
+        "running": "Searching your saved jobs",
+        "done": "Searched your saved jobs"
+      },
+      "get_job": {
+        "running": "Reading a job posting",
+        "done": "Read a job posting"
+      },
+      "list_companies": {
+        "running": "Looking through companies",
+        "done": "Looked through companies"
+      },
+      "get_company": {
+        "running": "Opening a company",
+        "done": "Opened a company"
+      },
+      "read_careers_page": {
+        "running": "Checking the careers link",
+        "done": "Checked the careers link"
+      },
+      "list_contacts": {
+        "running": "Looking through your contacts",
+        "done": "Looked through your contacts"
+      },
+      "profile_overview": {
+        "running": "Reading your profile",
+        "done": "Read your profile"
+      },
+      "read_profile_details": {
+        "running": "Checking profile details",
+        "done": "Checked profile details"
+      },
+      "find_profile_entries": {
+        "running": "Finding the profile entry",
+        "done": "Checked matching profile entries"
+      }
+    },
+    "counts": {
+      "applications": "{count, plural, one {# application} other {# applications}}",
+      "jobs": "{count, plural, one {# job} other {# jobs}}",
+      "contacts": "{count, plural, one {# contact} other {# contacts}}",
+      "companies": "{count, plural, one {# company} other {# companies}}",
+      "entries": "{count, plural, one {# entry} other {# entries}}",
+      "attention": "{count, plural, one {# item} other {# items}}"
+    },
+    "applications": "Applications",
+    "archived": "Archived",
+    "failed": "Lookup failed",
+    "failures": "Lookups · {count, number} failed",
+    "completed": "{count, plural, one {# lookup completed} other {# lookups completed}}",
+    "progress": "{settled, number} of {total, number}"
+  },
+  "assistantWelcome": {
+    "message": "Message Naruvi",
+    "addImages": "Add images",
+    "imageCount": "{count, number} of {limit, number} images",
+    "imageLimit": "Image limit reached",
+    "dashboard": "your dashboard",
+    "letter": "this cover letter",
+    "cv": "this CV",
+    "application": "this application",
+    "job": "this job",
+    "jobs": "your jobs",
+    "contacts": "your contacts",
+    "companies": "your companies",
+    "profile": "your profile",
+    "applications": "your applications",
+    "today": "What should I do today?",
+    "bestFit": "Which saved jobs fit me best?",
+    "spontaneous": "Start a spontaneous application",
+    "recruiter": "Add a recruiter to my contacts",
+    "shorter": "Make this letter shorter and more direct",
+    "specific": "Add something specific about the company",
+    "recipient": "Who should I send it to?",
+    "missingCv": "What's missing from this CV for the job?",
+    "weak": "Which requirements am I weakest on?",
+    "letterToo": "Draft the cover letter too",
+    "progress": "Summarize where this application stands",
+    "draftLetter": "Draft the cover letter",
+    "followUp": "Set a follow-up for next week",
+    "who": "Who should I contact here?",
+    "fit": "Is this job a good fit for me?",
+    "start": "Start an application for this job",
+    "research": "Research this company",
+    "jobLink": "Add a job from a link",
+    "notApplied": "Which jobs haven't I applied to yet?",
+    "noEmail": "Which contacts have no email yet?",
+    "mostApplied": "Which companies have I applied to most?",
+    "missingProfile": "What's missing from my profile?",
+    "noFacts": "Which entries have no facts yet?",
+    "skills": "What are my strongest skills?",
+    "noNews": "Which applications have had no news?",
+    "nextApp": "Which application should I push next?",
+    "context": "Looking at {page}",
+    "ideas": "Ideas for {page}",
+    "late": "Up late? I’m Naruvi.",
+    "morning": "Good morning. I’m Naruvi.",
+    "afternoon": "Good afternoon. I’m Naruvi.",
+    "evening": "Good evening. I’m Naruvi.",
+    "intro": "I know your jobs, applications, contacts and profile. Tell me what you need and I’ll get it ready. Nothing changes until you say so.",
+    "queuedPlaceholder": "Naruvi will read your follow-up next…",
+    "followUpPlaceholder": "Add a follow-up, it goes out when Naruvi finishes…",
+    "replyPlaceholder": "Reply, or ask something else…",
+    "askPlaceholder": "Ask anything, or tell Naruvi what to do…",
+    "hint": "Paste or drop images · changes wait for your approval",
+    "reading": "Reading images…",
+    "queuedHint": "Enter to queue it for when Naruvi finishes",
+    "sendHint": "Enter to send · Shift+Enter for a new line",
+    "send": "Send",
+    "stop": "Stop",
+    "close": "Close assistant",
+    "newChat": "New conversation",
+    "thinkingPhrases": {"thinking": "Naruvi is thinking", "working": "Working on it", "figuring": "Figuring this out"},
+    "thinking": "Thinking…",
+    "working": "Working on it…",
+    "writing": "Writing…"
+  },
+  "assistantTrigger": {"ask": "Ask Naruvi", "shortcut": "Ask Naruvi ({shortcut})", "open": "Naruvi is here", "close": "Close Naruvi", "wake": "Wake Naruvi up"},
+  "language": { "label": "Language" },
+  "theme": { "dark": "Dark theme", "toLight": "Switch to light", "toDark": "Switch to dark" },
+  "nav": {
+    "home": "Naruvi home",
+    "localWorkspace": "Local workspace",
+    "addJob": "Add a job",
+    "yourProfile": "Your profile",
+    "profileMenu": "Profile menu for {name}",
+    "signOut": "Sign out",
+    "groups": { "search": "Job search", "material": "Your material", "workspace": "Workspace" },
+    "items": {
+      "dashboard": { "title": "Dashboard", "description": "Pipeline and next actions" },
+      "jobs": { "title": "Jobs", "description": "New postings to look at, not tracked yet" },
+      "applications": { "title": "Applications", "description": "Every job you're pursuing, saved to offer" },
+      "companies": { "title": "Companies", "description": "Every job and application per company" },
+      "contacts": { "title": "Contacts", "description": "Recruiters, HR and hiring managers" },
+      "profile": { "title": "Profile", "description": "Verified facts — the source of truth" },
+      "templates": { "title": "Templates", "description": "How your documents look" },
+      "integrations": { "title": "Integrations", "description": "Email, calendar and other connections" },
+      "runs": { "title": "Naruvi’s work", "description": "What Naruvi did, step by step" },
+      "settings": { "title": "Settings", "description": "Documents, fonts and data" }
+    },
+    "badge": {
+      "applications": "{count, plural, one {# application needs you} other {# applications need you}}",
+      "jobs": "{count, plural, one {# new job lead} other {# new job leads}}"
+    },
+    "week": {
+      "title": "This week",
+      "count": {
+        "sent": "<b>{n}</b> sent",
+        "interviews": "{n, plural, one {<b>#</b> interview} other {<b>#</b> interviews}}",
+        "offers": "{n, plural, one {<b>#</b> offer} other {<b>#</b> offers}}"
+      },
+      "offer": "An offer this week. That’s worth celebrating.",
+      "interviews": "They want to talk. Your work is paying off.",
+      "sent": "Good momentum. Keep the follow-ups coming.",
+      "checked": "You’ve been checking fits. Ready to send one?",
+      "quiet": "A quiet week. One good application is enough to restart."
+    }
+  },
+  "notFound": {
+    "title": "I looked everywhere, but this page isn’t here",
+    "dashboard": "Back to the dashboard",
+    "applications": "Open Applications",
+    "body": "It may have been archived or deleted, or the link is from an older version of Naruvi."
+  },
+  "auth": {
+    "opening": "Opening your workspace",
+    "openingEllipsis": "Opening your workspace…",
+    "copied": "Copied",
+    "copy": "Copy {command}",
+    "commandCopied": "Command copied",
+    "usernameRule": "Use 3–64 letters, numbers, underscores or hyphens.",
+    "passwordRule": "Use 16–128 characters.",
+    "mismatch": "The passwords don’t match yet.",
+    "confirmRequired": "Confirm your password.",
+    "tooMany": "{seconds, plural, one {Too many attempts. Try again in # second.} other {Too many attempts. Try again in # seconds.}}",
+    "needsRefresh": "This page needs a refresh. Reload it and try again.",
+    "cantConnect": "Couldn’t connect to Naruvi. Please try again.",
+    "cantReach": "Couldn’t reach Naruvi. Check your connection and try again.",
+    "username": "Username",
+    "password": "Password",
+    "confirm": "Confirm password",
+    "hidePasswords": "Hide passwords",
+    "showPasswords": "Show passwords",
+    "usernameHint": "Letters, numbers, underscores or hyphens.",
+    "lengthMet": "Length requirement met.",
+    "passwordHint": "At least 16 characters. A unique passphrase works well.",
+    "match": "Passwords match.",
+    "enterAgain": "Enter your password again.",
+    "capsLock": "Caps Lock is on.",
+    "ready": "Workspace ready",
+    "signedIn": "You’re signed in",
+    "creating": "Creating your workspace…",
+    "signingIn": "Signing in…",
+    "create": "Create my workspace",
+    "signIn": "Sign in",
+    "oneOwner": "One owner account. Your workspace stays private.",
+    "setupTitle": "Make this your workspace.",
+    "welcomeBack": "Welcome back to Naruvi.",
+    "waitingTitle": "Your workspace is waiting.",
+    "setupBody": "Create your owner account, then we’ll help you set up Naruvi.",
+    "welcomeBody": "Sign in to pick up where you left off.",
+    "waitingBody": "Naruvi is installed. Create your owner account with the private setup link from your server.",
+    "sessionEnded": "Your session ended. Sign in to continue.",
+    "alreadyConfigured": "This workspace is already set up. Sign in with your owner account.",
+    "setupExpired": "That setup link expired or was replaced. Get a new one below.",
+    "requestFailed": "We couldn’t complete that request. Check your details and try again.",
+    "getLink": "Get your setup link",
+    "getLinkBody": "Run this where Naruvi is installed, then open the link it prints. It works once and expires in an hour.",
+    "checkAgain": "I opened the link, check again",
+    "tagline": "Your career. Your workspace."
+  },
+  "search": {
+    "search": "Search",
+    "placeholderShort": "Search…",
+    "description": "Jump to a page, job, application or company",
+    "placeholder": "Search jobs, companies and pages…",
+    "searching": "Searching…",
+    "empty": "Nothing found.",
+    "jobsAndApplications": "Jobs and applications",
+    "application": "Application",
+    "job": "Job",
+    "companies": "Companies",
+    "goTo": "Go to",
+    "actions": "Actions",
+    "addJob": "Add a job",
+    "addJobMatch": "add a new job",
+    "searchAllJobs": "Search all jobs",
+    "searchJobsFor": "Search jobs for “{query}”",
+    "pages": {
+      "dashboard": { "label": "Dashboard", "keywords": "home needs attention" },
+      "applications": { "label": "Applications", "keywords": "board pipeline" },
+      "archived": { "label": "Archived applications", "keywords": "archive" },
+      "jobs": { "label": "Jobs", "keywords": "postings" },
+      "companies": { "label": "Companies", "keywords": "employers" },
+      "contacts": { "label": "Contacts", "keywords": "people recruiters hr managers spontaneous" },
+      "profile": { "label": "Profile", "keywords": "experience facts" },
+      "templates": { "label": "Templates", "keywords": "design themes" },
+      "runs": { "label": "Runs", "keywords": "traces ai" },
+      "settings": { "label": "Settings", "keywords": "documents fonts data export language" },
+      "ai": { "label": "AI models", "keywords": "model api key llm openai gemini claude dictation whisper" },
+      "setup": { "label": "Setup guide", "keywords": "onboarding start install first run" }
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Interface language, document defaults, fonts and your local data.",
+    "setupGuide": "Setup guide",
+    "somethingWrong": "Something went wrong",
+    "saveFailed": "Could not save or refresh settings. Try again.",
+    "defaultsSaved": "Defaults saved",
+    "sectionsLabel": "Settings sections",
+    "sections": {
+      "interface": { "title": "Interface", "description": "The language Naruvi speaks to you in." },
+      "documents": { "title": "Documents", "description": "Defaults for new CVs and letters, and fonts for other writing systems." },
+      "data": { "title": "Data & storage", "description": "Everything stays on this computer. Export a copy whenever you like." },
+      "version": { "title": "Version & updates", "description": "Updates run from a terminal, with a backup first. The app never updates itself." }
+    },
+    "interfaceLanguage": "Interface language",
+    "interfaceLanguageHint": "Menus, buttons and messages. Your documents keep their own language.",
+    "aiMoved": { "title": "AI models, decision model and dictation", "body": "They now live in Integrations, next to your other connections." },
+    "defaults": {
+      "title": "Document defaults",
+      "description": "Starting preferences for new CVs and cover letters.",
+      "language": "Default document language",
+      "languageHint": "Used for new applications and as a fallback for untranslated entries.",
+      "languageSaved": "Default language: {language}",
+      "design": "Design",
+      "designHint": "New documents use your default template.",
+      "openTemplates": "Open templates",
+      "photo": "Show photo",
+      "photoHint": "Common in France, Germany and Spain; usually left out in the US, UK and Canada."
+    },
+    "fonts": {
+      "title": "Fonts",
+      "description": "Latin, Cyrillic, Greek, Arabic, Hebrew, Devanagari and Thai are included. Chinese, Japanese and Korean download on first use.",
+      "names": { "SC": "Chinese (Simplified)", "JP": "Japanese", "KR": "Korean" },
+      "installed": "Installed · {size} MB",
+      "onFirstUse": "Downloads on first use",
+      "downloadAll": "Download all fonts"
+    },
+    "data": {
+      "title": "Your data",
+      "description": "Download a copy of your profile, jobs, applications, and documents.",
+      "export": "Export JSON",
+      "counts": { "entries": "Profile entries", "facts": "Facts", "bullets": "Bullets", "jobs": "Jobs", "applications": "Applications", "revisions": "Document versions" },
+      "storage": "Storage details",
+      "database": "Database",
+      "files": "Files"
+    },
+    "version": {
+      "available": "Version {version} is available.",
+      "latest": "You're on the latest version we know of.",
+      "updateBadge": "Update available",
+      "upToDate": "Up to date",
+      "howTo": "To update, run this where Naruvi is installed:",
+      "whatsNew": "What's new in {version}",
+      "changelog": "Changelog"
+    }
+  }
+}

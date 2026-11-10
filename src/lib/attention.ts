@@ -15,14 +15,17 @@ export function daysUntil(due: Date, now: number) {
   return Math.round((startOfDay(due.getTime()) - startOfDay(now)) / DAY)
 }
 
-export function dueLabel(due: Date, now: number) {
+/** Words for due dates; the UI passes its translator (`attention.due.*`), English otherwise. */
+export type DueWords = (key: "overdue" | "today" | "tomorrow" | "inDays", values: { days: number }) => string
+const english: DueWords = (key, { days }) => (key === "overdue" ? `${days} day${days === 1 ? "" : "s"} overdue` : key === "inDays" ? `in ${days} days` : key)
+
+export function dueLabel(due: Date, now: number, words: DueWords = english, locale?: string) {
   const days = daysUntil(due, now)
-  if (days < -1) return `${-days} days overdue`
-  if (days === -1) return "1 day overdue"
-  if (days === 0) return "today"
-  if (days === 1) return "tomorrow"
-  if (days < 7) return `in ${days} days`
-  return due.toLocaleDateString(undefined, { day: "numeric", month: "short" })
+  if (days < 0) return words("overdue", { days: -days })
+  if (days === 0) return words("today", { days })
+  if (days === 1) return words("tomorrow", { days })
+  if (days < 7) return words("inDays", { days })
+  return due.toLocaleDateString(locale, { day: "numeric", month: "short" })
 }
 
 export type DueTone = "overdue" | "soon" | "later"
@@ -32,12 +35,7 @@ export const dueTone = (due: Date, now: number): DueTone => {
 }
 
 /** Quick picks for a due date, as days from today. */
-export const DUE_PRESETS = [
-  { label: "Tomorrow", days: 1 },
-  { label: "In 3 days", days: 3 },
-  { label: "In a week", days: 7 },
-  { label: "In 2 weeks", days: 14 },
-] as const
+export const DUE_PRESETS = [1, 3, 7, 14] as const
 
 /** End of the day `days` from now, so "today" is still due until midnight. */
 export function dueIn(days: number, now: number) {
@@ -69,7 +67,8 @@ export type AttentionInput = {
 }
 
 export type AttentionReason = "due" | "ready" | "quiet" | "strong-fit"
-export type AttentionItem = AttentionInput & { reason: AttentionReason; message: string; urgency: number; action: "open" | "cv" | "archive" }
+/** `message` is English (API); the UI words it from `reason`, `idleDays` and `fit`. */
+export type AttentionItem = AttentionInput & { reason: AttentionReason; message: string; idleDays: number; urgency: number; action: "open" | "cv" | "archive" }
 
 /**
  * What needs doing, most urgent first. One reason per application: a dated
@@ -84,17 +83,17 @@ export function needsAttention(items: AttentionInput[], now: number): AttentionI
     if (item.nextStepDue && !closed) {
       const days = daysUntil(item.nextStepDue, now)
       if (days <= 2) {
-        out.push({ ...item, reason: "due", message: `${item.nextStep || "Next step"} · ${dueLabel(item.nextStepDue, now)}`, urgency: 100 - days * 10, action: "open" })
+        out.push({ ...item, idleDays, reason: "due", message: `${item.nextStep || "Next step"} · ${dueLabel(item.nextStepDue, now)}`, urgency: 100 - days * 10, action: "open" })
         continue
       }
     }
     if (item.nextStepDue) continue
     if (item.status === "ready") {
-      out.push({ ...item, reason: "ready", message: idleDays >= 1 ? `Documents ready for ${idleDays} day${idleDays === 1 ? "" : "s"}; send it or set a date` : "Documents are ready to send", urgency: 60 + Math.min(idleDays, 20), action: "open" })
+      out.push({ ...item, idleDays, reason: "ready", message: idleDays >= 1 ? `Documents ready for ${idleDays} day${idleDays === 1 ? "" : "s"}; send it or set a date` : "Documents are ready to send", urgency: 60 + Math.min(idleDays, 20), action: "open" })
     } else if (item.status === "submitted" && idleDays >= QUIET_AFTER_DAYS) {
-      out.push({ ...item, reason: "quiet", message: `No news for ${idleDays} days; follow up or archive it`, urgency: 40 + Math.min(idleDays - QUIET_AFTER_DAYS, 30), action: "archive" })
+      out.push({ ...item, idleDays, reason: "quiet", message: `No news for ${idleDays} days; follow up or archive it`, urgency: 40 + Math.min(idleDays - QUIET_AFTER_DAYS, 30), action: "archive" })
     } else if (item.status === "analyzed" && (item.fit ?? 0) >= STRONG_FIT && idleDays >= IDLE_AFTER_DAYS) {
-      out.push({ ...item, reason: "strong-fit", message: `Strong fit (${item.fit}) waiting ${idleDays} days; draft the CV`, urgency: 20 + Math.min(idleDays, 20), action: "cv" })
+      out.push({ ...item, idleDays, reason: "strong-fit", message: `Strong fit (${item.fit}) waiting ${idleDays} days; draft the CV`, urgency: 20 + Math.min(idleDays, 20), action: "cv" })
     }
   }
   return out.sort((a, b) => b.urgency - a.urgency)

@@ -36,7 +36,12 @@ export type GoalJob = {
 }
 
 export type CheckStatus = "ok" | "check" | "blocked"
-export type GoalCheck = { kind: "contract" | "place" | "work_mode" | "authorization" | "duration" | "start"; status: CheckStatus; text: string }
+/** `text` is English (API, tests); the UI words a check from `msg` (see goal-text.ts). */
+export type GoalMsg = {
+  id: "contractUnknown" | "contractOk" | "contractOff" | "modeOk" | "modeOff" | "remoteNoPlace" | "noPlace" | "placeOk" | "remoteElsewhere" | "placeOff" | "placeUnsure" | "permitSponsor" | "permitNoSponsor" | "permitUnknown" | "durationOff" | "durationOk" | "asapLate" | "asapOk" | "startEarly" | "startOk"
+  contract?: string; wanted?: string[]; mode?: WorkMode; modes?: WorkMode[]; where?: string; places?: string[]; country?: string | null; label?: string; min?: number | null; max?: number | null; start?: string; from?: string
+}
+export type GoalCheck = { kind: "contract" | "place" | "work_mode" | "authorization" | "duration" | "start"; status: CheckStatus; text: string; msg: GoalMsg }
 export type GoalFit = { verdict: CheckStatus; goal: Pick<SearchGoal, "id" | "name">; implicit: boolean; checks: GoalCheck[] }
 
 const CONTRACT_NAME: Record<string, string> = { permanent: "a CDI / permanent job", fixed_term: "a CDD", freelance: "freelance", internship: "an internship", apprenticeship: "an alternance", student_job: "a student job", volunteer: "a volunteer programme (VIE…)", temporary: "temp work", seasonal: "seasonal work" }
@@ -84,15 +89,15 @@ export function checkGoal(goal: SearchGoal, job: GoalJob, today = new Date()): G
   const contract = job.insights?.contract && job.insights.contract !== "unspecified" ? job.insights.contract : null
   if (goal.contracts.length) {
     const wanted = list(goal.contracts.map((key) => CONTRACT_NAME[key] ?? key))
-    if (!contract) checks.push({ kind: "contract", status: "check", text: `The posting doesn't say the contract type; you want ${wanted}.` })
-    else if (goal.contracts.includes(contract as SearchGoal["contracts"][number])) checks.push({ kind: "contract", status: "ok", text: `It's ${CONTRACT_NAME[contract] ?? contract}.` })
-    else checks.push({ kind: "contract", status: "blocked", text: `It's ${CONTRACT_NAME[contract] ?? contract}; you want ${wanted}.` })
+    if (!contract) checks.push({ kind: "contract", status: "check", text: `The posting doesn't say the contract type; you want ${wanted}.`, msg: { id: "contractUnknown", wanted: goal.contracts } })
+    else if (goal.contracts.includes(contract as SearchGoal["contracts"][number])) checks.push({ kind: "contract", status: "ok", text: `It's ${CONTRACT_NAME[contract] ?? contract}.`, msg: { id: "contractOk", contract } })
+    else checks.push({ kind: "contract", status: "blocked", text: `It's ${CONTRACT_NAME[contract] ?? contract}; you want ${wanted}.`, msg: { id: "contractOff", contract, wanted: goal.contracts } })
   }
 
   const mode = workModeOf(job)
   if (goal.workModes.length && mode) {
-    if (goal.workModes.includes(mode)) checks.push({ kind: "work_mode", status: "ok", text: `${WORK_MODES[mode]}, which works for you.` })
-    else checks.push({ kind: "work_mode", status: "blocked", text: `It's ${WORK_MODES[mode].toLowerCase()}; you want ${list(goal.workModes.map((item) => WORK_MODES[item].toLowerCase()))}.` })
+    if (goal.workModes.includes(mode)) checks.push({ kind: "work_mode", status: "ok", text: `${WORK_MODES[mode]}, which works for you.`, msg: { id: "modeOk", mode } })
+    else checks.push({ kind: "work_mode", status: "blocked", text: `It's ${WORK_MODES[mode].toLowerCase()}; you want ${list(goal.workModes.map((item) => WORK_MODES[item].toLowerCase()))}.`, msg: { id: "modeOff", mode, modes: goal.workModes } })
   }
 
   const jobCountry = countryIn(job.location)
@@ -100,20 +105,20 @@ export function checkGoal(goal: SearchGoal, job: GoalJob, today = new Date()): G
   if (goal.places.length) {
     const results = goal.places.map((place) => within(job.location, place))
     const where = job.location || "no location"
-    if (!job.location.trim()) checks.push({ kind: "place", status: remoteOk ? "ok" : "check", text: remoteOk ? "Remote, no location stated." : `The posting gives no location; you're looking in ${list(goal.places)}.` })
-    else if (results.includes(true)) checks.push({ kind: "place", status: "ok", text: `${where} is in your search area.` })
-    else if (remoteOk) checks.push({ kind: "place", status: "check", text: `Remote, but the job is based in ${where}. Check they hire from where you live${jobCountry ? ` and how a contract from ${country(jobCountry)} works for you` : ""}.` })
-    else if (results.every((result) => result === false)) checks.push({ kind: "place", status: "blocked", text: `It's in ${where}; you're looking in ${list(goal.places)}.` })
-    else checks.push({ kind: "place", status: "check", text: `Couldn't tell if ${where} is in ${list(goal.places)}.` })
+    if (!job.location.trim()) checks.push({ kind: "place", status: remoteOk ? "ok" : "check", text: remoteOk ? "Remote, no location stated." : `The posting gives no location; you're looking in ${list(goal.places)}.`, msg: remoteOk ? { id: "remoteNoPlace" } : { id: "noPlace", places: goal.places } })
+    else if (results.includes(true)) checks.push({ kind: "place", status: "ok", text: `${where} is in your search area.`, msg: { id: "placeOk", where } })
+    else if (remoteOk) checks.push({ kind: "place", status: "check", text: `Remote, but the job is based in ${where}. Check they hire from where you live${jobCountry ? ` and how a contract from ${country(jobCountry)} works for you` : ""}.`, msg: { id: "remoteElsewhere", where, country: jobCountry } })
+    else if (results.every((result) => result === false)) checks.push({ kind: "place", status: "blocked", text: `It's in ${where}; you're looking in ${list(goal.places)}.`, msg: { id: "placeOff", where, places: goal.places } })
+    else checks.push({ kind: "place", status: "check", text: `Couldn't tell if ${where} is in ${list(goal.places)}.`, msg: { id: "placeUnsure", where, places: goal.places } })
   }
 
   if (goal.authorizedIn.length && jobCountry && !goal.authorizedIn.includes(jobCountry)) {
     const sponsor = job.insights?.visaSponsorship
     checks.push(sponsor === true
-      ? { kind: "authorization", status: "ok", text: `You'd need a permit for ${country(jobCountry)}; the posting offers sponsorship.` }
+      ? { kind: "authorization", status: "ok", text: `You'd need a permit for ${country(jobCountry)}; the posting offers sponsorship.`, msg: { id: "permitSponsor", country: jobCountry } }
       : sponsor === false
-        ? { kind: "authorization", status: "blocked", text: `You'd need a permit for ${country(jobCountry)}, and they say they don't sponsor.` }
-        : { kind: "authorization", status: "check", text: `You'd need the right to work in ${country(jobCountry)}; the posting doesn't mention sponsorship.` })
+        ? { kind: "authorization", status: "blocked", text: `You'd need a permit for ${country(jobCountry)}, and they say they don't sponsor.`, msg: { id: "permitNoSponsor", country: jobCountry } }
+        : { kind: "authorization", status: "check", text: `You'd need the right to work in ${country(jobCountry)}; the posting doesn't mention sponsorship.`, msg: { id: "permitUnknown", country: jobCountry } })
   }
 
   const range = job.insights?.programme?.duration ? monthsOf(job.insights.programme.duration) : null
@@ -122,14 +127,14 @@ export function checkGoal(goal: SearchGoal, job: GoalJob, today = new Date()): G
     const min = goal.minMonths ?? 0, max = goal.maxMonths ?? 99
     const label = job.insights!.programme!.duration
     checks.push(high < min || low > max
-      ? { kind: "duration", status: "blocked", text: `Lasts ${label}; you want ${goal.minMonths ?? "any"}–${goal.maxMonths ?? "any"} months.` }
-      : { kind: "duration", status: "ok", text: `Lasts ${label}, within what you want.` })
+      ? { kind: "duration", status: "blocked", text: `Lasts ${label}; you want ${goal.minMonths ?? "any"}–${goal.maxMonths ?? "any"} months.`, msg: { id: "durationOff", label, min: goal.minMonths, max: goal.maxMonths } }
+      : { kind: "duration", status: "ok", text: `Lasts ${label}, within what you want.`, msg: { id: "durationOk", label } })
   }
   const start = goal.startFrom && job.insights?.programme?.start ? startOf(job.insights.programme.start, today) : null
   if (start && goal.startFrom) {
     const soon = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 2).padStart(2, "0")}`
-    if (start === "asap") checks.push(goal.startFrom > soon ? { kind: "start", status: "check", text: `They want someone as soon as possible; you're available from ${monthLabel(goal.startFrom)}.` } : { kind: "start", status: "ok", text: "Starts as soon as possible, which works for you." })
-    else checks.push(start < goal.startFrom ? { kind: "start", status: "blocked", text: `Starts ${monthLabel(start)}; you're available from ${monthLabel(goal.startFrom)}.` } : { kind: "start", status: "ok", text: `Starts ${monthLabel(start)}, after you're available.` })
+    if (start === "asap") checks.push(goal.startFrom > soon ? { kind: "start", status: "check", text: `They want someone as soon as possible; you're available from ${monthLabel(goal.startFrom)}.`, msg: { id: "asapLate", from: goal.startFrom } } : { kind: "start", status: "ok", text: "Starts as soon as possible, which works for you.", msg: { id: "asapOk" } })
+    else checks.push(start < goal.startFrom ? { kind: "start", status: "blocked", text: `Starts ${monthLabel(start)}; you're available from ${monthLabel(goal.startFrom)}.`, msg: { id: "startEarly", start, from: goal.startFrom } } : { kind: "start", status: "ok", text: `Starts ${monthLabel(start)}, after you're available.`, msg: { id: "startOk", start } })
   }
   return checks
 }

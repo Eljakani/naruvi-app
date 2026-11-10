@@ -1,9 +1,11 @@
 import { ViewTransition } from "react"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 /** Entry logo on a neutral tile, or a monogram when there is none. */
 /** `morph`: a key shared by the same logo on a list and its detail page, so it glides between them. */
 export function EntryLogo({ path, name, size = 40, className, morph }: { path: string | null | undefined; name: string; size?: number; className?: string; morph?: string }) {
+  const t = useTranslations("profile")
   const initials =
     name
       .replace(/[^\p{L}\p{N}\s&]/gu, " ")
@@ -20,7 +22,7 @@ export function EntryLogo({ path, name, size = 40, className, morph }: { path: s
     >
       {path ? (
         // eslint-disable-next-line @next/next/no-img-element -- local, content-addressed asset
-        <img src={`/api/assets/${path}`} alt={`${name} logo`} className="size-full object-contain p-[12%]" />
+        <img src={`/api/assets/${path}`} alt={t("logo", { name })} className="size-full object-contain p-[12%]" />
       ) : (
         <span className="font-semibold text-muted-foreground" style={{ fontSize: Math.max(10, size * 0.32) }}>
           {initials}

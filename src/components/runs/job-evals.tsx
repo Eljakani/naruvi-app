@@ -2,25 +2,27 @@
 
 import { useState, useTransition } from "react"
 import { CheckCircle2Icon, Loader2Icon, PlayIcon, XCircleIcon } from "lucide-react"
-import { runJobEvalsAction } from "@/app/(app)/runs/actions"
+import { runJobEvalsAction } from "@/app/[locale]/(app)/runs/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { EvalCase } from "@/server/evals/jobs"
+import { useTranslations } from "next-intl"
 
 export function JobEvals() {
   const [cases, setCases] = useState<EvalCase[] | null>(null)
   const [pending, startTransition] = useTransition()
   const passed = cases?.filter((item) => item.pass).length ?? 0
+  const t = useTranslations("runs.evals")
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Job import evals</CardTitle>
-        <CardDescription>Captured postings with checked answers. Runs offline against the current parser; the same cases run in npm test.</CardDescription>
+        <CardTitle>{t("title")}</CardTitle>
+        <CardDescription>{t("description")}</CardDescription>
         <CardAction>
           <Button size="sm" variant="outline" disabled={pending} onClick={() => startTransition(async () => setCases(await runJobEvalsAction()))}>
-            {pending ? <Loader2Icon className="animate-spin" /> : <PlayIcon />} Run
+            {pending ? <Loader2Icon className="animate-spin" /> : <PlayIcon />} {t("run")}
           </Button>
         </CardAction>
       </CardHeader>
@@ -28,18 +30,15 @@ export function JobEvals() {
         {cases ? (
           <div className="grid gap-4">
             <p className="text-sm">
-              <span className="font-medium tabular-nums">
-                {passed}/{cases.length}
-              </span>{" "}
-              cases pass
+              {t.rich("passing", { passed, total: cases.length, b: (chunks) => <span className="font-medium tabular-nums">{chunks}</span> })}
             </p>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Case</TableHead>
-                  <TableHead>Result</TableHead>
-                  <TableHead>Failed checks</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
+                  <TableHead>{t("case")}</TableHead>
+                  <TableHead>{t("result")}</TableHead>
+                  <TableHead>{t("failedChecks")}</TableHead>
+                  <TableHead className="text-end">{t("time")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -51,18 +50,18 @@ export function JobEvals() {
                       <TableCell>
                         {item.pass ? (
                           <Badge variant="secondary">
-                            <CheckCircle2Icon /> Pass
+                            <CheckCircle2Icon /> {t("pass")}
                           </Badge>
                         ) : (
                           <Badge variant="destructive">
-                            <XCircleIcon /> Fail
+                            <XCircleIcon /> {t("fail")}
                           </Badge>
                         )}
                       </TableCell>
                       <TableCell className="max-w-md whitespace-normal text-muted-foreground">
-                        {failed.length ? failed.map((check) => `${check.name}: expected ${check.expected}, got ${check.actual}`).join(" · ") : `${item.checks.length} checks`}
+                        {failed.length ? failed.map((check) => t("mismatch", { name: check.name, expected: String(check.expected), actual: String(check.actual) })).join(" · ") : t("checks", { count: item.checks.length })}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{item.ms} ms</TableCell>
+                      <TableCell className="text-end tabular-nums">{t("ms", { ms: item.ms })}</TableCell>
                     </TableRow>
                   )
                 })}
@@ -70,7 +69,7 @@ export function JobEvals() {
             </Table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Not run yet in this session.</p>
+          <p className="text-sm text-muted-foreground">{t("notRun")}</p>
         )}
       </CardContent>
     </Card>

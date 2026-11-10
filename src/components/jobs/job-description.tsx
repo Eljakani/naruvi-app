@@ -5,6 +5,7 @@ import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { inlineParts, leadLabel, parseJobText, type Block } from "@/lib/job-text"
+import { useTranslations } from "next-intl"
 
 /** "REQUIREMENTS" → "Requirements"; leaves acronyms inside normal text alone. */
 function displayHeading(text: string) {
@@ -60,9 +61,9 @@ function BlockView({ block }: { block: Block }) {
   if (block.type === "list") {
     const Tag = block.ordered ? "ol" : "ul"
     return (
-      <Tag className={cn("my-3 grid gap-2 pl-5", block.ordered ? "list-decimal marker:text-muted-foreground" : "list-disc marker:text-muted-foreground/60")}>
+      <Tag className={cn("my-3 grid gap-2 ps-5", block.ordered ? "list-decimal marker:text-muted-foreground" : "list-disc marker:text-muted-foreground/60")}>
         {block.items.map((item, index) => (
-          <li key={index} className="pl-1">
+          <li key={index} className="ps-1">
             <ListItem text={item} />
           </li>
         ))}
@@ -81,17 +82,18 @@ function BlockView({ block }: { block: Block }) {
  * scraped HTML-turned-text. Never renders raw HTML.
  */
 export function JobDescription({ text, collapsible = true, className }: { text: string; collapsible?: boolean; className?: string }) {
+  const t = useTranslations("jobs.descriptionView")
   const blocks = useMemo(() => parseJobText(text), [text])
   const headings = blocks.filter((block): block is Extract<Block, { type: "heading" }> => block.type === "heading")
   const long = collapsible && text.length > 2400
   const [expanded, setExpanded] = useState(!long)
 
-  if (!blocks.length) return <p className="text-sm text-muted-foreground">No description.</p>
+  if (!blocks.length) return <p className="text-sm text-muted-foreground">{t("none")}</p>
 
   return (
     <div className={cn("grid gap-4", className)}>
       {headings.length >= 3 ? (
-        <nav aria-label="Sections" className="flex flex-wrap gap-1.5">
+        <nav aria-label={t("sections")} className="flex flex-wrap gap-1.5">
           {headings.map((heading) => (
             <button
               key={heading.id}
@@ -117,7 +119,7 @@ export function JobDescription({ text, collapsible = true, className }: { text: 
       </div>
       {long ? (
         <Button variant="outline" size="sm" className="w-fit" onClick={() => setExpanded(!expanded)}>
-          {expanded ? <ChevronUpIcon /> : <ChevronDownIcon />} {expanded ? "Show less" : "Show full description"}
+          {expanded ? <ChevronUpIcon /> : <ChevronDownIcon />} {expanded ? t("less") : t("full")}
         </Button>
       ) : null}
     </div>

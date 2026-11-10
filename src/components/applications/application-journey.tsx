@@ -1,6 +1,7 @@
 import { ArrowDownLeftIcon, ArrowUpRightIcon, BookmarkIcon, FileTextIcon, FlagIcon, XIcon, type LucideIcon } from "lucide-react"
-import { STATUS_LABEL, type Status } from "@/lib/stages"
+import type { Status } from "@/lib/stages"
 import { cn } from "@/lib/utils"
+import { useLocale, useTranslations } from "next-intl"
 
 type Event = { id: string; fromStatus: Status | null; toStatus: Status; actor: string; createdAt: Date }
 type Mail = { id: string; direction: string; fromName: string; fromAddress?: string | null; subject: string; sentAt: Date }
@@ -21,43 +22,46 @@ const TONE: Record<Item["tone"], string> = {
  * document work. The progress strip above shows where you are; this shows
  * what happened, so the two never repeat each other.
  */
-function collect(createdAt: Date, events: Event[], mail: Mail[], drafts: Draft[]): Item[] {
-  const items: Item[] = [{ id: "saved", at: createdAt, icon: BookmarkIcon, tone: "muted", title: "Saved the job" }]
+type Words = { t: ReturnType<typeof useTranslations<"application.journey">>; tl: ReturnType<typeof useTranslations<"labels">> }
+function collect(createdAt: Date, events: Event[], mail: Mail[], drafts: Draft[], { t, tl }: Words): Item[] {
+  const items: Item[] = [{ id: "saved", at: createdAt, icon: BookmarkIcon, tone: "muted", title: t("saved") }]
   let last: Status | null = null
   for (const event of [...events].reverse()) {
     // Same stage twice in a row (an automatic move then a manual confirm) is one moment.
     if (event.toStatus === last) continue
     last = event.toStatus
     const closed = event.toStatus === "rejected" || event.toStatus === "withdrawn"
-    items.push({ id: event.id, at: event.createdAt, icon: closed ? XIcon : FlagIcon, tone: closed ? "closed" : "stage", title: `Moved to ${STATUS_LABEL[event.toStatus]}`, detail: event.actor === "system" ? "Automatically, from your activity" : undefined })
+    items.push({ id: event.id, at: event.createdAt, icon: closed ? XIcon : FlagIcon, tone: closed ? "closed" : "stage", title: t("moved", { status: tl(`status.${event.toStatus}`) }), detail: event.actor === "system" ? t("automatic") : undefined })
   }
   for (const message of mail) {
     const incoming = message.direction === "in"
-    const who = message.fromName || message.fromAddress || "They"
-    items.push({ id: message.id, at: message.sentAt, icon: incoming ? ArrowDownLeftIcon : ArrowUpRightIcon, tone: incoming ? "in" : "out", title: incoming ? `${who} wrote` : "You sent an email", detail: message.subject || "(no subject)" })
+    const who = message.fromName || message.fromAddress || t("they")
+    items.push({ id: message.id, at: message.sentAt, icon: incoming ? ArrowDownLeftIcon : ArrowUpRightIcon, tone: incoming ? "in" : "out", title: incoming ? t("wrote", { who }) : t("sent"), detail: message.subject || t("noSubject") })
   }
   for (const draft of drafts) {
     if (!draft.current) continue
-    items.push({ id: `doc-${draft.kind}`, at: draft.updatedAt, icon: FileTextIcon, tone: "muted", title: draft.kind === "cv" ? "CV last edited" : "Cover letter last edited" })
+    items.push({ id: `doc-${draft.kind}`, at: draft.updatedAt, icon: FileTextIcon, tone: "muted", title: draft.kind === "cv" ? t("cvEdited") : t("letterEdited") })
   }
   return items.sort((a, b) => b.at.getTime() - a.at.getTime())
 }
 
-const dayLabel = (date: Date) => {
+const dayLabel = (date: Date, locale: string, t: Words["t"]) => {
   const today = new Date()
   const yesterday = new Date(today)
   yesterday.setDate(today.getDate() - 1)
-  if (date.toDateString() === today.toDateString()) return "Today"
-  if (date.toDateString() === yesterday.toDateString()) return "Yesterday"
-  return date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", ...(date.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }) })
+  if (date.toDateString() === today.toDateString()) return t("today")
+  if (date.toDateString() === yesterday.toDateString()) return t("yesterday")
+  return date.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", ...(date.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }) })
 }
-const time = (date: Date) => date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+const time = (date: Date, locale: string) => date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
 
 function Feed({ items }: { items: Item[] }) {
+  const t = useTranslations("application.journey")
+  const locale = useLocale()
   // Grouped by day, so a busy day reads as one block.
   const days: { label: string; items: Item[] }[] = []
   for (const item of items) {
-    const label = dayLabel(item.at)
+    const label = dayLabel(item.at, locale, t)
     if (days.at(-1)?.label === label) days.at(-1)!.items.push(item)
     else days.push({ label, items: [item] })
   }
@@ -74,7 +78,7 @@ function Feed({ items }: { items: Item[] }) {
                   <span className="truncate text-sm leading-5">{item.title}</span>
                   {item.detail ? <span className="truncate text-xs leading-4 text-muted-foreground" title={item.detail}>{item.detail}</span> : null}
                 </span>
-                <time className="text-xs leading-5 text-muted-foreground tabular-nums" dateTime={item.at.toISOString()} title={item.at.toLocaleString()}>{time(item.at)}</time>
+                <time className="text-xs leading-5 text-muted-foreground tabular-nums" dateTime={item.at.toISOString()} title={item.at.toLocaleString(locale)}>{time(item.at, locale)}</time>
               </li>
             ))}
           </ul>
@@ -86,18 +90,20 @@ function Feed({ items }: { items: Item[] }) {
 
 /** The application's activity log: what happened and when, newest first. */
 export function ApplicationJourney({ createdAt, events, mail = [], drafts = [], className }: { createdAt: Date; events: Event[]; mail?: Mail[]; drafts?: Draft[]; className?: string }) {
-  const all = collect(createdAt, events, mail, drafts)
+  const t = useTranslations("application.journey")
+  const tl = useTranslations("labels")
+  const all = collect(createdAt, events, mail, drafts, { t, tl })
   const older = all.slice(SHOWN)
   return (
     <section className={cn("grid gap-3 rounded-xl border p-4", className)} aria-labelledby="activity-title">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="activity-title" className="text-sm font-semibold">Activity</h2>
-        <span className="text-xs text-muted-foreground">{all.length} {all.length === 1 ? "event" : "events"}</span>
+        <h2 id="activity-title" className="text-sm font-semibold">{t("title")}</h2>
+        <span className="text-xs text-muted-foreground">{t("events", { count: all.length })}</span>
       </div>
       <Feed items={all.slice(0, SHOWN)} />
       {older.length ? (
         <details className="group grid gap-3">
-          <summary className="w-fit cursor-pointer rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Show {older.length} older</summary>
+          <summary className="w-fit cursor-pointer rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">{t("older", { count: older.length })}</summary>
           <div className="mt-3"><Feed items={older} /></div>
         </details>
       ) : null}

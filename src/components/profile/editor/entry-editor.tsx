@@ -32,20 +32,20 @@ import {
   XIcon,
 } from "lucide-react"
 import { toast } from "sonner"
-import { deleteEntryAction, saveEntryAction } from "@/app/(app)/profile/actions"
+import { deleteEntryAction, saveEntryAction } from "@/app/[locale]/(app)/profile/actions"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { LogoField } from "@/components/profile/editor/logo-field"
 import { BulletSuggestions } from "@/components/profile/editor/bullet-suggestions"
 import { EntryAssist } from "@/components/profile/editor/entry-assist"
 import { FactPicker, GrowText, LineList, QUIET } from "@/components/profile/editor/inputs"
 import { AskExtrasButton, GuardrailFields, SkillFields, useExtras } from "@/components/profile/editor/entry-extras"
-import { LanguageSwitch, LANGUAGE_NAMES } from "@/components/profile/language-switch"
+import { LanguageSwitch } from "@/components/profile/language-switch"
 import ParticleButton from "@/components/kokonutui/particle-button"
 import { Otter } from "@/components/naruvi/otter"
 import { DateRangeField } from "@/components/profile/editor/date-range-field"
 import { Segmented } from "@/components/ui/segmented"
 import { type Draft, type DraftBullet, type Lang, LANGS, newKey, pairRows, toDraft, toInput } from "@/components/profile/editor/draft"
-import { KIND_SINGULAR, STATUS_LABELS } from "@/components/profile/labels"
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,6 +66,8 @@ import { cn } from "@/lib/utils"
 import { verifySupport } from "@/server/domain/grounding"
 import type { ProfileEntry } from "@/server/profile/repository"
 import { entryKinds, entryStatuses } from "@/server/profile/schemas"
+import { useLocale, useTranslations } from "next-intl"
+import { languageName } from "@/i18n/config"
 
 const KIND_ICONS = {
   experience: BriefcaseBusinessIcon,
@@ -78,32 +80,19 @@ const KIND_ICONS = {
   other: ShapesIcon,
 } as const
 
-const FIELD_COPY: Record<Draft["kind"], { role: string; organization: string; rolePlaceholder: string; orgPlaceholder: string }> = {
-  experience: { role: "Role", organization: "Company", rolePlaceholder: "Store Manager", orgPlaceholder: "Company name" },
-  project: { role: "Project name", organization: "Context", rolePlaceholder: "Community garden app", orgPlaceholder: "Personal project" },
-  education: { role: "Degree", organization: "School", rolePlaceholder: "BSc Nursing", orgPlaceholder: "University name" },
-  certification: { role: "Certification", organization: "Issuer", rolePlaceholder: "KCNA", orgPlaceholder: "Linux Foundation" },
-  skill: { role: "Cluster label", organization: "Context", rolePlaceholder: "Customer service", orgPlaceholder: "" },
-  language: { role: "Label", organization: "Context", rolePlaceholder: "Languages", orgPlaceholder: "" },
-  achievement: { role: "Title", organization: "Event / issuer", rolePlaceholder: "1st place", orgPlaceholder: "WOCS'hAck 2026" },
-  other: { role: "Title", organization: "Organization", rolePlaceholder: "", orgPlaceholder: "" },
-}
 
 const LOGO_KINDS = new Set<Draft["kind"]>(["experience", "education", "project", "certification", "achievement"])
 
-const SECTIONS = [
-  { id: "basics", label: "Basics" },
-  { id: "display", label: "How it appears" },
-  { id: "facts", label: "What you did" },
-  { id: "bullets", label: "CV lines" },
-  { id: "skills", label: "Skills & keywords" },
-  { id: "guardrails", label: "Never say" },
-] as const
+const SECTIONS = ["basics", "display", "facts", "bullets", "skills", "guardrails"] as const
 
 export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null; initialKind?: Draft["kind"] }) {
+  const t = useTranslations("entryEditor")
+  const tp = useTranslations("profileLabels")
+  const locale = useLocale()
   const router = useRouter()
   const [initial] = useState(() => ({ ...toDraft(entry), ...(entry || !initialKind ? {} : { kind: initialKind }) }))
   const [draft, setDraft] = useState<Draft>(initial)
+  const copy = { role: t(`fields.${draft.kind}.role`), organization: t(`fields.${draft.kind}.organization`), rolePlaceholder: t(`fields.${draft.kind}.rolePlaceholder`), orgPlaceholder: t(`fields.${draft.kind}.orgPlaceholder`) }
   const [lang, setLang] = useState<Lang>("en")
   const [hoverFact, setHoverFact] = useState<string | null>(null)
   const [confirmLeave, setConfirmLeave] = useState<string | null>(null)
@@ -123,7 +112,6 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   }, [saveStatus])
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(initial), [draft, initial])
   const patch = useCallback((value: Partial<Draft>) => setDraft((current) => ({ ...current, ...value })), [])
-  const copy = FIELD_COPY[draft.kind]
 
   /* ---------- derived: grounding + readiness ---------- */
   const facts = draft.facts.filter((fact) => fact.statement.trim())
@@ -145,12 +133,12 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   const claimBullets = draft.bullets.filter((bullet) => bullet.role === "bullet" && bullet.text.trim())
   const ungrounded = claimBullets.filter((bullet) => !grounding[bullet.key]?.grounded)
   const readiness = [
-    { label: "Named", done: Boolean(draft.display.en.role || draft.display.fr.role || draft.title.trim()), section: "basics" },
-    { label: "English title & dates", done: Boolean(draft.display.en.role), section: "display" },
-    { label: "French title & dates", done: Boolean(draft.display.fr.role), section: "display" },
-    { label: draft.kind === "skill" ? "Skills listed" : "At least one fact", done: draft.kind === "skill" ? draft.skills.length > 0 : facts.length > 0, section: draft.kind === "skill" ? "skills" : "facts" },
-    { label: ungrounded.length ? `${ungrounded.length} CV line${ungrounded.length === 1 ? "" : "s"} without a fact` : "Every CV line has a fact", done: ungrounded.length === 0, section: "bullets" },
-    { label: "Checked by you", done: draft.status === "verified", section: "basics" },
+    { label: t("ready.named"), done: Boolean(draft.display.en.role || draft.display.fr.role || draft.title.trim()), section: "basics" },
+    { label: t("ready.titleIn", { language: languageName("en", locale) }), done: Boolean(draft.display.en.role), section: "display" },
+    { label: t("ready.titleIn", { language: languageName("fr", locale) }), done: Boolean(draft.display.fr.role), section: "display" },
+    { label: draft.kind === "skill" ? t("ready.skills") : t("ready.fact"), done: draft.kind === "skill" ? draft.skills.length > 0 : facts.length > 0, section: draft.kind === "skill" ? "skills" : "facts" },
+    { label: ungrounded.length ? t("ready.ungrounded", { count: ungrounded.length }) : t("ready.allBacked"), done: ungrounded.length === 0, section: "bullets" },
+    { label: t("ready.checked"), done: draft.status === "verified", section: "basics" },
   ]
 
   /* ---------- save / delete / leave ---------- */
@@ -158,15 +146,15 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
     (then?: string) =>
       startTransition(async () => {
         const result = await saveEntryAction(toInput(draft), entry?.id)
-        if (!result.ok) return void toast.error("Could not save", { description: result.error })
-        toast.success(entry ? "Saved" : "Entry created", {
-          description: ungrounded.length ? `${ungrounded.length} CV line(s) still need a fact behind them.` : "Every CV line is backed by a fact.",
+        if (!result.ok) return void toast.error(t("saveFailed"), { description: result.error })
+        toast.success(entry ? t("saved") : t("created"), {
+          description: ungrounded.length ? t("stillNeed", { count: ungrounded.length }) : t("allBackedToast"),
         })
         if (then) router.push(then)
         else if (!entry && result.data) router.replace(`/profile/${result.data}`)
         else router.refresh()
       }),
-    [draft, entry, router, ungrounded.length],
+    [draft, entry, router, ungrounded.length, t],
   )
 
   useEffect(() => {
@@ -192,8 +180,8 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
     startTransition(async () => {
       if (!entry) return
       const result = await deleteEntryAction(entry.id)
-      if (!result.ok) return void toast.error("Could not delete", { description: result.error })
-      toast.success("Entry deleted")
+      if (!result.ok) return void toast.error(t("deleteFailed"), { description: result.error })
+      toast.success(t("deleted"))
       router.push("/profile")
     })
   const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -213,24 +201,24 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   const [focusBullet, setFocusBullet] = useState<string | null>(null)
   const bulletFromFact = (factKey: string, text: string) => {
     patch({ bullets: [...draft.bullets, { key: newKey(), group: groups[0] ?? "General", role: "bullet", language: lang, text: text.trim(), factKeys: [factKey] }] })
-    toast.success("Added as a CV line", { description: "Polish the wording there. It stays linked to this fact.", action: { label: "Show", onClick: () => jump("bullets") } })
+    toast.success(t("addedLine"), { description: t("addedLineBody"), action: { label: t("show"), onClick: () => jump("bullets") } })
   }
   const extras = useExtras(draft)
 
-  const title = draft.display.en.role || draft.display.fr.role || draft.title || "New entry"
+  const title = draft.display.en.role || draft.display.fr.role || draft.title || t("newEntry")
 
   return (
     <div className="-mx-4 -mt-4 md:-mx-6 md:-mt-6">
       {/* sticky action bar */}
       <div className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background/85 px-4 py-2.5 backdrop-blur md:px-6">
-        <Button variant="ghost" size="icon-sm" onClick={() => leave("/profile")} aria-label="Back to profile" title="Back to profile">
+        <Button variant="ghost" size="icon-sm" onClick={() => leave("/profile")} aria-label={t("back")} title={t("back")}>
           <ArrowLeftIcon />
         </Button>
         {LOGO_KINDS.has(draft.kind) ? <EntryLogo path={draft.logoPath} name={draft.display.en.organization || title} size={36} className="rounded-lg" /> : null}
         <div className="min-w-48 flex-1 basis-64">
           <div className="truncate font-semibold" title={title}>{title}</div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>{KIND_SINGULAR[draft.kind]}</span>
+            <span>{tp(`kindSingular.${draft.kind}`)}</span>
             <span aria-hidden>·</span>
             <AnimatePresence mode="wait" initial={false}>
               <motion.span
@@ -242,24 +230,24 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                 className={cn("inline-flex items-center gap-1", dirty && "text-amber-600 dark:text-amber-400")}
               >
                 {dirty ? <span className="size-1.5 rounded-full bg-amber-500" aria-hidden /> : entry ? <CheckIcon className="size-3 text-emerald-600" aria-hidden /> : null}
-                {dirty ? "Unsaved changes" : entry ? "All changes saved" : "Not saved yet"}
+                {dirty ? t("unsaved") : entry ? t("allSaved") : t("notSaved")}
               </motion.span>
             </AnimatePresence>
           </div>
         </div>
         <div className="ms-auto flex flex-wrap items-center gap-2">
-          <LanguageSwitch value={lang} onChange={setLang} languages={LANGS} filled={(code) => Boolean(draft.display[code].role.trim())} label="Language you're writing in" />
+          <LanguageSwitch value={lang} onChange={setLang} languages={LANGS} filled={(code) => Boolean(draft.display[code].role.trim())} label={t("writingIn")} />
           <span className="hidden h-5 w-px bg-border sm:block" aria-hidden />
           <Segmented
             value={draft.status}
             onChange={(status) => patch({ status })}
-            label="Status"
+            label={t("status")}
             options={entryStatuses.map((status) => ({
               value: status,
               label: (
                 <>
                   {status === "verified" ? <ShieldCheckIcon /> : status === "needs_review" ? <CircleDashedIcon /> : <ArchiveIcon />}
-                  {STATUS_LABELS[status]}
+                  {tp(`status.${status}`)}
                 </>
               ),
               ...(status === "verified"
@@ -271,12 +259,12 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
           />
           {entry ? (
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="More actions" />}>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={t("more")} />}>
                 <MoreHorizontalIcon />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
-                  <TrashIcon /> Delete entry
+                  <TrashIcon /> {t("delete")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -286,11 +274,11 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             status={saveStatus}
             onClick={() => save()}
             disabled={!pending && !dirty && Boolean(entry)}
-            pendingLabel="Saving"
-            successLabel="Saved"
+            pendingLabel={t("saving")}
+            successLabel={t("saved")}
             className="min-w-20"
           >
-            {entry ? "Save" : "Create entry"}
+            {entry ? t("save") : t("create")}
             <kbd className="ms-1 hidden rounded bg-primary-foreground/15 px-1 font-mono text-[10px] sm:inline">⌘S</kbd>
           </ParticleButton>
         </div>
@@ -300,25 +288,25 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
         <div className="grid min-w-0 gap-6">
           {/* 1. basics */}
           <EntryAssist draft={draft} patch={patch} />
-          <Section id="basics" n={1} title="What is it?" description="The fields below adapt to the type.">
-            <ToggleGroup value={[draft.kind]} onValueChange={(value) => value[0] && patch({ kind: value[0] as Draft["kind"] })} variant="outline" className="flex w-full flex-wrap justify-start" spacing={2} aria-label="Entry type">
+          <Section id="basics" n={1} title={t("basics.title")} description={t("basics.description")}>
+            <ToggleGroup value={[draft.kind]} onValueChange={(value) => value[0] && patch({ kind: value[0] as Draft["kind"] })} variant="outline" className="flex w-full flex-wrap justify-start" spacing={2} aria-label={t("basics.type")}>
               {entryKinds.map((kind) => {
                 const Icon = KIND_ICONS[kind]
                 return (
                   <ToggleGroupItem key={kind} value={kind} className="gap-1.5 aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background">
-                    <Icon /> {KIND_SINGULAR[kind]}
+                    <Icon /> {tp(`kindSingular.${kind}`)}
                   </ToggleGroupItem>
                 )
               })}
             </ToggleGroup>
             <div className="grid gap-2">
-              <Label htmlFor="title">Internal name</Label>
-              <Input id="title" value={draft.title} onChange={(event) => patch({ title: event.target.value })} placeholder={copy.orgPlaceholder || "How you'll recognise it in lists"} />
-              <p className="text-xs text-muted-foreground">Only for you. Recruiters see the display fields below.</p>
+              <Label htmlFor="title">{t("basics.internalName")}</Label>
+              <Input id="title" value={draft.title} onChange={(event) => patch({ title: event.target.value })} placeholder={copy.orgPlaceholder || t("basics.internalPlaceholder")} />
+              <p className="text-xs text-muted-foreground">{t("basics.internalHint")}</p>
             </div>
             {LOGO_KINDS.has(draft.kind) ? (
               <div className="grid gap-2">
-                <span className="text-sm font-medium">{draft.kind === "education" ? "School logo" : draft.kind === "certification" ? "Issuer logo" : draft.kind === "project" ? "Project logo" : "Company logo"}</span>
+                <span className="text-sm font-medium">{t(`basics.logo.${draft.kind === "education" ? "education" : draft.kind === "certification" ? "certification" : draft.kind === "project" ? "project" : "company"}`)}</span>
                 <LogoField value={draft.logoPath} name={draft.display.en.organization || draft.title || title} onChange={(logoPath) => patch({ logoPath })} />
               </div>
             ) : null}
@@ -328,15 +316,15 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
           <Section
             id="display"
             n={2}
-            title="How it appears on a CV"
-            description={`Title, place and dates in ${LANGUAGE_NAMES[lang]}. Switch language at the top.`}
+            title={t("display.title")}
+            description={t("display.description", { language: languageName(lang, locale) })}
           >
             <div key={lang} className="cb-fade grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <Field id={`${lang}-role`} label={copy.role} value={draft.display[lang].role} placeholder={copy.rolePlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], role: value } } })} />
               </div>
               <Field id={`${lang}-org`} label={copy.organization} value={draft.display[lang].organization} placeholder={copy.orgPlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], organization: value } } })} />
-              <Field id={`${lang}-location`} label="Location" value={draft.display[lang].location} placeholder={lang === "en" ? "Paris, France" : "Paris, France"} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], location: value } } })} />
+              <Field id={`${lang}-location`} label={t("display.location")} value={draft.display[lang].location} placeholder="Paris, France" onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], location: value } } })} />
               <div className="sm:col-span-2">
                 <DateRangeField
                   key={lang}
@@ -351,7 +339,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
               const other = LANGS.find((code) => code !== lang)!
               return !draft.display[lang].role && draft.display[other].role ? (
                 <Button variant="outline" size="sm" className="w-fit" onClick={() => patch({ display: { ...draft.display, [lang]: { ...draft.display[other] } } })}>
-                  <CopyIcon /> Start from the {LANGUAGE_NAMES[other]} fields
+                  <CopyIcon /> {t("display.startFrom", { language: languageName(other, locale) })}
                 </Button>
               ) : null
             })()}
@@ -361,10 +349,10 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
           <Section
             id="facts"
             n={3}
-            title="What you did"
-            description="One claim per line, in plain words. CVs and letters can only say what is written here."
+            title={t("facts.title")}
+            description={t("facts.description")}
             done={facts.length > 0}
-            meta={facts.length ? <Meta value={`${facts.length - unusedFacts.length}/${facts.length}`} label="on CV lines" /> : null}
+            meta={facts.length ? <Meta value={`${facts.length - unusedFacts.length}/${facts.length}`} label={t("facts.onLines")} /> : null}
           >
             <LineList
               numbered
@@ -376,28 +364,28 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                   bullets: draft.bullets.map((bullet) => ({ ...bullet, factKeys: bullet.factKeys.filter((key) => keys.has(key)) })),
                 })
               }}
-              placeholder="e.g. Cut average response time from 2 days to 4 hours."
-              addLabel="Add fact"
+              placeholder={t("facts.placeholder")}
+              addLabel={t("facts.add")}
               onHover={setHoverFact}
               empty={
                 <EmptyState
-                  title="What did you actually do?"
-                  body="Start with what you’re proudest of: one claim per line, with numbers when you have them. Or use “Tell Naruvi” above and write it freely."
+                  title={t("facts.emptyTitle")}
+                  body={t("facts.emptyBody")}
                   action={
                     <Button size="sm" onClick={() => (patch({ facts: [{ key: newKey(), statement: "" }] }), requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("#facts textarea")?.focus()))}>
-                      <PlusIcon /> Add your first fact
+                      <PlusIcon /> {t("facts.first")}
                     </Button>
                   }
                 />
               }
               renderAside={(item) =>
                 !item.text.trim() ? null : usage[item.key] ? (
-                  <span title={`Backs ${usage[item.key]} CV line${usage[item.key] === 1 ? "" : "s"}`} className="inline-flex h-6 items-center gap-1 rounded-full bg-emerald-500/10 px-2 text-[11px] font-medium text-emerald-700 tabular-nums dark:text-emerald-400">
-                    <CheckIcon className="size-3" /> {usage[item.key]} line{usage[item.key] === 1 ? "" : "s"}
+                  <span title={t("facts.backs", { count: usage[item.key] })} className="inline-flex h-6 items-center gap-1 rounded-full bg-emerald-500/10 px-2 text-[11px] font-medium text-emerald-700 tabular-nums dark:text-emerald-400">
+                    <CheckIcon className="size-3" /> {t("facts.lines", { count: usage[item.key] })}
                   </span>
                 ) : (
-                  <Button size="xs" variant="ghost" className="text-muted-foreground" title="Add this fact as a CV line, linked to it" onClick={() => bulletFromFact(item.key, item.text)}>
-                    <CornerDownRightIcon /> CV line
+                  <Button size="xs" variant="ghost" className="text-muted-foreground" title={t("facts.asLineHint")} onClick={() => bulletFromFact(item.key, item.text)}>
+                    <CornerDownRightIcon /> {t("facts.asLine")}
                   </Button>
                 )
               }
@@ -405,7 +393,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                 <Presence show={focused && item.text.trim().length > 12 && (!/\d/.test(item.text) || item.text.length > 220)}>
                   <p className="flex items-center gap-1.5 px-3 pt-0.5 pb-1.5 text-xs text-muted-foreground">
                     <LightbulbIcon className="size-3.5 shrink-0 text-amber-500" />
-                    {item.text.length > 220 ? "Long fact. Splitting it into one claim per line makes it easier to cite." : "A number makes it stronger: how many, how much, how fast, for whom."}
+                    {item.text.length > 220 ? t("facts.long") : t("facts.number")}
                   </p>
                 </Presence>
               )}
@@ -416,14 +404,14 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
           <Section
             id="bullets"
             n={4}
-            title="CV lines"
-            description={`The polished sentences a CV may use, shown in ${LANGUAGE_NAMES[lang]}. Each one points to the facts behind it.`}
+            title={t("bullets.title")}
+            description={t("bullets.description", { language: languageName(lang, locale) })}
             done={claimBullets.length > 0 && ungrounded.length === 0}
-            meta={claimBullets.length ? <Meta value={`${claimBullets.length - ungrounded.length}/${claimBullets.length}`} label="backed" warn={ungrounded.length > 0} /> : null}
+            meta={claimBullets.length ? <Meta value={`${claimBullets.length - ungrounded.length}/${claimBullets.length}`} label={t("bullets.backed")} warn={ungrounded.length > 0} /> : null}
             action={
               groups.length ? (
                 <Button variant="ghost" size="sm" onClick={addGroup}>
-                  <PlusIcon /> Group
+                  <PlusIcon /> {t("bullets.group")}
                 </Button>
               ) : null
             }
@@ -445,11 +433,11 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             />
             {groups.length === 0 ? (
               <EmptyState
-                title="No CV lines yet"
-                body="Draft them from your facts above, or write your own. Group them by theme (e.g. “Cloud”, “Monitoring”) so a CV can pick the ones that match a job."
+                title={t("bullets.emptyTitle")}
+                body={t("bullets.emptyBody")}
                 action={
                   <Button size="sm" variant="outline" onClick={addGroup}>
-                    <PlusIcon /> Write one myself
+                    <PlusIcon /> {t("bullets.writeOne")}
                   </Button>
                 }
               />
@@ -470,10 +458,10 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                         onBlur={(event) => event.target.value.trim() && event.target.value !== group && renameGroup(group, event.target.value.trim())}
                         onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
                         className="h-8 max-w-64 border-transparent bg-transparent px-2 font-medium shadow-none hover:border-input focus-visible:border-ring dark:bg-transparent"
-                        aria-label="Group name"
+                        aria-label={t("bullets.groupName")}
                       />
                       <span className="ms-auto text-xs text-muted-foreground tabular-nums">
-                        {rows.length} line{rows.length === 1 ? "" : "s"} · {LANGUAGE_NAMES[lang]}
+                        {t("bullets.count", { count: rows.length })} · {languageName(lang, locale)}
                       </span>
                     </div>
                     <div key={lang} className="cb-fade grid gap-1">
@@ -498,9 +486,9 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                                 <button
                                   type="button"
                                   onClick={() => patch({ bullets: [...draft.bullets, { key: newKey(), group, role: sibling?.role ?? "bullet", language: lang, text: "", factKeys: sibling?.factKeys ?? [] }] })}
-                                  className="grid w-full gap-1 rounded-lg border border-dashed p-3 text-left text-xs text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+                                  className="grid w-full gap-1 rounded-lg border border-dashed p-3 text-start text-xs text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
                                 >
-                                  <span className="flex items-center gap-1.5 font-medium"><PlusIcon className="size-3.5" /> Add the {LANGUAGE_NAMES[lang]} version</span>
+                                  <span className="flex items-center gap-1.5 font-medium"><PlusIcon className="size-3.5" /> {t("bullets.addVersion", { language: languageName(lang, locale) })}</span>
                                   {sibling?.text ? <span className="line-clamp-2">{sibling.text}</span> : null}
                                 </button>
                               )}
@@ -511,11 +499,11 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                     </div>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={addRow}>
-                        <PlusIcon /> Add line
+                        <PlusIcon /> {t("bullets.addLine")}
                       </Button>
                       {rows.length === 0 ? (
                         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => addBullet(group, "en")}>
-                          <PlusIcon /> English only
+                          <PlusIcon /> {t("bullets.only", { language: languageName("en", locale) })}
                         </Button>
                       ) : null}
                     </div>
@@ -529,8 +517,8 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
           <Section
             id="skills"
             n={5}
-            title="Skills & keywords"
-            description="Helps match this entry to the right jobs."
+            title={t("skills.title")}
+            description={t("skills.description")}
             done={draft.skills.length > 0}
             action={<AskExtrasButton extras={extras} />}
           >
@@ -538,7 +526,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
           </Section>
 
           {/* 6. guardrails */}
-          <Section id="guardrails" n={6} title="Never say" description="Limits for CVs and letters about this entry." done={draft.doNotClaim.some((rule) => rule.trim()) || draft.confidential}>
+          <Section id="guardrails" n={6} title={t("guardrails.title")} description={t("guardrails.description")} done={draft.doNotClaim.some((rule) => rule.trim()) || draft.confidential}>
             <GuardrailFields draft={draft} patch={patch} extras={extras} />
           </Section>
         </div>
@@ -547,22 +535,22 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
         <aside className="grid content-start gap-4 xl:sticky xl:top-20 xl:max-h-[calc(100svh-6rem)] xl:overflow-y-auto xl:[scrollbar-width:none]">
           <Readiness items={readiness} onJump={jump} />
           <PreviewCard draft={draft} lang={lang} onLang={setLang} grounding={grounding} />
-          <SectionIndex sections={SECTIONS} incomplete={new Set(readiness.filter((item) => !item.done).map((item) => item.section))} onJump={jump} />
+          <SectionIndex sections={SECTIONS.map((id) => ({ id, label: t(`sections.${id}`) }))} incomplete={new Set(readiness.filter((item) => !item.done).map((item) => item.section))} onJump={jump} />
         </aside>
       </div>
 
       <AlertDialog open={confirmLeave !== null} onOpenChange={(open) => !open && setConfirmLeave(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Leave with unsaved changes?</AlertDialogTitle>
-            <AlertDialogDescription>Your edits to this entry will be lost.</AlertDialogDescription>
+            <AlertDialogTitle>{t("leave.title")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("leave.body")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogCancel>{t("leave.keep")}</AlertDialogCancel>
             <Button variant="outline" onClick={() => confirmLeave && router.push(confirmLeave)}>
-              Discard
+              {t("leave.discard")}
             </Button>
-            <AlertDialogAction onClick={() => confirmLeave && save(confirmLeave)}>Save and leave</AlertDialogAction>
+            <AlertDialogAction onClick={() => confirmLeave && save(confirmLeave)}>{t("leave.save")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -570,15 +558,15 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{title}”?</AlertDialogTitle>
-            <AlertDialogDescription>Its facts and bullets are removed too. Archiving keeps them but excludes the entry from generation.</AlertDialogDescription>
+            <AlertDialogTitle>{t("deleteDialog.title", { title })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deleteDialog.body")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("deleteDialog.cancel")}</AlertDialogCancel>
             <Button variant="outline" onClick={() => (setConfirmDelete(false), patch({ status: "archived" }))}>
-              Archive instead
+              {t("deleteDialog.archive")}
             </Button>
-            <UndoButton label="Delete" doneLabel="Deleted" icon={TrashIcon} className="h-8 text-destructive" resetAfter={null} disabled={pending} onCommit={remove} />
+            <UndoButton label={t("deleteDialog.delete")} doneLabel={t("deleted")} icon={TrashIcon} className="h-8 text-destructive" resetAfter={null} disabled={pending} onCommit={remove} />
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -674,6 +662,7 @@ function BulletCard({
   onChange: (value: Partial<DraftBullet>) => void
   onRemove: () => void
 }) {
+  const t = useTranslations("entryEditor")
   const linked = facts.map((fact, index) => ({ ...fact, n: index + 1 })).filter((fact) => bullet.factKeys.includes(fact.key))
   const isLabel = bullet.role === "label"
   const empty = !bullet.text.trim()
@@ -688,7 +677,7 @@ function BulletCard({
       )}
     >
       <div className="flex items-start gap-1">
-        <span className="grid h-9 w-6 shrink-0 place-content-center" title={isLabel ? "Label: a heading, not a claim" : empty ? "Empty" : check?.grounded ? "Backed by its facts" : "Not backed by a fact yet"}>
+        <span className="grid h-9 w-6 shrink-0 place-content-center" title={isLabel ? t("bullet.label") : empty ? t("bullet.empty") : check?.grounded ? t("bullet.backed") : t("bullet.notBacked")}>
           {isLabel ? (
             <span className="text-[10px] font-semibold text-muted-foreground">H</span>
           ) : empty ? (
@@ -712,10 +701,10 @@ function BulletCard({
               onRemove()
             }
           }}
-          placeholder={isLabel ? "Section label" : "A polished CV line, e.g. Cut response time from 2 days to 4 hours by…"}
+          placeholder={isLabel ? t("bullet.sectionLabel") : t("bullet.placeholder")}
           className={cn(QUIET, "px-2")}
         />
-        <Button size="icon-sm" variant="ghost" className="mt-1 text-muted-foreground opacity-0 transition-opacity group-hover/bullet:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" aria-label="Remove line" onClick={onRemove}>
+        <Button size="icon-sm" variant="ghost" className="mt-1 text-muted-foreground opacity-0 transition-opacity group-hover/bullet:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" aria-label={t("bullet.remove")} onClick={onRemove}>
           <XIcon />
         </Button>
       </div>
@@ -735,7 +724,7 @@ function BulletCard({
               >
                 <span className="grid h-4 min-w-4 place-content-center rounded bg-background px-1 text-[10px] font-semibold text-foreground tabular-nums">{fact.n}</span>
                 <span className="max-w-56 truncate">{fact.statement}</span>
-                <button type="button" aria-label={`Unlink fact ${fact.n}`} className="grid size-5 place-content-center rounded-sm hover:bg-foreground/10 hover:text-foreground" onClick={() => onChange({ factKeys: bullet.factKeys.filter((key) => key !== fact.key) })}>
+                <button type="button" aria-label={t("bullet.unlink", { n: fact.n })} className="grid size-5 place-content-center rounded-sm hover:bg-foreground/10 hover:text-foreground" onClick={() => onChange({ factKeys: bullet.factKeys.filter((key) => key !== fact.key) })}>
                   <XIcon className="size-3" />
                 </button>
               </motion.span>
@@ -744,7 +733,7 @@ function BulletCard({
           <FactPicker facts={facts} selected={bullet.factKeys} onChange={(factKeys) => onChange({ factKeys })} />
           {warn ? (
             <span className="cb-fade inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
-              {check?.unsupportedNumbers.length ? `No fact states ${check.unsupportedNumbers.join(", ")}` : "Link the fact that proves this"}
+              {check?.unsupportedNumbers.length ? t("bullet.noFactStates", { numbers: check.unsupportedNumbers.join(", ") }) : t("bullet.link")}
             </span>
           ) : long ? (
             <span className="cb-fade text-xs text-muted-foreground">Long for a CV line ({bullet.text.length} characters)</span>
@@ -756,10 +745,12 @@ function BulletCard({
 }
 
 function Preview({ draft, lang, grounding }: { draft: Draft; lang: Lang; grounding: Record<string, ReturnType<typeof verifySupport>> }) {
+  const locale = useLocale()
+  const t = useTranslations("entryEditor")
   const display = draft.display[lang]
   const bullets = draft.bullets.filter((bullet) => bullet.language === lang && bullet.role === "bullet" && bullet.text.trim())
   if (!display.role && !bullets.length) {
-    return <p className="text-xs text-muted-foreground">Fill in the {lang === "en" ? "English" : "French"} display fields to see this entry as it will appear on a CV.</p>
+    return <p className="text-xs text-muted-foreground">{t("preview.fill", { language: languageName(lang, locale) })}</p>
   }
   return (
     <div className="grid gap-2 rounded-md border bg-white p-3 text-[12.5px] leading-snug text-zinc-900 shadow-sm dark:bg-zinc-50">
@@ -779,7 +770,7 @@ function Preview({ draft, lang, grounding }: { draft: Draft; lang: Lang; groundi
         </div>
       </div>
       {bullets.length ? (
-        <ul className="grid list-disc gap-1 pl-4">
+        <ul className="grid list-disc gap-1 ps-4">
           {bullets.map((bullet) => (
             <li key={bullet.key} className={cn(!grounding[bullet.key]?.grounded && "decoration-amber-500 decoration-wavy underline-offset-2 [text-decoration-line:underline]")}>
               {bullet.text.replace(/\*\*(.+?)\*\*/g, "$1")}
@@ -787,7 +778,7 @@ function Preview({ draft, lang, grounding }: { draft: Draft; lang: Lang; groundi
           ))}
         </ul>
       ) : null}
-      {bullets.some((bullet) => !grounding[bullet.key]?.grounded) ? <p className="text-[10.5px] text-amber-700">Wavy underline: not backed by a fact yet; generation will skip it.</p> : null}
+      {bullets.some((bullet) => !grounding[bullet.key]?.grounded) ? <p className="text-[10.5px] text-amber-700">{t("preview.wavy")}</p> : null}
     </div>
   )
 }
@@ -823,6 +814,7 @@ function ProgressRing({ value, total }: { value: number; total: number }) {
 
 /** All good: one calm line. Something missing: the missing steps first, each a shortcut to its section. */
 function Readiness({ items, onJump }: { items: Check[]; onJump: (id: string) => void }) {
+  const t = useTranslations("entryEditor")
   const done = items.filter((item) => item.done).length
   const complete = done === items.length
   const [open, setOpen] = useState(!complete)
@@ -833,8 +825,8 @@ function Readiness({ items, onJump }: { items: Check[]; onJump: (id: string) => 
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-1 text-start">
         {complete ? <Otter pose="all-checked" height={44} className="-my-1" /> : <ProgressRing value={done} total={items.length} />}
         <span className="grid min-w-0 flex-1 gap-0.5">
-          <span className="text-sm font-medium">{complete ? "Ready for CVs" : `${items.length - done} step${items.length - done === 1 ? "" : "s"} before CVs can use it`}</span>
-          <span className="text-xs text-muted-foreground">{complete ? `All ${items.length} checks pass` : "CVs and letters skip it until then"}</span>
+          <span className="text-sm font-medium">{complete ? t("readiness.ready") : t("readiness.steps", { count: items.length - done })}</span>
+          <span className="text-xs text-muted-foreground">{complete ? t("readiness.allPass", { count: items.length }) : t("readiness.skip")}</span>
         </span>
         <ChevronDownIcon className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-200", open && "rotate-180")} />
       </button>
@@ -847,7 +839,7 @@ function Readiness({ items, onJump }: { items: Check[]; onJump: (id: string) => 
                   <button type="button" onClick={() => onJump(item.section)} className={cn("group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-muted", !item.done && "bg-amber-50/70 dark:bg-amber-950/20")}>
                     {item.done ? <CheckCircle2Icon className="size-4 shrink-0 text-emerald-500" /> : item.section === "bullets" ? <AlertTriangleIcon className="size-4 shrink-0 text-amber-500" /> : <CircleDashedIcon className="size-4 shrink-0 text-amber-500" />}
                     <span className={cn("min-w-0 flex-1", item.done ? "text-muted-foreground" : "font-medium")}>{item.label}</span>
-                    {!item.done ? <span className="text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">Fix</span> : null}
+                    {!item.done ? <span className="text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">{t("readiness.fix")}</span> : null}
                   </button>
                 </li>
               ))}
@@ -860,14 +852,15 @@ function Readiness({ items, onJump }: { items: Check[]; onJump: (id: string) => 
 }
 
 function PreviewCard({ draft, lang, onLang, grounding }: { draft: Draft; lang: Lang; onLang: (lang: Lang) => void; grounding: Record<string, ReturnType<typeof verifySupport>> }) {
+  const t = useTranslations("entryEditor")
   return (
     <Card size="sm" className="gap-3">
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="flex items-center gap-1.5 text-sm">
-          <BookOpenIcon className="size-4" /> On your CV
+          <BookOpenIcon className="size-4" /> {t("preview.title")}
         </CardTitle>
         <LayoutGroup id="preview-lang">
-          <div role="tablist" aria-label="Preview language" className="flex rounded-md bg-muted p-0.5">
+          <div role="tablist" aria-label={t("preview.language")} className="flex rounded-md bg-muted p-0.5">
             {(["en", "fr"] as const).map((code) => (
               <button key={code} role="tab" type="button" aria-selected={lang === code} onClick={() => onLang(code)} className={cn("relative rounded px-2 py-0.5 text-[11px] font-medium uppercase transition-colors", lang === code ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
                 {lang === code ? <motion.span layoutId="preview-lang-pill" className="absolute inset-0 rounded bg-background shadow-xs" transition={{ type: "spring", duration: 0.3, bounce: 0.15 }} /> : null}
@@ -888,6 +881,7 @@ function PreviewCard({ draft, lang, onLang, grounding }: { draft: Draft; lang: L
 
 /** "On this page": follows your scroll, with a dot on sections that still need something. */
 function SectionIndex({ sections, incomplete, onJump }: { sections: readonly { id: string; label: string }[]; incomplete: Set<string>; onJump: (id: string) => void }) {
+  const t = useTranslations("entryEditor")
   const [active, setActive] = useState<string>(sections[0]?.id ?? "")
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -904,8 +898,8 @@ function SectionIndex({ sections, incomplete, onJump }: { sections: readonly { i
     return () => observer.disconnect()
   }, [sections])
   return (
-    <nav className="hidden xl:grid" aria-label="Sections">
-      <p className="mb-1.5 px-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">On this page</p>
+    <nav className="hidden xl:grid" aria-label={t("sectionsLabel")}>
+      <p className="mb-1.5 px-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{t("onThisPage")}</p>
       <LayoutGroup id="entry-sections">
         <ol className="relative grid border-s">
           {sections.map((section, index) => (
@@ -919,7 +913,7 @@ function SectionIndex({ sections, incomplete, onJump }: { sections: readonly { i
               >
                 <span className="w-3 text-muted-foreground tabular-nums">{index + 1}</span>
                 <span className="min-w-0 flex-1 truncate">{section.label}</span>
-                {incomplete.has(section.id) ? <span className="size-1.5 rounded-full bg-amber-500" aria-label="Needs something" /> : null}
+                {incomplete.has(section.id) ? <span className="size-1.5 rounded-full bg-amber-500" aria-label={t("needsSomething")} /> : null}
               </button>
             </li>
           ))}

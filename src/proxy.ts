@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from "next/server"
 import { authOrigin, sameOrigin, cookieName } from "@/server/auth/policy"
 import { validSession } from "@/server/auth/store"
 import { authDestination } from "@/lib/auth-navigation"
+import { LOCALE_COOKIE, pickLocale } from "@/i18n/config"
+
+/**
+ * Pages live under app/[locale]; URLs stay unprefixed. The saved choice (or the
+ * browser's language on a first visit) picks the locale and is remembered, so
+ * Server Actions read the same one from the cookie.
+ */
+function localized(request: NextRequest) {
+  const path = request.nextUrl.pathname
+  if (path.startsWith("/api/") || path.startsWith("/auth/") || path.startsWith("/_next") || path.startsWith("/__nextjs") || /\.[a-z0-9]+$/i.test(path)) return NextResponse.next()
+  const saved = request.cookies.get(LOCALE_COOKIE)?.value
+  const locale = pickLocale(saved, request.headers.get("accept-language"))
+  const url = request.nextUrl.clone()
+  url.pathname = `/${locale}${path === "/" ? "" : path}`
+  const response = NextResponse.rewrite(url)
+  if (saved !== locale) response.cookies.set(LOCALE_COOKIE, locale, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 })
+  return response
+}
 
 function baseHeaders(response: NextResponse, request: NextRequest) {
   response.headers.set("X-Content-Type-Options", "nosniff")
@@ -27,11 +45,11 @@ export async function proxy(request: NextRequest) {
   const session = request.cookies.get(sessionName)?.value || ""
   const authenticated = await validSession(session, path !== "/login")
   if (path === "/login") {
-    return privateResponse(authenticated ? NextResponse.redirect(new URL(authDestination(request.nextUrl.searchParams.get("next")), authOrigin(request))) : NextResponse.next(), request)
+    return privateResponse(authenticated ? NextResponse.redirect(new URL(authDestination(request.nextUrl.searchParams.get("next")), authOrigin(request))) : localized(request), request)
   }
   if (authenticated) {
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !sameOrigin(request)) return privateResponse(new NextResponse("Invalid origin", { status: 403 }), request)
-    return privateResponse(NextResponse.next(), request)
+    return privateResponse(localized(request), request)
   }
   if (path.startsWith("/api/")) return privateResponse(NextResponse.json({ error: "Sign in required" }, { status: 401 }), request)
   const target = new URL("/login", authOrigin(request))

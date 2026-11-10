@@ -56,3 +56,6 @@ graphify-out/
 # local browser diagnostics and live UI sessions
 /.tmp-*.mjs
 /.impeccable/live/
+
+# Local launch-video workspace (not part of the project)
+marketing/

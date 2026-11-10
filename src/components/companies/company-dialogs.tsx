@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation"
 import { useState, useTransition, type ReactElement } from "react"
 import { Building2Icon, GlobeIcon, Loader2Icon, PlusIcon } from "lucide-react"
 import { toast } from "sonner"
-import { addCompanyAction, setCompanyWebsiteAction } from "@/app/(app)/companies/actions"
+import { addCompanyAction, setCompanyWebsiteAction } from "@/app/[locale]/(app)/companies/actions"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { guessCompany, normalizeWebsite } from "@/lib/company-input"
+import { useTranslations } from "next-intl"
 
 const NO_FILL = { autoComplete: "off", "data-1p-ignore": true, "data-lpignore": "true", "data-form-type": "other" } as const
 const guessDomain = (name: string) => `${name.toLowerCase().replace(/[^a-z0-9]+/g, "")}.com`
@@ -20,12 +21,13 @@ export function WebsiteDialog({ open, onOpenChange, companyName, reason, onSubmi
   const [value, setValue] = useState("")
   const [pending, startTransition] = useTransition()
   const valid = Boolean(normalizeWebsite(value))
+  const t = useTranslations("companyDialogs")
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && onOpenChange(next)}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>What’s {companyName}’s website?</DialogTitle>
-          <DialogDescription>{reason} It’s saved on the company, so you only do this once.</DialogDescription>
+          <DialogTitle>{t("website.title", { name: companyName })}</DialogTitle>
+          <DialogDescription>{reason} {t("website.once")}</DialogDescription>
         </DialogHeader>
         <form
           id="website-form"
@@ -42,18 +44,18 @@ export function WebsiteDialog({ open, onOpenChange, companyName, reason, onSubmi
           }}
         >
           <Field>
-            <FieldLabel htmlFor="company-website">Website</FieldLabel>
+            <FieldLabel htmlFor="company-website">{t("website.label")}</FieldLabel>
             <InputGroup>
               <InputGroupAddon><GlobeIcon /></InputGroupAddon>
               <InputGroupInput id="company-website" autoFocus value={value} onChange={(event) => setValue(event.target.value)} placeholder={guessDomain(companyName)} {...NO_FILL} />
             </InputGroup>
-            <FieldDescription>The company’s own site, like {guessDomain(companyName)}. Not its LinkedIn page.</FieldDescription>
+            <FieldDescription>{t("website.hint", { example: guessDomain(companyName) })}</FieldDescription>
           </Field>
         </form>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>Cancel</Button>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>{t("cancel")}</Button>
           <Button type="submit" form="website-form" disabled={!valid || pending}>
-            {pending ? <Loader2Icon className="animate-spin" /> : null} Save and continue
+            {pending ? <Loader2Icon className="animate-spin" /> : null} {t("website.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -65,21 +67,22 @@ export function WebsiteDialog({ open, onOpenChange, companyName, reason, onSubmi
 export function AddWebsiteButton({ companyId, companyName }: { companyId: string; companyName: string }) {
   const [open, setOpen] = useState(false)
   const router = useRouter()
+  const t = useTranslations("companyDialogs")
   return (
     <>
-      <Button size="xs" variant="outline" onClick={() => setOpen(true)}><GlobeIcon /> Add website</Button>
+      <Button size="xs" variant="outline" onClick={() => setOpen(true)}><GlobeIcon /> {t("website.add")}</Button>
       <WebsiteDialog
         open={open}
         onOpenChange={setOpen}
         companyName={companyName}
-        reason="Used to find work emails, research the company and show its logo."
+        reason={t("website.reason")}
         onSubmit={async (website) => {
           const result = await setCompanyWebsiteAction(companyId, website)
           if (!result.ok) {
             toast.error(result.message)
             return false
           }
-          toast.success("Website saved")
+          toast.success(t("website.saved"))
           router.refresh()
           return true
         }}
@@ -96,6 +99,7 @@ export function AddCompanyDialog({ trigger }: { trigger?: ReactElement }) {
   const [name, setName] = useState("")
   const [website, setWebsite] = useState("")
   const [pending, startTransition] = useTransition()
+  const t = useTranslations("companyDialogs")
   const fill = (value: string) => {
     const guess = guessCompany(value)
     setName((current) => current || guess.name)
@@ -105,12 +109,12 @@ export function AddCompanyDialog({ trigger }: { trigger?: ReactElement }) {
   return (
     <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset() }}>
       <DialogTrigger render={trigger ?? <Button variant="outline" />}>
-        {trigger ? null : <><PlusIcon /> Add company</>}
+        {trigger ? null : <><PlusIcon /> {t("add.button")}</>}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add a company</DialogTitle>
-          <DialogDescription>Paste its website or LinkedIn page, or just type its name.</DialogDescription>
+          <DialogTitle>{t("add.title")}</DialogTitle>
+          <DialogDescription>{t("add.description")}</DialogDescription>
         </DialogHeader>
         <form
           id="company-form"
@@ -120,7 +124,7 @@ export function AddCompanyDialog({ trigger }: { trigger?: ReactElement }) {
             startTransition(async () => {
               const result = await addCompanyAction({ name, website: website || undefined })
               if (!result.ok) return void toast.error(result.message)
-              toast.success(`${name} added`)
+              toast.success(t("add.added", { name }))
               setOpen(false)
               reset()
               router.push(`/companies/${result.data.id}`)
@@ -129,29 +133,29 @@ export function AddCompanyDialog({ trigger }: { trigger?: ReactElement }) {
         >
           <FieldGroup className="gap-4">
             <Field>
-              <FieldLabel htmlFor="company-source">Website, LinkedIn page or name</FieldLabel>
+              <FieldLabel htmlFor="company-source">{t("add.source")}</FieldLabel>
               <InputGroup>
                 <InputGroupAddon><Building2Icon /></InputGroupAddon>
-                <InputGroupInput id="company-source" autoFocus value={source} onChange={(event) => setSource(event.target.value)} onBlur={(event) => fill(event.target.value)} onPaste={(event) => fill(event.clipboardData.getData("text"))} placeholder="dashlane.com or linkedin.com/company/dashlane" {...NO_FILL} />
+                <InputGroupInput id="company-source" autoFocus value={source} onChange={(event) => setSource(event.target.value)} onBlur={(event) => fill(event.target.value)} onPaste={(event) => fill(event.clipboardData.getData("text"))} placeholder={t("add.sourcePlaceholder")} {...NO_FILL} />
               </InputGroup>
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="company-name">Name</FieldLabel>
+                <FieldLabel htmlFor="company-name">{t("add.name")}</FieldLabel>
                 <Input id="company-name" required value={name} onChange={(event) => setName(event.target.value)} placeholder="Dashlane" {...NO_FILL} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="company-site">Website <span className="font-normal text-muted-foreground">(optional)</span></FieldLabel>
+                <FieldLabel htmlFor="company-site">{t("website.label")} <span className="font-normal text-muted-foreground">{t("optional")}</span></FieldLabel>
                 <Input id="company-site" value={website} onChange={(event) => setWebsite(event.target.value)} placeholder="dashlane.com" {...NO_FILL} />
               </Field>
             </div>
-            <FieldDescription>With a website, Naruvi adds the logo and can find work emails for people there. A LinkedIn link only gives the name: Naruvi never reads LinkedIn.</FieldDescription>
+            <FieldDescription>{t("add.hint")}</FieldDescription>
           </FieldGroup>
         </form>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)} disabled={pending}>Cancel</Button>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={pending}>{t("cancel")}</Button>
           <Button type="submit" form="company-form" disabled={!name.trim() || pending}>
-            {pending ? <Loader2Icon className="animate-spin" /> : null} Add company
+            {pending ? <Loader2Icon className="animate-spin" /> : null} {t("add.button")}
           </Button>
         </DialogFooter>
       </DialogContent>

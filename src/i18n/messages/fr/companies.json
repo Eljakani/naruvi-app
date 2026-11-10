@@ -1,0 +1,148 @@
+{
+  "inbox": {
+    "title": "Notifications",
+    "labelUnread": "Notifications, {count} nouvelle(s)",
+    "newCount": "{count, plural, one {# nouvelle} other {# nouvelles}}",
+    "new": "Nouveau",
+    "open": "Ouvrir",
+    "today": "aujourd’hui",
+    "emptyTitle": "Vous êtes à jour",
+    "emptyBody": "Les réponses, étapes à échéance et travaux terminés apparaîtront ici.",
+    "at": "{title} chez {company}",
+    "reply": { "interview": "Invitation à un entretien", "offer": "Offre d’emploi", "rejection": "Candidature non retenue", "info_request": "Ils ont besoin de plus d’informations" },
+    "replyFrom": "Réponse de {from}",
+    "aRecruiter": "un recruteur",
+    "overdue": "En retard",
+    "dueToday": "À faire aujourd’hui",
+    "nextStep": "Prochaine étape",
+    "leads": "{count, plural, one {# nouvelle piste} other {# nouvelles pistes}}",
+    "leadsBody": "Issues de vos alertes, prêtes à être examinées",
+    "seeWhatWentWrong": "Voir ce qui n’a pas fonctionné",
+    "work": {
+      "analyze": { "done": "Correspondance vérifiée", "failed": "Impossible de vérifier la correspondance" },
+      "cv": { "done": "CV rédigé", "failed": "Impossible de rédiger le CV" },
+      "letter": { "done": "Lettre de motivation rédigée", "failed": "Impossible de rédiger la lettre de motivation" },
+      "research": { "done": "Recherche sur l’entreprise prête", "failed": "Impossible de rechercher l’entreprise" }
+    }
+  },
+  "companies": {
+    "title": "Entreprises",
+    "description": "Toutes les entreprises que vous avez consultées, avec leurs offres et vos candidatures.",
+    "search": "Rechercher des entreprises…",
+    "show": "Afficher",
+    "sort": "Trier",
+    "filters": { "all": "Toutes les entreprises", "active": "En cours", "applied": "Candidature envoyée", "untouched": "Pas encore de candidature", "watching": "Page carrières suivie" },
+    "sorts": { "recent": "Activité récente", "active": "Les plus actives", "name": "Nom A–Z" },
+    "count": "{count, plural, one {# entreprise} other {# entreprises}}",
+    "visit": "Visiter le site de {name} (nouvel onglet)",
+    "noWebsite": "Pas encore de site web",
+    "watching": "Page carrières suivie",
+    "watchingHint": "Les nouvelles offres arrivent dans vos pistes",
+    "noOverview": "Pas encore de présentation. Ouvrez-la pour rechercher l’entreprise.",
+    "counts": {
+      "jobs": "{count, plural, one {offre} other {offres}}",
+      "active": "{count, plural, one {en cours} other {en cours}}",
+      "sent": "{count, plural, one {envoyée} other {envoyées}}"
+    },
+    "empty": {
+      "noMatch": "Aucune entreprise correspondante",
+      "noWatching": "Vous ne suivez encore aucune page carrières. Ouvrez une entreprise et collez sa page carrières dans « Suivre leur page carrières ».",
+      "query": "Rien ne correspond à « {query} ». Essayez une autre recherche ou effacez les filtres.",
+      "filter": "Aucune entreprise ne correspond à ce filtre. Essayez une autre recherche ou effacez les filtres.",
+      "title": "Aucune entreprise pour l’instant",
+      "body": "Chaque offre ajoutée amène son entreprise ici, avec les informations publiques et tout ce que vous lui avez envoyé."
+    }
+  },
+  "company": {
+    "title": "Entreprise",
+    "back": "Entreprises",
+    "summary": "{jobs, plural, one {# offre} other {# offres}} · {applications, plural, one {# candidature} other {# candidatures}}",
+    "addJob": "Ajouter une offre",
+    "appliedBefore": "Vous avez déjà postulé ici",
+    "jobsTitle": "Offres et candidatures",
+    "noJobs": "Aucune offre ni candidature pour l’instant. Vous pouvez d’abord rechercher l’entreprise, puis ajouter un poste quand vous en trouvez un.",
+    "added": "Ajoutée le {date}",
+    "next": "Ensuite : {step}",
+    "archived": "Archivée",
+    "notAnalyzed": "Non analysée",
+    "loading": { "records": "Consultation des registres publics", "wikidata": "Lecture de Wikidata", "registry": "Vérification du registre", "label": "Recherche des informations sur l’entreprise" },
+    "people": "Personnes chez {name}",
+    "noDetails": "Pas encore de détails",
+    "allContacts": "Tous les contacts",
+    "overview": {
+      "title": "Présentation de l’entreprise",
+      "ai": "Présentation par l’IA",
+      "sources": "{count, plural, one {# source} other {# sources}}",
+      "updated": "Mise à jour le {date}",
+      "intro": "Apprenez à connaître {name} avant de postuler.",
+      "generate": "Générer une présentation claire de l’entreprise",
+      "start": "Commencez par rechercher l’entreprise",
+      "how": "Utilisez {action} pour que l’IA explique ce que fait cette entreprise, en s’appuyant sur son site web. Vous n’avez besoin ni d’offre ni de candidature.",
+      "refresh": "Actualiser la recherche",
+      "research": "Rechercher l’entreprise",
+      "excerpts": "Extraits du site web",
+      "mission": "Mission",
+      "values": "Valeurs",
+      "sourcesTitle": "Sources"
+    }
+  },
+  "careersWatch": {
+    "updateFailed": "Impossible de mettre à jour le suivi",
+    "stopped": "Vous ne suivez plus la page carrières de {name}",
+    "added": "{count, plural, one {# nouvelle offre dans vos pistes} other {# nouvelles offres dans vos pistes}}",
+    "noneNew": "Aucune nouvelle offre pour le moment",
+    "watching": "Page carrières de {name} suivie",
+    "watch": "Suivre leur page carrières",
+    "watchingBody": "Les nouvelles offres publiées sur <link>{provider}</link> apparaissent dans Offres → Pistes toutes les quelques heures. Celles qui ne correspondent clairement pas à vos objectifs sont ignorées.",
+    "lastChecked": "Dernière vérification : {date}.",
+    "pasteHint": "Collez leur page carrières ({providers}) et les nouvelles offres viendront à vous.",
+    "checkNow": "Vérifier maintenant",
+    "stop": "Arrêter le suivi",
+    "linkLabel": "Lien de la page carrières",
+    "watchButton": "Suivre"
+  },
+  "companyDialogs": {
+    "cancel": "Annuler",
+    "optional": "(facultatif)",
+    "website": {
+      "title": "Quel est le site web de {name} ?",
+      "once": "Il est enregistré sur l’entreprise : vous ne le faites qu’une fois.",
+      "label": "Site web",
+      "hint": "Le site de l’entreprise, comme {example}. Pas sa page LinkedIn.",
+      "save": "Enregistrer et continuer",
+      "add": "Ajouter le site web",
+      "reason": "Sert à trouver des e-mails professionnels, rechercher l’entreprise et afficher son logo.",
+      "saved": "Site web enregistré"
+    },
+    "add": {
+      "button": "Ajouter une entreprise",
+      "title": "Ajouter une entreprise",
+      "description": "Collez son site web ou sa page LinkedIn, ou saisissez simplement son nom.",
+      "added": "{name} ajoutée",
+      "source": "Site web, page LinkedIn ou nom",
+      "sourcePlaceholder": "dashlane.com ou linkedin.com/company/dashlane",
+      "name": "Nom",
+      "hint": "Avec un site web, Naruvi ajoute le logo et peut trouver des e-mails professionnels. Un lien LinkedIn ne donne que le nom : Naruvi ne lit jamais LinkedIn."
+    }
+  },
+  "companyFacts": {
+    "title": "Informations sur l’entreprise",
+    "from": "Source : {sources}, {date}",
+    "noMatch": "Aucun registre public ne correspond encore à {name}. Ajouter le site web de l’entreprise aide.",
+    "off": "Désactivé dans Intégrations.",
+    "lookingUp": "Recherche", "updated": "Mis à jour", "retry": "Réessayer", "again": "Rechercher à nouveau les informations",
+    "byName": "Correspondance par nom uniquement",
+    "labels": { "employees": "Employés", "staffFr": "Effectif (France)", "size": "Taille", "founded": "Fondée en", "registered": "Immatriculée", "headquarters": "Siège", "headOffice": "Siège social", "industry": "Secteur", "parent": "Maison mère", "ticker": "Symbole boursier", "siren": "SIREN" }
+  },
+  "research": {
+    "failed": "La recherche a échoué",
+    "updated": "Recherche sur l’entreprise mise à jour",
+    "updatedBody": "{count, plural, one {Présentation IA basée sur # page du site de {name}.} other {Présentation IA basée sur # pages du site de {name}.}}",
+    "nothing": "Aucune information trouvée",
+    "nothingBody": "Les pages étaient lisibles mais ne contenaient ni présentation, ni mission, ni valeurs exploitables.",
+    "researching": "Recherche en cours…",
+    "refresh": "Actualiser la recherche",
+    "research": "Rechercher l’entreprise",
+    "reason": "La recherche lit le site de l’entreprise pour en tirer sa présentation, sa mission et ses valeurs."
+  }
+}

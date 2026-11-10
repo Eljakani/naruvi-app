@@ -3,16 +3,18 @@
 import { useRef, useState, useTransition } from "react"
 import { AlertTriangleIcon, ImageUpIcon, LinkIcon, Loader2Icon, XIcon } from "lucide-react"
 import { toast } from "sonner"
-import { logoFromUrlAction, uploadLogoAction } from "@/app/(app)/profile/actions"
+import { logoFromUrlAction, uploadLogoAction } from "@/app/[locale]/(app)/profile/actions"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 type Stored = { path: string; width: number | null; height: number | null; warning: string | null }
 
 export function LogoField({ value, name, onChange }: { value: string | null; name: string; onChange: (path: string | null) => void }) {
+  const t = useTranslations("logoField")
   const input = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [warning, setWarning] = useState<string | null>(null)
@@ -21,10 +23,10 @@ export function LogoField({ value, name, onChange }: { value: string | null; nam
   const [pending, startTransition] = useTransition()
 
   const accept = (result: { ok: true; data?: Stored } | { ok: false; error: string }) => {
-    if (!result.ok) return void toast.error("Logo not added", { description: result.error })
+    if (!result.ok) return void toast.error(t("failed"), { description: result.error })
     onChange(result.data!.path)
     setWarning(result.data!.warning)
-    toast.success("Logo added", { description: result.data!.width ? `${result.data!.width}×${result.data!.height}px · click Save to keep it` : "Click Save to keep it" })
+    toast.success(t("added"), { description: result.data!.width ? t("addedSize", { width: result.data!.width, height: result.data!.height ?? 0 }) : t("clickSave") })
   }
   const upload = (file: File | undefined) => {
     if (!file) return
@@ -66,14 +68,14 @@ export function LogoField({ value, name, onChange }: { value: string | null; nam
           ) : null}
         </div>
         <div className="grid flex-1 gap-2">
-          <p className="text-sm text-muted-foreground">{value ? "Shown next to this entry on your CV." : "Drop an image here, upload one, or paste its URL. A square mark works best."}</p>
+          <p className="text-sm text-muted-foreground">{value ? t("shown") : t("drop")}</p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => input.current?.click()} disabled={pending}>
-              <ImageUpIcon /> {value ? "Replace" : "Upload"}
+              <ImageUpIcon /> {value ? t("replace") : t("upload")}
             </Button>
             <Popover open={urlOpen} onOpenChange={setUrlOpen}>
               <PopoverTrigger render={<Button size="sm" variant="outline" disabled={pending} />}>
-                <LinkIcon /> From URL
+                <LinkIcon /> {t("fromUrl")}
               </PopoverTrigger>
               <PopoverContent className="w-96" align="start">
                 <form
@@ -83,10 +85,10 @@ export function LogoField({ value, name, onChange }: { value: string | null; nam
                     fromUrl()
                   }}
                 >
-                  <Input autoFocus value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com/logo.png" aria-label="Image URL" />
-                  <p className="text-xs text-muted-foreground">A direct link to a PNG, JPG, WebP or SVG image.</p>
+                  <Input autoFocus value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com/logo.png" aria-label={t("imageUrl")} />
+                  <p className="text-xs text-muted-foreground">{t("directLink")}</p>
                   <Button type="submit" size="sm" disabled={pending || !url.trim()}>
-                    Add logo
+                    {t("add")}
                   </Button>
                 </form>
               </PopoverContent>
@@ -101,7 +103,7 @@ export function LogoField({ value, name, onChange }: { value: string | null; nam
                   setWarning(null)
                 }}
               >
-                <XIcon /> Remove
+                <XIcon /> {t("remove")}
               </Button>
             ) : null}
           </div>

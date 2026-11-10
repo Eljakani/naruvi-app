@@ -1,0 +1,88 @@
+{
+  "contacts": {
+    "title": "Contacts",
+    "description": "Recruteurs, RH, managers et personnes qui peuvent vous recommander. Écrivez-leur au sujet d’une offre ou envoyez une candidature spontanée.",
+    "search": "Rechercher un nom, poste, entreprise, e-mail…",
+    "import": "Importer",
+    "add": "Ajouter un contact",
+    "empty": {
+      "title": "Avec qui êtes-vous en contact ?",
+      "body": "Ajoutez les recruteurs, RH et managers à qui vous écrivez, importez un tableur ou vos relations LinkedIn, ou enregistrez des profils avec l’extension de navigateur."
+    },
+    "noRole": "Pas encore de poste ni d’entreprise",
+    "emailFrom": "Source : {source}",
+    "noEmail": "Pas d’e-mail",
+    "onLinkedin": "{name} sur LinkedIn",
+    "actionsFor": "Actions pour {name}",
+    "mailApp": "Écrire dans votre messagerie",
+    "findEmail": "Trouver l’e-mail",
+    "findEmailSetup": "Trouver l’e-mail (à configurer dans Intégrations)",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "deleteFailed": "Impossible de supprimer {name}",
+    "willDelete": "{name} va être supprimé(e)",
+    "undo": "Annuler",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "finderReason": "La recherche d’e-mail trouve {name} grâce au domaine de l’entreprise.",
+    "found": {
+      "failed": "Impossible de trouver un e-mail",
+      "none": "Aucun e-mail trouvé pour cette personne",
+      "noneBody": "Aucune correspondance sur ce domaine.",
+      "title": "Trouvé : {email}",
+      "body": "Fiabilité : {confidence} %. Vérifiez-le avant d’écrire."
+    },
+    "dialog": {
+      "edit": "Modifier le contact",
+      "add": "Ajouter un contact",
+      "description": "Seul le nom est requis. Collez un e-mail ou un lien LinkedIn et Naruvi complète ce qu’il peut.",
+      "saved": "Contact enregistré",
+      "added": "{name} ajouté(e)",
+      "reach": "E-mail ou LinkedIn",
+      "reachPlaceholder": "camille@dashlane.com ou linkedin.com/in/…",
+      "name": "Nom",
+      "company": "Entreprise",
+      "role": "Poste",
+      "more": "Plus de détails",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "notes": "Notes",
+      "notesPlaceholder": "Rencontré(e) au DevFest, présenté(e) par Léa…"
+    },
+    "importDialog": {
+      "title": "Importer des contacts",
+      "description": "Un fichier Excel ou CSV avec une colonne nom, ou vos relations LinkedIn (LinkedIn → Préférences → Confidentialité des données → Obtenir une copie de vos données → Relations). Les colonnes sont reconnues automatiquement ; les personnes déjà présentes sont mises à jour, pas dupliquées.",
+      "choose": "Choisir un fichier",
+      "formats": ".xlsx ou .csv, 10 Mo maximum",
+      "failed": "L’import a échoué",
+      "done": "{created} ajouté(s), {updated} mis à jour",
+      "skipped": "{count, plural, one {# ligne ignorée (sans nom ou en double).} other {# lignes ignorées (sans nom ou en double).}}"
+    },
+    "spontaneous": {
+      "menu": "Candidature spontanée",
+      "title": "Candidature spontanée chez {company}",
+      "description": "Aucune annonce nécessaire. Naruvi crée une candidature pour {company} avec {name} comme destinataire ; rédigez ensuite votre CV et votre lettre, puis envoyez-les par e-mail ou notez que vous l’avez contacté(e) sur LinkedIn.",
+      "role": "Poste visé",
+      "rolePlaceholder": "Facultatif, p. ex. ingénieur DevOps",
+      "roleHint": "Laissez vide pour une candidature ouverte.",
+      "language": "Langue",
+      "create": "Créer la candidature"
+    },
+    "people": {
+      "addContact": "Ajouter un contact",
+      "who": "Avec qui êtes-vous en contact ?",
+      "whoHint": "Les e-mails rédigés ici leur seront adressés.",
+      "search": "Rechercher dans vos contacts",
+      "noMatch": "Aucun contact ne correspond à « {query} ».",
+      "new": "Nouveau contact",
+      "title": "Personnes",
+      "firstWithAddress": "Les e-mails rédigés ici vont à la première personne ayant une adresse.",
+      "linkHint": "Associez le recruteur ou le manager avec qui vous êtes en contact.",
+      "add": "Ajouter",
+      "noEmail": "pas encore d’e-mail",
+      "remove": "Retirer {name}",
+      "choose": "Choisir un contact",
+      "noOthers": "Aucun autre contact. <link>En ajouter un</link>."
+    }
+  }
+}

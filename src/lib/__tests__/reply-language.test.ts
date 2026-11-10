@@ -19,3 +19,11 @@ test("short or neutral messages default to English", () => {
   assert.equal(replyLanguage("https://dashlane.com").code, "en")
   assert.equal(replyLanguage("").code, "en")
 })
+
+test("Arabic prompts use Arabic and ambiguous prompts use the app language", () => {
+  assert.equal(replyLanguage("ما هي الوظائف التي تناسبني لدى Dashlane؟").code, "ar")
+  assert.equal(replyLanguage("مرحبًا").code, "ar")
+  assert.equal(replyLanguage("https://dashlane.com", "ar").code, "ar")
+  assert.equal(replyLanguage("OK", "fr").code, "fr")
+  assert.equal(replyLanguage("Which saved jobs fit me best?", "ar").code, "en")
+})
