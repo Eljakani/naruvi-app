@@ -13,7 +13,8 @@
    "facts": "Infos entreprises",
    "salary": "Données salariales",
    "api": "API et extension",
-   "export": "Export"
+   "export": "Export",
+   "apify": "Découverte d’offres"
   },
   "sections": {
    "ai": {
@@ -33,8 +34,8 @@
     "description": "Informations publiques sur les pages entreprises, et salaires de postes similaires sur les pages d’offres."
    },
    "connect": {
-    "title": "Extension, API et export",
-    "description": "Enregistrez des offres depuis votre navigateur, laissez un assistant IA ou vos scripts utiliser Naruvi, ou emportez vos données ailleurs."
+    "title": "Découverte d’offres, extension, API et export",
+    "description": "Trouvez de nouvelles annonces, enregistrez des offres depuis votre navigateur, laissez un assistant IA ou vos scripts utiliser Naruvi, ou emportez vos données ailleurs."
    }
   },
   "export": {
@@ -313,6 +314,25 @@
     "useSignin": "Utiliser la connexion Resend",
     "useKey": "Utiliser une clé API"
    }
+  },
+  "apify": {
+   "ready": "Découverte d’offres prête",
+   "removed": "Jeton Apify supprimé",
+   "title": "Découverte d’offres",
+   "description": "« Découvrir », sur la page Offres, trouve des annonces qui correspondent à votre profil et à vos objectifs de recherche, et place les meilleures dans vos pistes. Rien n’est enregistré tant que vous ne l’importez pas. Utilise Apify avec votre propre jeton (environ 1 à 3 $ pour 1 000 annonces).",
+   "badge": "Prêt",
+   "replaceKey": "Collez un nouveau jeton pour le remplacer",
+   "key": "Jeton API Apify",
+   "save": "Enregistrer",
+   "remove": "Supprimer",
+   "privacy": "Seuls les postes et les lieux de vos objectifs sont envoyés à Apify. Extraire des sites d’emploi peut enfreindre leurs conditions : réservez-le à votre propre recherche.",
+   "boards": "Sites d’emploi",
+   "daily": "Chercher aussi une fois par jour en arrière-plan",
+   "plan": "Ce qu’une recherche cherche",
+   "planEmpty": "Aucun objectif actif ne nomme encore de poste : il n’y a rien à chercher.",
+   "lastRun": "Dernière recherche : {when}",
+   "planHelp": "Construit à partir des postes et des lieux de vos objectifs de recherche actifs.",
+   "planEmptyLink": "Ajouter des postes à un objectif"
   }
  },
  "modelSettings": {

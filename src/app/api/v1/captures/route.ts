@@ -11,5 +11,5 @@ export const POST = api(async (request: Request) => {
   const known = canonicalJobUrl(input.url)
   const id = await saveCapture({ url: known?.url ?? input.url, board: known?.board ?? new URL(input.url).hostname.replace(/^www\./, ""), title: input.title.trim(), text: input.text.trim() })
   const origin = new URL(request.url).origin
-  return { id, review: `${origin}/jobs/new?lead=${id}` }
+  return { id, review: `${origin}/jobs?lead=${id}` }
 })

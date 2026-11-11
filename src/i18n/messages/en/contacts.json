@@ -1,5 +1,9 @@
 {
   "contacts": {
+    "kinds": {"label": "Filter by kind", "all": "Everyone", "leader": "Leadership", "tech": "Tech", "recruiting": "Recruiting", "hr": "HR", "other": "Other", "none": "No contact of this kind."},
+    "noCompany": "No company",
+    "peopleCount": "{count, plural, one {# person} other {# people}}",
+    "findMore": "Find more",
     "title": "Contacts",
     "description": "Recruiters, HR, hiring managers and people who can refer you. Write to them about a job, or send a spontaneous application.",
     "search": "Search name, role, company, email…",

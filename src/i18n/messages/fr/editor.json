@@ -65,12 +65,13 @@
       "fact": "Au moins un fait",
       "ungrounded": "{count, plural, one {# ligne de CV sans fait} other {# lignes de CV sans fait}}",
       "allBacked": "Chaque ligne de CV a un fait",
-      "checked": "Vérifié par vous"
+      "checked": "Vérifié par vous",
+      "markChecked": "Confirmer que c’est exact"
     },
     "saveFailed": "Impossible d’enregistrer",
     "saved": "Enregistré",
     "created": "Élément créé",
-    "stillNeed": "{count, plural, one {# ligne de CV a encore besoin d’un fait.} other {# lignes de CV ont encore besoin d’un fait.}}",
+    "stillNeed": "{count, plural, one {# ligne sans fait ne sera pas utilisée.} other {# lignes sans fait ne seront pas utilisées.}}",
     "allBackedToast": "Chaque ligne de CV est justifiée par un fait.",
     "deleteFailed": "Impossible de supprimer",
     "deleted": "Élément supprimé",
@@ -111,7 +112,7 @@
     },
     "facts": {
       "title": "Ce que vous avez fait",
-      "description": "Une affirmation par ligne, en mots simples. Les CV et lettres ne peuvent dire que ce qui est écrit ici.",
+      "description": "Une réalisation par ligne, en mots simples. Les CV les utilisent directement : écrivez-les comme vous voulez qu’on les lise.",
       "onLines": "sur des lignes de CV",
       "placeholder": "p. ex. Réduit le délai de réponse moyen de 2 jours à 4 heures.",
       "add": "Ajouter un fait",
@@ -137,7 +138,10 @@
       "count": "{count, plural, one {# ligne} other {# lignes}}",
       "addVersion": "Ajouter la version en {language}",
       "addLine": "Ajouter une ligne",
-      "only": "Seulement en {language}"
+      "only": "Seulement en {language}",
+      "optionalTitle": "Peaufiner la formulation (facultatif)",
+      "optionalBody": "Les CV utilisent déjà vos faits tels quels. Envie de phrases plus percutantes ? L’IA peut les rédiger à partir de vos faits.",
+      "polish": "Rédiger avec l’IA"
     },
     "skills": {
       "title": "Compétences et mots-clés",
@@ -165,7 +169,7 @@
       "label": "Intitulé : un titre, pas une affirmation",
       "empty": "Vide",
       "backed": "Justifiée par ses faits",
-      "notBacked": "Pas encore justifiée par un fait",
+      "notBacked": "Pas utilisée dans les CV : aucun fait derrière. Ajoutez le fait plus haut ou supprimez la ligne.",
       "sectionLabel": "Intitulé de section",
       "placeholder": "Une ligne de CV soignée, p. ex. Réduit le délai de réponse de 2 jours à 4 heures en…",
       "remove": "Supprimer la ligne",
@@ -184,11 +188,15 @@
       "steps": "{count, plural, one {# étape avant que les CV puissent l’utiliser} other {# étapes avant que les CV puissent l’utiliser}}",
       "allPass": "Les {count} vérifications sont validées",
       "skip": "Les CV et lettres l’ignorent d’ici là",
-      "fix": "Corriger"
+      "fix": "Corriger",
+      "confirm": "Marquer vérifié"
     },
     "sectionsLabel": "Sections",
     "onThisPage": "Sur cette page",
-    "needsSomething": "Il manque quelque chose"
+    "needsSomething": "Il manque quelque chose",
+    "degree": {
+      "label": "Niveau du diplôme"
+    }
   },
   "entryAssist": {
     "questions": {

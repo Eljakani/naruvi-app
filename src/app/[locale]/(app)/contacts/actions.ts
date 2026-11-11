@@ -7,6 +7,10 @@ import { parseCsv } from "@/lib/linkedin-export"
 import { analyzeJob } from "@/server/applications/repository"
 import { MissingWebsite, deleteContact, findEmail, importContacts, linkContact, saveContact, saveEmailFinder, startSpontaneous, unlinkContact, type ContactInput } from "@/server/contacts/repository"
 import { serverError } from "@/i18n/server-errors"
+import { findCompanyPeople } from "@/server/contacts/people"
+import { refreshRoleGroups, roleGroups } from "@/server/contacts/role-groups"
+import { TITLE_LIMIT, peopleTitles } from "@/lib/company-people"
+import { apifyStatus } from "@/server/jobs/discover"
 
 type Result<T = undefined> = { ok: true; data: T } | { ok: false; message: string }
 const fail = (error: unknown): { ok: false; message: string } => ({ ok: false, message: error instanceof z.ZodError ? (error.issues[0]?.message ?? "Check the form.") : error instanceof Error ? error.message : String(error) })
@@ -116,3 +120,25 @@ export async function unlinkContactAction(applicationId: string, contactId: stri
   return { ok: true, data: undefined }
 }
 
+
+/** People at a company (Apify); nothing is saved. `setup`: no Apify token yet. */
+export async function findPeopleAction(companyId: string, titles: string[], linkedinPage = ""): Promise<Result<Awaited<ReturnType<typeof findCompanyPeople>>> | { ok: false; message: string; setup: true }> {
+  try {
+    if (!z.string().uuid().safeParse(companyId).success) return { ok: false, message: "Company not found." }
+    if (!(await apifyStatus()).configured) return { ok: false, message: "", setup: true }
+    return { ok: true, data: await findCompanyPeople(companyId, peopleTitles(z.array(z.string().max(100)).max(TITLE_LIMIT).parse(titles).join("\n")), z.string().max(300).parse(linkedinPage)) }
+  } catch (error) {
+    return fail(error)
+  }
+}
+
+/** Generate the Find people groups again from the current profile and goals. */
+export async function refreshRoleGroupsAction(): Promise<Result<Awaited<ReturnType<typeof roleGroups>>>> {
+  try {
+    await refreshRoleGroups({ force: true })
+    revalidatePath("/companies")
+    return { ok: true, data: await roleGroups() }
+  } catch (error) {
+    return fail(error)
+  }
+}

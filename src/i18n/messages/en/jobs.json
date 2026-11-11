@@ -66,10 +66,20 @@
     "page": "Page {page} of {pages}",
     "leads": {
       "title": "Job leads",
-      "description": "{count, plural, one {# posting from your job alerts and browser, not saved yet. Import one to read and check it.} other {# postings from your job alerts and browser, not saved yet. Import one to read and check it.}}",
+      "description": "{count, plural, one {# posting from your job alerts, browser and searches, not saved yet. Import one to read and check it.} other {# postings from your job alerts, browser and searches, not saved yet. Import one to read and check it.}}",
       "import": "Import",
       "dismiss": "Dismiss {title}",
-      "thisPosting": "this posting"
+      "thisPosting": "this posting",
+      "showAll": "Show all {count}",
+      "showFewer": "Show fewer",
+      "fromSearch": "Your search",
+      "matchesLabel": "Skills it names",
+      "dismissAll": "Dismiss all",
+      "details": "Details",
+      "detailsFailed": "Couldn’t load this posting.",
+      "noText": "No posting text was saved with this lead. Open the original to read it.",
+      "openOriginal": "Open on {board}",
+      "dismissShort": "Dismiss"
     },
     "tags": {
       "remove": "Remove tag {tag}",
@@ -144,6 +154,20 @@
       "sections": "Sections",
       "less": "Show less",
       "full": "Show full description"
+    },
+    "discover": {
+      "button": "Discover",
+      "searching": "Searching job boards…",
+      "added": "{count, plural, one {# new posting in your leads} other {# new postings in your leads}}",
+      "none": "No new postings this time",
+      "partial": "Some searches failed; these are the results of the others.",
+      "wait": "This takes a minute or two. You can keep working.",
+      "failed": "The search didn’t work",
+      "setup": "Set up job discovery first",
+      "setupHelp": "It needs your own Apify token to search LinkedIn and Indeed.",
+      "setupOpen": "Set up",
+      "where": "They are in your job leads, best matches first.",
+      "seen": "Everything found was already in your jobs or leads, or outside your search goals."
     }
   },
   "jobReader": {
@@ -174,6 +198,9 @@
     "description": "Paste the link to the posting. Naruvi reads it, finds the company’s own website and logo, and lets you check everything before saving."
   },
   "newJob": {
+    "groups": {"role": "The job", "company": "The company", "terms": "Terms", "language": "Posting language"},
+    "reviewTitle": "Check and save",
+    "reviewDescription": "Fix anything the reader got wrong, then save the job.",
     "source": {
       "link": "found in a link on the posting",
       "email": "from the recruiter's e-mail domain",
@@ -222,6 +249,8 @@
     "openWebsite": "Open website",
     "websiteFrom": "Website {source}. Never the job board itself.",
     "websiteMissing": "Not found. Adding it improves research and the logo.",
+    "logoLooking": "Looking for the logo on this website…",
+    "logoNotFound": "No logo found on this website. Import one or paste its URL.",
     "languageHint": "Your CV for this job will be written in this language by default.",
     "descriptionTitle": "Job description",
     "chars": "{count, plural, one {# character · saved unchanged} other {# characters · saved unchanged}}",
@@ -229,6 +258,7 @@
     "preview": "Preview",
     "editText": "Edit text",
     "hints": {
+      "ai": "the AI, in the posting",
       "labelled": "a labelled field",
       "hiring": "the hiring sentence",
       "join": "the “join us” sentence",
@@ -239,6 +269,7 @@
       "location": "a location mention"
     },
     "detected": "Detected from {from} — check it.",
-    "notFound": "Not found in the text. Please fill it in."
+    "notFound": "Not found in the text. Please fill it in.",
+    "fromDiscovery": "Found by a discovery search · {host}. Read the text, check the details, then save."
   }
 }

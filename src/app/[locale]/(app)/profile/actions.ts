@@ -1,10 +1,11 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
+import { refreshRoleGroups } from "@/server/contacts/role-groups"
 import { z } from "zod"
 import { safeFetchBytes } from "@/server/assets/safe-fetch"
 import { MAX_IMAGE_BYTES, storeLogo, storePhoto } from "@/server/assets/store"
-import { addFactForBullet, linkBulletFacts, setBulletRole } from "@/server/profile/repository"
 import { deleteEntry, saveEntry, saveGoals, saveIdentity, setEntryStatus } from "@/server/profile/repository"
 import type { EntryInput, IdentityInput } from "@/server/profile/schemas"
 import { BULLETS_PROMPT_VERSION, suggestBullets, type BulletSuggestion } from "@/server/profile/ai-bullets"
@@ -60,6 +61,8 @@ export async function saveGoalsAction(goals: unknown) {
     await saveGoals(goals)
     revalidatePath("/applications", "layout")
     revalidatePath("/jobs", "layout")
+    // New roles mean new people to reach: regenerate the Find people groups after the response.
+    after(() => refreshRoleGroups().catch((error) => console.error("[naruvi] role groups:", error instanceof Error ? error.message : error)))
   })
 }
 
@@ -90,19 +93,6 @@ export async function uploadPhotoAction(formData: FormData) {
   })
 }
 
-const uuid = z.string().uuid()
-
-export async function linkBulletFactsAction(phrasingId: string, factIds: string[]) {
-  return run(() => linkBulletFacts(uuid.parse(phrasingId), z.array(uuid).parse(factIds)))
-}
-
-export async function addFactForBulletAction(phrasingId: string, statement: string, alsoLink: string[] = []) {
-  return run(() => addFactForBullet(uuid.parse(phrasingId), z.string().max(600).parse(statement), z.array(uuid).parse(alsoLink)))
-}
-
-export async function setBulletRoleAction(phrasingId: string, role: "bullet" | "label") {
-  return run(() => setBulletRole(uuid.parse(phrasingId), z.enum(["bullet", "label"]).parse(role)))
-}
 
 const suggestInput = z.object({
   kind: z.string().max(40),
@@ -212,12 +202,12 @@ const importPayload = z.object({
 export async function saveImportAction(input: unknown) {
   const parsed = importPayload.safeParse(input)
   if (!parsed.success) return { ok: false as const, message: await serverError("someImportedEntriesAre") }
-  const result = await saveImportedProfile(parsed.data, { dedupe: false })
+  const result = await saveImportedProfile(parsed.data, { dedupe: false, status: "verified" })
   let merged = 0
   let factsAdded = 0
   let reverify = 0
   for (const merge of parsed.data.merges) {
-    const outcome = await mergeIntoEntry(merge.entryId, { facts: merge.facts, skills: merge.skills, display: { language: parsed.data.language, ...merge.display } })
+    const outcome = await mergeIntoEntry(merge.entryId, { facts: merge.facts, skills: merge.skills, display: { language: parsed.data.language, ...merge.display } }, { approvedByUser: true })
     merged += 1
     factsAdded += outcome.added
     if (outcome.reverified) reverify += 1

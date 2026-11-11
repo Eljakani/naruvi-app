@@ -5,7 +5,7 @@ import { Suspense } from "react"
 import { connection } from "next/server"
 import { ArrowLeftIcon, CalendarClockIcon, ExternalLinkIcon, PlusIcon, SearchIcon } from "lucide-react"
 import { FitRing } from "@/components/applications/fit-ring"
-import { AddJobDialog } from "@/components/jobs/job-reader"
+import { AddJobDialog } from "@/components/jobs/add-job-dialog"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +20,9 @@ import { CompanyFacts } from "@/components/companies/company-facts"
 import { ResearchCompanyButton } from "@/components/companies/research-company-button"
 import AITextLoading from "@/components/kokonutui/ai-text-loading"
 import { companyFactsEnabled, companyProfile } from "@/server/companies/profile"
+import { FindPeople } from "@/components/companies/find-people"
+import { startupSignal } from "@/lib/company-people"
+import { roleGroups } from "@/server/contacts/role-groups"
 import { CareersWatch } from "@/components/companies/careers-watch"
 import type { CareersBoard } from "@/lib/careers-boards"
 import { detectBoard } from "@/server/jobs/careers"
@@ -39,11 +42,14 @@ export default function CompanyPage({ params }: PageProps<"/[locale]/companies/[
   )
 }
 
+/** The startup guess as Find people's props: the reason when it is one, and whether the facts could tell at all. */
+const startupProps = (signal: ReturnType<typeof startupSignal>) => ({ startup: signal.reason, startupKnown: signal.startup !== null })
+
 async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
   await connection()
   const { id } = await params
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound()
-  const [company, people, suggested] = await Promise.all([getCompany(id), contactsForCompany(id), detectBoard(id)])
+  const [company, people, suggested, roles] = await Promise.all([getCompany(id), contactsForCompany(id), detectBoard(id), roleGroups()])
   if (!company) notFound()
   const research = company.research as CompanyResearch | null
   const sent = company.jobs.filter((job) => job.status && SENT.has(job.status))
@@ -143,6 +149,7 @@ async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
               <Link href="/contacts" className="border-t px-4 py-2 text-xs text-muted-foreground hover:text-foreground">{t("allContacts")}</Link>
             </Card>
           ) : null}
+          <FindPeople companyId={company.id} companyName={company.name} hasWebsite={Boolean(company.website)} roleGroups={roles} {...startupProps(startupSignal(((company.profile as { facts?: { label: string; value: string }[] } | null)?.facts) ?? []))} />
         </div>
       </div>
     </div>

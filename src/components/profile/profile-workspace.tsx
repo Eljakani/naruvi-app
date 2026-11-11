@@ -45,7 +45,7 @@ const SECTIONS = [
 ] as const
 
 export function needsAttention(entry: ProfileEntry) {
-  return entry.status !== "verified" || entry.phrasings.some((phrasing) => !phrasing.grounding.grounded) || entry.facts.length === 0
+  return entry.status !== "verified" || (entry.facts.length === 0 && (entry.kind === "experience" || entry.kind === "project"))
 }
 
 export function ProfileWorkspace({ profile, entries }: { profile: Profile | null; entries: ProfileEntry[] }) {

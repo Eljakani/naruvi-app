@@ -10,6 +10,7 @@ import {
   CheckIcon,
   ArchiveIcon,
   ShieldCheckIcon,
+  SparklesIcon,
   AlertTriangleIcon,
   ArrowLeftIcon,
   AwardIcon,
@@ -83,6 +84,11 @@ const KIND_ICONS = {
 
 const LOGO_KINDS = new Set<Draft["kind"]>(["experience", "education", "project", "certification", "achievement"])
 
+/** Degree level words in the CV's own language, not the interface's. */
+const DEGREE_LEVELS: Record<Lang, string[]> = {
+  en: ["High school diploma", "Associate degree", "Bachelor’s", "Master’s", "PhD"],
+  fr: ["Baccalauréat", "BTS / DUT", "Licence", "Master", "Doctorat"],
+}
 const SECTIONS = ["basics", "display", "facts", "bullets", "skills", "guardrails"] as const
 
 export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null; initialKind?: Draft["kind"] }) {
@@ -136,9 +142,8 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
     { label: t("ready.named"), done: Boolean(draft.display.en.role || draft.display.fr.role || draft.title.trim()), section: "basics" },
     { label: t("ready.titleIn", { language: languageName("en", locale) }), done: Boolean(draft.display.en.role), section: "display" },
     { label: t("ready.titleIn", { language: languageName("fr", locale) }), done: Boolean(draft.display.fr.role), section: "display" },
-    { label: draft.kind === "skill" ? t("ready.skills") : t("ready.fact"), done: draft.kind === "skill" ? draft.skills.length > 0 : facts.length > 0, section: draft.kind === "skill" ? "skills" : "facts" },
-    { label: ungrounded.length ? t("ready.ungrounded", { count: ungrounded.length }) : t("ready.allBacked"), done: ungrounded.length === 0, section: "bullets" },
-    { label: t("ready.checked"), done: draft.status === "verified", section: "basics" },
+    ...(draft.kind === "skill" ? [{ label: t("ready.skills"), done: draft.skills.length > 0, section: "skills" }] : draft.kind === "experience" || draft.kind === "project" ? [{ label: t("ready.fact"), done: facts.length > 0, section: "facts" }] : []),
+    { label: draft.status === "verified" ? t("ready.checked") : t("ready.markChecked"), done: draft.status === "verified", section: "basics", action: () => patch({ status: "verified" }) },
   ]
 
   /* ---------- save / delete / leave ---------- */
@@ -148,7 +153,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
         const result = await saveEntryAction(toInput(draft), entry?.id)
         if (!result.ok) return void toast.error(t("saveFailed"), { description: result.error })
         toast.success(entry ? t("saved") : t("created"), {
-          description: ungrounded.length ? t("stillNeed", { count: ungrounded.length }) : t("allBackedToast"),
+          description: ungrounded.length ? t("stillNeed", { count: ungrounded.length }) : undefined,
         })
         if (then) router.push(then)
         else if (!entry && result.data) router.replace(`/profile/${result.data}`)
@@ -204,6 +209,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
     toast.success(t("addedLine"), { description: t("addedLineBody"), action: { label: t("show"), onClick: () => jump("bullets") } })
   }
   const extras = useExtras(draft)
+  const [showLines, setShowLines] = useState(draft.bullets.some((bullet) => bullet.text.trim()))
 
   const title = draft.display.en.role || draft.display.fr.role || draft.title || t("newEntry")
 
@@ -301,7 +307,11 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             </ToggleGroup>
             <div className="grid gap-2">
               <Label htmlFor="title">{t("basics.internalName")}</Label>
-              <Input id="title" value={draft.title} onChange={(event) => patch({ title: event.target.value })} placeholder={copy.orgPlaceholder || t("basics.internalPlaceholder")} />
+              <Input id="title" value={draft.title} onChange={(event) => {
+                const title = event.target.value
+                const display = Object.fromEntries(LANGS.map((code) => [code, !draft.display[code].role || draft.display[code].role === draft.title ? { ...draft.display[code], role: title } : draft.display[code]]))
+                patch({ title, display: display as Draft["display"] })
+              }} placeholder={copy.orgPlaceholder || t("basics.internalPlaceholder")} />
               <p className="text-xs text-muted-foreground">{t("basics.internalHint")}</p>
             </div>
             {LOGO_KINDS.has(draft.kind) ? (
@@ -320,7 +330,28 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             description={t("display.description", { language: languageName(lang, locale) })}
           >
             <div key={lang} className="cb-fade grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
+              <div className="grid gap-2 sm:col-span-2">
+                {draft.kind === "education" ? (
+                  <ToggleGroup
+                    value={DEGREE_LEVELS[lang].filter((level) => draft.display[lang].role.startsWith(level))}
+                    onValueChange={(value) => {
+                      const current = draft.display[lang].role
+                      const prefix = DEGREE_LEVELS[lang].find((level) => current.startsWith(level))
+                      const role = prefix ? current.slice(prefix.length).trim() : current
+                      const picked = value.at(-1)
+                      patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], role: picked ? `${picked} ${role}`.trim() : role } } })
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex flex-wrap justify-start"
+                    spacing={1}
+                    aria-label={t("degree.label")}
+                  >
+                    {DEGREE_LEVELS[lang].map((level) => (
+                      <ToggleGroupItem key={level} value={level}>{level}</ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                ) : null}
                 <Field id={`${lang}-role`} label={copy.role} value={draft.display[lang].role} placeholder={copy.rolePlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], role: value } } })} />
               </div>
               <Field id={`${lang}-org`} label={copy.organization} value={draft.display[lang].organization} placeholder={copy.orgPlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], organization: value } } })} />
@@ -400,7 +431,18 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             />
           </Section>
 
-          {/* 4. bullets */}
+          {/* 4. bullets: optional, CVs fall back to the facts above */}
+          {!showLines ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed p-4">
+              <div className="grid min-w-0 flex-1 gap-0.5">
+                <span className="text-sm font-medium">{t("bullets.optionalTitle")}</span>
+                <span className="text-xs text-muted-foreground">{t("bullets.optionalBody")}</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => setShowLines(true)} disabled={!facts.length}>
+                <SparklesIcon /> {t("bullets.polish")}
+              </Button>
+            </div>
+          ) : (
           <Section
             id="bullets"
             n={4}
@@ -431,17 +473,6 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                 patch({ bullets: [...draft.bullets, ...list.map((suggestion) => ({ key: newKey(), group: groups[0] ?? "General", role: "bullet" as const, language: suggestion.language as Lang, text: suggestion.text, factKeys: suggestion.factKeys }))] })
               }
             />
-            {groups.length === 0 ? (
-              <EmptyState
-                title={t("bullets.emptyTitle")}
-                body={t("bullets.emptyBody")}
-                action={
-                  <Button size="sm" variant="outline" onClick={addGroup}>
-                    <PlusIcon /> {t("bullets.writeOne")}
-                  </Button>
-                }
-              />
-            ) : null}
             <PresenceList>
               {groups.map((group) => {
                 const rows = pairRows(draft.bullets.filter((bullet) => bullet.group === group))
@@ -512,6 +543,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
               })}
             </PresenceList>
           </Section>
+          )}
 
           {/* 5. skills */}
           <Section
@@ -535,7 +567,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
         <aside className="grid content-start gap-4 xl:sticky xl:top-20 xl:max-h-[calc(100svh-6rem)] xl:overflow-y-auto xl:[scrollbar-width:none]">
           <Readiness items={readiness} onJump={jump} />
           <PreviewCard draft={draft} lang={lang} onLang={setLang} grounding={grounding} />
-          <SectionIndex sections={SECTIONS.map((id) => ({ id, label: t(`sections.${id}`) }))} incomplete={new Set(readiness.filter((item) => !item.done).map((item) => item.section))} onJump={jump} />
+          <SectionIndex sections={SECTIONS.filter((id) => showLines || id !== "bullets").map((id) => ({ id, label: t(`sections.${id}`) }))} incomplete={new Set(readiness.filter((item) => !item.done).map((item) => item.section))} onJump={jump} />
         </aside>
       </div>
 
@@ -786,7 +818,7 @@ function Preview({ draft, lang, grounding }: { draft: Draft; lang: Lang; groundi
 /* ---------------------------------- aside ---------------------------------- */
 
 const EASE = [0.23, 1, 0.32, 1] as const
-type Check = { label: string; done: boolean; section: string }
+type Check = { label: string; done: boolean; section: string; action?: () => void }
 
 function ProgressRing({ value, total }: { value: number; total: number }) {
   const reduce = useReducedMotion()
@@ -836,10 +868,10 @@ function Readiness({ items, onJump }: { items: Check[]; onJump: (id: string) => 
             <ul className="grid gap-0.5 px-2 pt-2 pb-1">
               {[...todo, ...finished].map((item) => (
                 <li key={item.label}>
-                  <button type="button" onClick={() => onJump(item.section)} className={cn("group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-muted", !item.done && "bg-amber-50/70 dark:bg-amber-950/20")}>
+                  <button type="button" onClick={() => (!item.done && item.action ? item.action() : onJump(item.section))} className={cn("group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-muted", !item.done && "bg-amber-50/70 dark:bg-amber-950/20")}>
                     {item.done ? <CheckCircle2Icon className="size-4 shrink-0 text-emerald-500" /> : item.section === "bullets" ? <AlertTriangleIcon className="size-4 shrink-0 text-amber-500" /> : <CircleDashedIcon className="size-4 shrink-0 text-amber-500" />}
                     <span className={cn("min-w-0 flex-1", item.done ? "text-muted-foreground" : "font-medium")}>{item.label}</span>
-                    {!item.done ? <span className="text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">{t("readiness.fix")}</span> : null}
+                    {!item.done ? <span className={cn("text-[11px] text-muted-foreground transition-opacity", item.action ? "font-medium text-primary" : "opacity-0 group-hover:opacity-100")}>{item.action ? t("readiness.confirm") : t("readiness.fix")}</span> : null}
                   </button>
                 </li>
               ))}

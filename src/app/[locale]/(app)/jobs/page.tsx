@@ -17,8 +17,13 @@ import { getProfile } from "@/server/profile/repository"
 import { ClearFilters, SearchBox, UrlSelect } from "@/components/list-toolbar"
 import { CONTRACT_LABEL, SENIORITY_LABEL, WORK_MODE_LABEL } from "@/lib/job-labels"
 import { cn } from "@/lib/utils"
-import { AddJobDialog } from "@/components/jobs/job-reader"
+import { AddJobDialog, AddJobFromLink } from "@/components/jobs/add-job-dialog"
+import { getLead } from "@/server/jobs/leads"
+import { DISCOVERED } from "@/lib/discover"
 import { JobLeads } from "@/components/jobs/job-leads"
+import { DiscoverButton } from "@/components/jobs/discover-button"
+import { leadCompanyLogos, profileSkills } from "@/server/jobs/discover"
+import { discoveredKeywords, excerpt, goalRoles, leadParts, skillMatches, titleFits } from "@/lib/discover"
 import { allTags } from "@/server/companies/repository"
 import { newLeads } from "@/server/jobs/leads"
 import { JOB_GOALS, JOB_SORTS, JOB_STAGES, jobFacets, searchJobs } from "@/server/jobs/search"
@@ -40,14 +45,30 @@ export default function JobsPage({ searchParams }: PageProps<"/[locale]/jobs">) 
         title={t("title")}
         description={t("description")}
         actions={
-          <AddJobDialog trigger={<Button><PlusIcon /> {t("addJob")}</Button>} />
+          <>
+            <DiscoverButton />
+            <AddJobDialog trigger={<Button><PlusIcon /> {t("addJob")}</Button>} />
+          </>
         }
       />
       <Suspense fallback={<div className="grid gap-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>}>
         <JobList searchParams={searchParams} />
       </Suspense>
+      <Suspense fallback={null}>
+        <AddFromLink searchParams={searchParams} />
+      </Suspense>
     </>
   )
+}
+
+/** `?lead=` a job lead or a page saved by the browser extension (with its text), `?url=` a link, `?add=1` an empty form: each opens the Add-a-job dialog here. */
+async function AddFromLink({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams
+  const lead = typeof params.lead === "string" && /^[0-9a-f-]{36}$/i.test(params.lead) ? await getLead(params.lead) : null
+  if (lead) return <AddJobFromLink initialUrl={lead.url} initialText={lead.text ?? ""} discovered={lead.source.startsWith(DISCOVERED)} />
+  const url = typeof params.url === "string" && /^https?:\/\//.test(params.url) ? params.url.slice(0, 2000) : ""
+  if (url || params.add === "1") return <AddJobFromLink initialUrl={url} />
+  return null
 }
 
 const BOARD_LABEL: Record<string, string> = { linkedin: "LinkedIn", greenhouse: "Greenhouse", lever: "Lever", ashby: "Ashby", smartrecruiters: "SmartRecruiters", workday: "Workday" }
@@ -68,12 +89,31 @@ async function JobList({ searchParams }: { searchParams: Search }) {
     workMode: pick(one(params.workMode), WORK_MODE_LABEL),
     contract: pick(one(params.contract), CONTRACT_LABEL),
     seniority: pick(one(params.seniority), SENIORITY_LABEL),
-    stage: pick(one(params.stage), JOB_STAGES) ?? "new",
+    stage: pick(one(params.stage), JOB_STAGES) ?? "all",
     goal: pick(one(params.goal), JOB_GOALS),
     sort: pick(one(params.sort), JOB_SORTS),
     page: Number(one(params.page)) || 1,
   }
-  const [tags, leads, profile] = await Promise.all([allTags(), newLeads(), getProfile()])
+  const [tags, rows, profile, skills] = await Promise.all([allTags(), newLeads(), getProfile(), profileSkills()])
+  // Newest first; within one discovery run, the postings that name the most of your skills lead.
+  // Leads saved before the title checks get them here: a discovery lead must be about what it searched for,
+  // a careers-page lead about a role your goals name.
+  const roles = profile ? goalRoles(profile.goals) : []
+  const leads = rows
+    .filter((row) => {
+      const keywords = discoveredKeywords(row.source)
+      if (keywords) return titleFits(row.title, keywords)
+      if (/^New on .+’s careers page$/.test(row.source) && roles.length) return titleFits(row.title, roles)
+      return true
+    })
+    .map(({ id, url, title, board, source, foundAt, text, logoPath, company, location }) => {
+      const parts = leadParts(text ?? "", Boolean(discoveredKeywords(source)))
+      return { id, url, title, board, source, foundAt, logoPath, company, location, matches: text ? skillMatches(text, skills) : [], facts: parts.facts, excerpt: excerpt(parts.body) }
+    })
+    .sort((a, b) => b.foundAt.getTime() - a.foundAt.getTime() || b.matches.length - a.matches.length)
+  // Leads without a logo of their own show the one of a company you already know.
+  const known = await leadCompanyLogos(leads.filter((lead) => !lead.logoPath).map((lead) => (lead.company ? `${lead.title} · ${lead.company}` : lead.title)))
+  for (const lead of leads) lead.logoPath ??= known.get(lead.company ? `${lead.title} · ${lead.company}` : lead.title) ?? null
   const tag = one(params.tag)
   const [result, facets] = await Promise.all([searchJobs({ ...filter, tag: tag && tags.some((item) => item.tag === tag) ? tag : undefined }), jobFacets()])
   if (!facets.total && !leads.length) {

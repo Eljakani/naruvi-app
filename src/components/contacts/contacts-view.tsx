@@ -5,10 +5,14 @@ import { WebsiteDialog } from "@/components/companies/company-dialogs"
 import { PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
 import { useRef, useState, useTransition } from "react"
-import { ChevronRightIcon, EllipsisIcon,  FileUpIcon, Loader2Icon, MailIcon, MailSearchIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon } from "lucide-react"
+import { ChevronRightIcon, EllipsisIcon, FileUpIcon, UserPlusIcon, Loader2Icon, MailIcon, MailSearchIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon } from "lucide-react"
 import { toast } from "sonner"
 import { deleteContactAction, findEmailAction, importContactsAction, saveContactAction, startSpontaneousAction } from "@/app/[locale]/(app)/contacts/actions"
 import { EntryLogo } from "@/components/profile/entry-logo"
+import Link from "next/link"
+import { Badge as ReBadge } from "@/components/reui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { CONTACT_KINDS, contactKind, type ContactKind } from "@/lib/company-people"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -28,6 +32,14 @@ const BLANK: Editable = { name: "", title: "", companyName: "", email: "", linke
 // Contact fields are people's details, not the user's logins: keep browser autofill out.
 const NO_FILL = { autoComplete: "off", "data-1p-ignore": true, "data-lpignore": "true", "data-form-type": "other" } as const
 
+const KIND_BADGE = { leader: "primary-light", tech: "info-light", recruiting: "success-light", hr: "warning-light", other: "outline" } as const
+
+/** "Mélanie Le Barzic" → "ML": first and last word. */
+const initials = (name: string) => {
+  const words = name.replace(/[^\p{L}\s-]/gu, "").split(/\s+/).filter(Boolean)
+  return ((words[0]?.[0] ?? "") + (words.length > 1 ? words.at(-1)![0] : "")).toUpperCase() || "?"
+}
+
 function LinkedinIcon(props: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
@@ -44,6 +56,20 @@ export function ContactsView({ contacts, finder }: { contacts: ContactListItem[]
   const [editing, setEditing] = useState<Editable | null>(null)
   const [importing, setImporting] = useState(false)
   const [spontaneous, setSpontaneous] = useState<ContactListItem | null>(null)
+  const [kind, setKind] = useState<ContactKind | "all">("all")
+  const kinds = new Map<ContactKind, number>()
+  for (const contact of contacts) kinds.set(contactKind(contact.title), (kinds.get(contactKind(contact.title)) ?? 0) + 1)
+  // One block per company, the most recently touched first; inside it, leaders first, then tech, recruiting, HR.
+  const groups = [...Map.groupBy(contacts.filter((contact) => kind === "all" || contactKind(contact.title) === kind), (contact) => contact.companyId ?? (contact.company || "").toLowerCase())]
+    .map(([key, list]) => ({
+      key: key || "none",
+      companyId: list[0].companyId,
+      name: list[0].company ?? "",
+      logoPath: list[0].logoPath,
+      updated: Math.max(...list.map((contact) => new Date(contact.updatedAt).getTime())),
+      contacts: list.toSorted((a, b) => CONTACT_KINDS.indexOf(contactKind(a.title)) - CONTACT_KINDS.indexOf(contactKind(b.title)) || a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => Number(!a.name) - Number(!b.name) || b.updated - a.updated)
 
   return (
     <div className="grid gap-3">
@@ -56,13 +82,50 @@ export function ContactsView({ contacts, finder }: { contacts: ContactListItem[]
         </Button>
       </div>
       {contacts.length ? (
-        <Card className="gap-0 divide-y py-0">
-          <PresenceList>
-          {contacts.map((contact) => (
-            <PresenceItem key={contact.id}><ContactRow contact={contact} finder={finder} onEdit={() => setEditing({ id: contact.id, name: contact.name, title: contact.title, companyName: contact.company ?? "", email: contact.email, linkedinUrl: contact.linkedinUrl, phone: contact.phone, notes: contact.notes })} onSpontaneous={() => setSpontaneous(contact)} /></PresenceItem>
-          ))}
-          </PresenceList>
-        </Card>
+        <>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("kinds.label")}>
+            {(["all", ...CONTACT_KINDS] as const).map((value) => {
+              const count = value === "all" ? contacts.length : kinds.get(value) ?? 0
+              if (value !== "all" && !count) return null
+              return (
+                <Button key={value} size="sm" variant={kind === value ? "secondary" : "ghost"} aria-pressed={kind === value} onClick={() => setKind(value)} className="h-7 gap-1.5">
+                  {t(`kinds.${value}`)} <span className="text-muted-foreground tabular-nums">{count}</span>
+                </Button>
+              )
+            })}
+          </div>
+          {groups.length ? (
+            <div className="grid gap-4">
+              {groups.map((group) => (
+                <Card key={group.key} className="gap-0 overflow-hidden py-0">
+                  <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-2.5">
+                    <EntryLogo path={group.logoPath} name={group.name || "?"} size={28} className="rounded-md" />
+                    {group.companyId ? (
+                      <Link href={`/companies/${group.companyId}`} className="min-w-0 truncate text-sm font-semibold hover:underline">{group.name}</Link>
+                    ) : (
+                      <span className="min-w-0 truncate text-sm font-semibold">{group.name || t("noCompany")}</span>
+                    )}
+                    <span className="text-xs text-muted-foreground tabular-nums">{t("peopleCount", { count: group.contacts.length })}</span>
+                    {group.companyId ? (
+                      <Button size="sm" variant="ghost" className="ms-auto h-7 text-xs text-muted-foreground" nativeButton={false} render={<Link href={`/companies/${group.companyId}#find-people`} />}>
+                        <UserPlusIcon data-icon="inline-start" /> {t("findMore")}
+                      </Button>
+                    ) : null}
+                  </div>
+                  <div className="divide-y">
+                    <PresenceList>
+                      {group.contacts.map((contact) => (
+                        <PresenceItem key={contact.id}><ContactRow contact={contact} finder={finder} onEdit={() => setEditing({ id: contact.id, name: contact.name, title: contact.title, companyName: contact.company ?? "", email: contact.email, linkedinUrl: contact.linkedinUrl, phone: contact.phone, notes: contact.notes })} onSpontaneous={() => setSpontaneous(contact)} /></PresenceItem>
+                      ))}
+                    </PresenceList>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">{t("kinds.none")}</p>
+          )}
+        </>
       ) : (
         <OtterEmpty
           pose="interview-practice"
@@ -92,12 +155,18 @@ function ContactRow({ contact, finder, onEdit, onSpontaneous }: { contact: Conta
   const t = useTranslations("contacts")
   const [pending, startTransition] = useTransition()
   const [needsWebsite, setNeedsWebsite] = useState<string | null>(null)
+  const kind = contactKind(contact.title)
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      <EntryLogo path={contact.logoPath} name={contact.company || contact.name} size={32} />
+      <Avatar className="size-8 shrink-0">
+        <AvatarFallback className="text-xs font-medium">{initials(contact.name)}</AvatarFallback>
+      </Avatar>
       <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-start">
-        <span className="block truncate font-medium hover:underline">{contact.name}</span>
-        <span className="block truncate text-xs text-muted-foreground">{[contact.title, contact.company].filter(Boolean).join(" · ") || t("noRole")}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-medium hover:underline">{contact.name}</span>
+          {kind !== "other" ? <ReBadge variant={KIND_BADGE[kind]} size="sm" className="shrink-0">{t(`kinds.${kind}`)}</ReBadge> : null}
+        </span>
+        <span className="block truncate text-xs text-muted-foreground">{contact.title || t("noRole")}</span>
       </button>
       <div className="hidden min-w-0 items-center gap-2 text-xs text-muted-foreground md:flex">
         {contact.email ? <span className="max-w-56 truncate" title={contact.emailSource ? t("emailFrom", { source: contact.emailSource }) : undefined}>{contact.email}</span> : <span>{t("noEmail")}</span>}

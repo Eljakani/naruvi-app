@@ -123,7 +123,7 @@ export function CommandMenu() {
             ) : null}
             {!q || t("addJobMatch").toLowerCase().includes(q) ? (
               <CommandGroup heading={t("actions")}>
-                <CommandItem value="action-add-job" onSelect={() => go("/jobs/new")}>
+                <CommandItem value="action-add-job" onSelect={() => go("/jobs?add=1")}>
                   <PlusIcon /> {t("addJob")}
                 </CommandItem>
                 {q ? null : (

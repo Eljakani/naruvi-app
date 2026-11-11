@@ -65,12 +65,13 @@
       "fact": "At least one fact",
       "ungrounded": "{count, plural, one {# CV line without a fact} other {# CV lines without a fact}}",
       "allBacked": "Every CV line has a fact",
-      "checked": "Checked by you"
+      "checked": "Verified by you",
+      "markChecked": "Confirm it’s accurate"
     },
     "saveFailed": "Could not save",
     "saved": "Saved",
     "created": "Entry created",
-    "stillNeed": "{count, plural, one {# CV line still needs a fact behind it.} other {# CV lines still need a fact behind them.}}",
+    "stillNeed": "{count, plural, one {# CV line has no fact behind it and won’t be used.} other {# CV lines have no fact behind them and won’t be used.}}",
     "allBackedToast": "Every CV line is backed by a fact.",
     "deleteFailed": "Could not delete",
     "deleted": "Entry deleted",
@@ -111,7 +112,7 @@
     },
     "facts": {
       "title": "What you did",
-      "description": "One claim per line, in plain words. CVs and letters can only say what is written here.",
+      "description": "One claim per line, in plain words. CVs use these directly, so write them the way you’d want them read.",
       "onLines": "on CV lines",
       "placeholder": "e.g. Cut average response time from 2 days to 4 hours.",
       "add": "Add fact",
@@ -137,7 +138,10 @@
       "count": "{count, plural, one {# line} other {# lines}}",
       "addVersion": "Add the {language} version",
       "addLine": "Add line",
-      "only": "{language} only"
+      "only": "{language} only",
+      "optionalTitle": "Polish wording for CVs (optional)",
+      "optionalBody": "CVs already use your facts as written. Want sharper sentences? AI can draft them from your facts.",
+      "polish": "Draft with AI"
     },
     "skills": {
       "title": "Skills & keywords",
@@ -165,7 +169,7 @@
       "label": "Label: a heading, not a claim",
       "empty": "Empty",
       "backed": "Backed by its facts",
-      "notBacked": "Not backed by a fact yet",
+      "notBacked": "Not used in CVs: no fact behind it. Add the fact above or remove the line.",
       "sectionLabel": "Section label",
       "placeholder": "A polished CV line, e.g. Cut response time from 2 days to 4 hours by…",
       "remove": "Remove line",
@@ -184,11 +188,15 @@
       "steps": "{count, plural, one {# step before CVs can use it} other {# steps before CVs can use it}}",
       "allPass": "All {count} checks pass",
       "skip": "CVs and letters skip it until then",
-      "fix": "Fix"
+      "fix": "Fix",
+      "confirm": "Mark verified"
     },
     "sectionsLabel": "Sections",
     "onThisPage": "On this page",
-    "needsSomething": "Needs something"
+    "needsSomething": "Needs something",
+    "degree": {
+      "label": "Degree level"
+    }
   },
   "entryAssist": {
     "questions": {

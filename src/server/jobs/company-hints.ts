@@ -2,6 +2,7 @@
  * Company hints that generic parsers miss, and a verified website guess for
  * when the posting never links the company's site (LinkedIn, Indeed...).
  */
+import { isParkedPage } from "./vendor/company-resolver"
 
 const decode = (value: string) => value.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
 
@@ -62,12 +63,13 @@ export function domainCandidates(company: string, location = ""): string[] {
  * line contains the full company name, or every distinctive token of it.
  */
 export function pageNamesCompany(html: string, company: string): boolean {
+  if (isParkedPage(html)) return false
   const head = fold([
     html.match(/<title[^>]*>([\s\S]{0,300}?)<\/title>/i)?.[1] ?? "",
     ...[...html.matchAll(/<meta[^>]+(?:property|name)=["'](?:og:site_name|og:title|application-name|twitter:title)["'][^>]+content=["']([^"']{0,200})/gi)].map((match) => match[1]),
     ...[...html.matchAll(/(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]?\s*)?(?:\d{4}\s*)?([^<|.]{2,80})/gi)].map((match) => match[1]),
     ...[...html.matchAll(/<img[^>]+alt=["']([^"']{2,80})["'][^>]*>/gi)].slice(0, 8).map((match) => match[1]),
-  ].join(" | "))
+  ].join(" | ").replace(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,6}\b/gi, " "))
   const full = fold(company).replace(/[^a-z0-9]+/g, " ").trim()
   if (full && head.replace(/[^a-z0-9]+/g, " ").includes(full)) return true
   const tokens = nameTokens(company)

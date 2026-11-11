@@ -8,7 +8,8 @@ export async function assertPublicUrl(url: URL) { await resolvePublicAddress(url
 export type FetchResult = { buffer: Buffer; contentType: string; finalUrl: string; status: number; headers?: Record<string, string> }
 
 /** Resolve once per redirect, then pin the socket to that vetted address. URL host/SNI stay intact. */
-export async function safeFetch(rawUrl: string, { maxBytes, accept, timeoutMs = 15_000, origin }: { maxBytes: number; accept: string; timeoutMs?: number; origin?: string }): Promise<FetchResult> {
+/** `truncate`: keep the first `maxBytes` of a larger body instead of failing (enough for a page's <head>). */
+export async function safeFetch(rawUrl: string, { maxBytes, accept, timeoutMs = 15_000, origin, truncate = false }: { maxBytes: number; accept: string; timeoutMs?: number; origin?: string; truncate?: boolean }): Promise<FetchResult> {
   let url = new URL(rawUrl)
   const deadline = Date.now() + timeoutMs
   for (let hop = 0; hop < 6; hop++) {
@@ -35,7 +36,7 @@ export async function safeFetch(rawUrl: string, { maxBytes, accept, timeoutMs = 
       const status = response.statusCode || 502
       const location = response.headers.location
       if (status >= 300 && status < 400 && location) { response.destroy(); url = new URL(location, url); continue }
-      if (Number(response.headers["content-length"] || 0) > maxBytes) { response.destroy(); throw new Error("The response is too large.") }
+      if (!truncate && Number(response.headers["content-length"] || 0) > maxBytes) { response.destroy(); throw new Error("The response is too large.") }
       const encoding = response.headers["content-encoding"]
       const decoder = encoding === "gzip" ? createGunzip() : encoding === "deflate" ? createInflate() : encoding === "br" ? createBrotliDecompress() : null
       if (encoding && encoding !== "identity" && !decoder) { response.destroy(); throw new Error("Unsupported response encoding.") }
@@ -48,7 +49,11 @@ export async function safeFetch(rawUrl: string, { maxBytes, accept, timeoutMs = 
         for await (const chunk of stream) {
           const bytes = Buffer.from(chunk)
           size += bytes.length
-          if (size > maxBytes) throw new Error("The response is too large.")
+          if (size > maxBytes) {
+            if (!truncate) throw new Error("The response is too large.")
+            chunks.push(bytes.subarray(0, bytes.length - (size - maxBytes)))
+            break
+          }
           chunks.push(bytes)
         }
       } finally { stream.destroy(); response.destroy() }

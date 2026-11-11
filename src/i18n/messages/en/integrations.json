@@ -13,7 +13,8 @@
    "facts": "Company facts",
    "salary": "Salary data",
    "api": "API & extension",
-   "export": "Export"
+   "export": "Export",
+   "apify": "Job discovery"
   },
   "sections": {
    "ai": {
@@ -33,8 +34,8 @@
     "description": "Public facts on company pages, and what similar roles pay on job pages."
    },
    "connect": {
-    "title": "Extension, API and export",
-    "description": "Save jobs from your browser, let an AI assistant or your scripts use Naruvi, or take your data elsewhere."
+    "title": "Job discovery, extension, API and export",
+    "description": "Find new postings, save jobs from your browser, let an AI assistant or your scripts use Naruvi, or take your data elsewhere."
    }
   },
   "export": {
@@ -313,6 +314,25 @@
     "useSignin": "Use Resend sign-in",
     "useKey": "Use an API key"
    }
+  },
+  "apify": {
+   "ready": "Job discovery ready",
+   "removed": "Apify token removed",
+   "title": "Job discovery",
+   "description": "“Discover” on the Jobs page finds postings that match your profile and search goals, and puts the best in your job leads. Nothing is saved until you import one. Uses Apify with your own token (about $1 to $3 per 1,000 postings).",
+   "badge": "Ready",
+   "replaceKey": "Paste a new token to replace it",
+   "key": "Apify API token",
+   "save": "Save",
+   "remove": "Remove",
+   "privacy": "Only your goals' roles and places are sent to Apify. Scraping job boards may break their terms of use, so use it for your own search only.",
+   "boards": "Job boards",
+   "daily": "Also search once a day in the background",
+   "plan": "What a search looks for",
+   "planEmpty": "No active search goal names a role yet, so there is nothing to search for.",
+   "lastRun": "Last search: {when}",
+   "planHelp": "Built from the roles and places of your active search goals.",
+   "planEmptyLink": "Add roles to a search goal"
   }
  },
  "modelSettings": {

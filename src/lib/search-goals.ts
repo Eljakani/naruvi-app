@@ -15,6 +15,8 @@ export const searchGoal = z.object({
   id: z.string().min(1).max(40),
   name: z.string().trim().min(1, "Name the goal").max(60),
   active: z.boolean().default(true),
+  /** The job titles this goal is about ("DevOps engineer"); job discovery searches for these. */
+  roles: z.array(z.string().trim().min(1).max(80)).max(3).default([]),
   contracts: z.array(z.enum(CONTRACT_KEYS)).max(9).default([]),
   places: z.array(z.string().trim().min(1).max(80)).max(12).default([]),
   workModes: z.array(z.enum(["onsite", "hybrid", "remote"])).max(3).default([]),

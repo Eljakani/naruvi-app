@@ -89,3 +89,13 @@ test("leadLabel splits short labels only", async () => {
   assert.equal(leadLabel("You will build pipelines that are secure: from code to cloud"), null)
   assert.equal(leadLabel("Read more at https://acme.com: here"), null)
 })
+
+test("scraped postings: entities decoded, a sentence split by a blank line rejoined, a lead-in sentence kept as text", () => {
+  const blocks = parseJobText("Formation\n\nDe formation Bac+5, vous possédez :\n\n\n- Linux &amp; Docker\n- Anglais\n\nTu recevras un appel\n\ntéléphonique d&#8217;un commercial.")
+  assert.deepEqual(blocks, [
+    { type: "heading", text: "Formation", id: "formation" },
+    { type: "paragraph", text: "De formation Bac+5, vous possédez:" },
+    { type: "list", ordered: false, items: ["Linux & Docker", "Anglais"] },
+    { type: "paragraph", text: "Tu recevras un appel téléphonique d’un commercial." },
+  ])
+})

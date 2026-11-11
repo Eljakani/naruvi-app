@@ -1,13 +1,11 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { useState, useTransition, type ReactElement } from "react"
+import { useState, useTransition } from "react"
 import { CheckIcon, ClipboardPasteIcon, GlobeIcon, ImageIcon, LinkIcon, Loader2Icon, ScanTextIcon, SparklesIcon, type LucideIcon } from "lucide-react"
 import { toast } from "sonner"
 import { previewJobAction, type Duplicate } from "@/app/[locale]/(app)/jobs/actions"
 import { useStep } from "@/components/ai-progress"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -99,7 +97,7 @@ export function JobReader({ onDone, initialUrl = "", initialText = "", autoFocus
               className="h-10"
             />
             <Button type="submit" size="lg" disabled={!ready}>
-              <SparklesIcon /> {t("read")}
+              <SparklesIcon data-icon="inline-start" /> {t("read")}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -112,7 +110,7 @@ export function JobReader({ onDone, initialUrl = "", initialText = "", autoFocus
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground tabular-nums">{text.trim().length < 80 ? t("more", { count: 80 - text.trim().length }) : t("chars", { count: text.trim().length })}</span>
             <Button type="submit" disabled={!ready}>
-              <SparklesIcon /> {t("readText")}
+              <ScanTextIcon data-icon="inline-start" /> {t("readText")}
             </Button>
           </div>
         </>
@@ -162,32 +160,5 @@ function ReadingPosting({ host, steps, step }: { host: string; steps: typeof STE
         <p className="text-xs text-muted-foreground">{t("nothingSaved")}</p>
       </div>
     </div>
-  )
-}
-
-export const DRAFT_KEY = "naruvi:job-draft"
-
-/** "Add a job" anywhere: a small dialog; the full review opens once the posting is read. */
-export function AddJobDialog({ trigger }: { trigger: ReactElement }) {
-  const t = useTranslations("jobReader")
-  const router = useRouter()
-  const [open, setOpen] = useState(false)
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger} />
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
-          <DialogDescription>{t("description")}</DialogDescription>
-        </DialogHeader>
-        <JobReader
-          onDone={(result, source) => {
-            sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ ...result, source }))
-            router.push("/jobs/new?review=1")
-            setOpen(false)
-          }}
-        />
-      </DialogContent>
-    </Dialog>
   )
 }

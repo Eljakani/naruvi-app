@@ -66,10 +66,20 @@
     "page": "Page {page} sur {pages}",
     "leads": {
       "title": "Pistes",
-      "description": "{count, plural, one {# annonce de vos alertes et de votre navigateur, pas encore enregistrée. Importez-la pour la lire et la vérifier.} other {# annonces de vos alertes et de votre navigateur, pas encore enregistrées. Importez-en une pour la lire et la vérifier.}}",
+      "description": "{count, plural, one {# annonce de vos alertes, de votre navigateur et de vos recherches, pas encore enregistrée. Importez-la pour la lire et la vérifier.} other {# annonces de vos alertes, de votre navigateur et de vos recherches, pas encore enregistrées. Importez-en une pour la lire et la vérifier.}}",
       "import": "Importer",
       "dismiss": "Écarter {title}",
-      "thisPosting": "cette annonce"
+      "thisPosting": "cette annonce",
+      "showAll": "Tout afficher ({count})",
+      "showFewer": "Afficher moins",
+      "fromSearch": "Votre recherche",
+      "matchesLabel": "Compétences citées",
+      "dismissAll": "Tout écarter",
+      "details": "Détails",
+      "detailsFailed": "Impossible de charger cette annonce.",
+      "noText": "Aucun texte n’a été enregistré avec cette piste. Ouvrez l’original pour la lire.",
+      "openOriginal": "Ouvrir sur {board}",
+      "dismissShort": "Écarter"
     },
     "tags": {
       "remove": "Retirer l’étiquette {tag}",
@@ -144,6 +154,20 @@
       "sections": "Sections",
       "less": "Afficher moins",
       "full": "Afficher toute la description"
+    },
+    "discover": {
+      "button": "Découvrir",
+      "searching": "Recherche sur les sites d’emploi…",
+      "added": "{count, plural, one {# nouvelle annonce dans vos pistes} other {# nouvelles annonces dans vos pistes}}",
+      "none": "Aucune nouvelle annonce cette fois",
+      "partial": "Certaines recherches ont échoué ; voici les résultats des autres.",
+      "wait": "Cela prend une minute ou deux. Vous pouvez continuer à travailler.",
+      "failed": "La recherche n’a pas fonctionné",
+      "setup": "Configurez d’abord la découverte d’offres",
+      "setupHelp": "Elle a besoin de votre propre jeton Apify pour chercher sur LinkedIn et Indeed.",
+      "setupOpen": "Configurer",
+      "where": "Elles sont dans vos pistes, les meilleures correspondances en premier.",
+      "seen": "Tout ce qui a été trouvé était déjà dans vos offres ou vos pistes, ou hors de vos objectifs de recherche."
     }
   },
   "jobReader": {
@@ -174,6 +198,9 @@
     "description": "Collez le lien de l’annonce. Naruvi la lit, trouve le site et le logo de l’entreprise, et vous laisse tout vérifier avant d’enregistrer."
   },
   "newJob": {
+    "groups": {"role": "Le poste", "company": "L’entreprise", "terms": "Conditions", "language": "Langue de l’annonce"},
+    "reviewTitle": "Vérifiez et enregistrez",
+    "reviewDescription": "Corrigez ce que la lecture a mal compris, puis enregistrez l’offre.",
     "source": {
       "link": "trouvé dans un lien de l’annonce",
       "email": "d’après le domaine e-mail du recruteur",
@@ -222,6 +249,8 @@
     "openWebsite": "Ouvrir le site",
     "websiteFrom": "Site {source}. Jamais le site d’emploi lui-même.",
     "websiteMissing": "Introuvable. L’ajouter améliore la recherche et le logo.",
+    "logoLooking": "Recherche du logo sur ce site…",
+    "logoNotFound": "Aucun logo trouvé sur ce site. Importez-en un ou collez son URL.",
     "languageHint": "Votre CV pour ce poste sera rédigé dans cette langue par défaut.",
     "descriptionTitle": "Description du poste",
     "chars": "{count, plural, one {# caractère · conservé tel quel} other {# caractères · conservés tels quels}}",
@@ -229,6 +258,7 @@
     "preview": "Aperçu",
     "editText": "Modifier le texte",
     "hints": {
+      "ai": "l’IA, dans l’annonce",
       "labelled": "un champ étiqueté",
       "hiring": "la phrase de recrutement",
       "join": "la phrase « rejoignez-nous »",
@@ -239,6 +269,7 @@
       "location": "une mention de lieu"
     },
     "detected": "Détecté à partir de {from} — vérifiez-le.",
-    "notFound": "Introuvable dans le texte. Veuillez le compléter."
+    "notFound": "Introuvable dans le texte. Veuillez le compléter.",
+    "fromDiscovery": "Trouvée par une recherche de découverte · {host}. Lisez le texte, vérifiez les détails, puis enregistrez."
   }
 }

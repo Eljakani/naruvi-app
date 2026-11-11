@@ -1,5 +1,7 @@
 export function hostOf(value: string): string
 export function isJobHost(hostOrUrl: string): boolean
+/** A parked or for-sale domain page (it names nothing but the domain itself). */
+export function isParkedPage(html: string): boolean
 export function registrableDomain(host: string): string
 export function nameMatch(company: string, host: string): number
 export type SiteResolution = { url: string; source: string; confidence: number }

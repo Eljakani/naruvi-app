@@ -121,16 +121,13 @@ export function ProfileImport() {
       <Button variant="ghost" size="sm" className="w-fit" onClick={() => setResult(null)}>
         <ArrowLeftIcon /> {t("startOver")}
       </Button>
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("found")}</h1>
           <p className="text-sm text-muted-foreground">
             {t("summary", { created: count("new"), merged: count("merge"), skipped: count("skip") })}
           </p>
         </div>
-        <Button onClick={save} disabled={saving || count("skip") === decisions.length}>
-          <CheckIcon /> {t("apply")}
-        </Button>
       </div>
 
       {id.fullName || id.email || id.headline ? (
@@ -200,6 +197,13 @@ export function ProfileImport() {
             </Card>
           )
         })}
+      </div>
+
+      <div className="sticky bottom-0 -mx-2 grid gap-2 border-t bg-background/90 px-2 py-4 backdrop-blur sm:flex sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">{t("applyHint")}</p>
+        <Button size="lg" className="w-full sm:w-auto" onClick={save} disabled={saving || count("skip") === decisions.length}>
+          <CheckIcon /> {t("apply")}
+        </Button>
       </div>
     </div>
   )

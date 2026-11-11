@@ -12,6 +12,8 @@ import { CalendarSettings } from "@/components/integrations/calendar-settings"
 import { EmailFinderSettings } from "@/components/integrations/email-finder-settings"
 import { ExportSettings } from "@/components/integrations/export-settings"
 import { emailFinderStatus } from "@/server/contacts/repository"
+import { apifyStatus } from "@/server/jobs/discover"
+import { ApifySettings } from "@/components/integrations/apify-settings"
 import { CompanyFactsSettings, SalaryDataSettings } from "@/components/integrations/market-data-settings"
 import { companyFactsEnabled } from "@/server/companies/profile"
 import { salaryDataStatus } from "@/server/salary/market"
@@ -21,7 +23,7 @@ import { OAuthResult } from "@/components/integrations/oauth-signin"
 import { NotificationSettings } from "@/components/integrations/notification-settings"
 import { notificationOverview } from "@/server/integrations/notify"
 import { calendarToken, datedNextSteps } from "@/server/integrations/calendar"
-import { AudioLinesIcon, BellIcon, BotIcon, Building2Icon, ScanSearchIcon, CalendarDaysIcon, WalletIcon, MailIcon, MailSearchIcon, PuzzleIcon, SheetIcon } from "lucide-react"
+import { AudioLinesIcon, BellIcon, BotIcon, Building2Icon, ScanSearchIcon, CalendarDaysIcon, WalletIcon, MailIcon, MailSearchIcon, PuzzleIcon, SheetIcon, SparklesIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { SectionLayout, SectionNav, SettingsSection } from "@/components/section-nav"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -49,7 +51,7 @@ async function Integrations() {
   const t = await getTranslations("integrations")
   await connection()
   const [mail, token, upcoming, head, notifications, keys, reply, oauth, finder] = await Promise.all([getMailOverview(), calendarToken(), datedNextSteps(), headers(), notificationOverview(), listApiKeys(), getReplySetting(), oauthClients(), emailFinderStatus()])
-  const [factsOn, salary, llm, decisions, speech] = await Promise.all([companyFactsEnabled(), salaryDataStatus(), getLlmOverview(), getDecisionOverview(), getSpeechOverview()])
+  const [factsOn, salary, llm, decisions, speech, apify] = await Promise.all([companyFactsEnabled(), salaryDataStatus(), getLlmOverview(), getDecisionOverview(), getSpeechOverview(), apifyStatus()])
   const host = head.get("x-forwarded-host") ?? head.get("host") ?? "localhost:3000"
   const origin = `${head.get("x-forwarded-proto") ?? (/^(localhost|127\.|\[::1\])/.test(host) ? "http" : "https")}://${host}`
   const items = [
@@ -62,6 +64,7 @@ async function Integrations() {
     { id: "email-finder", label: t("nav.finder"), icon: <MailSearchIcon />, status: finder.configured },
     { id: "company-facts", label: t("nav.facts"), icon: <Building2Icon />, status: factsOn },
     { id: "salary-data", label: t("nav.salary"), icon: <WalletIcon />, status: salary.configured },
+    { id: "job-discovery", label: t("nav.apify"), icon: <SparklesIcon />, status: apify.configured },
     { id: "api", label: t("nav.api"), icon: <PuzzleIcon />, status: keys.length > 0 },
     { id: "export", label: t("nav.export"), icon: <SheetIcon />, status: null },
   ]
@@ -86,6 +89,7 @@ async function Integrations() {
         <div id="salary-data" className="scroll-mt-6"><SalaryDataSettings configured={salary.configured} appId={salary.appId} /></div>
       </SettingsSection>
       <SettingsSection id="connect" title={t("sections.connect.title")} description={t("sections.connect.description")}>
+        <div id="job-discovery" className="scroll-mt-6"><ApifySettings status={apify} /></div>
         <div id="api" className="scroll-mt-6"><ApiSettings keys={keys} origin={origin} folder={process.cwd()} /></div>
         <div id="export" className="scroll-mt-6"><ExportSettings /></div>
       </SettingsSection>

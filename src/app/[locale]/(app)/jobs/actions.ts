@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { findDuplicates, setJobTags } from "@/server/companies/repository"
-import { dismissLead, markLeadImported } from "@/server/jobs/leads"
-import { previewJob, saveJob } from "@/server/jobs/ingest"
+import { dismissLead, getLead, markLeadImported } from "@/server/jobs/leads"
+import { discoveredKeywords, leadParts } from "@/lib/discover"
+import { apifyStatus, discoverJobs, removeApify, saveApify } from "@/server/jobs/discover"
+import { companyBrandingFromLink, previewJob, saveJob } from "@/server/jobs/ingest"
+import { normalizeWebsite } from "@/lib/company-input"
 import { trackJob } from "@/server/applications/repository"
 import { cleanTags } from "@/lib/similar"
 import { refreshJobInsights } from "@/server/jobs/insights"
@@ -87,4 +90,46 @@ export async function trackJobAction(jobId: string): Promise<ActionResult<{ appl
   revalidatePath("/applications")
   revalidatePath("/")
   return { ok: true, data: { applicationId } }
+}
+
+const failed = (error: unknown) => ({ ok: false as const, message: error instanceof z.ZodError ? (error.issues[0]?.message ?? "Check the form.") : error instanceof Error ? error.message : String(error) })
+
+/** `null` removes the token and the discovery settings. */
+export async function saveApifyAction(value: { token: string; boards: string[]; daily: boolean } | null): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    await (value ? saveApify(value) : removeApify())
+    revalidatePath("/integrations")
+    revalidatePath("/jobs")
+    return { ok: true }
+  } catch (error) {
+    return failed(error)
+  }
+}
+
+/** Search the job boards from the profile; new postings land in the job leads. `setup`: no Apify token yet. */
+export async function discoverJobsAction(): Promise<{ ok: true; found: number; added: number; failed: number } | { ok: false; setup: boolean; message: string }> {
+  try {
+    if (!(await apifyStatus()).configured) return { ok: false, setup: true, message: "" }
+    const result = await discoverJobs()
+    revalidatePath("/jobs")
+    return { ok: true, ...result }
+  } catch (error) {
+    return { ...failed(error), setup: false }
+  }
+}
+
+/** A lead's full posting text, for its details dialog. */
+export async function leadDetailsAction(id: string): Promise<{ ok: true; facts: string[]; body: string } | { ok: false; message: string }> {
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, message: await serverError("invalidLead") }
+  const lead = await getLead(id)
+  if (!lead) return { ok: false, message: await serverError("invalidLead") }
+  return { ok: true, ...leadParts(lead.text ?? "", Boolean(discoveredKeywords(lead.source))) }
+}
+
+/** The logo on a company website you just typed, for the job you're reviewing. Nothing is saved but the (content-addressed) image. */
+export async function siteLogoAction(website: string): Promise<{ ok: true; logoPath: string | null } | { ok: false }> {
+  const url = normalizeWebsite(z.string().max(500).parse(website))
+  if (!url) return { ok: false }
+  const branding = await companyBrandingFromLink(url).catch(() => null)
+  return { ok: true, logoPath: branding?.logo?.path ?? null }
 }

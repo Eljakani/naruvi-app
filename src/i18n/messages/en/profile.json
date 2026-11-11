@@ -1,20 +1,50 @@
 {
   "profileLabels": {
-    "kind": { "experience": "Experience", "project": "Projects", "skill": "Skills", "education": "Education", "certification": "Certifications", "language": "Languages", "achievement": "Achievements", "other": "Other" },
-    "kindSingular": { "experience": "Experience", "project": "Project", "skill": "Skill cluster", "education": "Education", "certification": "Certification", "language": "Languages", "achievement": "Achievement", "other": "Other" },
-    "status": { "verified": "Verified", "needs_review": "Needs review", "archived": "Archived" }
+    "kind": {
+      "experience": "Experience",
+      "project": "Projects",
+      "skill": "Skills",
+      "education": "Education",
+      "certification": "Certifications",
+      "language": "Languages",
+      "achievement": "Achievements",
+      "other": "Other"
+    },
+    "kindSingular": {
+      "experience": "Experience",
+      "project": "Project",
+      "skill": "Skill cluster",
+      "education": "Education",
+      "certification": "Certification",
+      "language": "Languages",
+      "achievement": "Achievement",
+      "other": "Other"
+    },
+    "status": {
+      "verified": "Verified",
+      "needs_review": "Needs review",
+      "archived": "Archived"
+    }
   },
   "profile": {
     "title": "Profile",
     "description": "Everything your CVs and letters say about you comes from here, and nothing else.",
-    "start": { "title": "Start your profile", "body": "Upload your CV and AI fills your profile for you, or add entries by hand. Nothing is used for generation until you verify it.", "fromCv": "Start from my CV" },
+    "start": {
+      "title": "Start your profile",
+      "body": "Upload your CV and AI fills your profile for you, or add entries by hand. Nothing is used for generation until you verify it.",
+      "fromCv": "Start from my CV"
+    },
     "addEntry": "Add entry",
     "changePhoto": "Change photo",
     "addPhoto": "Add a photo",
     "yourName": "Your name",
     "addHeadline": "+ Add a one-line headline",
     "edit": "Edit",
-    "contact": { "email": "email", "phone": "phone", "city": "city" },
+    "contact": {
+      "email": "email",
+      "phone": "phone",
+      "city": "city"
+    },
     "addContact": "Add {field}",
     "available": "Available {when}",
     "ready": "{ready} of {total} entries ready",
@@ -29,20 +59,56 @@
     "noMatchBody": "Try another word, or clear the filter.",
     "add": "Add",
     "sections": {
-      "experience": { "title": "Experience", "empty": "Jobs, internships, freelance work, volunteering." },
-      "education": { "title": "Education", "empty": "Degrees, schools, bootcamps." },
-      "project": { "title": "Projects", "empty": "Things you built or led, at work or on your own." },
-      "certification": { "title": "Certifications", "empty": "Licences and certificates." },
-      "skill": { "title": "Skills", "empty": "Groups of skills, e.g. “Cloud” or “Customer service”." },
-      "language": { "title": "Languages", "empty": "Languages you speak and your level." },
-      "achievement": { "title": "Achievements", "empty": "Awards, competitions, publications." },
-      "other": { "title": "Other", "empty": "Anything else worth knowing." }
+      "experience": {
+        "title": "Experience",
+        "empty": "Jobs, internships, freelance work, volunteering."
+      },
+      "education": {
+        "title": "Education",
+        "empty": "Degrees, schools, bootcamps."
+      },
+      "project": {
+        "title": "Projects",
+        "empty": "Things you built or led, at work or on your own."
+      },
+      "certification": {
+        "title": "Certifications",
+        "empty": "Licences and certificates."
+      },
+      "skill": {
+        "title": "Skills",
+        "empty": "Groups of skills, e.g. “Cloud” or “Customer service”."
+      },
+      "language": {
+        "title": "Languages",
+        "empty": "Languages you speak and your level."
+      },
+      "achievement": {
+        "title": "Achievements",
+        "empty": "Awards, competitions, publications."
+      },
+      "other": {
+        "title": "Other",
+        "empty": "Anything else worth knowing."
+      }
     },
     "copy": "Copy {label}",
     "copied": "Copied",
     "logo": "{name} logo",
-    "card": { "archived": "Archived", "needsLook": "Needs a look", "noFacts": "No facts yet", "lineNeedsFact": "A CV line needs a fact", "nda": "NDA", "ready": "Ready" },
-    "languageSwitch": { "label": "Language", "notFilledTitle": "{language} (not filled in yet)", "filled": ", filled in", "notFilled": ", not filled in yet" }
+    "card": {
+      "archived": "Archived",
+      "needsLook": "Needs a look",
+      "noFacts": "No facts yet",
+      "lineNeedsFact": "A CV line needs a fact",
+      "nda": "NDA",
+      "ready": "Ready"
+    },
+    "languageSwitch": {
+      "label": "Language",
+      "notFilledTitle": "{language} (not filled in yet)",
+      "filled": ", filled in",
+      "notFilled": ", not filled in yet"
+    }
   },
   "identity": {
     "saveFailed": "Could not save",
@@ -100,6 +166,9 @@
     "emptyLocation": "No goals yet, so jobs are only checked against your location ({location}). Add one, like “PFE internship in Paris, 6 months” or “CDI in France”, and each fit check will tell you when a job doesn’t fit it.",
     "defaultName": "My search",
     "dialog": {
+      "roles": "Roles you're looking for",
+      "rolesPlaceholder": "DevOps engineer, SRE",
+      "rolesHint": "Up to 3. Job discovery searches for these, in this goal's places.",
       "new": "New search goal",
       "edit": "Edit search goal",
       "description": "Leave a section empty if anything goes.",
@@ -131,7 +200,7 @@
       "merged": "{count} updated (+{facts} facts)",
       "nothing": "Nothing to add",
       "reverify": "{count, plural, one {# verified entry needs a quick re-check for the new facts.} other {# verified entries need a quick re-check for the new facts.}}",
-      "review": "Everything new is waiting for your review."
+      "review": "Saved and verified. Edit anything any time."
     },
     "back": "Profile",
     "title": "Start from your CV",
@@ -145,7 +214,7 @@
     "startOver": "Start over",
     "found": "Here’s what we found",
     "summary": "{created} new · {merged} to update · {skipped} skipped. Entries you already have are updated with only what’s new; nothing you wrote is overwritten.",
-    "apply": "Apply",
+    "apply": "Looks right, save to my profile",
     "you": "You",
     "fillsEmpty": "Fills empty fields only",
     "whatToDo": "What to do with {title}",
@@ -158,7 +227,8 @@
     "nothingNew": "nothing new to add",
     "recheck": "it will need a quick re-check",
     "more": "+{count} more",
-    "dropped": "{count, plural, one {# item left out: its numbers weren’t in your CV.} other {# items left out: their numbers weren’t in your CV.}}"
+    "dropped": "{count, plural, one {# item left out: its numbers weren’t in your CV.} other {# items left out: their numbers weren’t in your CV.}}",
+    "applyHint": "Saving confirms these entries are accurate. You can still edit any of them later."
   },
   "reviewQueue": {
     "nothing": "Nothing to review",
@@ -173,8 +243,12 @@
     "next": "Next",
     "alreadyResolved": "Already resolved.",
     "skippedEarlier": "Skipped earlier.",
-    "keys": { "toggle": "toggle a fact", "confirm": "confirm", "skip": "skip" },
-    "openEntry": "Open entry",
+    "keys": {
+      "toggle": "toggle a fact",
+      "confirm": "confirm",
+      "skip": "skip"
+    },
+    "openEntry": "Edit",
     "factAddedBacked": "Fact added — bullet is backed",
     "factAdded": "Fact added",
     "stillUnbacked": "Still unbacked: {numbers}",
@@ -199,10 +273,13 @@
     "linkNext": "Link & next",
     "verified": "Verified",
     "archived": "Archived",
-    "reasons": { "notVerified": "Not verified yet", "noFacts": "No facts" },
+    "reasons": {
+      "notVerified": "Not verified yet",
+      "noFacts": "No facts"
+    },
     "isTrue": "Is everything here true and current?",
     "isTrueHint": "Verified entries are the only ones Naruvi uses to write CVs.",
-    "noFactsOpen": "No facts yet. Open the entry and add what you can prove before verifying it.",
+    "noFactsOpen": "Jobs and projects are stronger with at least one concrete achievement. Edit the entry to add one, or verify it as is.",
     "ungrounded": "{count, plural, one {# bullet in this entry still needs a fact; it appears separately in this queue.} other {# bullets in this entry still need a fact; they appear separately in this queue.}}",
     "archive": "Archive",
     "markVerified": "Yes, mark verified",

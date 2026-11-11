@@ -1,20 +1,50 @@
 {
   "profileLabels": {
-    "kind": { "experience": "Expérience", "project": "Projets", "skill": "Compétences", "education": "Formation", "certification": "Certifications", "language": "Langues", "achievement": "Réalisations", "other": "Autre" },
-    "kindSingular": { "experience": "Expérience", "project": "Projet", "skill": "Groupe de compétences", "education": "Formation", "certification": "Certification", "language": "Langues", "achievement": "Réalisation", "other": "Autre" },
-    "status": { "verified": "Vérifié", "needs_review": "À vérifier", "archived": "Archivé" }
+    "kind": {
+      "experience": "Expérience",
+      "project": "Projets",
+      "skill": "Compétences",
+      "education": "Formation",
+      "certification": "Certifications",
+      "language": "Langues",
+      "achievement": "Réalisations",
+      "other": "Autre"
+    },
+    "kindSingular": {
+      "experience": "Expérience",
+      "project": "Projet",
+      "skill": "Groupe de compétences",
+      "education": "Formation",
+      "certification": "Certification",
+      "language": "Langues",
+      "achievement": "Réalisation",
+      "other": "Autre"
+    },
+    "status": {
+      "verified": "Vérifié",
+      "needs_review": "À vérifier",
+      "archived": "Archivé"
+    }
   },
   "profile": {
     "title": "Profil",
     "description": "Tout ce que vos CV et lettres disent de vous vient d’ici, et de nulle part ailleurs.",
-    "start": { "title": "Créez votre profil", "body": "Importez votre CV et l’IA remplit votre profil pour vous, ou ajoutez des éléments à la main. Rien n’est utilisé pour la génération avant que vous l’ayez vérifié.", "fromCv": "Partir de mon CV" },
+    "start": {
+      "title": "Créez votre profil",
+      "body": "Importez votre CV et l’IA remplit votre profil pour vous, ou ajoutez des éléments à la main. Rien n’est utilisé pour la génération avant que vous l’ayez vérifié.",
+      "fromCv": "Partir de mon CV"
+    },
     "addEntry": "Ajouter un élément",
     "changePhoto": "Changer la photo",
     "addPhoto": "Ajouter une photo",
     "yourName": "Votre nom",
     "addHeadline": "+ Ajouter un titre d’une ligne",
     "edit": "Modifier",
-    "contact": { "email": "e-mail", "phone": "téléphone", "city": "ville" },
+    "contact": {
+      "email": "e-mail",
+      "phone": "téléphone",
+      "city": "ville"
+    },
     "addContact": "Ajouter : {field}",
     "available": "Disponible {when}",
     "ready": "{ready} éléments prêts sur {total}",
@@ -29,20 +59,56 @@
     "noMatchBody": "Essayez un autre mot ou retirez le filtre.",
     "add": "Ajouter",
     "sections": {
-      "experience": { "title": "Expérience", "empty": "Emplois, stages, missions freelance, bénévolat." },
-      "education": { "title": "Formation", "empty": "Diplômes, écoles, bootcamps." },
-      "project": { "title": "Projets", "empty": "Ce que vous avez construit ou mené, au travail ou de votre côté." },
-      "certification": { "title": "Certifications", "empty": "Licences et certificats." },
-      "skill": { "title": "Compétences", "empty": "Groupes de compétences, p. ex. « Cloud » ou « Relation client »." },
-      "language": { "title": "Langues", "empty": "Les langues que vous parlez et votre niveau." },
-      "achievement": { "title": "Réalisations", "empty": "Prix, concours, publications." },
-      "other": { "title": "Autre", "empty": "Tout ce qui mérite d’être connu." }
+      "experience": {
+        "title": "Expérience",
+        "empty": "Emplois, stages, missions freelance, bénévolat."
+      },
+      "education": {
+        "title": "Formation",
+        "empty": "Diplômes, écoles, bootcamps."
+      },
+      "project": {
+        "title": "Projets",
+        "empty": "Ce que vous avez construit ou mené, au travail ou de votre côté."
+      },
+      "certification": {
+        "title": "Certifications",
+        "empty": "Licences et certificats."
+      },
+      "skill": {
+        "title": "Compétences",
+        "empty": "Groupes de compétences, p. ex. « Cloud » ou « Relation client »."
+      },
+      "language": {
+        "title": "Langues",
+        "empty": "Les langues que vous parlez et votre niveau."
+      },
+      "achievement": {
+        "title": "Réalisations",
+        "empty": "Prix, concours, publications."
+      },
+      "other": {
+        "title": "Autre",
+        "empty": "Tout ce qui mérite d’être connu."
+      }
     },
     "copy": "Copier : {label}",
     "copied": "Copié",
     "logo": "Logo de {name}",
-    "card": { "archived": "Archivé", "needsLook": "À vérifier", "noFacts": "Pas encore de faits", "lineNeedsFact": "Une ligne de CV a besoin d’un fait", "nda": "Confidentiel", "ready": "Prêt" },
-    "languageSwitch": { "label": "Langue", "notFilledTitle": "{language} (pas encore rempli)", "filled": ", rempli", "notFilled": ", pas encore rempli" }
+    "card": {
+      "archived": "Archivé",
+      "needsLook": "À vérifier",
+      "noFacts": "Pas encore de faits",
+      "lineNeedsFact": "Une ligne de CV a besoin d’un fait",
+      "nda": "Confidentiel",
+      "ready": "Prêt"
+    },
+    "languageSwitch": {
+      "label": "Langue",
+      "notFilledTitle": "{language} (pas encore rempli)",
+      "filled": ", rempli",
+      "notFilled": ", pas encore rempli"
+    }
   },
   "identity": {
     "saveFailed": "Impossible d’enregistrer",
@@ -100,6 +166,9 @@
     "emptyLocation": "Pas encore d’objectif : les offres ne sont vérifiées que par rapport à votre lieu ({location}). Ajoutez-en un, comme « Stage de fin d’études à Paris, 6 mois » ou « CDI en France », et chaque vérification vous dira quand une offre ne correspond pas.",
     "defaultName": "Ma recherche",
     "dialog": {
+      "roles": "Postes recherchés",
+      "rolesPlaceholder": "Ingénieur DevOps, SRE",
+      "rolesHint": "3 au plus. La découverte d’offres les recherche, dans les lieux de cet objectif.",
       "new": "Nouvel objectif de recherche",
       "edit": "Modifier l’objectif de recherche",
       "description": "Laissez une section vide si tout vous convient.",
@@ -131,7 +200,7 @@
       "merged": "{count} mis à jour (+{facts} faits)",
       "nothing": "Rien à ajouter",
       "reverify": "{count, plural, one {# élément vérifié doit être rapidement revu pour les nouveaux faits.} other {# éléments vérifiés doivent être rapidement revus pour les nouveaux faits.}}",
-      "review": "Tout ce qui est nouveau attend votre relecture."
+      "review": "Enregistré et vérifié. Modifiable à tout moment."
     },
     "back": "Profil",
     "title": "Partir de votre CV",
@@ -145,7 +214,7 @@
     "startOver": "Recommencer",
     "found": "Voici ce que nous avons trouvé",
     "summary": "{created} nouveau(x) · {merged} à mettre à jour · {skipped} ignoré(s). Les éléments existants ne reçoivent que les nouveautés ; rien de ce que vous avez écrit n’est écrasé.",
-    "apply": "Appliquer",
+    "apply": "C’est bon, enregistrer dans mon profil",
     "you": "Vous",
     "fillsEmpty": "Ne remplit que les champs vides",
     "whatToDo": "Que faire de {title}",
@@ -158,7 +227,8 @@
     "nothingNew": "rien de nouveau à ajouter",
     "recheck": "il faudra le revoir rapidement",
     "more": "+{count} de plus",
-    "dropped": "{count, plural, one {# élément écarté : ses chiffres n’étaient pas dans votre CV.} other {# éléments écartés : leurs chiffres n’étaient pas dans votre CV.}}"
+    "dropped": "{count, plural, one {# élément écarté : ses chiffres n’étaient pas dans votre CV.} other {# éléments écartés : leurs chiffres n’étaient pas dans votre CV.}}",
+    "applyHint": "Enregistrer confirme que ces éléments sont exacts. Vous pourrez toujours les modifier."
   },
   "reviewQueue": {
     "nothing": "Rien à revoir",
@@ -173,8 +243,12 @@
     "next": "Suivant",
     "alreadyResolved": "Déjà résolu.",
     "skippedEarlier": "Reporté plus tôt.",
-    "keys": { "toggle": "cocher un fait", "confirm": "confirmer", "skip": "reporter" },
-    "openEntry": "Ouvrir l’élément",
+    "keys": {
+      "toggle": "cocher un fait",
+      "confirm": "confirmer",
+      "skip": "reporter"
+    },
+    "openEntry": "Modifier",
     "factAddedBacked": "Fait ajouté — la puce est justifiée",
     "factAdded": "Fait ajouté",
     "stillUnbacked": "Toujours non justifié : {numbers}",
@@ -199,10 +273,13 @@
     "linkNext": "Lier et suivant",
     "verified": "Vérifié",
     "archived": "Archivé",
-    "reasons": { "notVerified": "Pas encore vérifié", "noFacts": "Aucun fait" },
+    "reasons": {
+      "notVerified": "Pas encore vérifié",
+      "noFacts": "Aucun fait"
+    },
     "isTrue": "Tout est-il vrai et à jour ?",
     "isTrueHint": "Seuls les éléments vérifiés sont utilisés par Naruvi pour rédiger vos CV.",
-    "noFactsOpen": "Pas encore de faits. Ouvrez l’élément et ajoutez ce que vous pouvez prouver avant de le vérifier.",
+    "noFactsOpen": "Un emploi ou un projet est plus solide avec au moins une réalisation concrète. Modifiez l’élément pour en ajouter une, ou vérifiez-le tel quel.",
     "ungrounded": "{count, plural, one {# puce de cet élément a encore besoin d’un fait ; elle apparaît séparément dans cette file.} other {# puces de cet élément ont encore besoin d’un fait ; elles apparaissent séparément dans cette file.}}",
     "archive": "Archiver",
     "markVerified": "Oui, marquer comme vérifié",

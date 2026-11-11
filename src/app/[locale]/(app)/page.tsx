@@ -9,7 +9,7 @@ import { EntryLogo } from "@/components/profile/entry-logo"
 import { NeedsAttention } from "@/components/tracking/needs-attention"
 import { DashboardCalendar } from "@/components/tracking/dashboard-calendar"
 import { OutcomeFunnel } from "@/components/tracking/outcome-funnel"
-import { AddJobDialog } from "@/components/jobs/job-reader"
+import { AddJobDialog } from "@/components/jobs/add-job-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -87,7 +87,7 @@ async function DashboardData() {
 
   const setup = [
     { done: data.hasProfile && data.verifiedFacts > 0, label: t("setup.profile.label"), detail: t("setup.profile.detail"), href: "/profile", icon: UserRoundCheckIcon },
-    { done: data.jobs > 0, label: t("setup.job.label"), detail: t("setup.job.detail"), href: "/jobs/new", icon: BriefcaseBusinessIcon },
+    { done: data.jobs > 0, label: t("setup.job.label"), detail: t("setup.job.detail"), href: "/jobs?add=1", icon: BriefcaseBusinessIcon },
     { done: data.applications > 0, label: t("setup.fit.label"), detail: t("setup.fit.detail"), href: "/applications", icon: FileTextIcon },
   ]
   const setupDone = setup.filter((step) => step.done).length
@@ -117,7 +117,7 @@ async function DashboardData() {
           ? { pose: "interview-practice", title: t("note.interviews.title", { count: interviews }), text: t("note.interviews.text"), href: "/applications?view=list&stage=interviewing", cta: t("note.interviews.cta") }
           : unchecked
             ? { pose: "finding-opportunity", title: t("note.unchecked.title", { count: unchecked }), text: t("note.unchecked.text"), href: "/applications", cta: t("note.unchecked.cta") }
-            : { pose: "planning-next-step", title: t("note.caughtUp.title"), text: t("note.caughtUp.text"), href: "/jobs/new", cta: t("addJob") }
+            : { pose: "planning-next-step", title: t("note.caughtUp.title"), text: t("note.caughtUp.text"), href: "/jobs?add=1", cta: t("addJob") }
 
   return (
     <>

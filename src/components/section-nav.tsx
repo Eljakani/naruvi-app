@@ -60,7 +60,7 @@ export function SectionNav({ items, label }: { items: SectionNavItem[]; label: s
 /** Side menu + one readable column. Shared by Settings and Integrations. */
 export function SectionLayout({ nav, children }: { nav: ReactNode; children: ReactNode }) {
   return (
-    <div className="grid min-w-0 items-start gap-6 @4xl/workspace:grid-cols-[12rem_minmax(0,1fr)] @4xl/workspace:gap-10">
+    <div className="grid min-w-0 items-start gap-6 @4xl/workspace:grid-cols-[minmax(12rem,max-content)_minmax(0,1fr)] @4xl/workspace:gap-10">
       {nav}
       <div className="@container/settings grid min-w-0 max-w-4xl gap-10">{children}</div>
     </div>

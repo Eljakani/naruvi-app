@@ -1,5 +1,9 @@
 {
   "contacts": {
+    "kinds": {"label": "Filtrer par type", "all": "Tout le monde", "leader": "Direction", "tech": "Tech", "recruiting": "Recrutement", "hr": "RH", "other": "Autres", "none": "Aucun contact de ce type."},
+    "noCompany": "Sans entreprise",
+    "peopleCount": "{count, plural, one {# personne} other {# personnes}}",
+    "findMore": "Trouver d’autres personnes",
     "title": "Contacts",
     "description": "Recruteurs, RH, managers et personnes qui peuvent vous recommander. Écrivez-leur au sujet d’une offre ou envoyez une candidature spontanée.",
     "search": "Rechercher un nom, poste, entreprise, e-mail…",

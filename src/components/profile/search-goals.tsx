@@ -18,7 +18,7 @@ import { WORK_MODES, type SearchGoal } from "@/lib/search-goals"
 import { useLocale, useTranslations } from "next-intl"
 
 const PRESSED = "aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background"
-const blank = (): SearchGoal => ({ id: crypto.randomUUID().slice(0, 8), name: "", active: true, contracts: [], places: [], workModes: [], authorizedIn: [], minMonths: null, maxMonths: null, startFrom: null })
+const blank = (): SearchGoal => ({ id: crypto.randomUUID().slice(0, 8), name: "", active: true, roles: [], contracts: [], places: [], workModes: [], authorizedIn: [], minMonths: null, maxMonths: null, startFrom: null })
 
 type Words = { t: ReturnType<typeof useTranslations<"searchGoals">>; tl: ReturnType<typeof useTranslations<"labels">>; locale: string }
 const countryName = (code: string, locale: string) => new Intl.DisplayNames([locale], { type: "region" }).of(code.toUpperCase()) ?? COUNTRIES[code]?.name ?? code
@@ -26,6 +26,7 @@ function summary(goal: SearchGoal, { t, tl, locale }: Words) {
   const months = goal.minMonths || goal.maxMonths ? t("months", { min: goal.minMonths ?? "?", max: goal.maxMonths ?? "?" }) : ""
   const month = (value: string) => new Date(`${value}-01T12:00:00Z`).toLocaleDateString(locale, { month: "long", year: "numeric", timeZone: "UTC" })
   return [
+    goal.roles.join(", "),
     goal.contracts.map((key) => tl(`contract.${key}`)).join(" / ") || t("anyContract"),
     goal.places.join(", ") || t("anywhere"),
     goal.workModes.map((mode) => tl(`workMode.${mode}`)).join(" / "),
@@ -51,7 +52,7 @@ export function SearchGoals({ goals, location }: { goals: SearchGoal[]; location
     })
 
   return (
-    <Card className="gap-4">
+    <Card id="search-goals" className="scroll-mt-6 gap-4">
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <div className="grid gap-1">
           <CardTitle className="flex items-center gap-2 text-base"><CompassIcon className="size-4" /> {t("title")}</CardTitle>
@@ -100,11 +101,12 @@ function GoalDialog({ goal, isNew, pending, onClose, onSave, onDelete }: { goal:
   const locale = useLocale()
   const [draft, setDraft] = useState(goal)
   const [places, setPlaces] = useState(goal.places.join(", "))
+  const [roles, setRoles] = useState(goal.roles.join(", "))
   const patch = (next: Partial<SearchGoal>) => setDraft((current) => ({ ...current, ...next }))
   const months = (value: string) => (value.trim() ? Math.max(1, Math.min(60, Math.round(Number(value)) || 1)) : null)
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
-    onSave({ ...draft, name: draft.name.trim() || t("defaultName"), places: places.split(/[,;\n]/).map((place) => place.trim()).filter(Boolean) })
+    onSave({ ...draft, name: draft.name.trim() || t("defaultName"), places: places.split(/[,;\n]/).map((place) => place.trim()).filter(Boolean), roles: [...new Set(roles.split(/[,;\n]/).map((role) => role.trim()).filter(Boolean))].slice(0, 3) })
   }
 
   return (
@@ -119,6 +121,11 @@ function GoalDialog({ goal, isNew, pending, onClose, onSave, onDelete }: { goal:
             <div className="grid gap-2">
               <Label htmlFor="goal-name">{t("dialog.name")}</Label>
               <Input id="goal-name" value={draft.name} onChange={(event) => patch({ name: event.target.value })} placeholder={t("dialog.namePlaceholder")} maxLength={60} autoFocus />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="goal-roles">{t("dialog.roles")}</Label>
+              <Input id="goal-roles" value={roles} onChange={(event) => setRoles(event.target.value)} placeholder={t("dialog.rolesPlaceholder")} />
+              <p className="text-xs text-muted-foreground">{t("dialog.rolesHint")}</p>
             </div>
             <fieldset className="grid gap-2">
               <legend className="mb-2 text-sm font-medium">{t("dialog.contract")}</legend>
