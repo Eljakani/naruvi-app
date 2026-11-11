@@ -5,18 +5,20 @@ import Link from "next/link"
 import { useState, useTransition } from "react"
 import { Loader2Icon, PlusIcon, UserPlusIcon, UsersIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
-import { linkContactAction, unlinkContactAction } from "@/app/(app)/contacts/actions"
+import { linkContactAction, unlinkContactAction } from "@/app/[locale]/(app)/contacts/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useTranslations } from "next-intl"
 
 type Person = { id: string; name: string; title: string; email: string; linkedinUrl: string; role: string }
 type Option = { id: string; name: string; title: string; company: string | null }
 
 /** The people this application is with: who you write to, who referred you. */
 export function ApplicationPeople({ applicationId, people, options }: { applicationId: string; people: Person[]; options: Option[] }) {
+  const t = useTranslations("contacts.people")
   const [adding, setAdding] = useState(false)
   const [query, setQuery] = useState("")
   const [pending, startTransition] = useTransition()
@@ -28,16 +30,16 @@ export function ApplicationPeople({ applicationId, people, options }: { applicat
     return (
       <Popover open={adding} onOpenChange={(open) => { setAdding(open); if (!open) setQuery("") }}>
         <PopoverTrigger render={<Button variant="outline" />}>
-          <UserPlusIcon /> Add contact
+          <UserPlusIcon /> {t("addContact")}
         </PopoverTrigger>
         <PopoverContent align="start" className="w-80 gap-2 p-2">
           <div className="grid gap-0.5 px-1.5 pt-1">
-            <p className="text-sm font-medium">Who are you in touch with?</p>
-            <p className="text-xs text-muted-foreground">Emails you write here will go to them.</p>
+            <p className="text-sm font-medium">{t("who")}</p>
+            <p className="text-xs text-muted-foreground">{t("whoHint")}</p>
           </div>
           {choices.length ? (
             <>
-              <Input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your contacts" aria-label="Search your contacts" className="h-8 text-sm" />
+              <Input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("search")} aria-label={t("search")} className="h-8 text-sm" />
               <ul className="grid max-h-60 overflow-y-auto">
                 {matches.map((choice) => (
                   <li key={choice.value}>
@@ -57,12 +59,12 @@ export function ApplicationPeople({ applicationId, people, options }: { applicat
                     </button>
                   </li>
                 ))}
-                {!matches.length ? <li className="px-2 py-1.5 text-xs text-muted-foreground">No contact matches “{query}”.</li> : null}
+                {!matches.length ? <li className="px-2 py-1.5 text-xs text-muted-foreground">{t("noMatch", { query })}</li> : null}
               </ul>
             </>
           ) : null}
           <Button size="sm" variant="ghost" className="justify-start" nativeButton={false} render={<Link href="/contacts" />}>
-            <PlusIcon /> New contact
+            <PlusIcon /> {t("new")}
           </Button>
         </PopoverContent>
       </Popover>
@@ -72,12 +74,12 @@ export function ApplicationPeople({ applicationId, people, options }: { applicat
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <UsersIcon className="size-4" /> People
+          <UsersIcon className="size-4" /> {t("title")}
         </CardTitle>
-        <CardDescription>{people.length ? "Emails you write here go to the first person with an address." : "Link the recruiter or manager you’re in touch with."}</CardDescription>
+        <CardDescription>{people.length ? t("firstWithAddress") : t("linkHint")}</CardDescription>
         <CardAction>
           <Button size="sm" variant="ghost" onClick={() => setAdding((value) => !value)} disabled={!choices.length && !adding}>
-            <PlusIcon /> Add
+            <PlusIcon /> {t("add")}
           </Button>
         </CardAction>
       </CardHeader>
@@ -87,9 +89,9 @@ export function ApplicationPeople({ applicationId, people, options }: { applicat
           <PresenceItem key={person.id} className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{person.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{[person.title, person.email || "no email yet"].filter(Boolean).join(" · ")}</p>
+              <p className="truncate text-xs text-muted-foreground">{[person.title, person.email || t("noEmail")].filter(Boolean).join(" · ")}</p>
             </div>
-            <Button size="icon-xs" variant="ghost" aria-label={`Remove ${person.name}`} disabled={pending} onClick={() => startTransition(async () => void (await unlinkContactAction(applicationId, person.id)))}>
+            <Button size="icon-xs" variant="ghost" aria-label={t("remove", { name: person.name })} disabled={pending} onClick={() => startTransition(async () => void (await unlinkContactAction(applicationId, person.id)))}>
               <XIcon />
             </Button>
           </PresenceItem>
@@ -108,9 +110,9 @@ export function ApplicationPeople({ applicationId, people, options }: { applicat
                 })
               }
             >
-              <SelectTrigger aria-label="Choose a contact" className="w-full">
+              <SelectTrigger aria-label={t("choose")} className="w-full">
                 {pending ? <Loader2Icon className="animate-spin" /> : null}
-                <SelectValue placeholder="Choose a contact" />
+                <SelectValue placeholder={t("choose")} />
               </SelectTrigger>
               <SelectContent>
                 {choices.map((choice) => (
@@ -119,7 +121,7 @@ export function ApplicationPeople({ applicationId, people, options }: { applicat
               </SelectContent>
             </Select>
           ) : (
-            <p className="text-xs text-muted-foreground">No other contacts. <Link href="/contacts" className="underline">Add one</Link>.</p>
+            <p className="text-xs text-muted-foreground">{t.rich("noOthers", { link: (chunks) => <Link href="/contacts" className="underline">{chunks}</Link> })}</p>
           )
         ) : null}
               </CardContent>

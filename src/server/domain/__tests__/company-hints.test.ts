@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { domainCandidates, guessCompanySite, linkedInTopcard, pageNamesCompany } from "../../jobs/company-hints"
+import { resolveCompanySite } from "../../jobs/vendor/company-resolver"
 
 test("linkedin topcard: company page and logo", () => {
   const html = `<a class="topcard__org-name-link topcard__flavor--black-link" href="https://uk.linkedin.com/company/acme-labs?trk=x">Acme</a>
@@ -34,4 +35,15 @@ test("guess: first verified candidate wins; unverified pages are ignored", async
   const pages: Record<string, string> = { "https://hilbert.com": "<title>Hilbert Hotel</title>", "https://hilbert-is.com": "<title>Hilbert Investment Solutions</title>" }
   const site = await guessCompanySite("Hilbert Investment Solutions", "", async (url) => (pages[url] ? { html: pages[url], finalUrl: url } : null))
   assert.equal(site, "https://hilbert-is.com")
+})
+
+test("a parked domain that only prints its own name is not the company's site", async () => {
+  const parked = `<html><head><title>tiime.com</title></head><body><h1>tiime.com</h1><p>This domain is for sale. Make an offer.</p></body></html>`
+  const real = `<html><head><title>Logiciel compta pour entrepreneurs | Tiime</title></head><body>© 2026 Tiime</body></html>`
+  assert.equal(pageNamesCompany(parked, "Tiime"), false)
+  assert.equal(pageNamesCompany(`<title>tiime.com</title>`, "Tiime"), false)
+  assert.equal(pageNamesCompany(real, "Tiime"), true)
+  const pages: Record<string, string> = { "https://tiime.com": parked, "https://tiime.fr": real }
+  const site = await resolveCompanySite({ company: "Tiime", pageUrl: "", finalUrl: "", structuredUrls: [], html: "", description: "" }, async (url: string) => (pages[url] ? { html: pages[url], finalUrl: url } : null))
+  assert.equal(site.url, "https://tiime.fr")
 })

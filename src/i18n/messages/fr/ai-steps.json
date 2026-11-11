@@ -1,0 +1,64 @@
+{
+ "aiSteps": {
+  "importJob": {
+   "0": "Récupération de l’annonce",
+   "1": "Lecture du poste, de l’entreprise et du lieu",
+   "2": "Recherche du site de l’entreprise",
+   "3": "Recherche du logo"
+  },
+  "analyze": {
+   "0": "Lecture de l’annonce",
+   "1": "Distinction entre exigences, étapes de recrutement et avantages",
+   "2": "Rapprochement de chaque exigence avec vos faits vérifiés",
+   "3": "Double vérification de chaque correspondance",
+   "4": "Calcul de votre correspondance"
+  },
+  "cv": {
+   "0": "Sélection de vos meilleures preuves",
+   "1": "Adaptation des puces à ce poste",
+   "2": "Classement des compétences par pertinence",
+   "3": "Vérification de chaque ligne réécrite",
+   "4": "Rendu du PDF et contrôles qualité"
+  },
+  "letter": {
+   "0": "Lecture de l’annonce et de vos notes",
+   "1": "Rédaction d’une lettre courte",
+   "2": "Vérification du brouillon et rendu du PDF"
+  },
+  "research": {
+   "0": "Vérification de ce que le site autorise",
+   "1": "Lecture des pages de l’entreprise",
+   "2": "Recherche de la mission, des valeurs et des faits",
+   "3": "Rédaction d’angles sourcés"
+  },
+  "bullets": {
+   "0": "Lecture de vos faits",
+   "1": "Rédaction des puces dans chaque langue",
+   "2": "Vérification de chacune par rapport à ses faits"
+  },
+  "cvImport": {
+   "0": "Lecture de votre CV",
+   "1": "Repérage de chaque emploi, école et projet",
+   "2": "Découpage des réalisations en faits",
+   "3": "Extraction des compétences et des dates",
+   "4": "Vérification de chaque chiffre par rapport à votre CV"
+  },
+  "describe": {
+   "0": "Lecture de ce que vous avez écrit",
+   "1": "Repérage du poste, des dates et du lieu",
+   "2": "Transformation en faits",
+   "3": "Extraction des compétences"
+  },
+  "extras": {
+   "0": "Lecture de vos faits",
+   "1": "Extraction des compétences citées",
+   "2": "Recherche de thèmes pour le rapprochement d’offres",
+   "3": "Rédaction de règles contre l’exagération"
+  },
+  "translate": {
+   "0": "Traduction des titres et des dates",
+   "1": "Traduction des puces",
+   "2": "Vérification que chaque chiffre est inchangé"
+  }
+ }
+}

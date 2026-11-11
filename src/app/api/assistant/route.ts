@@ -1,3 +1,5 @@
+import { cookies } from "next/headers"
+import { LOCALE_COOKIE, pickLocale } from "@/i18n/config"
 import { workBudget, budgetedStream } from "@/server/auth/work-budget"
 import { z } from "zod"
 import type { UIMessage } from "ai"
@@ -37,7 +39,8 @@ export async function POST(request: Request) {
       }
     }
     try {
-      const result = await streamAssistant(messages, { path: parsed.data.path, signal: AbortSignal.any([request.signal, abort.signal]) })
+      const locale = pickLocale((await cookies()).get(LOCALE_COOKIE)?.value, request.headers.get("accept-language"))
+      const result = await streamAssistant(messages, { locale, path: parsed.data.path, signal: AbortSignal.any([request.signal, abort.signal]) })
       const response = result.toUIMessageStreamResponse({
         onError: (error) => (error instanceof Error ? error.message : "The assistant ran into a problem. Try again."),
       })

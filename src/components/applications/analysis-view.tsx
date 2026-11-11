@@ -24,20 +24,21 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 import { displayFitScore, type RequirementMatch } from "@/server/analysis/match"
 import type { StoredAnalysis } from "@/server/applications/repository"
+import { useLocale, useTranslations } from "next-intl"
 
 type FactRow = { id: string; statement: string; entryId: string; entryTitle: string; display: Record<string, { organization?: string; role?: string }>; logoPath: string | null }
 
 const STATUS = {
-  met: { label: "Proven", icon: CheckCircle2Icon, className: "text-emerald-600", pill: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400" },
-  partial: { label: "Partly", icon: CircleDashedIcon, className: "text-amber-600", pill: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400" },
-  gap: { label: "Not in profile", icon: XCircleIcon, className: "text-rose-600", pill: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-400" },
-  judgement: { label: "Your call", icon: CircleHelpIcon, className: "text-muted-foreground", pill: "border-border bg-muted/60 text-muted-foreground" },
+  met: { icon: CheckCircle2Icon, className: "text-emerald-600", pill: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400" },
+  partial: { icon: CircleDashedIcon, className: "text-amber-600", pill: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400" },
+  gap: { icon: XCircleIcon, className: "text-rose-600", pill: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-400" },
+  judgement: { icon: CircleHelpIcon, className: "text-muted-foreground", pill: "border-border bg-muted/60 text-muted-foreground" },
 } as const
 
-const KIND_TITLE = { must: "Must-haves", responsibility: "What you'd do", nice: "Nice to have" } as const
 
 
 function FitRing({ score }: { score: number }) {
+  const t = useTranslations("analysis")
   const r = 34
   const c = 2 * Math.PI * r
   const tone = score >= 75 ? "stroke-emerald-500" : score >= 50 ? "stroke-amber-500" : "stroke-rose-500"
@@ -49,7 +50,7 @@ function FitRing({ score }: { score: number }) {
       </svg>
       <div className="absolute inset-0 grid place-content-center text-center">
         <span className="text-2xl font-semibold tabular-nums">{score}</span>
-        <span className="-mt-1 text-[11px] tracking-wide text-muted-foreground uppercase">fit</span>
+        <span className="-mt-1 text-[11px] tracking-wide text-muted-foreground uppercase">{t("fit")}</span>
       </div>
     </div>
   )
@@ -58,6 +59,7 @@ function FitRing({ score }: { score: number }) {
 const EASE = [0.23, 1, 0.32, 1] as const
 
 function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow[] }) {
+  const t = useTranslations("analysis")
   const status = STATUS[match.status]
   const evidence = match.factIds.map((id) => facts.find((fact) => fact.id === id)).filter(Boolean) as FactRow[]
   // What needs work opens by default; what's already proven stays one line until asked.
@@ -76,7 +78,7 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
         <status.icon className={cn("mt-1 size-4 shrink-0", status.className)} aria-hidden />
         <span className="min-w-0 flex-1 text-sm leading-6">{match.text}</span>
         {!open && evidence.length ? <span className="mt-0.5 shrink-0 text-xs text-muted-foreground tabular-nums">{evidence.length} fact{evidence.length === 1 ? "" : "s"}</span> : null}
-        <span className={cn("mt-0.5 shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium", status.pill)}>{status.label}</span>
+        <span className={cn("mt-0.5 shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium", status.pill)}>{t(`status.${match.status}`)}</span>
         {hasDetail ? <ChevronDownIcon className={cn("mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-200", open && "rotate-180")} aria-hidden /> : <span className="w-4 shrink-0" />}
       </button>
       <AnimatePresence initial={false}>
@@ -122,7 +124,7 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
                       <TooltipTrigger render={<span />}>
                         <BotIcon className="mt-px size-3.5 shrink-0" />
                       </TooltipTrigger>
-                      <TooltipContent>Reviewed by the language model, limited to the facts shown</TooltipContent>
+                      <TooltipContent>{t("modelReviewed")}</TooltipContent>
                     </Tooltip>
                   ) : null}
                   {match.note}
@@ -138,6 +140,8 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
 
 /** Proven / partly / missing / your call as one bar; each part filters the list below. */
 function StatusBar({ counts, onPick }: { counts: Record<keyof typeof STATUS, number>; onPick: (filter: Filter) => void }) {
+  const locale = useLocale()
+  const t = useTranslations("analysis")
   const reduce = useReducedMotion()
   const keys = ["met", "partial", "gap", "judgement"] as const
   const total = keys.reduce((sum, key) => sum + counts[key], 0) || 1
@@ -168,7 +172,7 @@ function StatusBar({ counts, onPick }: { counts: Record<keyof typeof STATUS, num
               className="inline-flex items-center gap-1.5 rounded text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               <Icon className={cn("size-3.5", STATUS[key].className)} />
-              <span className="font-medium text-foreground tabular-nums">{counts[key]}</span> {STATUS[key].label.toLowerCase()}
+              <span className="font-medium text-foreground tabular-nums">{counts[key]}</span> {t(`status.${key}`).toLocaleLowerCase(locale)}
             </button>
           )
         })}
@@ -179,9 +183,10 @@ function StatusBar({ counts, onPick }: { counts: Record<keyof typeof STATUS, num
 
 /** Segmented control whose highlight slides to the chosen option. */
 function FilterTabs({ value, onChange, options }: { value: Filter; onChange: (value: Filter) => void; options: { value: Filter; label: string; count: number }[] }) {
+  const t = useTranslations("analysis")
   return (
     <LayoutGroup id="requirement-filter">
-      <div role="tablist" aria-label="Filter requirements" className="flex w-fit rounded-lg bg-muted p-0.5">
+      <div role="tablist" aria-label={t("filterLabel")} className="flex w-fit rounded-lg bg-muted p-0.5">
         {options.map((option) => (
           <button
             key={option.value}
@@ -206,6 +211,8 @@ function FilterTabs({ value, onChange, options }: { value: Filter; onChange: (va
 type Filter = "all" | "attention" | "proven"
 
 export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /** The job misses the person's search goal: the skills verdict says so. */ offGoal?: boolean; /** Shown under the requirements, in the main column (fills the space beside the tall side column). */ footer?: React.ReactNode; analysis: StoredAnalysis; facts: FactRow[]; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null; researching?: boolean; logoPath?: string | null } }) {
+  const locale = useLocale()
+  const t = useTranslations("analysis")
   const counts = analysis.counts
   const needsWork = counts.partial + counts.gap + counts.judgement
   const [filter, setFilter] = useState<Filter>(needsWork && needsWork < analysis.requirements.length ? "attention" : "all")
@@ -221,35 +228,35 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
   }, [analysis.requirements, filter])
   const score = displayFitScore(analysis)
   const reviewStatus = analysis.requirementFilter?.status
-  const verdict = score === null ? "No score yet." : offGoal ? (score >= 50 ? "Your skills fit, but the job misses your search goal." : "A stretch, and it misses your search goal.") : score >= 75 ? "Strong match: you can back up most of what they ask." : score >= 50 ? "Worth a shot, with a few gaps to be upfront about." : "A stretch for now. Go for it only if it really excites you."
+  const verdict = t(score === null ? "verdict.none" : offGoal ? (score >= 50 ? "verdict.offGoalFit" : "verdict.offGoalStretch") : score >= 75 ? "verdict.strong" : score >= 50 ? "verdict.worth" : "verdict.stretch")
   const method = analysis.modelReview
-    ? `Rules, then a model review (${analysis.modelReview.reviewed} items checked, ${analysis.modelReview.changed} adjusted).`
-    : reviewStatus === "empty" ? "AI review skipped: no requirements were extracted."
-    : analysis.requirementFilter?.reviewed ? "AI sorted the posting items, then rules matched the evidence."
-    : reviewStatus === "not_configured" ? "Rules only. Set up an AI model in Integrations for a review."
-    : "Rules only."
+    ? t("method.review", { reviewed: analysis.modelReview.reviewed, changed: analysis.modelReview.changed })
+    : reviewStatus === "empty" ? t("method.skipped")
+    : analysis.requirementFilter?.reviewed ? t("method.sorted")
+    : reviewStatus === "not_configured" ? t("method.notConfigured")
+    : t("method.rules")
 
   return (
     <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:grid-rows-[auto_auto_auto_1fr]">
         <Card className="xl:col-start-1 xl:row-start-1">
           <CardContent className="flex flex-wrap items-center gap-5">
-            {score === null ? <p className="shrink-0 text-sm font-medium">Fit not scored</p> : <FitRing score={score} />}
+            {score === null ? <p className="shrink-0 text-sm font-medium">{t("notScored")}</p> : <FitRing score={score} />}
             <div className="grid min-w-0 flex-1 gap-3">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm">
                   <span className="font-medium">{verdict}</span>{" "}
-                  <span className="text-muted-foreground">I checked it against your {analysis.factCount} verified facts.</span>
+                  <span className="text-muted-foreground">{t("checkedAgainst", { count: analysis.factCount })}</span>
                 </p>
                 <Popover>
                   <PopoverTrigger render={<button type="button" className="inline-flex shrink-0 items-center gap-1 rounded text-xs text-muted-foreground hover:text-foreground" />}>
-                    <InfoIcon className="size-3.5" /> How
+                    <InfoIcon className="size-3.5" /> {t("how")}
                   </PopoverTrigger>
                   <PopoverContent align="end" className="w-80 text-xs text-muted-foreground">
                     <div className="grid gap-1.5">
-                      <p>A requirement is only “proven” when a fact you verified shows it. Soft skills are left to your judgement and not scored.</p>
+                      <p>{t("howBody")}</p>
                       <p>{method}</p>
-                      {analysis.requirementFilter ? <p>{analysis.requirementFilter.excluded.length} posting item(s) like benefits or interview steps were left out of the score.{analysis.requirementFilter.status === "failed" || analysis.requirementFilter.status === "partial" ? ` ${analysis.requirementFilter.message ?? "AI filtering was incomplete; remaining items use rule-based extraction."}` : ""}</p> : null}
-                      <p>Analyzed {new Date(analysis.analyzedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}.</p>
+                      {analysis.requirementFilter ? <p>{t("excludedCount", { count: analysis.requirementFilter.excluded.length })}{analysis.requirementFilter.status === "failed" || analysis.requirementFilter.status === "partial" ? ` ${analysis.requirementFilter.message ?? t("filterIncomplete")}` : ""}</p> : null}
+                      <p>{t("analyzedAt", { date: new Date(analysis.analyzedAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" }) })}</p>
                     </div>
                   </PopoverContent>
                 </Popover>
@@ -264,8 +271,8 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
           <CardHeader className="flex flex-row items-center gap-3">
             <EntryLogo path={research.logoPath ?? null} name={research.company} size={36} className="rounded-lg" />
             <div className="grid min-w-0 gap-0.5">
-              <CardTitle className="truncate text-sm">Why {research.company}</CardTitle>
-              <CardDescription className="text-xs">Talking points from their own pages</CardDescription>
+              <CardTitle className="truncate text-sm">{t("why", { company: research.company })}</CardTitle>
+              <CardDescription className="text-xs">{t("talkingPoints")}</CardDescription>
             </div>
           </CardHeader>
           <CardContent>
@@ -279,10 +286,10 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
               <Otter pose="careful" height={64} className="-mb-1 -ms-1 shrink-0" />
               <div className="grid min-w-0 gap-0.5">
                 <CardTitle className="flex items-center gap-2 text-sm">
-                  Don’t claim these
+                  {t("dontClaim")}
                   <span className="rounded-full bg-rose-100 px-1.5 text-[11px] font-medium text-rose-700 tabular-nums dark:bg-rose-950 dark:text-rose-300">{analysis.mustGaps.length}</span>
                 </CardTitle>
-                <CardDescription className="text-xs">Your verified profile doesn’t back these up yet, so I’ll keep them out of your CV and letter.</CardDescription>
+                <CardDescription className="text-xs">{t("dontClaimBody")}</CardDescription>
               </div>
             </CardHeader>
             <CardContent>
@@ -302,16 +309,16 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
         <Card id="requirements" className="scroll-mt-4 xl:col-start-1 xl:row-start-2">
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
             <div className="grid gap-1">
-              <CardTitle>Requirements & evidence</CardTitle>
-              <CardDescription>Each line shows the facts from your profile that back it.</CardDescription>
+              <CardTitle>{t("requirements")}</CardTitle>
+              <CardDescription>{t("requirementsBody")}</CardDescription>
             </div>
             <FilterTabs
               value={filter}
               onChange={setFilter}
               options={[
-                { value: "attention", label: "Needs attention", count: counts.partial + counts.gap + counts.judgement },
-                { value: "proven", label: "Proven", count: counts.met },
-                { value: "all", label: "All", count: analysis.requirements.length },
+                { value: "attention", label: t("filters.attention"), count: counts.partial + counts.gap + counts.judgement },
+                { value: "proven", label: t("filters.proven"), count: counts.met },
+                { value: "all", label: t("filters.all"), count: analysis.requirements.length },
               ]}
             />
           </CardHeader>
@@ -320,7 +327,7 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
               groups.map((group) => (
                 <section key={group.kind}>
                   <h2 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    {KIND_TITLE[group.kind]} · {group.items.length}
+                    {t(`kinds.${group.kind}`)} · {group.items.length}
                   </h2>
                   <ul>
                     {group.items.map((match) => (
@@ -331,16 +338,16 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
               ))
             ) : (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                {analysis.requirements.length ? "Nothing in this filter." : analysis.requirementFilter?.excluded.length ? "No candidate requirements remained after filtering. Inspect the excluded posting details below." : "No requirements were extracted. Check the imported job description and run the fit check again."}
+                {analysis.requirements.length ? t("empty.filter") : analysis.requirementFilter?.excluded.length ? t("empty.filtered") : t("empty.none")}
               </p>
             )}
             {analysis.requirementFilter?.excluded.length ? <details className="border-t pt-4 text-sm">
-              <summary className="cursor-pointer font-medium">Excluded posting details ({analysis.requirementFilter.excluded.length})</summary>
-              <p className="mt-2 text-xs text-muted-foreground">Interview steps, benefits and company information are kept here for transparency. They are not treated as missing skills.</p>
+              <summary className="cursor-pointer font-medium">{t("excluded", { count: analysis.requirementFilter.excluded.length })}</summary>
+              <p className="mt-2 text-xs text-muted-foreground">{t("excludedBody")}</p>
               <ul className="mt-3 divide-y">
                 {analysis.requirementFilter.excluded.map((item) => <li key={item.requirement.id} className="grid gap-1.5 py-3">
                   <p className="text-[13px] leading-6 [overflow-wrap:anywhere]">{item.requirement.text}</p>
-                  <p className="text-xs text-muted-foreground">{item.source === "model" ? "AI" : "Rules"} · {item.category.replaceAll("_", " ")} · {item.reason}</p>
+                  <p className="text-xs text-muted-foreground">{item.source === "model" ? t("ai") : t("rules")} · {item.category.replaceAll("_", " ")} · {item.reason}</p>
                 </li>)}
               </ul>
             </details> : null}
@@ -350,8 +357,8 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
         <div className="grid min-w-0 items-start gap-4 md:grid-cols-2 xl:col-start-1 xl:row-start-3">
         <Card className="gap-3">
           <CardHeader>
-            <CardTitle className="text-sm">Lead with these entries</CardTitle>
-            <CardDescription className="text-xs">Put them first on your CV. Bars show how many requirements each one proves.</CardDescription>
+            <CardTitle className="text-sm">{t("lead")}</CardTitle>
+            <CardDescription className="text-xs">{t("leadBody")}</CardDescription>
           </CardHeader>
           <CardContent>
             {analysis.recommendedEntries.length ? (
@@ -383,21 +390,21 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
                 })}
               </ol>
             ) : (
-              <p className="text-sm text-muted-foreground">No entry proves a requirement yet.</p>
+              <p className="text-sm text-muted-foreground">{t("noLead")}</p>
             )}
           </CardContent>
         </Card>
 
         <Card className="gap-3">
           <CardHeader>
-            <CardTitle className="text-sm">Key skills in this posting</CardTitle>
-            <CardDescription className="text-xs">Most mentioned first.</CardDescription>
+            <CardTitle className="text-sm">{t("skills")}</CardTitle>
+            <CardDescription className="text-xs">{t("skillsBody")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
             {analysis.keywords.length ? (
               ([
-                ["You have", analysis.keywords.filter((keyword) => keyword.inProfile), true],
-                ["Not in your profile", analysis.keywords.filter((keyword) => !keyword.inProfile), false],
+                [t("have"), analysis.keywords.filter((keyword) => keyword.inProfile), true],
+                [t("notInProfile"), analysis.keywords.filter((keyword) => !keyword.inProfile), false],
               ] as const).map(([title, list, have]) =>
                 list.length ? (
                   <div key={title} className="grid gap-1.5">
@@ -417,7 +424,7 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
                 ) : null,
               )
             ) : (
-              <p className="text-sm text-muted-foreground">No known skills detected.</p>
+              <p className="text-sm text-muted-foreground">{t("noSkills")}</p>
             )}
           </CardContent>
         </Card>

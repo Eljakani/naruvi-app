@@ -52,8 +52,19 @@ export function unflatten(text: string): string {
   return out.join("\n")
 }
 
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", rsquo: "’", lsquo: "‘", rdquo: "”", ldquo: "“", hellip: "…", ndash: "–", mdash: "—", eacute: "é", egrave: "è", agrave: "à", ccedil: "ç" }
+
+/** "Debian &amp; CentOS" → "Debian & CentOS": scraped postings often keep HTML entities. */
+function decodeEntities(text: string) {
+  return text.replace(/&(#x[0-9a-f]{1,6}|#\d{1,7}|[a-z]{2,8});/gi, (match, code: string) => {
+    if (code[0] !== "#") return ENTITIES[code.toLowerCase()] ?? match
+    const point = code[1] === "x" || code[1] === "X" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10)
+    return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match
+  })
+}
+
 export function normalizeText(raw: string): string {
-  return unflatten(String(raw ?? ""))
+  return unflatten(decodeEntities(String(raw ?? "")))
     .replace(/\r\n?/g, "\n")
     .replace(/[   \t]/g, " ")
     .replace(/[​-‍﻿]/g, "")
@@ -88,7 +99,8 @@ function isHeading(line: string, next: string | undefined): boolean {
   const words = line.split(/\s+/).length
   const letters = line.replace(/[^A-Za-zÀ-ÿ]/g, "")
   if (letters.length >= 4 && letters === letters.toUpperCase() && words <= 8) return true
-  if (/:$/.test(line) && words <= 10) return true
+  // "Skills:" is a heading; "With a degree, you have:" is a sentence leading into a list.
+  if (/:$/.test(line) && words <= 10 && !/,/.test(line)) return true
   // A short title-like line without sentence punctuation; a heading with no
   // content after it is demoted to a paragraph in a final pass.
   return words <= 7 && !SENTENCE_END.test(line) && /^[A-ZÀ-Ý0-9]/.test(line) && next !== undefined && !/^[a-zà-ÿ(]/.test(next)
@@ -135,8 +147,11 @@ export function parseJobText(raw: string): Block[] {
     if (!line) {
       // Blank lines end paragraphs but not lists: many sources put a blank
       // line between every bullet.
+      // A sentence cut in two by a blank line ("…un appel" / "téléphonique d’un…") stays one paragraph.
+      const after = nextNonEmpty(i + 1)
+      if (paragraph.length && !SENTENCE_END.test(paragraph.at(-1)!) && !/:$/.test(paragraph.at(-1)!) && after && /^[a-zà-ÿ]/.test(after) && !BULLET.test(after)) continue
       flushParagraph()
-      if (list && !BULLET.test(nextNonEmpty(i + 1) ?? "")) flushList()
+      if (list && !BULLET.test(after ?? "")) flushList()
       continue
     }
     if (BULLET.test(line)) {
@@ -162,7 +177,7 @@ export function parseJobText(raw: string): Block[] {
       inQualifications = false
       flushList()
     }
-    const next = lines[i + 1]
+    const next = lines[i + 1] || nextNonEmpty(i + 1)
     if (qualificationHeading || SECTION_BOUNDARY.test(text) || (!inQualifications && isHeading(line, next)) || (inQualifications && /^(?:#{1,6}\s|\*\*|__)/.test(line) && isHeading(line, next))) {
       flushParagraph()
       flushList()

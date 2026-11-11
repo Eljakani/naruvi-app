@@ -9,7 +9,7 @@ export const JOB_SORTS = { newest: "Newest first", oldest: "Oldest first", fit: 
 export const JOB_GOALS = { all: "Any goal fit", ok: "Fits my goals", check: "Needs a look", blocked: "Off my goals", hide_blocked: "Hide off-goal" } as const
 export type JobGoal = keyof typeof JOB_GOALS
 export type JobSort = keyof typeof JOB_SORTS
-export const JOB_STAGES = { new: "Not tracked yet", all: "Every posting", active: "Tracked, in progress", closed: "Closed or archived" } as const
+export const JOB_STAGES = { all: "Every posting", new: "Not tracked yet", active: "Tracked, in progress", closed: "Closed or archived" } as const
 export type JobStage = keyof typeof JOB_STAGES
 
 export type JobFilter = { q?: string; workMode?: string; contract?: string; seniority?: string; tag?: string; stage?: JobStage; goal?: JobGoal; sort?: JobSort; page?: number }

@@ -1,0 +1,200 @@
+{
+ "mail": {
+  "applyFailed": "Impossible de l’appliquer",
+  "updatedFromEmail": "Mis à jour d’après l’e-mail",
+  "apply": "Appliquer",
+  "dismiss": "Ignorer",
+  "todayAt": "Aujourd’hui, {time}",
+  "yesterdayAt": "Hier, {time}",
+  "you": "Vous",
+  "unknownSender": "Expéditeur inconnu",
+  "kinds": {
+   "rejection": "Refus",
+   "interview": "Entretien",
+   "offer": "Offre",
+   "info_request": "Demande d’informations",
+   "acknowledgement": "Accusé de réception",
+   "other": "Autre"
+  },
+  "noSubject": "Sans objet",
+  "noText": "Pas de texte",
+  "to": "À {to}",
+  "fromTo": "De <b>{from}</b> · à {to}",
+  "unreadable": "Cet e-mail n’a pas de texte lisible.",
+  "hideQuote": "Masquer le texte cité",
+  "showQuote": "Afficher le texte cité",
+  "linkedBecause": "Lié : {reason}",
+  "conversation": "Conversation",
+  "messages": "{count, plural, one {# message} other {# messages}}",
+  "newCount": "{count, plural, one {# nouveau} other {# nouveaux}}",
+  "canMove": "Je peux passer cette candidature à {status}.",
+  "updateApplication": "Mettre à jour la candidature"
+ },
+ "interviewCalendar": {
+  "holdAdded": "Créneau provisoire ajouté",
+  "added": "Entretien ajouté",
+  "addedBody": "Enregistré dans l’agenda de Naruvi et votre flux d’agenda.",
+  "saveFailed": "Impossible d’enregistrer l’entretien. Réessayez.",
+  "label": "Agenda des entretiens",
+  "hold": "Créneau d’entretien provisoire",
+  "onCalendar": "Entretien dans votre agenda",
+  "ask": "Ajouter un entretien à votre agenda ?",
+  "minutes": "{count} min",
+  "intro": "Votre réponse est envoyée. Choisissez le créneau convenu, ou réservez un créneau provisoire en attendant la confirmation.",
+  "edit": "Modifier les détails",
+  "addButton": "Ajouter à l’agenda",
+  "saved": "Enregistré dans Naruvi.",
+  "awaiting": "En attente de confirmation du recruteur.",
+  "download": "Télécharger le .ics",
+  "downloadFailed": "Impossible de télécharger l’événement. Réessayez.",
+  "when": "Date et heure",
+  "zone": "Fuseau horaire",
+  "duration": "Durée en minutes",
+  "status": "Statut",
+  "tentative": "Provisoire · en attente de confirmation",
+  "confirmed": "Confirmé avec le recruteur",
+  "location": "Lieu ou lien de réunion",
+  "optional": "(facultatif)",
+  "locationPlaceholder": "Lien de visioconférence ou adresse des bureaux",
+  "replaces": "Remplace le rappel de prochaine étape de cette candidature. Aucune invitation n’est envoyée au recruteur.",
+  "save": "Enregistrer dans l’agenda",
+  "cancel": "Annuler",
+  "notNow": "Pas maintenant"
+ },
+ "compose": {
+  "kinds": {
+   "apply": "Envoyer ma candidature",
+   "follow_up": "Relancer",
+   "thank_you": "Remercier après un entretien",
+   "reply": "Répondre"
+  },
+  "purpose": {
+   "reply": "Répondre au dernier échange",
+   "follow_up": "Demander où en est le processus",
+   "thank_you": "Envoyer un mot attentionné après la rencontre",
+   "apply": "Vous présenter avec votre candidature"
+  },
+  "intents": {
+   "apply": {
+    "short": "Fais court et mentionne le CV joint",
+    "referred": "Mentionne qui m’a recommandé",
+    "why": "Explique en une ligne pourquoi cette entreprise"
+   },
+   "thanks": {
+    "time": "Remercie-les pour leur temps et l’échange",
+    "interested": "Dis que je reste très intéressé et que j’attends la suite avec impatience"
+   },
+   "followUp": {
+    "status": "Demande poliment où en sont les choses",
+    "available": "Confirme que je reste intéressé et disponible"
+   },
+   "interview": {
+    "accept": "Accepte et propose mardi ou jeudi après-midi",
+    "format": "Accepte et demande le format et qui je rencontrerai",
+    "move": "Demande à décaler à la semaine prochaine"
+   },
+   "offer": {
+    "written": "Remercie et demande l’offre écrite",
+    "time": "Remercie et demande quelques jours pour décider",
+    "accept": "Accepte l’offre"
+   },
+   "rejection": {
+    "feedback": "Remercie et demande un bref retour",
+    "mind": "Remercie et demande de garder mon profil en tête"
+   },
+   "info": {
+    "answer": "Réponds brièvement à leurs questions",
+    "details": "Envoie les informations demandées"
+   },
+   "other": {
+    "answer": "Remercie et réponds brièvement",
+    "next": "Demande quelle est la prochaine étape"
+   }
+  },
+  "connect": "Connecter l’e-mail",
+  "review": "Relire l’e-mail",
+  "write": "Écrire un e-mail",
+  "gone": "Cette candidature n’est plus disponible.",
+  "loadFailed": "Impossible de charger votre brouillon. Réessayez.",
+  "draftReady": "Brouillon prêt",
+  "draftReadyBody": "Relisez la formulation et complétez les détails éventuels.",
+  "aiFailed": "Le service de rédaction est injoignable. Votre message est inchangé. Réessayez.",
+  "notSent": "Non envoyé",
+  "sent": "E-mail envoyé",
+  "sentBody": "Une copie est enregistrée sur cette candidature.",
+  "unconfirmed": "Impossible de confirmer l’envoi",
+  "unconfirmedBody": "Vérifiez votre dossier Envoyés avant de réessayer.",
+  "replyTo": "Répondre à {name}",
+  "hint": {
+   "drafting": "Naruvi rédige à partir de votre contexte…",
+   "queued": "Envoi dans un instant. Annulez si vous changez d’avis.",
+   "noSend": "Connectez l’e-mail sortant pour envoyer.",
+   "placeholders": "Complétez d’abord les détails entre crochets.",
+   "restored": "Votre brouillon non envoyé a été restauré.",
+   "undo": "Vous avez 5 secondes pour annuler après l’envoi."
+  },
+  "preparing": "Préparation de votre e-mail…",
+  "sentTitle": "Envoyé. Bien joué.",
+  "sentHint": "Une copie est enregistrée sur cette candidature. S’ils ont proposé un horaire, enregistrez-le dans votre agenda ci-dessous.",
+  "tryAgain": "Réessayer",
+  "noOutgoing": "L’e-mail sortant n’est pas connecté.",
+  "setupSending": "Configurer l’envoi",
+  "from": "De",
+  "yourMailbox": "votre boîte connectée",
+  "to": "À",
+  "ccPlaceholder": "Autres destinataires, séparés par des virgules",
+  "subject": "Objet",
+  "message": "Message",
+  "bodyPlaceholder": "Écrivez votre message, ou laissez Naruvi le rédiger.",
+  "loading": {
+   "read": "Lecture de leur e-mail",
+   "words": "Recherche des bons mots",
+   "short": "On reste bref",
+   "label": "Naruvi rédige votre e-mail"
+  },
+  "check": "À vérifier avant l’envoi",
+  "replaceBrackets": "Remplacez les détails entre crochets dans votre message.",
+  "attachments": "Pièces jointes",
+  "cv": "CV",
+  "letter": "Lettre de motivation",
+  "draftIt": "Laisser Naruvi rédiger",
+  "fromJob": "À partir de cette offre et de vos faits vérifiés.",
+  "fromEmail": "À partir de leur e-mail. Pas de résumé du CV : ils l’ont lu.",
+  "ideasLabel": "Rédige-le avec l’une de ces idées",
+  "ownWords": "Ou dites-le avec vos mots",
+  "placeholder": {
+   "reply": "Dates, une question, un détail à mentionner…",
+   "thanks": "Qui vous avez rencontré et ce dont vous avez parlé…",
+   "other": "Détails que l’e-mail doit inclure…"
+  },
+  "tone": "Ton",
+  "tones": {
+   "formal": "Formel",
+   "warm": "Chaleureux",
+   "short": "Bref"
+  },
+  "language": "Langue",
+  "auto": "Auto",
+  "writing": "Rédaction…",
+  "rewrite": "Réécrire",
+  "writeForMe": "Rédige-le pour moi",
+  "back": "Revenir à ma version",
+  "connectAi": "Connectez un modèle d’IA",
+  "connectAiBody": "pour rédiger et affiner vos e-mails. Vous pouvez toujours écrire votre propre message.",
+  "done": "Terminé",
+  "cancel": "Annuler",
+  "sending": "Envoi…",
+  "send": "Envoyer l’e-mail",
+  "sentShort": "Envoyé",
+  "discard": {
+   "title": "Abandonner ce brouillon ?",
+   "body": "Votre message non envoyé et vos notes de rédaction seront perdus.",
+   "keep": "Continuer à écrire",
+   "confirm": "Abandonner le brouillon"
+  },
+  "generateFirst": "Générez-le d’abord sur cette candidature",
+  "notMade": "pas encore créé",
+  "hideEmail": "Masquer l’e-mail",
+  "showEmail": "Afficher l’e-mail"
+ }
+}

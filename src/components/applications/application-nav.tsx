@@ -1,17 +1,19 @@
 import Link from "next/link"
 import { FileTextIcon, MailIcon, ScanSearchIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 /** Analysis · CV · Cover letter, shared by the application page and both document workspaces. */
 export function ApplicationNav({ applicationId, current, language }: { applicationId: string; current: "analysis" | "cv" | "letter"; language: string }) {
+  const t = useTranslations("application.nav")
   const base = `/applications/${applicationId}`
   const items = [
-    { id: "analysis", label: "Analysis", href: base, icon: ScanSearchIcon },
-    { id: "cv", label: "CV", href: `${base}/cv?lang=${language}`, icon: FileTextIcon },
-    { id: "letter", label: "Cover letter", href: `${base}/letter?lang=${language}`, icon: MailIcon },
+    { id: "analysis", label: t("analysis"), href: base, icon: ScanSearchIcon },
+    { id: "cv", label: t("cv"), href: `${base}/cv?lang=${language}`, icon: FileTextIcon },
+    { id: "letter", label: t("letter"), href: `${base}/letter?lang=${language}`, icon: MailIcon },
   ] as const
   return (
-    <nav className="flex w-fit rounded-lg bg-muted p-0.5" aria-label="Application">
+    <nav className="flex w-fit rounded-lg bg-muted p-0.5" aria-label={t("label")}>
       {items.map((item) => (
         <Link
           key={item.id}

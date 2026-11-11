@@ -123,10 +123,20 @@ export function companySiteCandidates({ company = '', pageUrl = '', finalUrl = '
   return [...found.values()].sort((a, b) => b.score - a.score)
 }
 
+/** A parked or for-sale domain: its page names nothing but the domain itself. */
+export function isParkedPage(html) {
+  const text = String(html ?? '').slice(0, 60_000)
+  return /\b(?:this domain (?:name )?(?:is|may be) for sale|domain (?:name )?is for sale|buy this domain|make an offer on this domain|the domain [^<]{0,60} (?:is|may be) for sale|domain parking|parked (?:free|domain))\b/i.test(text) || /(?:sedo\.com|afternic\.com|dan\.com\/buy|hugedomains\.com|bodis\.com|parkingcrew\.net|above\.com\/marketplace|godaddy\.com\/domainsearch)/i.test(text)
+}
+
+/** Domain names in a page ("tiime.com") prove nothing: a parked domain prints its own name everywhere. */
+const withoutDomains = (text) => String(text ?? '').replace(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,6}\b/gi, ' ')
+
 function pageMentions(html, company) {
   const name = squash(company)
   if (!name) return false
-  const head = String(html ?? '').slice(0, 60_000)
+  if (isParkedPage(html)) return false
+  const head = withoutDomains(String(html ?? '').slice(0, 60_000))
   const title = head.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? ''
   const site = head.match(/og:site_name["'][^>]*content=["']([^"']+)/i)?.[1] ?? ''
   return squash(`${title} ${site}`).includes(name) || squash(head.slice(0, 20_000)).includes(name)

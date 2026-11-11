@@ -37,7 +37,7 @@ export function slugify(value: string) {
 
 /** Short and small: used for many speculative domain checks in parallel. */
 async function quickHtml(url: string) {
-  const fetched = await safeFetch(url, { maxBytes: 1024 * 1024, accept: "text/html", timeoutMs: 5000 }).catch(() => null)
+  const fetched = await safeFetch(url, { maxBytes: 1024 * 1024, accept: "text/html", timeoutMs: 5000, truncate: true }).catch(() => null)
   if (!fetched || fetched.status >= 400 || !/html/i.test(fetched.contentType)) return null
   return { html: fetched.buffer.toString("utf8"), finalUrl: fetched.finalUrl }
 }
@@ -53,7 +53,7 @@ async function fetchHtml(url: string) {
  * that will read best in a square slot: squareness matters more than source.
  * Stops early once a high-priority, near-square mark is found.
  */
-async function pickLogo(candidates: { url: string; source: string; priority?: number; strictShape?: boolean }[], employerLogo = false, timeoutMs?: number) {
+export async function pickLogo(candidates: { url: string; source: string; priority?: number; strictShape?: boolean }[], employerLogo = false, timeoutMs?: number) {
   const scored: { buffer: Buffer; source: string; score: number }[] = []
   for (const candidate of candidates.slice(0, 10)) {
     try {

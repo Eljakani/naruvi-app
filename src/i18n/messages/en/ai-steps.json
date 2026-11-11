@@ -1,0 +1,64 @@
+{
+ "aiSteps": {
+  "importJob": {
+   "0": "Fetching the posting",
+   "1": "Reading role, company and location",
+   "2": "Finding the company website",
+   "3": "Looking for the logo"
+  },
+  "analyze": {
+   "0": "Reading the posting",
+   "1": "Separating requirements from hiring steps and perks",
+   "2": "Matching each requirement to your verified facts",
+   "3": "Double-checking every match",
+   "4": "Scoring your fit"
+  },
+  "cv": {
+   "0": "Picking your strongest evidence",
+   "1": "Tailoring bullets to this job",
+   "2": "Ordering skills by relevance",
+   "3": "Verifying every rewritten line",
+   "4": "Rendering the PDF and running quality checks"
+  },
+  "letter": {
+   "0": "Reading the posting and your notes",
+   "1": "Drafting a short letter",
+   "2": "Checking the draft and rendering the PDF"
+  },
+  "research": {
+   "0": "Checking what the site allows",
+   "1": "Reading the company’s own pages",
+   "2": "Finding mission, values and facts",
+   "3": "Writing cited angles"
+  },
+  "bullets": {
+   "0": "Reading your facts",
+   "1": "Drafting bullets in each language",
+   "2": "Checking each one against its facts"
+  },
+  "cvImport": {
+   "0": "Reading your CV",
+   "1": "Finding each job, school and project",
+   "2": "Splitting achievements into facts",
+   "3": "Picking out skills and dates",
+   "4": "Checking every number against your CV"
+  },
+  "describe": {
+   "0": "Reading what you wrote",
+   "1": "Finding role, dates and place",
+   "2": "Turning it into facts",
+   "3": "Picking out skills"
+  },
+  "extras": {
+   "0": "Reading your facts",
+   "1": "Picking out skills they name",
+   "2": "Finding topics for job matching",
+   "3": "Drafting rules against overstating"
+  },
+  "translate": {
+   "0": "Translating titles and dates",
+   "1": "Translating bullets",
+   "2": "Checking every number is unchanged"
+  }
+ }
+}

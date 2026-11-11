@@ -9,6 +9,7 @@ import { db } from "@/server/db/client"
 import { companies, jobs } from "@/server/db/schema"
 import { getProfile } from "@/server/profile/repository"
 import { addLeads } from "./leads"
+import { goalRoles, titleFits } from "@/lib/discover"
 
 const EVERY_MS = 6 * 60 * 60_000
 const MAX_NEW = 25
@@ -45,7 +46,8 @@ export async function unwatchCareers(companyId: string) {
 
 /**
  * New postings on the company's board become job leads. Postings that clearly
- * miss an active search goal (wrong contract or place) are left out.
+ * miss an active search goal (not one of its roles, wrong contract or place)
+ * are left out.
  */
 export async function checkCareers(companyId: string) {
   const [company] = await db.select().from(companies).where(eq(companies.id, companyId))
@@ -53,7 +55,10 @@ export async function checkCareers(companyId: string) {
   const board = company.careers as CareersBoard
   const [postings, profile] = await Promise.all([fetchPostings(board), getProfile()])
   const goals = profile?.goals ?? []
+  // A careers page lists every opening (accountants, sales…): keep the ones about a role your goals name.
+  const roles = goalRoles(goals)
   const wanted = postings.filter((posting) => {
+    if (roles.length && !titleFits(posting.title, roles)) return false
     // Only stated goals filter here: a location alone shouldn't hide postings you never saw.
     if (!goals.some((goal) => goal.active)) return true
     const fit = goalFit(goals, { location: posting.location, remote: posting.remote, insights: { contract: contractOf(`${posting.title} ${posting.contract}`) } })
@@ -61,7 +66,8 @@ export async function checkCareers(companyId: string) {
   })
   const leads = wanted.slice(0, MAX_NEW).map((posting) => {
     const canonical = canonicalJobUrl(posting.url)
-    return { url: canonical?.url ?? posting.url, board: canonical?.board ?? board.provider, title: [posting.title, posting.location].filter(Boolean).join(" · ").slice(0, 160) }
+    // The board (Greenhouse, Lever…) only hosts the posting: the employer is the watched company.
+    return { url: canonical?.url ?? posting.url, board: canonical?.board ?? board.provider, title: posting.title.slice(0, 160), company: company.name, location: posting.location.slice(0, 160), logoPath: company.logoPath }
   })
   const added = await addLeads(leads, `New on ${company.name}’s careers page`, new Date())
   await db.update(companies).set({ careersCheckedAt: new Date() }).where(eq(companies.id, companyId))

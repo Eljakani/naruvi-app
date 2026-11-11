@@ -1,0 +1,275 @@
+{
+  "jobs": {
+    "title": "Offres",
+    "addJob": "Ajouter une offre",
+    "trackAndCheck": "Suivre et vérifier la correspondance",
+    "first": {
+      "title": "Trouvons votre première annonce",
+      "add": "Ajouter votre première offre",
+      "body": "Collez un lien LinkedIn, Greenhouse, Lever, Ashby, Workday ou de n’importe quelle page carrières. Les alertes e-mail et l’extension de navigateur en apporteront d’autres ici."
+    },
+    "search": "Rechercher un titre, une entreprise, un lieu, un texte…",
+    "tag": "Étiquette",
+    "anyTag": "Toutes les étiquettes",
+    "stage": "Étape",
+    "stages": {
+      "new": "Pas encore suivies",
+      "all": "Toutes les annonces",
+      "active": "Suivies, en cours",
+      "closed": "Clôturées ou archivées"
+    },
+    "goal": "Objectifs",
+    "goals": {
+      "all": "Tous",
+      "ok": "Correspond à mes objectifs",
+      "check": "À vérifier",
+      "blocked": "Hors objectifs",
+      "hide_blocked": "Masquer les hors objectifs"
+    },
+    "workMode": "Mode de travail",
+    "anyWorkMode": "Tous les modes",
+    "contract": "Contrat",
+    "anyContract": "Tous les contrats",
+    "seniority": "Séniorité",
+    "anySeniority": "Toutes les séniorités",
+    "ofTotal": "{count} sur {total}",
+    "count": "{count, plural, one {# offre} other {# offres}}",
+    "sort": "Trier",
+    "sorts": {
+      "newest": "Plus récentes",
+      "oldest": "Plus anciennes",
+      "fit": "Meilleure correspondance",
+      "goal": "Conformes à mes objectifs d’abord",
+      "company": "Entreprise A–Z"
+    },
+    "archived": "Archivée",
+    "notAnalyzed": "Non analysée",
+    "boards": {
+      "manual": "Collée",
+      "generic": "Page carrières",
+      "jobBoard": "Site d’emploi"
+    },
+    "nothingNew": {
+      "title": "Rien de nouveau à examiner pour l’instant",
+      "open": "Ouvrir les candidatures",
+      "body": "Tout ce que vous avez enregistré est déjà dans Candidatures. J’ajouterai ici les nouveaux liens de vos alertes e-mail et de votre navigateur au fur et à mesure."
+    },
+    "noMatch": {
+      "title": "Aucune annonce correspondante",
+      "query": "Rien ne correspond à « {query} » avec ces filtres.",
+      "filters": "Aucune annonce ne correspond à ces filtres.",
+      "hint": "Essayez moins de mots ou retirez un filtre."
+    },
+    "pages": "Pages",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "page": "Page {page} sur {pages}",
+    "leads": {
+      "title": "Pistes",
+      "description": "{count, plural, one {# annonce de vos alertes, de votre navigateur et de vos recherches, pas encore enregistrée. Importez-la pour la lire et la vérifier.} other {# annonces de vos alertes, de votre navigateur et de vos recherches, pas encore enregistrées. Importez-en une pour la lire et la vérifier.}}",
+      "import": "Importer",
+      "dismiss": "Écarter {title}",
+      "thisPosting": "cette annonce",
+      "showAll": "Tout afficher ({count})",
+      "showFewer": "Afficher moins",
+      "fromSearch": "Votre recherche",
+      "matchesLabel": "Compétences citées",
+      "dismissAll": "Tout écarter",
+      "details": "Détails",
+      "detailsFailed": "Impossible de charger cette annonce.",
+      "noText": "Aucun texte n’a été enregistré avec cette piste. Ouvrez l’original pour la lire.",
+      "openOriginal": "Ouvrir sur {board}",
+      "dismissShort": "Écarter"
+    },
+    "tags": {
+      "remove": "Retirer l’étiquette {tag}",
+      "tag": "Étiquette",
+      "add": "Ajouter une étiquette",
+      "title": "Étiquettes",
+      "description": "Regroupez les offres à votre façon, par exemple par recherche ou par priorité. Filtrez par étiquette sur la page Offres.",
+      "new": "Nouvelle étiquette",
+      "addButton": "Ajouter"
+    },
+    "track": {
+      "saving": "Enregistrement",
+      "tracked": "Suivie",
+      "track": "La suivre"
+    },
+    "overview": {
+      "title": "Description du poste",
+      "description": "Texte original, conservé tel quel. Traité comme une entrée non fiable par chaque étape d’IA.",
+      "original": "Annonce originale",
+      "posted": "Publiée le {date}"
+    },
+    "insights": {
+      "title": "En un coup d’œil",
+      "engine": {
+        "decisions": "Modèle de décision",
+        "language-model": "Modèle de langage",
+        "rules": "Règles"
+      },
+      "notYet": "Pas encore analysée.",
+      "refreshLabel": "Actualiser l’aperçu",
+      "refresh": "Actualiser",
+      "summarize": "Résumer",
+      "facts": {
+        "seniority": "Séniorité",
+        "workMode": "Mode de travail",
+        "contract": "Contrat"
+      },
+      "duration": "Durée : {value}",
+      "starts": "Début : {value}",
+      "rhythm": "Rythme : {value}",
+      "years": "{years} ans et plus",
+      "visa": "Aide au visa / à la relocalisation",
+      "noSponsor": "Pas de parrainage",
+      "required": "Compétences requises",
+      "nice": "Appréciées"
+    },
+    "salary": {
+      "title": "Rémunération",
+      "thisJob": "Ce poste",
+      "saved": "Vos offres enregistrées",
+      "similar": "{count, plural, one {# annonce similaire avec un salaire} other {# annonces similaires avec un salaire}}",
+      "market": "Marché · {where}",
+      "middleHalf": "Moitié centrale de {count, number} annonces Adzuna",
+      "inLine": "Dans la moyenne des postes similaires.",
+      "above": "Environ {diff} % au-dessus des postes similaires.",
+      "below": "Environ {diff} % en dessous des postes similaires. À aborder lors de la négociation.",
+      "yearly": "Montants annuels, avant impôts.",
+      "noPay": "Cette annonce n’indique pas la rémunération.",
+      "addMarket": "<link>Ajoutez des données de marché</link> pour comparer avec d’autres employeurs.",
+      "range": "{label} : de {low} à {high}",
+      "middle": "milieu {value}",
+      "period": {
+        "hour": "L’annonce indique un taux horaire. Converti en montant annuel (1 607 heures) pour comparaison.",
+        "day": "L’annonce indique un taux journalier. Converti en montant annuel (218 jours) pour comparaison.",
+        "month": "L’annonce indique un montant mensuel. Converti en montant annuel (12 mois) pour comparaison."
+      },
+      "checkOn": "Vérifier sur"
+    },
+    "description": "Des annonces à examiner avant de vous engager : issues de vos alertes e-mail, de votre navigateur et des liens que vous collez. Suivez-en une pour démarrer sa candidature.",
+    "descriptionView": {
+      "none": "Pas de description.",
+      "sections": "Sections",
+      "less": "Afficher moins",
+      "full": "Afficher toute la description"
+    },
+    "discover": {
+      "button": "Découvrir",
+      "searching": "Recherche sur les sites d’emploi…",
+      "added": "{count, plural, one {# nouvelle annonce dans vos pistes} other {# nouvelles annonces dans vos pistes}}",
+      "none": "Aucune nouvelle annonce cette fois",
+      "partial": "Certaines recherches ont échoué ; voici les résultats des autres.",
+      "wait": "Cela prend une minute ou deux. Vous pouvez continuer à travailler.",
+      "failed": "La recherche n’a pas fonctionné",
+      "setup": "Configurez d’abord la découverte d’offres",
+      "setupHelp": "Elle a besoin de votre propre jeton Apify pour chercher sur LinkedIn et Indeed.",
+      "setupOpen": "Configurer",
+      "where": "Elles sont dans vos pistes, les meilleures correspondances en premier.",
+      "seen": "Tout ce qui a été trouvé était déjà dans vos offres ou vos pistes, ou hors de vos objectifs de recherche."
+    }
+  },
+  "jobReader": {
+    "steps": {
+      "fetch": "Récupération de l’annonce",
+      "read": "Lecture du poste, de l’entreprise et du lieu",
+      "website": "Recherche du site de l’entreprise",
+      "logo": "Recherche du logo",
+      "text": "Lecture du texte"
+    },
+    "failed": "Impossible de lire cette annonce",
+    "pastedText": "Texte collé",
+    "how": "Comment ajouter l’offre",
+    "link": "Lien",
+    "paste": "Coller le texte",
+    "linkPlaceholder": "Collez le lien d’une offre…",
+    "linkLabel": "Lien de l’offre",
+    "read": "Lire",
+    "worksWith": "Fonctionne avec {boards} et n’importe quelle page carrières. Derrière une connexion ? Utilisez Coller le texte ou l’extension de navigateur.",
+    "textPlaceholder": "Collez la description complète du poste, avec le nom de l’entreprise et l’intitulé.",
+    "textLabel": "Description du poste",
+    "more": "{count, plural, one {encore # caractère} other {encore # caractères}}",
+    "chars": "{count, plural, one {# caractère} other {# caractères}}",
+    "readText": "Lire le texte",
+    "reading": "Lecture de l’annonce…",
+    "nothingSaved": "Rien n’est enregistré tant que vous n’avez pas vérifié.",
+    "title": "Ajouter une offre",
+    "description": "Collez le lien de l’annonce. Naruvi la lit, trouve le site et le logo de l’entreprise, et vous laisse tout vérifier avant d’enregistrer."
+  },
+  "newJob": {
+    "groups": {"role": "Le poste", "company": "L’entreprise", "terms": "Conditions", "language": "Langue de l’annonce"},
+    "reviewTitle": "Vérifiez et enregistrez",
+    "reviewDescription": "Corrigez ce que la lecture a mal compris, puis enregistrez l’offre.",
+    "source": {
+      "link": "trouvé dans un lien de l’annonce",
+      "email": "d’après le domaine e-mail du recruteur",
+      "text": "mentionné dans la description",
+      "structured": "d’après les données structurées de l’annonce",
+      "postingUrl": "d’après l’adresse de l’annonce",
+      "known": "enregistré précédemment",
+      "manual": "saisi par vous",
+      "guess": "déduit du nom et vérifié sur le site",
+      "verified": "{source}, vérifié sur le site"
+    },
+    "notSaved": "Non enregistrée",
+    "saved": "Enregistrée dans Candidatures",
+    "savedBody": "Vérifiez la correspondance quand vous voulez.",
+    "applications": "Candidatures",
+    "title": "Ajouter une offre",
+    "fromBrowser": "Enregistrée depuis votre navigateur · {host}. Lisez le texte, vérifiez les détails, puis enregistrez.",
+    "description": "Collez le lien de l’annonce. Naruvi la lit, trouve le site et le logo de l’entreprise, et vous laisse tout vérifier avant d’enregistrer.",
+    "startOver": "Recommencer",
+    "confidence": "Analysée avec {confidence} % de confiance",
+    "saving": "Enregistrement…",
+    "save": "Enregistrer l’offre",
+    "dup": {
+      "same": "Vous avez déjà enregistré cette annonce",
+      "similar": "Cela ressemble à une offre que vous avez déjà",
+      "sameBody": "Enregistrer à nouveau met à jour l’offre existante avec ce texte ; votre analyse et vos documents sont conservés.",
+      "similarBody": "Même entreprise et intitulé très proche. Ouvrez l’offre existante, ou enregistrez celle-ci séparément s’il s’agit d’un autre poste.",
+      "added": "ajoutée le {date}",
+      "notAnalyzed": "non analysée"
+    },
+    "details": "Vérifiez les détails",
+    "detailsBody": "Tout est modifiable ici. Corrigez ce que l’analyseur a mal compris avant d’enregistrer.",
+    "fields": {
+      "role": "Poste",
+      "company": "Entreprise",
+      "website": "Site de l’entreprise",
+      "logo": "Logo",
+      "location": "Lieu",
+      "remote": "Télétravail",
+      "remotePlaceholder": "Hybride, télétravail…",
+      "contract": "Contrat",
+      "contractPlaceholder": "Temps plein, CDI…",
+      "salary": "Salaire",
+      "language": "Langue de l’annonce"
+    },
+    "openWebsite": "Ouvrir le site",
+    "websiteFrom": "Site {source}. Jamais le site d’emploi lui-même.",
+    "websiteMissing": "Introuvable. L’ajouter améliore la recherche et le logo.",
+    "logoLooking": "Recherche du logo sur ce site…",
+    "logoNotFound": "Aucun logo trouvé sur ce site. Importez-en un ou collez son URL.",
+    "languageHint": "Votre CV pour ce poste sera rédigé dans cette langue par défaut.",
+    "descriptionTitle": "Description du poste",
+    "chars": "{count, plural, one {# caractère · conservé tel quel} other {# caractères · conservés tels quels}}",
+    "openOriginal": "ouvrir l’original",
+    "preview": "Aperçu",
+    "editText": "Modifier le texte",
+    "hints": {
+      "ai": "l’IA, dans l’annonce",
+      "labelled": "un champ étiqueté",
+      "hiring": "la phrase de recrutement",
+      "join": "la phrase « rejoignez-nous »",
+      "titleLine": "la ligne de titre",
+      "firstLines": "les premières lignes",
+      "firstLine": "la première ligne",
+      "about": "le titre « À propos … »",
+      "location": "une mention de lieu"
+    },
+    "detected": "Détecté à partir de {from} — vérifiez-le.",
+    "notFound": "Introuvable dans le texte. Veuillez le compléter.",
+    "fromDiscovery": "Trouvée par une recherche de découverte · {host}. Lisez le texte, vérifiez les détails, puis enregistrez."
+  }
+}

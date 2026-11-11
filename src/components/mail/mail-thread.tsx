@@ -5,8 +5,9 @@ import { ComposeEmail } from "@/components/mail/compose-email"
 import { SuggestionActions } from "@/components/mail/suggestion-actions"
 import { NaruviAvatar, Otter } from "@/components/naruvi/otter"
 import { shouldOfferInterviewCalendar } from "@/lib/interview-calendar"
-import { STATUS_LABEL, type Status } from "@/lib/stages"
+import type { Status } from "@/lib/stages"
 import type { mailFor } from "@/server/mail/classify"
+import { useTranslations } from "next-intl"
 
 type Message = Awaited<ReturnType<typeof mailFor>>[number]
 
@@ -14,6 +15,8 @@ const normalize = (subject: string) => subject.replace(/^((re|fwd?|tr)\s*:\s*)+/
 
 /** The conversation with the company: newest first, Naruvi's suggestion on top, one Reply for the latest email. */
 export function MailThread({ messages, applicationId, connected, status }: { messages: Message[]; applicationId: string; connected: boolean; status: string }) {
+  const t = useTranslations("mail")
+  const tl = useTranslations("labels")
   if (!messages.length) return null
   const ordered = [...messages].sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime())
   const open = ordered.find((message) => message.suggestionState === "pending")
@@ -26,10 +29,10 @@ export function MailThread({ messages, applicationId, connected, status }: { mes
       <header className="flex flex-wrap items-center gap-3 border-b px-5 py-3.5">
         <InboxIcon className="size-4 text-muted-foreground" aria-hidden />
         <div className="grid min-w-0 flex-1">
-          <h2 id="conversation-title" className="truncate text-sm font-semibold">{ordered[0].subject ? ordered[0].subject.replace(/^((re|fwd?|tr)\s*:\s*)+/i, "") : "Conversation"}</h2>
+          <h2 id="conversation-title" className="truncate text-sm font-semibold">{ordered[0].subject ? ordered[0].subject.replace(/^((re|fwd?|tr)\s*:\s*)+/i, "") : t("conversation")}</h2>
           <p className="text-xs text-muted-foreground">
-            {messages.length} message{messages.length === 1 ? "" : "s"}
-            {unread ? <span className="font-medium text-brand"> · {unread} new</span> : null}
+            {t("messages", { count: messages.length })}
+            {unread ? <span className="font-medium text-brand"> · {t("newCount", { count: unread })}</span> : null}
           </p>
         </div>
         {latestIn ? <ComposeEmail applicationId={applicationId} connected={connected} hasReplies replyToId={latestIn.id} /> : null}
@@ -40,9 +43,9 @@ export function MailThread({ messages, applicationId, connected, status }: { mes
           {goodNews ? <Otter pose="good-news-mail" height={56} className="-my-1" /> : <NaruviAvatar size={32} />}
           <div className="grid min-w-0 flex-1 basis-60 gap-0.5">
             <p className="text-sm"><span className="font-medium text-brand">Naruvi · </span>{open.suggestion.nextStep || open.suggestion.summary}</p>
-            {open.suggestion.status ? <p className="text-xs text-muted-foreground">I can move this application to {STATUS_LABEL[open.suggestion.status as Status]}.</p> : null}
+            {open.suggestion.status ? <p className="text-xs text-muted-foreground">{t("canMove", { status: tl(`status.${open.suggestion.status as Status}`) })}</p> : null}
           </div>
-          <SuggestionActions messageId={open.id} label="Update application" />
+          <SuggestionActions messageId={open.id} label={t("updateApplication")} />
         </div>
       ) : null}
 

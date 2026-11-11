@@ -1,5 +1,6 @@
 "use client"
 
+import { useDirection } from "@base-ui/react/direction-provider"
 import { LayoutGroup, motion } from "motion/react"
 import { useId } from "react"
 import { cn } from "@/lib/utils"
@@ -20,6 +21,7 @@ export type SegmentedOption<T extends string> = {
  */
 export function Segmented<T extends string>({ value, onChange, options, label, size = "sm", className }: { value: T; onChange: (value: T) => void; options: SegmentedOption<T>[]; label: string; size?: "xs" | "sm"; className?: string }) {
   const id = useId()
+  const inlineDirection = useDirection() === "rtl" ? -1 : 1
   const move = (step: number) => {
     const index = options.findIndex((option) => option.value === value)
     const next = options[(index + step + options.length) % options.length]
@@ -33,7 +35,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, s
         aria-label={label}
         className={cn("inline-flex items-center rounded-lg bg-muted p-0.5", className)}
         onKeyDown={(event) => {
-          const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0
+          const step = { ArrowRight: inlineDirection, ArrowLeft: -inlineDirection, ArrowDown: 1, ArrowUp: -1 }[event.key]
           if (!step) return
           event.preventDefault()
           move(step)

@@ -1,0 +1,22 @@
+import ai_steps from "./ai-steps.json"
+import applications from "./applications.json"
+import companies from "./companies.json"
+import contacts from "./contacts.json"
+import doc_ui from "./doc-ui.json"
+import documents from "./documents.json"
+import editor from "./editor.json"
+import errors from "./errors.json"
+import integrations from "./integrations.json"
+import jobs from "./jobs.json"
+import mail from "./mail.json"
+import misc from "./misc.json"
+import profile from "./profile.json"
+import runs from "./runs.json"
+import setup from "./setup.json"
+import shell from "./shell.json"
+import templates from "./templates.json"
+import titles from "./titles.json"
+import tracking from "./tracking.json"
+
+const messages = { ...ai_steps, ...applications, ...companies, ...contacts, ...doc_ui, ...documents, ...editor, ...errors, ...integrations, ...jobs, ...mail, ...misc, ...profile, ...runs, ...setup, ...shell, ...templates, ...titles, ...tracking }
+export default messages

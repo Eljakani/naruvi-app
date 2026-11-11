@@ -1,0 +1,45 @@
+{
+  "dictation": {
+    "errors": {
+      "not-allowed": "Microphone is blocked. Allow it from the icon in the address bar, then try again.",
+      "service-not-allowed": "This browser has speech recognition turned off.",
+      "audio-capture": "No microphone found. Plug one in or check your sound settings.",
+      "network": "Dictation needs an internet connection in this browser.",
+      "language-not-supported": "This language isn’t supported for dictation here."
+    },
+    "noRecording": "This browser can’t record audio.",
+    "transcribing": "Transcribing…",
+    "preparing": "Getting Whisper ready…",
+    "preparingPercent": "Getting Whisper ready {percent}%",
+    "nothingHeard": "I didn’t catch anything. Try speaking a little longer.",
+    "failed": "Transcription failed. Try again.",
+    "downloadFailed": "Couldn’t download the Whisper model. Check your connection.",
+    "whisperFailed": "Local Whisper couldn’t transcribe that. Try again, or switch to browser dictation in Integrations.",
+    "stop": "Stop dictating",
+    "start": "Dictate",
+    "hintCloud": "Speak, then tap again. The clip goes to the speech provider you connected in Integrations.",
+    "hintWhisper": "Speak, then tap again. Whisper turns it into text on this device: your audio never leaves your computer.",
+    "hintBrowser": "Speak naturally; your words appear as you talk. Your browser’s speech service turns audio into text (in Chrome that’s Google). Prefer on-device? Choose local Whisper in Integrations.",
+    "unsupported": "Browser dictation needs Chrome, Edge or Safari. Local Whisper in Integrations works in Firefox too.",
+    "stopped": "Dictation stopped. Try again.",
+    "couldNotStart": "Dictation couldn’t start. Try again."
+  },
+  "sidebar": {
+    "title": "Sidebar",
+    "description": "Displays the mobile sidebar.",
+    "toggle": "Toggle sidebar"
+  },
+  "ui": {
+    "scrollEnd": "Scroll to end",
+    "scrollStart": "Scroll to start",
+    "saveChanges": "Save changes",
+    "saving": "Saving",
+    "saved": "Saved",
+    "tryAgain": "Try again",
+    "undoTimeLeft": "Time left to undo",
+    "darkTheme": "Dark theme",
+    "message": "Message",
+    "enterToSend": "Enter to send · Shift+Enter for a new line",
+    "send": "Send"
+  }
+}

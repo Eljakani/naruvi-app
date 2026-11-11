@@ -7,6 +7,7 @@ import { EntryLogo } from "@/components/profile/entry-logo"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useLocale, useTranslations } from "next-intl"
 
 export type CalendarEvent = { id: string; title: string; company: string; logoPath: string | null; nextStep: string; due: string }
 
@@ -25,19 +26,21 @@ export function DashboardCalendar({ events, now }: { events: CalendarEvent[]; no
   }, [events])
   const upcoming = useMemo(() => events.filter((event) => new Date(event.due) >= new Date(today.getFullYear(), today.getMonth(), today.getDate())).sort((a, b) => a.due.localeCompare(b.due)), [events, today])
   const [selected, setSelected] = useState<Date>(today)
+  const t = useTranslations("calendar")
+  const locale = useLocale()
   const dayEvents = byDay.get(dayKey(selected)) ?? []
   const isToday = dayKey(selected) === dayKey(today)
-  const label = isToday ? "Today" : selected.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })
+  const label = isToday ? t("today") : selected.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })
   const comingUp = upcoming.filter((event) => dayKey(new Date(event.due)) !== dayKey(selected)).slice(0, 3)
 
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle><h2>Calendar</h2></CardTitle>
-        <CardDescription>{upcoming.length ? `${upcoming.length} upcoming next step${upcoming.length === 1 ? "" : "s"}` : "No dated next steps"}</CardDescription>
+        <CardTitle><h2>{t("title")}</h2></CardTitle>
+        <CardDescription>{upcoming.length ? t("upcoming", { count: upcoming.length }) : t("noneDated")}</CardDescription>
         {!isToday ? (
           <CardAction>
-            <Button size="xs" variant="ghost" onClick={() => setSelected(today)}>Today</Button>
+            <Button size="xs" variant="ghost" onClick={() => setSelected(today)}>{t("today")}</Button>
           </CardAction>
         ) : null}
       </CardHeader>
@@ -52,7 +55,7 @@ export function DashboardCalendar({ events, now }: { events: CalendarEvent[]; no
           defaultMonth={today}
           className="mx-auto p-0 [--cell-size:--spacing(8)] @min-[34rem]/cal:mx-0"
           modifiers={{ busy: (date) => byDay.has(dayKey(date)) }}
-          modifiersClassNames={{ busy: "[&>button]:font-semibold [&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:size-1 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-current [&>button]:relative" }}
+          modifiersClassNames={{ busy: "[&>button]:font-semibold [&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:start-1/2 [&>button]:after:size-1 [&>button]:after:-translate-x-1/2 rtl:[&>button]:after:translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-current [&>button]:relative" }}
         />
         <div className="grid content-start gap-3 border-t pt-3 @min-[34rem]/cal:border-t-0 @min-[34rem]/cal:border-s @min-[34rem]/cal:ps-6 @min-[34rem]/cal:pt-0">
           <div className="grid gap-1.5">
@@ -61,18 +64,18 @@ export function DashboardCalendar({ events, now }: { events: CalendarEvent[]; no
               <EventList key={dayKey(selected)} events={dayEvents} />
             ) : (
               <p key={dayKey(selected)} className="cb-fade flex items-center gap-2 px-1.5 py-1 text-sm text-muted-foreground">
-                <CalendarDaysIcon className="size-4 shrink-0" /> Nothing due{isToday ? " today" : " that day"}.
+                <CalendarDaysIcon className="size-4 shrink-0" /> {isToday ? t("nothingToday") : t("nothingThatDay")}
               </p>
             )}
           </div>
           {/* What's coming, so an empty day still shows something useful. */}
           {comingUp.length ? (
             <div className="grid gap-1.5">
-              <p className="text-xs font-medium text-muted-foreground">Coming up</p>
+              <p className="text-xs font-medium text-muted-foreground">{t("comingUp")}</p>
               <EventList events={comingUp} showDate onPick={(event) => setSelected(new Date(event.due))} />
             </div>
           ) : !upcoming.length ? (
-            <p className="px-1.5 text-xs text-muted-foreground">Add a date to a next step on an application to see it here.</p>
+            <p className="px-1.5 text-xs text-muted-foreground">{t("hint")}</p>
           ) : null}
         </div>
         </div>
@@ -82,6 +85,8 @@ export function DashboardCalendar({ events, now }: { events: CalendarEvent[]; no
 }
 
 function EventList({ events, showDate = false, onPick }: { events: CalendarEvent[]; showDate?: boolean; onPick?: (event: CalendarEvent) => void }) {
+  const t = useTranslations("calendar")
+  const locale = useLocale()
   return (
     <ul className="cb-stagger grid gap-0.5">
       {events.map((event) => {
@@ -89,15 +94,15 @@ function EventList({ events, showDate = false, onPick }: { events: CalendarEvent
         return (
           <li key={event.id} className="flex min-w-0 items-center gap-1">
             {showDate ? (
-              <button type="button" onClick={() => onPick?.(event)} title="Show this day" className="grid w-10 shrink-0 justify-items-center rounded-md py-1 leading-tight hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring">
-                <span className="text-[11px] text-muted-foreground uppercase">{date.toLocaleDateString(undefined, { month: "short" })}</span>
+              <button type="button" onClick={() => onPick?.(event)} title={t("showDay")} className="grid w-10 shrink-0 justify-items-center rounded-md py-1 leading-tight hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring">
+                <span className="text-[11px] text-muted-foreground uppercase">{date.toLocaleDateString(locale, { month: "short" })}</span>
                 <span className="text-sm font-semibold tabular-nums">{date.getDate()}</span>
               </button>
             ) : null}
             <Link href={`/applications/${event.id}`} className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2">
               <EntryLogo path={event.logoPath} name={event.company || event.title} size={24} className="rounded-md" />
               <span className="grid min-w-0 flex-1">
-                <span className="truncate text-sm font-medium">{event.nextStep || "Next step"}</span>
+                <span className="truncate text-sm font-medium">{event.nextStep || t("nextStep")}</span>
                 <span className="truncate text-xs text-muted-foreground">{[event.company, event.title].filter(Boolean).join(" · ")}</span>
               </span>
             </Link>

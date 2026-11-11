@@ -7,13 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { dueTone, type AttentionItem, type AttentionReason } from "@/lib/attention"
 import { cn } from "@/lib/utils"
+import { useLocale, useTranslations } from "next-intl"
+import { dueLabel } from "@/lib/attention"
 
-const REASON: Record<AttentionReason, { icon: LucideIcon; label: string }> = {
-  due: { icon: CalendarClockIcon, label: "Due" },
-  ready: { icon: SendIcon, label: "Ready to send" },
-  quiet: { icon: HourglassIcon, label: "No reply" },
-  "strong-fit": { icon: FileTextIcon, label: "Not started" },
-}
+const REASON: Record<AttentionReason, LucideIcon> = { due: CalendarClockIcon, ready: SendIcon, quiet: HourglassIcon, "strong-fit": FileTextIcon }
 
 const LIMIT = 6
 
@@ -24,16 +21,25 @@ export function NeedsAttention({ items, now, replies = [] }: { items: AttentionI
   const repliedTo = new Set(replies.map((reply) => reply.applicationId))
   items = items.filter((item) => !repliedTo.has(item.id))
   const actionCount = items.length + replies.length
+  const t = useTranslations("attention")
+  const tl = useTranslations("labels")
+  const locale = useLocale()
   if (!actionCount) return null
+  const message = (item: AttentionItem) =>
+    item.reason === "due" && item.nextStepDue ? `${item.nextStep || t("nextStep")} · ${dueLabel(item.nextStepDue, now, (key, values) => tl(`due.${key}`, values), locale)}`
+    : item.reason === "ready" ? (item.idleDays >= 1 ? t("message.readyIdle", { count: item.idleDays }) : t("message.ready"))
+    : item.reason === "quiet" ? t("message.quiet", { count: item.idleDays })
+    : item.reason === "strong-fit" ? t("message.strongFit", { fit: item.fit ?? 0, count: item.idleDays })
+    : item.message
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Needs attention</CardTitle>
-        <CardDescription>{actionCount} item{actionCount === 1 ? "" : "s"} to review</CardDescription>
+        <CardTitle>{t("title")}</CardTitle>
+        <CardDescription>{t("count", { count: actionCount })}</CardDescription>
         {items.length > LIMIT ? (
           <CardAction>
             <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/applications?view=list" />}>
-              All applications <ArrowRightIcon />
+              {t("all")} <ArrowRightIcon />
             </Button>
           </CardAction>
         ) : null}
@@ -42,7 +48,7 @@ export function NeedsAttention({ items, now, replies = [] }: { items: AttentionI
         {replies.length ? (
           <div className="grid gap-1.5">
             <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <InboxIcon className="size-3.5" /> New replies
+              <InboxIcon className="size-3.5" /> {t("newReplies")}
             </p>
             <ul className="divide-y rounded-lg border">
               {replies.map((reply) => (
@@ -51,7 +57,7 @@ export function NeedsAttention({ items, now, replies = [] }: { items: AttentionI
                   <Link href={`/applications/${reply.applicationId}`} className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium hover:underline">{reply.suggestion?.summary ?? reply.subject}</span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {reply.title} · “{reply.subject}” from {reply.fromName || reply.fromAddress}
+                      {t("replyFrom", { title: reply.title, subject: reply.subject, from: reply.fromName || reply.fromAddress })}
                     </span>
                   </Link>
                   <SuggestionActions messageId={reply.id} />
@@ -63,7 +69,7 @@ export function NeedsAttention({ items, now, replies = [] }: { items: AttentionI
         {items.length ? (
           <ul className="divide-y rounded-lg border">
             {items.slice(0, LIMIT).map((item) => {
-              const reason = REASON[item.reason]
+              const ReasonIcon = REASON[item.reason]
               const overdue = item.reason === "due" && item.nextStepDue && dueTone(item.nextStepDue, now) === "overdue"
               return (
                 <li key={item.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:flex-nowrap">
@@ -71,14 +77,14 @@ export function NeedsAttention({ items, now, replies = [] }: { items: AttentionI
                   <Link href={`/applications/${item.id}`} className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium hover:underline">{item.title}{item.company ? <span className="font-normal text-muted-foreground"> · {item.company}</span> : null}</span>
                     <span className={cn("flex min-w-0 items-center gap-1 text-xs", overdue ? "text-destructive" : "text-muted-foreground")}>
-                      <reason.icon className="size-3 shrink-0" aria-label={reason.label} />
-                      <span className="truncate">{item.message}</span>
+                      <ReasonIcon className="size-3 shrink-0" aria-label={t(`reason.${item.reason}`)} />
+                      <span className="truncate">{message(item)}</span>
                     </span>
                   </Link>
                   <div className="flex shrink-0 gap-1">
                     {item.action === "archive" ? <ArchiveButton id={item.id} archived={false} size="sm" /> : null}
                     <Button size="sm" variant={item.action === "archive" ? "ghost" : "outline"} nativeButton={false} render={<Link href={item.action === "cv" ? `/applications/${item.id}/cv` : `/applications/${item.id}`} />}>
-                      {item.action === "cv" ? "Draft CV" : "Open"}
+                      {item.action === "cv" ? t("draftCv") : t("open")}
                     </Button>
                   </div>
                 </li>

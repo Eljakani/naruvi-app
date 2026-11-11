@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useId, useState, useSyncExternalStore, useTransition } from "react"
 import { ArrowUpRightIcon, ChevronDownIcon, FileTextIcon, Loader2Icon, MailIcon, PaperclipIcon, ReplyIcon, SendIcon, SparklesIcon, Undo2Icon } from "lucide-react"
 import { toast } from "sonner"
-import { composeContextAction, draftMailAction, sendMailAction } from "@/app/(app)/applications/actions"
+import { composeContextAction, draftMailAction, sendMailAction } from "@/app/[locale]/(app)/applications/actions"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { InterviewCalendar } from "@/components/mail/interview-calendar"
 import AITextLoading from "@/components/kokonutui/ai-text-loading"
@@ -19,45 +19,41 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { Kbd } from "@/components/ui/kbd"
-import { COMPOSE_LABEL, type ComposeKind } from "@/lib/mail-templates"
+import { type ComposeKind } from "@/lib/mail-templates"
 import type { MailDraft, DraftMailInput } from "@/lib/mail-draft"
 import { cn } from "@/lib/utils"
 import type { ComposeContext } from "@/server/mail/send"
+import { useTranslations } from "next-intl"
 
-const PURPOSE_HELP: Record<ComposeKind, string> = {
-  reply: "Respond to the latest conversation",
-  follow_up: "Ask about progress or the next step",
-  thank_you: "Send a thoughtful note after meeting",
-  apply: "Introduce yourself and your application",
-}
 
 /** One-click instructions that fit the email being answered, so nobody starts from a blank box. */
 function quickIntents(kind: ComposeKind, latest: { subject: string; text: string; kind?: string | null } | null): string[] {
-  if (kind === "apply") return ["Keep it short and mention the attached CV", "Mention who referred me", "Explain why this company in one line"]
-  if (kind === "thank_you") return ["Thank them for their time and the conversation", "Say I’m still very interested and look forward to next steps"]
-  if (kind === "follow_up") return ["Ask politely where things stand", "Confirm I’m still interested and available"]
+  if (kind === "apply") return ["apply.short", "apply.referred", "apply.why"]
+  if (kind === "thank_you") return ["thanks.time", "thanks.interested"]
+  if (kind === "follow_up") return ["followUp.status", "followUp.available"]
   const received = latest ? (latest.kind && latest.kind !== "other" ? latest.kind : ruleKind(latest.subject, latest.text)) : "other"
-  if (received === "interview") return ["Accept and offer Tuesday or Thursday afternoon", "Accept and ask for the format and who I’ll meet", "Ask to move it to next week"]
-  if (received === "offer") return ["Thank them and ask for the written offer", "Thank them and ask for a few days to decide", "Accept the offer"]
-  if (received === "rejection") return ["Thank them and ask for brief feedback", "Thank them and ask to keep me in mind"]
-  if (received === "info_request") return ["Answer their questions briefly", "Send the details they asked for"]
-  return ["Thank them and answer briefly", "Ask what the next step is"]
+  if (received === "interview") return ["interview.accept", "interview.format", "interview.move"]
+  if (received === "offer") return ["offer.written", "offer.time", "offer.accept"]
+  if (received === "rejection") return ["rejection.feedback", "rejection.mind"]
+  if (received === "info_request") return ["info.answer", "info.details"]
+  return ["other.answer", "other.next"]
 }
 
 export type PrefilledEmailDraft = MailDraft & { kind: ComposeKind; replyTo: string | null; instructions?: string; language?: DraftMailInput["language"] }
 
 /** Application menu and per-message reply share the same context-aware composer. */
 export function ComposeEmail({ applicationId, connected, hasReplies, replyToId, initialDraft }: { applicationId: string; connected: boolean; hasReplies: boolean; replyToId?: string; initialDraft?: PrefilledEmailDraft }) {
+  const t = useTranslations("compose")
   const [kind, setKind] = useState<ComposeKind | null>(null)
   const kinds: ComposeKind[] = hasReplies ? ["reply", "follow_up", "thank_you", "apply"] : ["apply", "follow_up", "thank_you"]
-  if (!connected) return <Button variant="outline" size={replyToId ? "sm" : "default"} nativeButton={false} render={<Link href="/integrations" />}><MailIcon /> Connect email</Button>
+  if (!connected) return <Button variant="outline" size={replyToId ? "sm" : "default"} nativeButton={false} render={<Link href="/integrations" />}><MailIcon /> {t("connect")}</Button>
   return <>
-    {replyToId || initialDraft ? <Button variant="outline" size="sm" onClick={() => setKind(initialDraft?.kind ?? "reply")}><ReplyIcon /> {initialDraft ? "Review email" : "Reply"}</Button> : <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" />}><MailIcon /> Write email <ChevronDownIcon /></DropdownMenuTrigger>
+    {replyToId || initialDraft ? <Button variant="outline" size="sm" onClick={() => setKind(initialDraft?.kind ?? "reply")}><ReplyIcon /> {initialDraft ? t("review") : t("kinds.reply")}</Button> : <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="outline" />}><MailIcon /> {t("write")} <ChevronDownIcon /></DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         {kinds.map((item) => <DropdownMenuItem key={item} onClick={() => setKind(item)} className="items-start gap-3 py-2.5">
           {item === "reply" ? <ReplyIcon className="mt-0.5" /> : item === "apply" ? <SendIcon className="mt-0.5" /> : <MailIcon className="mt-0.5" />}
-          <span className="grid gap-1"><span>{COMPOSE_LABEL[item]}</span><span className="text-xs text-muted-foreground">{PURPOSE_HELP[item]}</span></span>
+          <span className="grid gap-1"><span>{t(`kinds.${item}`)}</span><span className="text-xs text-muted-foreground">{t(`purpose.${item}`)}</span></span>
         </DropdownMenuItem>)}
       </DropdownMenuContent>
     </DropdownMenu>}
@@ -66,6 +62,7 @@ export function ComposeEmail({ applicationId, connected, hasReplies, replyToId, 
 }
 
 function ComposeDialog({ applicationId, kind, replyToId, initialDraft, onClose }: { applicationId: string; kind: ComposeKind; replyToId?: string; initialDraft?: PrefilledEmailDraft; onClose: () => void }) {
+  const t = useTranslations("compose")
   const id = useId()
   const [context, setContext] = useState<ComposeContext | null>(null)
   const [loadError, setLoadError] = useState("")
@@ -99,7 +96,7 @@ function ComposeDialog({ applicationId, kind, replyToId, initialDraft, onClose }
     let current = true
     void composeContextAction(applicationId, kind, replyToId).then((next) => {
       if (!current) return
-      if (!next) return setLoadError("This application is no longer available.")
+      if (!next) return setLoadError(t("gone"))
       setContext(next)
       setTo(next.to)
       setSubject(initialDraft?.subject ?? next.subject)
@@ -112,9 +109,9 @@ function ComposeDialog({ applicationId, kind, replyToId, initialDraft, onClose }
       }
       setAttachCv(!initialDraft && kind === "apply" && Boolean(next.attachments.cv))
       setAttachLetter(!initialDraft && kind === "apply" && Boolean(next.attachments.letter))
-    }).catch(() => { if (current) setLoadError("Couldn’t load your email draft. Try again.") })
+    }).catch(() => { if (current) setLoadError(t("loadFailed")) })
     return () => { current = false }
-  }, [applicationId, kind, replyToId, initialDraft, attempt, draftKey])
+  }, [applicationId, kind, replyToId, initialDraft, attempt, draftKey, t])
 
   // Keep the unsent draft, so closing the window or a crash doesn't lose it.
   useEffect(() => {
@@ -136,27 +133,27 @@ function ComposeDialog({ applicationId, kind, replyToId, initialDraft, onClose }
       setBody(result.draft.body)
       setMissing(result.draft.missingDetails)
       setDirty(true)
-      toast.success("Draft ready", { description: "Review the wording and any details to complete." })
-    } catch { setAiError("Couldn’t reach the drafting service. Your message is unchanged. Try again.") }
+      toast.success(t("draftReady"), { description: t("draftReadyBody") })
+    } catch { setAiError(t("aiFailed")) }
   })
   const send = () => startSend(async () => {
     setQueued(false)
     try {
       const result = await sendMailAction({ applicationId, kind, to, cc, subject, body, attachCv, attachLetter, replyTo: context?.replyTo ?? null })
-      if (!result.ok) return void toast.error("Not sent", { description: result.message })
-      toast.success("Email sent", { description: "A copy is saved on this application." })
+      if (!result.ok) return void toast.error(t("notSent"), { description: result.message })
+      toast.success(t("sent"), { description: t("sentBody") })
       forget()
       setDirty(false)
       if (result.sentMessageId && result.interviewRelated) setSent({ messageId: result.sentMessageId, interviewRelated: true })
       else onClose()
-    } catch { toast.error("Couldn’t confirm delivery", { description: "Check your Sent folder before trying again." }) }
+    } catch { toast.error(t("unconfirmed"), { description: t("unconfirmedBody") }) }
   })
 
   const canSend = Boolean(context?.canSend) && !drafting && Boolean(to.trim() && subject.trim() && body.trim()) && !placeholders
-  const ideas = context?.aiConfigured ? quickIntents(kind, context.latestEmail ? { subject: context.latestEmail.subject, text: context.latestEmail.text, kind: context.latestEmail.kind } : null) : []
+  const ideas = context?.aiConfigured ? quickIntents(kind, context.latestEmail ? { subject: context.latestEmail.subject, text: context.latestEmail.text, kind: context.latestEmail.kind } : null).map((key) => t(`intents.${key}` as never) as string) : []
   const replyName = context?.latestEmail?.from.replace(/\s*<.*>$/, "").trim()
-  const title = sent ? "Email sent" : kind === "reply" && replyName ? `Reply to ${replyName}` : COMPOSE_LABEL[kind]
-  const hint = drafting ? "Naruvi is writing from your context…" : queued ? "Sending in a moment. Undo if you changed your mind." : !context?.canSend ? "Connect outgoing email to send." : placeholders ? "Fill in the bracketed details first." : restored ? "Restored your unsent draft." : "You get 5 seconds to undo after sending."
+  const title = sent ? t("sent") : kind === "reply" && replyName ? t("replyTo", { name: replyName }) : t(`kinds.${kind}`)
+  const hint = drafting ? t("hint.drafting") : queued ? t("hint.queued") : !context?.canSend ? t("hint.noSend") : placeholders ? t("hint.placeholders") : restored ? t("hint.restored") : t("hint.undo")
   // ⌘/Ctrl+Enter sends, through the same undo window as the button.
   const onKeyDown = (event: React.KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && canSend && !busy) {
@@ -168,63 +165,63 @@ function ComposeDialog({ applicationId, kind, replyToId, initialDraft, onClose }
   return <>
     <Dialog open onOpenChange={(open) => { if (!open) close() }}>
       <DialogContent showCloseButton={!busy} onKeyDown={onKeyDown} className="h-[min(48rem,calc(100dvh-2rem))] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-5xl">
-        <DialogHeader className="border-b px-5 py-3.5 pr-12">
+        <DialogHeader className="border-b px-5 py-3.5 pe-12">
           <DialogTitle className="truncate">{title}</DialogTitle>
-          <DialogDescription>{context ? `${context.application.company} · ${context.application.title}` : "Preparing your email…"}</DialogDescription>
+          <DialogDescription>{context ? `${context.application.company} · ${context.application.title}` : t("preparing")}</DialogDescription>
         </DialogHeader>
-        {sent ? <div className="grid content-start gap-4 overflow-y-auto p-5"><div className="cb-enter flex items-end gap-3"><Otter pose="celebrating-progress" height={96} /><div className="grid gap-1 pb-2"><p className="font-medium">Sent. Nicely done.</p><p className="text-sm text-muted-foreground">A copy is saved on this application. If they proposed a time, save it to your calendar below.</p></div></div><InterviewCalendar applicationId={applicationId} messageId={sent.messageId} /></div> : loadError ? <div className="grid gap-3 p-6" role="alert"><p>{loadError}</p><Button variant="outline" className="w-fit" onClick={() => { setLoadError(""); setAttempt((value) => value + 1) }}>Try again</Button></div> : context ? <div className="grid min-h-0 md:grid-cols-[minmax(0,1fr)_18rem]">
+        {sent ? <div className="grid content-start gap-4 overflow-y-auto p-5"><div className="cb-enter flex items-end gap-3"><Otter pose="celebrating-progress" height={96} /><div className="grid gap-1 pb-2"><p className="font-medium">{t("sentTitle")}</p><p className="text-sm text-muted-foreground">{t("sentHint")}</p></div></div><InterviewCalendar applicationId={applicationId} messageId={sent.messageId} /></div> : loadError ? <div className="grid gap-3 p-6" role="alert"><p>{loadError}</p><Button variant="outline" className="w-fit" onClick={() => { setLoadError(""); setAttempt((value) => value + 1) }}>{t("tryAgain")}</Button></div> : context ? <div className="grid min-h-0 md:grid-cols-[minmax(0,1fr)_18rem]">
           {/* The message: one scroll, mail-client style header rows, and a body that takes the rest of the height. */}
           <form id={id} className="flex min-h-0 min-w-0 flex-col overflow-y-auto" onSubmit={(event) => event.preventDefault()}>
-            {!context.canSend ? <p className="border-b bg-destructive/5 px-5 py-2 text-sm text-destructive">Outgoing email isn’t connected. <Link href="/integrations" className="underline underline-offset-4">Set up sending</Link></p> : null}
+            {!context.canSend ? <p className="border-b bg-destructive/5 px-5 py-2 text-sm text-destructive">{t("noOutgoing")} <Link href="/integrations" className="underline underline-offset-4">{t("setupSending")}</Link></p> : null}
             {context.latestEmail && kind !== "apply" ? <OriginalEmail email={context.latestEmail} /> : null}
             <fieldset disabled={busy} className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <HeaderRow label="From"><span className="truncate py-2 text-sm text-muted-foreground" title={context.from ?? ""}>{context.from || "your connected mailbox"}</span></HeaderRow>
-              <HeaderRow label="To" htmlFor={`${id}-to`} end={showCc ? null : <button type="button" className="rounded px-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => setShowCc(true)}>Cc</button>}>
+              <HeaderRow label={t("from")}><span className="truncate py-2 text-sm text-muted-foreground" title={context.from ?? ""}>{context.from || t("yourMailbox")}</span></HeaderRow>
+              <HeaderRow label={t("to")} htmlFor={`${id}-to`} end={showCc ? null : <button type="button" className="rounded px-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => setShowCc(true)}>Cc</button>}>
                 <input id={`${id}-to`} required maxLength={2000} value={to} onChange={(event) => edit(setTo, event.target.value)} placeholder="recruiter@company.com" autoFocus={!to} className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
               </HeaderRow>
-              {showCc ? <HeaderRow label="Cc" htmlFor={`${id}-cc`}><input id={`${id}-cc`} maxLength={2000} value={cc} onChange={(event) => edit(setCc, event.target.value)} placeholder="Other recipients, comma separated" autoFocus className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground" /></HeaderRow> : null}
-              <HeaderRow label="Subject" htmlFor={`${id}-subject`}>
-                <input id={`${id}-subject`} required maxLength={300} value={subject} onChange={(event) => edit(setSubject, event.target.value)} className="h-10 w-full min-w-0 bg-transparent text-sm font-medium outline-none" />
+              {showCc ? <HeaderRow label="Cc" htmlFor={`${id}-cc`}><input id={`${id}-cc`} maxLength={2000} value={cc} onChange={(event) => edit(setCc, event.target.value)} placeholder={t("ccPlaceholder")} autoFocus className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground" /></HeaderRow> : null}
+              <HeaderRow label={t("subject")} htmlFor={`${id}-subject`}>
+                <input dir="auto" id={`${id}-subject`} required maxLength={300} value={subject} onChange={(event) => edit(setSubject, event.target.value)} className="h-10 w-full min-w-0 bg-transparent text-sm font-medium outline-none" />
               </HeaderRow>
               <div className="relative flex min-h-64 flex-1 flex-col">
-                <label htmlFor={`${id}-body`} className="sr-only">Message</label>
-                <textarea key={previous ? `${previous.body.length}-${body.length}` : "body"} id={`${id}-body`} required maxLength={20_000} className={cn("min-h-64 w-full flex-1 resize-none bg-transparent px-5 py-4 text-sm leading-relaxed outline-none transition-opacity duration-200", previous && !drafting && "cb-fade", drafting && "opacity-30")} value={body} onChange={(event) => edit(setBody, event.target.value)} autoFocus={Boolean(to)} placeholder="Write your message, or let Naruvi draft it." />
-                {drafting ? <div className="pointer-events-none absolute inset-0 grid place-content-center justify-items-center gap-2"><Otter pose="working-on-it" height={84} /><AITextLoading texts={["Reading their email", "Finding the right words", "Keeping it short"]} label="Naruvi is drafting your email" className="text-sm" /></div> : null}
+                <label htmlFor={`${id}-body`} className="sr-only">{t("message")}</label>
+                <textarea dir="auto" key={previous ? `${previous.body.length}-${body.length}` : "body"} id={`${id}-body`} required maxLength={20_000} className={cn("min-h-64 w-full flex-1 resize-none bg-transparent px-5 py-4 text-sm leading-relaxed outline-none transition-opacity duration-200", previous && !drafting && "cb-fade", drafting && "opacity-30")} value={body} onChange={(event) => edit(setBody, event.target.value)} autoFocus={Boolean(to)} placeholder={t("bodyPlaceholder")} />
+                {drafting ? <div className="pointer-events-none absolute inset-0 grid place-content-center justify-items-center gap-2"><Otter pose="working-on-it" height={84} /><AITextLoading texts={[t("loading.read"), t("loading.words"), t("loading.short")]} label={t("loading.label")} className="text-sm" /></div> : null}
               </div>
-              {missing.length > 0 ? <div className="mx-5 mb-3 grid gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs" role="status"><p className="font-medium">Check before sending</p><ul className="list-disc space-y-1 pl-4">{missing.map((detail) => <li key={detail}>{detail}</li>)}</ul>{placeholders ? <p>Replace the bracketed details in your message.</p> : null}</div> : null}
-              <fieldset className="flex flex-wrap items-center gap-2 border-t px-5 py-2.5"><legend className="sr-only">Attachments</legend><PaperclipIcon className="size-3.5 text-muted-foreground" aria-hidden /><Attachment label="CV" checked={attachCv} onChange={(value) => { setAttachCv(value); setDirty(true) }} available={Boolean(context.attachments.cv)} /><Attachment label="Cover letter" checked={attachLetter} onChange={(value) => { setAttachLetter(value); setDirty(true) }} available={Boolean(context.attachments.letter)} /></fieldset>
+              {missing.length > 0 ? <div className="mx-5 mb-3 grid gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs" role="status"><p className="font-medium">{t("check")}</p><ul className="list-disc space-y-1 ps-4">{missing.map((detail) => <li key={detail}>{detail}</li>)}</ul>{placeholders ? <p>{t("replaceBrackets")}</p> : null}</div> : null}
+              <fieldset className="flex flex-wrap items-center gap-2 border-t px-5 py-2.5"><legend className="sr-only">{t("attachments")}</legend><PaperclipIcon className="size-3.5 text-muted-foreground" aria-hidden /><Attachment label={t("cv")} checked={attachCv} onChange={(value) => { setAttachCv(value); setDirty(true) }} available={Boolean(context.attachments.cv)} /><Attachment label={t("letter")} checked={attachLetter} onChange={(value) => { setAttachLetter(value); setDirty(true) }} available={Boolean(context.attachments.letter)} /></fieldset>
             </fieldset>
           </form>
           {/* Naruvi: one click on an idea writes the draft; your own words and the tone are there when you want them. */}
-          <aside className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto border-t bg-muted/30 p-4 md:border-t-0 md:border-l">
-            <div className="flex items-center gap-2.5"><NaruviAvatar size={30} /><div className="grid"><h3 className="text-sm font-medium">Let Naruvi draft it</h3><p className="text-xs text-muted-foreground">{kind === "apply" ? "From this job and your verified facts." : "From their email. No CV recap: they’ve read it."}</p></div></div>
+          <aside className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto border-t bg-muted/30 p-4 md:border-t-0 md:border-s">
+            <div className="flex items-center gap-2.5"><NaruviAvatar size={30} /><div className="grid"><h3 className="text-sm font-medium">{t("draftIt")}</h3><p className="text-xs text-muted-foreground">{kind === "apply" ? t("fromJob") : t("fromEmail")}</p></div></div>
             {context.aiConfigured ? <>
-              <div className="grid gap-1.5" role="group" aria-label="Write it for me with one of these">
+              <div className="grid gap-1.5" role="group" aria-label={t("ideasLabel")}>
                 {ideas.map((idea) => <button key={idea} type="button" disabled={busy} onClick={() => { setInstructions(idea); setDirty(true); generate(idea) }} className={cn("group flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-start text-xs transition-colors hover:border-brand/40 hover:bg-brand-soft disabled:opacity-50", instructions === idea && previous && "border-brand/50 bg-brand-soft")}><SparklesIcon className="size-3.5 shrink-0 text-brand" aria-hidden /><span className="flex-1">{idea}</span></button>)}
               </div>
               <div className="grid gap-2">
-                <label htmlFor={`${id}-instructions`} className="text-xs font-medium">Or say it in your words</label>
-                <Textarea id={`${id}-instructions`} rows={3} maxLength={4000} disabled={busy} className="min-h-20 resize-none bg-background text-sm" value={instructions} onChange={(event) => edit(setInstructions, event.target.value)} placeholder={kind === "reply" ? "Dates, a question, a detail to mention…" : kind === "thank_you" ? "Who you met and what you discussed…" : "Details the email should include…"} />
+                <label htmlFor={`${id}-instructions`} className="text-xs font-medium">{t("ownWords")}</label>
+                <Textarea id={`${id}-instructions`} rows={3} maxLength={4000} disabled={busy} className="min-h-20 resize-none bg-background text-sm" value={instructions} onChange={(event) => edit(setInstructions, event.target.value)} placeholder={kind === "reply" ? t("placeholder.reply") : kind === "thank_you" ? t("placeholder.thanks") : t("placeholder.other")} />
                 <div className="flex items-center gap-2">
-                  <Segmented<"professional" | "warm" | "concise"> label="Tone" size="xs" className="flex-1 [&>button]:flex-1 [&>button]:justify-center" value={tone ?? "professional"} onChange={(value) => setTone(value)} options={[{ value: "professional", label: "Formal" }, { value: "warm", label: "Warm" }, { value: "concise", label: "Short" }]} />
-                  <select aria-label="Language" disabled={busy} value={language} onChange={(event) => setLanguage(event.target.value as DraftMailInput["language"])} className="h-7 w-16 rounded-md border bg-background px-1 text-xs focus-visible:outline-2 focus-visible:outline-ring"><option value="auto">Auto</option><option value="en">EN</option><option value="fr">FR</option><option value="de">DE</option><option value="es">ES</option><option value="ar">AR</option></select>
+                  <Segmented<"professional" | "warm" | "concise"> label={t("tone")} size="xs" className="flex-1 [&>button]:flex-1 [&>button]:justify-center" value={tone ?? "professional"} onChange={(value) => setTone(value)} options={[{ value: "professional", label: t("tones.formal") }, { value: "warm", label: t("tones.warm") }, { value: "concise", label: t("tones.short") }]} />
+                  <select aria-label={t("language")} disabled={busy} value={language} onChange={(event) => setLanguage(event.target.value as DraftMailInput["language"])} className="h-7 w-16 rounded-md border bg-background px-1 text-xs focus-visible:outline-2 focus-visible:outline-ring"><option value="auto">{t("auto")}</option><option value="en">EN</option><option value="fr">FR</option><option value="de">DE</option><option value="es">ES</option><option value="ar">AR</option></select>
                 </div>
-                <Button type="button" disabled={busy} onClick={() => generate()} className="bg-brand text-brand-foreground hover:bg-brand/90">{drafting ? <Loader2Icon className="animate-spin" /> : <SparklesIcon />}{drafting ? "Writing…" : previous ? "Rewrite" : "Write it for me"}</Button>
-                {previous ? <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => { setSubject(previous.subject); setBody(previous.body); setMissing(previous.missing); setPrevious(null); setAiError("") }}><Undo2Icon /> Back to my version</Button> : null}
+                <Button type="button" disabled={busy} onClick={() => generate()} className="bg-brand text-brand-foreground hover:bg-brand/90">{drafting ? <Loader2Icon className="animate-spin" /> : <SparklesIcon />}{drafting ? t("writing") : previous ? t("rewrite") : t("writeForMe")}</Button>
+                {previous ? <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => { setSubject(previous.subject); setBody(previous.body); setMissing(previous.missing); setPrevious(null); setAiError("") }}><Undo2Icon /> {t("back")}</Button> : null}
                 {aiError ? <p role="alert" className="text-xs text-destructive">{aiError}</p> : null}
               </div>
-            </> : <p className="text-xs text-muted-foreground"><Link href="/integrations#ai" className="inline-flex items-center gap-1 underline underline-offset-4">Connect an AI model <ArrowUpRightIcon className="size-3" /></Link> to draft and refine emails. You can still write your own message.</p>}
+            </> : <p className="text-xs text-muted-foreground"><Link href="/integrations#ai" className="inline-flex items-center gap-1 underline underline-offset-4">{t("connectAi")} <ArrowUpRightIcon className="size-3" /></Link> {t("connectAiBody")}</p>}
           </aside>
         </div> : <div className="grid gap-4 p-5"><Skeleton className="h-9" /><Skeleton className="h-9" /><Skeleton className="h-64" /></div>}
-        {sent ? <DialogFooter className="m-0 rounded-none px-5 py-3"><Button onClick={onClose}>Done</Button></DialogFooter> : <DialogFooter className="m-0 shrink-0 items-center gap-3 rounded-none px-5 py-3">
+        {sent ? <DialogFooter className="m-0 rounded-none px-5 py-3"><Button onClick={onClose}>{t("done")}</Button></DialogFooter> : <DialogFooter className="m-0 shrink-0 items-center gap-3 rounded-none px-5 py-3">
           <p className="me-auto text-xs text-muted-foreground" aria-live="polite">{hint}</p>
           <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:inline-flex" aria-hidden><Kbd>{isMac ? "⌘" : "Ctrl"}</Kbd><Kbd>↵</Kbd></span>
-          <Button variant="ghost" onClick={close} disabled={busy}>Cancel</Button>
-          {sending ? <Button disabled><Loader2Icon className="animate-spin" /> Sending…</Button> : <UndoButton id={`${id}-send`} label="Send email" doneLabel="Sent" icon={SendIcon} resetAfter={null} disabled={!canSend} onAction={() => setQueued(true)} onUndo={() => setQueued(false)} onCommit={send} />}
+          <Button variant="ghost" onClick={close} disabled={busy}>{t("cancel")}</Button>
+          {sending ? <Button disabled><Loader2Icon className="animate-spin" /> {t("sending")}</Button> : <UndoButton id={`${id}-send`} label={t("send")} doneLabel={t("sentShort")} icon={SendIcon} resetAfter={null} disabled={!canSend} onAction={() => setQueued(true)} onUndo={() => setQueued(false)} onCommit={send} />}
         </DialogFooter>}
       </DialogContent>
     </Dialog>
-    <AlertDialog open={discard} onOpenChange={setDiscard}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Discard this draft?</AlertDialogTitle><AlertDialogDescription>Your unsent message and drafting notes will be lost.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep editing</AlertDialogCancel><AlertDialogAction onClick={() => { forget(); onClose() }}>Discard draft</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <AlertDialog open={discard} onOpenChange={setDiscard}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t("discard.title")}</AlertDialogTitle><AlertDialogDescription>{t("discard.body")}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{t("discard.keep")}</AlertDialogCancel><AlertDialogAction onClick={() => { forget(); onClose() }}>{t("discard.confirm")}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
   </>
 }
 
@@ -238,13 +235,14 @@ function readDraft(key: string): { to: string; cc: string; subject: string; body
 }
 
 function Attachment({ label, checked, onChange, available }: { label: string; checked: boolean; onChange: (value: boolean) => void; available: boolean }) {
+  const t = useTranslations("compose")
   const on = checked && available
   return (
     <button
       type="button"
       aria-pressed={on}
       disabled={!available}
-      title={available ? undefined : "Generate it first on this application"}
+      title={available ? undefined : t("generateFirst")}
       onClick={() => onChange(!checked)}
       className={cn(
         "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs transition-[background-color,border-color,color] duration-150 disabled:cursor-not-allowed disabled:opacity-50",
@@ -252,13 +250,14 @@ function Attachment({ label, checked, onChange, available }: { label: string; ch
       )}
     >
       <FileTextIcon className="size-3.5" /> {label} · PDF
-      {!available ? <span className="text-muted-foreground">· not made yet</span> : on ? <span aria-hidden>✓</span> : null}
+      {!available ? <span className="text-muted-foreground">· {t("notMade")}</span> : on ? <span aria-hidden>✓</span> : null}
     </button>
   )
 }
 
 /** The email being answered: a two-line preview you can open in place. Quotes folded away, no scroll inside a scroll. */
 function OriginalEmail({ email }: { email: { subject: string; from: string; text: string } }) {
+  const t = useTranslations("compose")
   const [open, setOpen] = useState(false)
   const { body } = splitQuoted(email.text)
   return (
@@ -267,7 +266,7 @@ function OriginalEmail({ email }: { email: { subject: string; from: string; text
         <span className="flex min-w-0 items-center gap-2 text-xs">
           <ReplyIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
           <span className="min-w-0 flex-1 truncate"><span className="font-medium">{email.from.replace(/\s*<.*>$/, "")}</span> <span className="text-muted-foreground">· {email.subject}</span></span>
-          <span className="inline-flex shrink-0 items-center gap-1 text-muted-foreground">{open ? "Hide" : "Show"} email<ChevronDownIcon className={cn("size-3.5 transition-transform", open && "rotate-180")} /></span>
+          <span className="inline-flex shrink-0 items-center gap-1 text-muted-foreground">{open ? t("hideEmail") : t("showEmail")}<ChevronDownIcon className={cn("size-3.5 transition-transform", open && "rotate-180")} /></span>
         </span>
         <span dir="auto" className={cn("text-xs leading-5 whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]", !open && "line-clamp-2")}>{open ? body : body.replace(/\s+/g, " ").trim()}</span>
       </button>

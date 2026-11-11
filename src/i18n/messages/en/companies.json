@@ -1,0 +1,149 @@
+{
+  "inbox": {
+    "title": "Notifications",
+    "labelUnread": "Notifications, {count} new",
+    "newCount": "{count} new",
+    "new": "New",
+    "open": "Open",
+    "today": "today",
+    "emptyTitle": "You’re all caught up",
+    "emptyBody": "Replies, due steps and finished work will show up here.",
+    "at": "{title} at {company}",
+    "reply": { "interview": "Interview invitation", "offer": "Job offer", "rejection": "Not moving forward", "info_request": "They need more information" },
+    "replyFrom": "Reply from {from}",
+    "aRecruiter": "a recruiter",
+    "overdue": "Overdue",
+    "dueToday": "Due today",
+    "nextStep": "Next step",
+    "leads": "{count, plural, one {# new job lead} other {# new job leads}}",
+    "leadsBody": "From your job alerts, ready to look at",
+    "seeWhatWentWrong": "See what went wrong",
+    "work": {
+      "analyze": { "done": "Fit checked", "failed": "Couldn’t check the fit" },
+      "cv": { "done": "CV drafted", "failed": "Couldn’t draft the CV" },
+      "letter": { "done": "Cover letter drafted", "failed": "Couldn’t draft the cover letter" },
+      "research": { "done": "Company research ready", "failed": "Couldn’t research the company" }
+    }
+  },
+  "companies": {
+    "title": "Companies",
+    "description": "Every company you’ve looked at, with all its jobs and your applications there.",
+    "search": "Search companies…",
+    "show": "Show",
+    "sort": "Sort",
+    "filters": { "all": "All companies", "active": "In progress", "applied": "Applied", "untouched": "No application yet", "watching": "Watching job board" },
+    "sorts": { "recent": "Recent activity", "active": "Most active", "name": "Name A–Z" },
+    "count": "{count, plural, one {# company} other {# companies}}",
+    "visit": "Visit {name} website (opens in a new tab)",
+    "noWebsite": "No website yet",
+    "watching": "Watching their job board",
+    "watchingHint": "New postings come to your Job leads",
+    "noOverview": "No overview yet. Open it to research the company.",
+    "counts": {
+      "jobs": "{count, plural, one {job} other {jobs}}",
+      "active": "in progress",
+      "sent": "sent"
+    },
+    "empty": {
+      "noMatch": "No matching company",
+      "noWatching": "You’re not watching any job board yet. Open a company and paste its careers page under “Watch their job board”.",
+      "query": "Nothing matches “{query}”. Try another search or clear the filters.",
+      "filter": "No company matches this filter. Try another search or clear the filters.",
+      "title": "No companies yet",
+      "body": "Each job you add brings its company here, with public facts and everything you’ve sent them."
+    }
+  },
+  "company": {
+    "findPeople": {"title": "Find people", "description": "People who work at {name}, from public LinkedIn profiles. Keep the ones worth writing to.", "titles": "Who to look for", "search": "Search", "wait": "Searching LinkedIn profiles, this takes up to a minute…", "none": "Nobody found at this company yet. Check the LinkedIn page, or try again later.", "add": "Add", "addLabel": "Add {name} to your contacts", "added": "{name} added to your contacts", "saved": "In contacts", "failed": "The people search didn’t work", "setup": "Add your Apify token first", "setupOpen": "Open Integrations", "privacy": "Uses your Apify token (about $0.006 per person found, 10 at most per search). Nothing is saved until you add someone.", "linkedinPage": "LinkedIn company page", "linkedinPageHelp": "Paste the company's LinkedIn page: the people search finds companies by it more reliably than by website.", "unknownCompany": "The people search doesn't know this company by its website. Paste its LinkedIn page above and search again.", "found": "{count, plural, one {# person found} other {# people found}}", "addAll": "Add all {count}", "adding": "Adding…", "addedMany": "{count} people added to your contacts", "startup": "Startup", "startupWhy": "Founded {since}, {size} people: founders and tech leads often read their own messages.", "family": {"founders": "Founders & CEO", "tech": "Tech leads & CTO", "security": "Security & infra leads", "recruiting": "Recruiters", "hr": "HR & people"}, "addTitle": "Add your own title", "addTitlePlaceholder": "Add a title, e.g. Head of Data, then Enter", "removeTitle": "Remove {title}", "titleCount": "{count, plural, one {# title searched, every common spelling included} other {# titles searched, every common spelling included}}", "titleNone": "Pick at least one group or add a title.", "regenerate": "Refresh for my profile", "tailor": "Tailor to my profile", "regenerateHint": "Ask the AI who to contact for the roles in your goals. It also refreshes on its own when your goals or profile change a lot.", "tailored": "Groups tailored to your profile and goals.", "groupsReady": "Groups refreshed for your profile", "groupsFailed": "Couldn’t refresh the groups", "broadened": "{count, plural, one {Nobody has these titles, so here is the # person who works there.} other {Nobody has these titles, so here are # people who work there.}}"},
+    "title": "Company",
+    "back": "Companies",
+    "summary": "{jobs, plural, one {# job} other {# jobs}} · {applications, plural, one {# application} other {# applications}}",
+    "addJob": "Add a job",
+    "appliedBefore": "You’ve applied here before",
+    "jobsTitle": "Jobs and applications",
+    "noJobs": "No jobs or applications here yet. You can research this company first, then add a role when you find one.",
+    "added": "Added {date}",
+    "next": "Next: {step}",
+    "archived": "Archived",
+    "notAnalyzed": "Not analyzed",
+    "loading": { "records": "Looking up public records", "wikidata": "Reading Wikidata", "registry": "Checking the registry", "label": "Looking up company facts" },
+    "people": "People at {name}",
+    "noDetails": "No details yet",
+    "allContacts": "All contacts",
+    "overview": {
+      "title": "Company overview",
+      "ai": "AI overview",
+      "sources": "{count, plural, one {# source} other {# sources}}",
+      "updated": "Updated {date}",
+      "intro": "Get to know {name} before you apply.",
+      "generate": "Generate a clear company overview",
+      "start": "Start with company research",
+      "how": "Use {action} to have AI explain what this company does, using its website as evidence. You don’t need a job or application.",
+      "refresh": "Refresh research",
+      "research": "Research company",
+      "excerpts": "Website excerpts",
+      "mission": "Mission",
+      "values": "Values",
+      "sourcesTitle": "Sources"
+    }
+  },
+  "careersWatch": {
+    "updateFailed": "Couldn’t update the watch",
+    "stopped": "Stopped watching {name}’s job board",
+    "added": "{count, plural, one {# new posting in Job leads} other {# new postings in Job leads}}",
+    "noneNew": "No new postings right now",
+    "watching": "Watching {name}’s job board",
+    "watch": "Watch their job board",
+    "watchingBody": "New postings on <link>{provider}</link> show up in Jobs → Job leads every few hours. Ones that clearly miss your search goals are skipped.",
+    "lastChecked": "Last checked {date}.",
+    "pasteHint": "Paste their careers page ({providers}) and new postings come to you.",
+    "checkNow": "Check now",
+    "stop": "Stop watching",
+    "linkLabel": "Careers page link",
+    "watchButton": "Watch"
+  },
+  "companyDialogs": {
+    "cancel": "Cancel",
+    "optional": "(optional)",
+    "website": {
+      "title": "What’s {name}’s website?",
+      "once": "It’s saved on the company, so you only do this once.",
+      "label": "Website",
+      "hint": "The company’s own site, like {example}. Not its LinkedIn page.",
+      "save": "Save and continue",
+      "add": "Add website",
+      "reason": "Used to find work emails, research the company and show its logo.",
+      "saved": "Website saved"
+    },
+    "add": {
+      "button": "Add company",
+      "title": "Add a company",
+      "description": "Paste its website or LinkedIn page, or just type its name.",
+      "added": "{name} added",
+      "source": "Website, LinkedIn page or name",
+      "sourcePlaceholder": "dashlane.com or linkedin.com/company/dashlane",
+      "name": "Name",
+      "hint": "With a website, Naruvi adds the logo and can find work emails for people there. A LinkedIn link only gives the name: Naruvi never reads LinkedIn."
+    }
+  },
+  "companyFacts": {
+    "title": "Company facts",
+    "from": "From {sources}, {date}",
+    "noMatch": "No public record matched {name} yet. Adding the company’s website helps.",
+    "off": "Turned off in Integrations.",
+    "lookingUp": "Looking up", "updated": "Updated", "retry": "Retry", "again": "Look up company facts again",
+    "byName": "Matched by name only",
+    "labels": { "employees": "Employees", "staffFr": "Staff (France)", "size": "Size", "founded": "Founded", "registered": "Registered", "headquarters": "Headquarters", "headOffice": "Head office", "industry": "Industry", "parent": "Parent", "ticker": "Ticker", "siren": "SIREN" }
+  },
+  "research": {
+    "failed": "Research failed",
+    "updated": "Company research updated",
+    "updatedBody": "{count, plural, one {AI overview based on # page from {name}’s website.} other {AI overview based on # pages from {name}’s website.}}",
+    "nothing": "No company details found",
+    "nothingBody": "The pages were readable but didn’t contain a usable overview, mission or values.",
+    "researching": "Researching company…",
+    "refresh": "Refresh research",
+    "research": "Research company",
+    "reason": "Research reads the company’s own website for its overview, mission and values."
+  }
+}

@@ -1,6 +1,6 @@
 /**
  * Golden evals for job parsing + company resolution, fully offline.
- * Fixtures are raw responses captured with `npm run jobs:capture`; the
+ * Fixtures are sanitized responses captured with `npm run jobs:capture`; the
  * expectations were checked by a human against the live postings.
  */
 import assert from "node:assert/strict"

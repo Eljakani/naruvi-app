@@ -1,3 +1,4 @@
+import type { Locale } from "@/i18n/config"
 import "server-only"
 import { languageModel } from "@/server/llm/provider"
 import { replyLanguage } from "@/lib/reply-language"
@@ -104,7 +105,7 @@ function approvalContext(messages: UIMessage[]) {
   return { history, instructions: latest.length ? `\nRecorded action states, oldest first: ${JSON.stringify(latest)}. Use the corresponding tool calls to identify the action. A newer tool result in this run supersedes these states.` : "" }
 }
 
-export async function streamAssistant(messages: UIMessage[], context: { path: string; signal?: AbortSignal }) {
+export async function streamAssistant(messages: UIMessage[], context: { path: string; locale: Locale; signal?: AbortSignal }) {
   const config = await getLlmConfiguration()
   if (!config.configured) throw new SettingsError("Connect an AI model in Integrations to use the assistant.")
   const deepseek = new URL(config.baseUrl).hostname === "api.deepseek.com"
@@ -114,7 +115,7 @@ export async function streamAssistant(messages: UIMessage[], context: { path: st
   // The user's own words decide the language, not the (often French) data.
   // Judged over the last few messages, so a short "ok" or a pasted link doesn't flip it.
   const recentWords = messages.filter((message) => message.role === "user").slice(-3).flatMap((message) => message.parts.map((part) => (part.type === "text" ? part.text : ""))).join(" ")
-  const language = replyLanguage(recentWords)
+  const language = replyLanguage(recentWords, context.locale)
   const latestRequest = messages.findLast((message) => message.role === "user")?.parts.flatMap((part) => part.type === "text" ? [part.text] : []).join(" ") ?? ""
   const activeTools = (Object.keys(assistantTools) as (keyof typeof assistantTools)[]).filter((name) => !isEmailDraftRequest(latestRequest) || name !== "draft_letter")
   const page = await describePage(context.path)

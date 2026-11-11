@@ -1,0 +1,72 @@
+{
+  "runs": {
+    "title": "Naruvi’s work",
+    "description": "Everything Naruvi did for you: what it read, checked and wrote, and how it went.",
+    "tabs": { "activity": "Activity", "quality": "Quality" },
+    "range": { "all": "All time", "day": "Last 24 hours", "days": "Last {days} days" },
+    "percent": "{value}%",
+    "failedCount": "{count} failed",
+    "runningCount": "{count} running",
+    "runCount": "{count, plural, one {# run} other {# runs}}",
+    "stats": {
+      "tasks": "Tasks", "wentWell": "Went well", "nothingFailed": "Nothing failed", "usualTime": "Usual time",
+      "almostAll": "Almost all under {time}", "aiUsage": "AI usage",
+      "tokens": "{count, plural, one {tokens · # request} other {tokens · # requests}}", "noAi": "No AI requests"
+    },
+    "clearFilters": "Clear filters",
+    "aiRequests": "{count, plural, one {# AI request} other {# AI requests}}",
+    "steps": "{count, plural, one {# step} other {# steps}}",
+    "tokenCount": "{count} tokens",
+    "running": "running…",
+    "newest": "Newest",
+    "older": "Older runs",
+    "empty": {
+      "title": "Nothing here yet",
+      "filtered": "Nothing matches these filters. Try a longer time range.",
+      "body": "Add a job, check your fit or draft a document, and you’ll see what Naruvi did here."
+    },
+    "byTask": { "title": "By task", "description": "{range}. Pick one to filter.", "none": "No runs in this period.", "legend": "Usual time · count" },
+    "quality": {
+      "percent": "{value}%",
+      "documents": "Documents checked", "documentsHint": "Latest version of each CV and letter",
+      "average": "Average score", "averageHint": "Quality gate score, 0–100",
+      "clean": "No hard errors", "cleanHint": "{clean} of {total}",
+      "title": "Quality checks",
+      "description": "How often each check fails or warns on your latest documents. The ones at the top are where generation needs work.",
+      "check": "Check", "passing": "Passing", "warn": "Warn", "fail": "Fail",
+      "empty": "Generate a CV or cover letter to see quality data."
+    },
+    "filters": {
+      "allTasks": "All tasks", "workflow": "Workflow", "statusLabel": "Status", "range": "Time range",
+      "status": { "all": "Any status", "failed": "Failed", "running": "Running" },
+      "ranges": { "24h": "24 h", "7d": "7 days", "30d": "30 days", "all": "All" }
+    },
+    "evals": {
+      "title": "Job import evals",
+      "description": "Captured postings with checked answers. Runs offline against the current parser; the same cases run in npm test.",
+      "run": "Run",
+      "passing": "<b>{passed}/{total}</b> cases pass",
+      "case": "Case", "result": "Result", "failedChecks": "Failed checks", "time": "Time",
+      "pass": "Pass", "fail": "Fail",
+      "mismatch": "{name}: expected {expected}, got {actual}",
+      "checks": "{count, plural, one {# check} other {# checks}}",
+      "ms": "{ms} ms",
+      "notRun": "Not run yet in this session."
+    }
+  },
+  "trace": {
+    "title": "Trace",
+    "runs": "Runs", "newer": "Newer", "older": "Older",
+    "jobAt": "{job} at {company}",
+    "failed": "The run failed",
+    "duration": "Duration", "running": "running…",
+    "steps": "Steps", "failedCount": "{count} failed",
+    "modelRequests": "Model requests", "tokensInOut": "Tokens in / out",
+    "models": "{count, plural, one {Model} other {Models}}", "none": "None",
+    "stepsHint": "Bars show when each step started and how long it took. Open a step for details.",
+    "slowest": "slowest",
+    "type": "Type", "model": "Model", "tokens": "Tokens", "tokensValue": "{input, number} in · {output, number} out", "started": "Started",
+    "noSteps": "This run recorded no steps.",
+    "privacy": "Traces keep operational metadata only: never prompts, model responses or your documents."
+  }
+}

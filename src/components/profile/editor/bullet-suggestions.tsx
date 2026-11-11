@@ -3,16 +3,18 @@
 import { useState, useTransition } from "react"
 import { CheckIcon, PlusIcon, SparklesIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
-import { suggestBulletsAction } from "@/app/(app)/profile/actions"
+import { suggestBulletsAction } from "@/app/[locale]/(app)/profile/actions"
 import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
 import { Presence, PresenceItem, PresenceList } from "@/components/presence"
 import { Button } from "@/components/ui/button"
 import type { BulletSuggestion } from "@/server/profile/ai-bullets"
+import { useTranslations } from "next-intl"
 
 type Input = { kind: string; role: string; organization: string; facts: { key: string; statement: string }[]; existing: string[]; languages: string[] }
 
 /** Asks the model for fact-grounded bullet drafts; the user keeps the ones they like. */
 export function BulletSuggestions({ input, unused, factNumber, onAdd }: { input: Input; unused: number; factNumber: (key: string) => number; onAdd: (suggestions: BulletSuggestion[]) => void }) {
+  const t = useTranslations("bulletSuggestions")
   const [pending, startTransition] = useTransition()
   const [suggestions, setSuggestions] = useState<BulletSuggestion[] | null>(null)
   const step = useStep(pending, AI_STEPS.bullets.length)
@@ -23,7 +25,7 @@ export function BulletSuggestions({ input, unused, factNumber, onAdd }: { input:
       const result = await suggestBulletsAction(input)
       if (!result.ok) return void toast.error(result.message)
       setSuggestions(result.bullets)
-      if (!result.bullets.length) toast("No suggestion passed the fact check", { description: "Add more specific facts, then try again." })
+      if (!result.bullets.length) toast(t("none"), { description: t("noneBody") })
     })
   const take = (list: BulletSuggestion[]) => {
     onAdd(list)
@@ -31,20 +33,20 @@ export function BulletSuggestions({ input, unused, factNumber, onAdd }: { input:
   }
 
   const lead = !input.facts.length
-    ? "Add a fact first; every CV line is drafted from one."
+    ? t("addFact")
     : unused
-      ? `${unused} fact${unused === 1 ? " isn’t" : "s aren’t"} on a CV line yet.`
-      : "Every fact is on a CV line. Draft more variants if you like."
+      ? t("unused", { count: unused })
+      : t("allUsed")
 
   return (
     <div className="grid gap-3 rounded-xl border border-dashed bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <SparklesIcon className="size-4 shrink-0 text-brand" />
         <p className="min-w-0 flex-1 text-sm">
-          <span className="font-medium">{lead}</span> <span className="text-muted-foreground">Drafts cite their facts and can’t add numbers or skills.</span>
+          <span className="font-medium">{lead}</span> <span className="text-muted-foreground">{t("cite")}</span>
         </p>
         <Button size="sm" variant={unused ? "default" : "outline"} onClick={ask} disabled={pending || !input.facts.length}>
-          <SparklesIcon className={pending ? "cb-breathe" : undefined} /> {suggestions ? "Draft again" : "Draft CV lines"}
+          <SparklesIcon className={pending ? "cb-breathe" : undefined} /> {suggestions ? t("again") : t("draft")}
         </Button>
       </div>
       <Presence show={pending}>
@@ -59,14 +61,14 @@ export function BulletSuggestions({ input, unused, factNumber, onAdd }: { input:
                 <div className="grid min-w-0 flex-1 gap-1">
                   <p className="text-sm text-pretty">{suggestion.text}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    From fact{suggestion.factKeys.length === 1 ? "" : "s"} {suggestion.factKeys.map((key) => factNumber(key)).filter((n) => n > 0).join(", ")}
+                    {t("from", { count: suggestion.factKeys.length, facts: suggestion.factKeys.map((key) => factNumber(key)).filter((n) => n > 0).join(", ") })}
                   </p>
                 </div>
-                <Button size="icon-sm" variant="ghost" className="text-muted-foreground" aria-label="Dismiss this draft" onClick={() => setSuggestions((current) => current?.filter((item) => item !== suggestion) ?? null)}>
+                <Button size="icon-sm" variant="ghost" className="text-muted-foreground" aria-label={t("dismiss")} onClick={() => setSuggestions((current) => current?.filter((item) => item !== suggestion) ?? null)}>
                   <XIcon />
                 </Button>
-                <Button size="sm" variant="outline" aria-label="Keep this draft" onClick={() => take([suggestion])}>
-                  <PlusIcon /> Keep
+                <Button size="sm" variant="outline" aria-label={t("keepLabel")} onClick={() => take([suggestion])}>
+                  <PlusIcon /> {t("keep")}
                 </Button>
               </PresenceItem>
             ))}

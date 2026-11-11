@@ -1,0 +1,45 @@
+{
+  "dictation": {
+    "errors": {
+      "not-allowed": "Le micro est bloqué. Autorisez-le depuis l’icône de la barre d’adresse, puis réessayez.",
+      "service-not-allowed": "La reconnaissance vocale est désactivée dans ce navigateur.",
+      "audio-capture": "Aucun micro détecté. Branchez-en un ou vérifiez vos réglages audio.",
+      "network": "La dictée nécessite une connexion Internet dans ce navigateur.",
+      "language-not-supported": "Cette langue n’est pas prise en charge pour la dictée ici."
+    },
+    "noRecording": "Ce navigateur ne peut pas enregistrer l’audio.",
+    "transcribing": "Transcription…",
+    "preparing": "Préparation de Whisper…",
+    "preparingPercent": "Préparation de Whisper {percent} %",
+    "nothingHeard": "Je n’ai rien entendu. Essayez de parler un peu plus longtemps.",
+    "failed": "La transcription a échoué. Réessayez.",
+    "downloadFailed": "Impossible de télécharger le modèle Whisper. Vérifiez votre connexion.",
+    "whisperFailed": "Whisper local n’a pas pu transcrire cela. Réessayez, ou passez à la dictée du navigateur dans Intégrations.",
+    "stop": "Arrêter la dictée",
+    "start": "Dicter",
+    "hintCloud": "Parlez, puis appuyez de nouveau. L’extrait est envoyé au service vocal connecté dans Intégrations.",
+    "hintWhisper": "Parlez, puis appuyez de nouveau. Whisper le transcrit sur cet appareil : votre audio ne quitte jamais votre ordinateur.",
+    "hintBrowser": "Parlez naturellement ; vos mots s’affichent au fil de la parole. Le service vocal de votre navigateur transcrit l’audio (dans Chrome, c’est Google). Vous préférez en local ? Choisissez Whisper local dans Intégrations.",
+    "unsupported": "La dictée du navigateur nécessite Chrome, Edge ou Safari. Whisper local, dans Intégrations, fonctionne aussi sous Firefox.",
+    "stopped": "La dictée s’est arrêtée. Réessayez.",
+    "couldNotStart": "La dictée n’a pas pu démarrer. Réessayez."
+  },
+  "sidebar": {
+    "title": "Barre latérale",
+    "description": "Affiche la barre latérale mobile.",
+    "toggle": "Afficher ou masquer la barre latérale"
+  },
+  "ui": {
+    "scrollEnd": "Aller à la fin",
+    "scrollStart": "Aller au début",
+    "saveChanges": "Enregistrer",
+    "saving": "Enregistrement",
+    "saved": "Enregistré",
+    "tryAgain": "Réessayer",
+    "undoTimeLeft": "Temps restant pour annuler",
+    "darkTheme": "Thème sombre",
+    "message": "Message",
+    "enterToSend": "Entrée pour envoyer · Maj+Entrée pour aller à la ligne",
+    "send": "Envoyer"
+  }
+}

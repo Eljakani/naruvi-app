@@ -1,0 +1,369 @@
+{
+  "entryEditor": {
+    "fields": {
+      "experience": {
+        "role": "Poste",
+        "organization": "Entreprise",
+        "rolePlaceholder": "Responsable de magasin",
+        "orgPlaceholder": "Nom de l’entreprise"
+      },
+      "project": {
+        "role": "Nom du projet",
+        "organization": "Contexte",
+        "rolePlaceholder": "Appli de jardin partagé",
+        "orgPlaceholder": "Projet personnel"
+      },
+      "education": {
+        "role": "Diplôme",
+        "organization": "École",
+        "rolePlaceholder": "Licence en soins infirmiers",
+        "orgPlaceholder": "Nom de l’université"
+      },
+      "certification": {
+        "role": "Certification",
+        "organization": "Organisme",
+        "rolePlaceholder": "KCNA",
+        "orgPlaceholder": "Linux Foundation"
+      },
+      "skill": {
+        "role": "Nom du groupe",
+        "organization": "Contexte",
+        "rolePlaceholder": "Relation client",
+        "orgPlaceholder": ""
+      },
+      "language": {
+        "role": "Libellé",
+        "organization": "Contexte",
+        "rolePlaceholder": "Langues",
+        "orgPlaceholder": ""
+      },
+      "achievement": {
+        "role": "Titre",
+        "organization": "Événement / organisme",
+        "rolePlaceholder": "1re place",
+        "orgPlaceholder": "WOCS'hAck 2026"
+      },
+      "other": {
+        "role": "Titre",
+        "organization": "Organisation",
+        "rolePlaceholder": "",
+        "orgPlaceholder": ""
+      }
+    },
+    "sections": {
+      "basics": "Bases",
+      "display": "Affichage",
+      "facts": "Ce que vous avez fait",
+      "bullets": "Lignes de CV",
+      "skills": "Compétences et mots-clés",
+      "guardrails": "À ne jamais dire"
+    },
+    "ready": {
+      "named": "Nommé",
+      "titleIn": "Titre et dates en {language}",
+      "skills": "Compétences listées",
+      "fact": "Au moins un fait",
+      "ungrounded": "{count, plural, one {# ligne de CV sans fait} other {# lignes de CV sans fait}}",
+      "allBacked": "Chaque ligne de CV a un fait",
+      "checked": "Vérifié par vous",
+      "markChecked": "Confirmer que c’est exact"
+    },
+    "saveFailed": "Impossible d’enregistrer",
+    "saved": "Enregistré",
+    "created": "Élément créé",
+    "stillNeed": "{count, plural, one {# ligne sans fait ne sera pas utilisée.} other {# lignes sans fait ne seront pas utilisées.}}",
+    "allBackedToast": "Chaque ligne de CV est justifiée par un fait.",
+    "deleteFailed": "Impossible de supprimer",
+    "deleted": "Élément supprimé",
+    "addedLine": "Ajouté comme ligne de CV",
+    "addedLineBody": "Peaufinez la formulation là-bas. Elle reste liée à ce fait.",
+    "show": "Afficher",
+    "newEntry": "Nouvel élément",
+    "back": "Retour au profil",
+    "unsaved": "Modifications non enregistrées",
+    "allSaved": "Tout est enregistré",
+    "notSaved": "Pas encore enregistré",
+    "writingIn": "Langue dans laquelle vous écrivez",
+    "status": "Statut",
+    "more": "Plus d’actions",
+    "delete": "Supprimer l’élément",
+    "saving": "Enregistrement",
+    "save": "Enregistrer",
+    "create": "Créer l’élément",
+    "basics": {
+      "title": "De quoi s’agit-il ?",
+      "description": "Les champs ci-dessous s’adaptent au type.",
+      "type": "Type d’élément",
+      "internalName": "Nom interne",
+      "internalPlaceholder": "Comment vous le reconnaîtrez dans les listes",
+      "internalHint": "Rien que pour vous. Les recruteurs voient les champs d’affichage ci-dessous.",
+      "logo": {
+        "education": "Logo de l’école",
+        "certification": "Logo de l’organisme",
+        "project": "Logo du projet",
+        "company": "Logo de l’entreprise"
+      }
+    },
+    "display": {
+      "title": "Affichage sur un CV",
+      "description": "Titre, lieu et dates en {language}. Changez de langue en haut.",
+      "location": "Lieu",
+      "startFrom": "Partir des champs en {language}"
+    },
+    "facts": {
+      "title": "Ce que vous avez fait",
+      "description": "Une réalisation par ligne, en mots simples. Les CV les utilisent directement : écrivez-les comme vous voulez qu’on les lise.",
+      "onLines": "sur des lignes de CV",
+      "placeholder": "p. ex. Réduit le délai de réponse moyen de 2 jours à 4 heures.",
+      "add": "Ajouter un fait",
+      "emptyTitle": "Qu’avez-vous réellement fait ?",
+      "emptyBody": "Commencez par ce dont vous êtes le plus fier : une affirmation par ligne, avec des chiffres quand vous en avez. Ou utilisez « Parler à Naruvi » ci-dessus pour l’écrire librement.",
+      "first": "Ajouter votre premier fait",
+      "backs": "{count, plural, one {Justifie # ligne de CV} other {Justifie # lignes de CV}}",
+      "lines": "{count, plural, one {# ligne} other {# lignes}}",
+      "asLineHint": "Ajouter ce fait comme ligne de CV, lié à celui-ci",
+      "asLine": "Ligne de CV",
+      "long": "Fait long. Le découper en une affirmation par ligne le rend plus facile à citer.",
+      "number": "Un chiffre le renforce : combien, quelle quantité, en combien de temps, pour qui."
+    },
+    "bullets": {
+      "title": "Lignes de CV",
+      "description": "Les phrases soignées qu’un CV peut utiliser, affichées en {language}. Chacune renvoie aux faits qui la justifient.",
+      "backed": "justifiées",
+      "group": "Groupe",
+      "emptyTitle": "Pas encore de lignes de CV",
+      "emptyBody": "Rédigez-les à partir de vos faits ci-dessus, ou écrivez les vôtres. Regroupez-les par thème (p. ex. « Cloud », « Supervision ») pour qu’un CV choisisse celles qui correspondent à une offre.",
+      "writeOne": "En écrire une moi-même",
+      "groupName": "Nom du groupe",
+      "count": "{count, plural, one {# ligne} other {# lignes}}",
+      "addVersion": "Ajouter la version en {language}",
+      "addLine": "Ajouter une ligne",
+      "only": "Seulement en {language}",
+      "optionalTitle": "Peaufiner la formulation (facultatif)",
+      "optionalBody": "Les CV utilisent déjà vos faits tels quels. Envie de phrases plus percutantes ? L’IA peut les rédiger à partir de vos faits.",
+      "polish": "Rédiger avec l’IA"
+    },
+    "skills": {
+      "title": "Compétences et mots-clés",
+      "description": "Aide à rapprocher cet élément des bonnes offres."
+    },
+    "guardrails": {
+      "title": "À ne jamais dire",
+      "description": "Limites pour les CV et lettres concernant cet élément."
+    },
+    "leave": {
+      "title": "Quitter sans enregistrer ?",
+      "body": "Vos modifications sur cet élément seront perdues.",
+      "keep": "Continuer à modifier",
+      "discard": "Abandonner",
+      "save": "Enregistrer et quitter"
+    },
+    "deleteDialog": {
+      "title": "Supprimer « {title} » ?",
+      "body": "Ses faits et puces sont aussi supprimés. L’archivage les conserve mais exclut l’élément de la génération.",
+      "cancel": "Annuler",
+      "archive": "Archiver plutôt",
+      "delete": "Supprimer"
+    },
+    "bullet": {
+      "label": "Intitulé : un titre, pas une affirmation",
+      "empty": "Vide",
+      "backed": "Justifiée par ses faits",
+      "notBacked": "Pas utilisée dans les CV : aucun fait derrière. Ajoutez le fait plus haut ou supprimez la ligne.",
+      "sectionLabel": "Intitulé de section",
+      "placeholder": "Une ligne de CV soignée, p. ex. Réduit le délai de réponse de 2 jours à 4 heures en…",
+      "remove": "Supprimer la ligne",
+      "unlink": "Délier le fait {n}",
+      "noFactStates": "Aucun fait n’indique {numbers}",
+      "link": "Liez le fait qui le prouve"
+    },
+    "preview": {
+      "fill": "Remplissez les champs d’affichage en {language} pour voir cet élément tel qu’il apparaîtra sur un CV.",
+      "wavy": "Soulignement ondulé : pas encore justifié par un fait ; la génération l’ignorera.",
+      "title": "Sur votre CV",
+      "language": "Langue de l’aperçu"
+    },
+    "readiness": {
+      "ready": "Prêt pour les CV",
+      "steps": "{count, plural, one {# étape avant que les CV puissent l’utiliser} other {# étapes avant que les CV puissent l’utiliser}}",
+      "allPass": "Les {count} vérifications sont validées",
+      "skip": "Les CV et lettres l’ignorent d’ici là",
+      "fix": "Corriger",
+      "confirm": "Marquer vérifié"
+    },
+    "sectionsLabel": "Sections",
+    "onThisPage": "Sur cette page",
+    "needsSomething": "Il manque quelque chose",
+    "degree": {
+      "label": "Niveau du diplôme"
+    }
+  },
+  "entryAssist": {
+    "questions": {
+      "experience": {
+        "0": "Quel était votre poste, et dans quelle entreprise ou organisation ?",
+        "1": "Quand cela a-t-il commencé et fini, et où ?",
+        "2": "Que faisiez-vous au quotidien ?",
+        "3": "De quoi êtes-vous le plus fier ? Les chiffres aident : combien, quelle quantité, en combien de temps, pour qui.",
+        "4": "Quels outils, méthodes ou compétences avez-vous utilisés ?"
+      },
+      "education": {
+        "0": "Qu’avez-vous étudié, et dans quelle école ?",
+        "1": "Quand, et où ?",
+        "2": "Quelles matières, quels projets ou quel mémoire méritent d’être mentionnés ?",
+        "3": "Des résultats, mentions ou responsabilités (association étudiante, tutorat…) ?"
+      },
+      "project": {
+        "0": "Quel est le projet, et pour qui était-il ?",
+        "1": "Quel était votre rôle ?",
+        "2": "Qu’en est-il ressorti ? Utilisateurs, résultats, chiffres, liens.",
+        "3": "Quels outils ou méthodes avez-vous utilisés ?"
+      },
+      "certification": {
+        "0": "Quelle certification, et quel organisme l’a délivrée ?",
+        "1": "Quand l’avez-vous obtenue, et expire-t-elle ?",
+        "2": "Que fallait-il savoir ou faire pour l’obtenir ?"
+      },
+      "achievement": {
+        "0": "Qu’avez-vous accompli ou gagné ?",
+        "1": "Quand, et dans quel contexte ?",
+        "2": "Pourquoi est-ce important ? Des chiffres, ou qui l’a reconnu."
+      }
+    },
+    "translated": "Version en {language} ajoutée",
+    "translatedBody": "{count, plural, one {# puce traduite avec les mêmes faits liés.} other {# puces traduites avec les mêmes faits liés.}}",
+    "waiting": "Vos notes vous attendent dans le panneau.",
+    "invite": "Racontez-le avec vos mots, et je remplirai les champs et les faits.",
+    "addVersion": "Ajouter la version en {language}",
+    "hide": "Masquer Naruvi",
+    "tell": "Parler à Naruvi",
+    "dialogLabel": "Parler de cet élément à Naruvi",
+    "title": "Racontez-moi",
+    "reading": "Lecture de ce que vous avez écrit…",
+    "subtitle": "Comme à un ami. Je n’utilise que ce que vous écrivez.",
+    "minimise": "Réduire",
+    "minimiseEsc": "Réduire (Échap)",
+    "close": "Fermer et effacer",
+    "how": "Comment le décrire",
+    "free": "Raconter librement",
+    "guided": "Répondre aux questions",
+    "added": "{facts, plural, one {# fait ajouté} other {# faits ajoutés}}",
+    "addedBoth": "{facts, plural, one {# fait} other {# faits}} et {skills, plural, one {# compétence} other {# compétences}} ajoutés",
+    "dropped": "{count} écarté(s) : leurs chiffres n’étaient pas dans ce que vous avez écrit.",
+    "notSaved": "Rien n’est enregistré tant que vous n’appuyez pas sur Enregistrer.",
+    "reviewFacts": "Revoir les faits",
+    "freePlaceholder": "p. ex. De 2021 à 2024, j’ai dirigé l’équipe de nuit d’un service hospitalier de 40 lits à Lyon, formé 6 nouvelles infirmières et mis en place la double vérification des médicaments qui a réduit les erreurs de moitié…",
+    "more": "Encore un peu, s’il vous plaît",
+    "helps": "Dates, chiffres et outils aident le plus",
+    "answerPlaceholder": "Écrivez ou dictez. Passez ce qui ne s’applique pas.",
+    "previous": "Question précédente",
+    "next": "Suivante",
+    "skip": "Passer",
+    "toFill": "pour remplir",
+    "filling": "Remplissage…",
+    "fill": "Remplir à partir de ceci"
+  },
+  "entryExtras": {
+    "rules": {
+      "experience": {
+        "0": "Ne présentez pas une mission freelance ou un contrat comme un poste permanent.",
+        "1": "Ne prétendez pas avoir dirigé une équipe sauf si un fait le dit.",
+        "2": "N’arrondissez pas les chiffres à la hausse et n’ajoutez pas de résultats non listés."
+      },
+      "project": {
+        "0": "Ne présentez pas un projet personnel comme une mission client rémunérée.",
+        "1": "Ne revendiquez pas d’utilisateurs ou de résultats absents des faits."
+      },
+      "education": {
+        "0": "Ne revendiquez pas le diplôme avant son obtention.",
+        "1": "Ne revendiquez pas de mentions ou classements non listés."
+      },
+      "certification": {
+        "0": "Ne la présentez pas comme valide après son expiration."
+      },
+      "achievement": {
+        "0": "Ne revendiquez pas un meilleur classement que celui indiqué."
+      },
+      "nda": "Ne nommez pas de clients, de systèmes internes ni de chiffres confidentiels.",
+      "general": "N’ajoutez pas de résultats absents des faits."
+    },
+    "nothingNew": "Rien de nouveau à suggérer",
+    "nothingNewBody": "Vos étiquettes et règles couvrent déjà les faits.",
+    "askHint": "Suggérer des compétences, mots-clés et règles à partir de vos faits",
+    "addFactFirst": "Ajoutez d’abord un fait",
+    "again": "Suggérer à nouveau",
+    "suggest": "Suggérer à partir des faits",
+    "skills": "Compétences utilisées",
+    "skillsHint": "Imprimées sur les CV. Outils et capacités que cet élément prouve.",
+    "skillsPlaceholder": "Saisissez une compétence, appuyez sur Entrée (p. ex. Terraform, triage)",
+    "inFacts": "Dans vos faits",
+    "keywords": "Mots-clés",
+    "keywordsHint": "Jamais imprimés. Thèmes et domaines, utilisés pour rapprocher des offres.",
+    "keywordsPlaceholder": "Saisissez un mot-clé, appuyez sur Entrée (p. ex. fintech, appsec)",
+    "proof": "Preuves",
+    "proofHint": "Facultatif. Liens ou documents qui l’attestent, pour vous.",
+    "proofPlaceholder": "https://… ou le nom d’un document",
+    "proofAdd": "Ajouter un lien ou un document",
+    "notClaim": "À ne pas revendiquer",
+    "notClaimHint": "Les CV et lettres concernant cet élément respectent ces règles.",
+    "rulePlaceholder": "p. ex. Ne présentez pas cette mission freelance comme un poste permanent.",
+    "addRule": "Ajouter une règle",
+    "noRules": "Pas encore de règle. Choisissez-en une courante ci-dessous, ou écrivez la vôtre.",
+    "common": "Courantes",
+    "nda": "Sous accord de confidentialité",
+    "ndaOn": "Les CV restent généraux : pas de noms de clients, de systèmes internes ni de chiffres confidentiels.",
+    "ndaOff": "Activez si vous ne pouvez pas nommer clients, systèmes ou chiffres.",
+    "writeRule": "Écrire une règle"
+  },
+  "logoField": {
+    "failed": "Logo non ajouté",
+    "added": "Logo ajouté",
+    "addedSize": "{width}×{height} px · cliquez sur Enregistrer pour le conserver",
+    "clickSave": "Cliquez sur Enregistrer pour le conserver",
+    "shown": "Affiché à côté de cet élément sur votre CV.",
+    "drop": "Déposez une image ici, importez-en une ou collez son URL. Un logo carré fonctionne le mieux.",
+    "replace": "Remplacer",
+    "upload": "Importer",
+    "fromUrl": "Depuis une URL",
+    "imageUrl": "URL de l’image",
+    "directLink": "Un lien direct vers une image PNG, JPG, WebP ou SVG.",
+    "add": "Ajouter le logo",
+    "remove": "Supprimer"
+  },
+  "bulletSuggestions": {
+    "none": "Aucune suggestion n’a passé la vérification des faits",
+    "noneBody": "Ajoutez des faits plus précis, puis réessayez.",
+    "addFact": "Ajoutez d’abord un fait ; chaque ligne de CV est rédigée à partir de l’un d’eux.",
+    "unused": "{count, plural, one {# fait n’est pas encore sur une ligne de CV.} other {# faits ne sont pas encore sur une ligne de CV.}}",
+    "allUsed": "Chaque fait est sur une ligne de CV. Rédigez d’autres variantes si vous voulez.",
+    "cite": "Les brouillons citent leurs faits et ne peuvent pas ajouter de chiffres ni de compétences.",
+    "again": "Rédiger à nouveau",
+    "draft": "Rédiger des lignes de CV",
+    "from": "{count, plural, one {D’après le fait {facts}} other {D’après les faits {facts}}}",
+    "dismiss": "Écarter ce brouillon",
+    "keepLabel": "Garder ce brouillon",
+    "keep": "Garder"
+  },
+  "inputs": {
+    "removeLine": "Supprimer la ligne {n}",
+    "newLine": "nouvelle ligne",
+    "reorder": "réordonner",
+    "pasteList": "collez une liste pour la découper",
+    "remove": "Retirer {value}",
+    "addMore": "Ajouter…",
+    "linkAnother": "Lier un autre",
+    "linkFact": "Lier un fait",
+    "searchFacts": "Rechercher des faits…",
+    "noFact": "Aucun fait ne correspond.",
+    "addFactsFirst": "Ajoutez d’abord des faits dans « Ce que vous avez fait ».",
+    "addAll": "Tout ajouter"
+  },
+  "dateRange": {
+    "dates": "Dates",
+    "calendar": "Utiliser le calendrier",
+    "type": "Saisir plutôt",
+    "asIs": "Écrit tel quel. Seule cette langue change.",
+    "previousYear": "Année précédente",
+    "nextYear": "Année suivante"
+  }
+}

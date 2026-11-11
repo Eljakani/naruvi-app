@@ -1,0 +1,92 @@
+{
+  "contacts": {
+    "kinds": {"label": "Filter by kind", "all": "Everyone", "leader": "Leadership", "tech": "Tech", "recruiting": "Recruiting", "hr": "HR", "other": "Other", "none": "No contact of this kind."},
+    "noCompany": "No company",
+    "peopleCount": "{count, plural, one {# person} other {# people}}",
+    "findMore": "Find more",
+    "title": "Contacts",
+    "description": "Recruiters, HR, hiring managers and people who can refer you. Write to them about a job, or send a spontaneous application.",
+    "search": "Search name, role, company, email…",
+    "import": "Import",
+    "add": "Add contact",
+    "empty": {
+      "title": "Who are you in touch with?",
+      "body": "Add the recruiters, HR people and managers you write to, import a spreadsheet or your LinkedIn connections, or save profiles with the browser extension."
+    },
+    "noRole": "No role or company yet",
+    "emailFrom": "From {source}",
+    "noEmail": "No email",
+    "onLinkedin": "{name} on LinkedIn",
+    "actionsFor": "Actions for {name}",
+    "mailApp": "Write in your mail app",
+    "findEmail": "Find email",
+    "findEmailSetup": "Find email (set up in Integrations)",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteFailed": "Couldn’t delete {name}",
+    "willDelete": "{name} will be deleted",
+    "undo": "Undo",
+    "cancel": "Cancel",
+    "save": "Save",
+    "finderReason": "The email finder looks up {name} by the company’s domain.",
+    "found": {
+      "failed": "Couldn’t find an email",
+      "none": "No email found for this person",
+      "noneBody": "The finder had no match at that domain.",
+      "title": "Found {email}",
+      "body": "{confidence}% confidence. Check it before writing."
+    },
+    "dialog": {
+      "edit": "Edit contact",
+      "add": "Add a contact",
+      "description": "Only a name is needed. Paste an email or LinkedIn link and Naruvi fills in what it can.",
+      "saved": "Contact saved",
+      "added": "{name} added",
+      "reach": "Email or LinkedIn",
+      "reachPlaceholder": "camille@dashlane.com or linkedin.com/in/…",
+      "name": "Name",
+      "company": "Company",
+      "role": "Role",
+      "more": "More details",
+      "email": "Email",
+      "phone": "Phone",
+      "notes": "Notes",
+      "notesPlaceholder": "Met at DevFest, introduced by Léa…"
+    },
+    "importDialog": {
+      "title": "Import contacts",
+      "description": "An Excel or CSV file with a name column, or your LinkedIn connections (LinkedIn → Settings → Data privacy → Get a copy of your data → Connections). Columns are matched automatically; people already here are updated, not duplicated.",
+      "choose": "Choose a file",
+      "formats": ".xlsx or .csv, up to 10 MB",
+      "failed": "Import failed",
+      "done": "{created} added, {updated} updated",
+      "skipped": "{count, plural, one {# row skipped (no name or duplicate).} other {# rows skipped (no name or duplicates).}}"
+    },
+    "spontaneous": {
+      "menu": "Spontaneous application",
+      "title": "Spontaneous application to {company}",
+      "description": "No posting needed. Naruvi creates an application for {company} with {name} as the person you write to; then draft your CV and letter, and send them by email or note that you reached out on LinkedIn.",
+      "role": "Role you’re aiming for",
+      "rolePlaceholder": "Optional, e.g. DevOps engineer",
+      "roleHint": "Leave empty for an open application.",
+      "language": "Language",
+      "create": "Create application"
+    },
+    "people": {
+      "addContact": "Add contact",
+      "who": "Who are you in touch with?",
+      "whoHint": "Emails you write here will go to them.",
+      "search": "Search your contacts",
+      "noMatch": "No contact matches “{query}”.",
+      "new": "New contact",
+      "title": "People",
+      "firstWithAddress": "Emails you write here go to the first person with an address.",
+      "linkHint": "Link the recruiter or manager you’re in touch with.",
+      "add": "Add",
+      "noEmail": "no email yet",
+      "remove": "Remove {name}",
+      "choose": "Choose a contact",
+      "noOthers": "No other contacts. <link>Add one</link>."
+    }
+  }
+}

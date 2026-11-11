@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react"
 import { LockIcon, SearchIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
-import { suggestEntryExtrasAction } from "@/app/(app)/profile/actions"
+import { suggestEntryExtrasAction } from "@/app/[locale]/(app)/profile/actions"
 import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
 import { Presence } from "@/components/presence"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import { keywordLabel, keywordsIn, termsIn } from "@/server/analysis/keywords"
 import { ChipInput, StringLineList, SuggestChips } from "./inputs"
 import type { Draft } from "./draft"
+import { useTranslations } from "next-intl"
 
 type Patch = (value: Partial<Draft>) => void
 type Extras = { skills: string[]; keywords: string[]; rules: string[] }
@@ -24,16 +25,17 @@ const without = (list: string[], ...taken: string[][]) => {
 
 /** Guardrails people commonly need, by entry type. Offered, never added on their own. */
 const RULE_PRESETS: Partial<Record<Draft["kind"], string[]>> = {
-  experience: ["Don’t present freelance or contract work as a permanent job.", "Don’t claim to have led a team unless a fact says so.", "Don’t round numbers up or add results that aren’t listed."],
-  project: ["Don’t present a personal project as paid client work.", "Don’t claim users or results that aren’t in the facts."],
-  education: ["Don’t claim the degree before it was awarded.", "Don’t claim honours or rankings that aren’t listed."],
-  certification: ["Don’t list it as current after it expires."],
-  achievement: ["Don’t claim a higher placement than the one stated."],
+  experience: ["experience.0", "experience.1", "experience.2"],
+  project: ["project.0", "project.1"],
+  education: ["education.0", "education.1"],
+  certification: ["certification.0"],
+  achievement: ["achievement.0"],
 }
-const NDA_RULE = "Don’t name clients, internal systems or confidential numbers."
+const NDA_RULE = "nda"
 
 /** One AI call fills suggestions for both skills/keywords and the "never say" rules. */
 export function useExtras(draft: Draft) {
+  const t = useTranslations("entryExtras")
   const [pending, startTransition] = useTransition()
   const [ai, setAi] = useState<Extras | null>(null)
   const step = useStep(pending, AI_STEPS.extras.length)
@@ -52,21 +54,23 @@ export function useExtras(draft: Draft) {
       })
       if (!result.ok) return void toast.error(result.message)
       setAi(result.data)
-      if (!result.data.skills.length && !result.data.keywords.length && !result.data.rules.length) toast("Nothing new to suggest", { description: "Your tags and rules already cover the facts." })
+      if (!result.data.skills.length && !result.data.keywords.length && !result.data.rules.length) toast(t("nothingNew"), { description: t("nothingNewBody") })
     })
   return { pending, step, ask, ai, canAsk: facts.length > 0 }
 }
 export type ExtrasState = ReturnType<typeof useExtras>
 
 export function AskExtrasButton({ extras }: { extras: ExtrasState }) {
+  const t = useTranslations("entryExtras")
   return (
-    <Button size="sm" variant="outline" onClick={extras.ask} disabled={extras.pending || !extras.canAsk} title={extras.canAsk ? "Suggest skills, keywords and rules from your facts" : "Add a fact first"}>
-      <SparklesIcon className={cn("text-brand", extras.pending && "cb-breathe")} /> {extras.ai ? "Suggest again" : "Suggest from facts"}
+    <Button size="sm" variant="outline" onClick={extras.ask} disabled={extras.pending || !extras.canAsk} title={extras.canAsk ? t("askHint") : t("addFactFirst")}>
+      <SparklesIcon className={cn("text-brand", extras.pending && "cb-breathe")} /> {extras.ai ? t("again") : t("suggest")}
     </Button>
   )
 }
 
 export function SkillFields({ draft, patch, extras }: { draft: Draft; patch: Patch; extras: ExtrasState }) {
+  const t = useTranslations("entryExtras")
   // Instant, no AI: known skills and named tools the facts already name.
   const found = useMemo(() => {
     const lines = draft.facts.map((fact) => fact.statement)
@@ -85,46 +89,47 @@ export function SkillFields({ draft, patch, extras }: { draft: Draft; patch: Pat
         <AiSteps steps={AI_STEPS.extras} step={extras.step} />
       </Presence>
       <div className="grid gap-2">
-        <Heading label="Skills used here" count={draft.skills.length} hint="Printed on CVs. Tools and abilities this entry proves." />
-        <ChipInput label="Skills used here" values={draft.skills} onChange={(skills) => patch({ skills })} placeholder="Type a skill, press Enter (e.g. Terraform, triage)" />
-        <SuggestChips items={localSkills} onAdd={addSkills} source="In your facts" icon={<SearchIcon className="size-3" />} />
+        <Heading label={t("skills")} count={draft.skills.length} hint={t("skillsHint")} />
+        <ChipInput label={t("skills")} values={draft.skills} onChange={(skills) => patch({ skills })} placeholder={t("skillsPlaceholder")} />
+        <SuggestChips items={localSkills} onAdd={addSkills} source={t("inFacts")} icon={<SearchIcon className="size-3" />} />
         <SuggestChips items={aiSkills} onAdd={addSkills} source="Naruvi" icon={<SparklesIcon className="size-3 text-brand" />} />
       </div>
       <div className="grid gap-2">
-        <Heading label="Keywords" count={draft.tags.length} hint="Never printed. Topics and fields, used to match jobs." />
-        <ChipInput label="Keywords" values={draft.tags} onChange={(tags) => patch({ tags })} placeholder="Type a keyword, press Enter (e.g. fintech, appsec)" />
+        <Heading label={t("keywords")} count={draft.tags.length} hint={t("keywordsHint")} />
+        <ChipInput label={t("keywords")} values={draft.tags} onChange={(tags) => patch({ tags })} placeholder={t("keywordsPlaceholder")} />
         <SuggestChips items={aiKeywords} onAdd={addTags} source="Naruvi" icon={<SparklesIcon className="size-3 text-brand" />} />
       </div>
       <div className="grid gap-2">
-        <Heading label="Proof" count={draft.evidence.filter((item) => item.trim()).length} hint="Optional. Links or documents that back this up, for you." />
-        <StringLineList values={draft.evidence} onChange={(evidence) => patch({ evidence })} placeholder="https://… or the name of a document" addLabel="Add a link or document" />
+        <Heading label={t("proof")} count={draft.evidence.filter((item) => item.trim()).length} hint={t("proofHint")} />
+        <StringLineList values={draft.evidence} onChange={(evidence) => patch({ evidence })} placeholder={t("proofPlaceholder")} addLabel={t("proofAdd")} />
       </div>
     </div>
   )
 }
 
 export function GuardrailFields({ draft, patch, extras }: { draft: Draft; patch: Patch; extras: ExtrasState }) {
-  const presets = without([...(draft.confidential ? [NDA_RULE] : []), ...(RULE_PRESETS[draft.kind] ?? ["Don’t add results that aren’t in the facts."])], draft.doNotClaim)
+  const t = useTranslations("entryExtras")
+  const presets = without([...(draft.confidential ? [NDA_RULE] : []), ...(RULE_PRESETS[draft.kind] ?? ["general"])].map((key) => t(`rules.${key}` as never) as string), draft.doNotClaim)
   const aiRules = without(extras.ai?.rules ?? [], draft.doNotClaim, presets)
   const addRules = (items: string[]) => patch({ doNotClaim: [...draft.doNotClaim.filter((rule) => rule.trim()), ...items] })
   return (
     <div className="grid gap-5">
       <div className="grid gap-2">
-        <Heading label="Things not to claim" count={draft.doNotClaim.filter((rule) => rule.trim()).length} hint="CVs and letters about this entry follow these." />
+        <Heading label={t("notClaim")} count={draft.doNotClaim.filter((rule) => rule.trim()).length} hint={t("notClaimHint")} />
         <StringLineList
           values={draft.doNotClaim}
           onChange={(doNotClaim) => patch({ doNotClaim })}
-          placeholder="e.g. Don’t present this freelance work as a permanent job."
-          addLabel="Add a rule"
-          empty={<p className="rounded-lg border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">No rules yet. Pick a common one below, or write your own.</p>}
+          placeholder={t("rulePlaceholder")}
+          addLabel={t("addRule")}
+          empty={<p className="rounded-lg border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">{t("noRules")}</p>}
         />
         {!draft.doNotClaim.length ? (
           <Button size="sm" variant="ghost" className="w-fit text-muted-foreground" onClick={() => patch({ doNotClaim: [""] })}>
-            Write a rule
+            {t("writeRule")}
           </Button>
         ) : null}
         <div className="grid gap-1.5">
-          <SuggestChips items={presets} onAdd={addRules} source="Common" />
+          <SuggestChips items={presets} onAdd={addRules} source={t("common")} />
           <SuggestChips items={aiRules} onAdd={addRules} source="Naruvi" icon={<SparklesIcon className="size-3 text-brand" />} />
         </div>
       </div>
@@ -139,9 +144,9 @@ export function GuardrailFields({ draft, patch, extras }: { draft: Draft; patch:
           <LockIcon className="size-4" />
         </span>
         <span className="grid min-w-0 flex-1 gap-0.5">
-          <span className="text-sm font-medium">Under NDA</span>
+          <span className="text-sm font-medium">{t("nda")}</span>
           <span className="text-xs text-muted-foreground">
-            {draft.confidential ? "CVs keep it high-level: no client names, internal systems or confidential numbers." : "Turn on if you can’t name clients, systems or numbers."}
+            {draft.confidential ? t("ndaOn") : t("ndaOff")}
           </span>
         </span>
         <Switch id="entry-nda" checked={draft.confidential} onCheckedChange={(value) => patch({ confidential: value })} />

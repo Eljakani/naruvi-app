@@ -4,12 +4,11 @@ import { useRouter } from "next/navigation"
 import { useCallback, useState, useTransition } from "react"
 import { ArrowDownIcon, ArrowUpIcon, LightbulbIcon, PenLineIcon } from "lucide-react"
 import { toast } from "sonner"
-import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction, suggestLetterAction } from "@/app/(app)/applications/[id]/cv/actions"
+import { generateLetterAction, saveCvEditAction, setCurrentRevisionAction, suggestLetterAction } from "@/app/[locale]/(app)/applications/[id]/cv/actions"
 import { CompanyResearch } from "@/components/applications/company-research"
 import { DocumentStart } from "@/components/documents/document-start"
 import { DEFAULT_PRESET, PRESETS, type DesignTokens } from "@/lib/design"
 
-const LANGUAGE_NAME: Record<string, string> = { en: "English", fr: "French", es: "Spanish", de: "German" }
 import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/applications/design-picker"
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
 import type { CompanyResearch as Research } from "@/server/research/brief"
@@ -17,7 +16,7 @@ import { AI_STEPS } from "@/components/ai-progress"
 import { DocumentShell, VersionsPanel, type Quality } from "@/components/documents/document-shell"
 import { AgentComposer, AgentThread, type AgentTurn } from "@/components/agent/agent-chat"
 
-const LETTER_STEPS = ["Reading your letter and request", "Rewriting in your voice", "Checking it against your facts"] as const
+const LETTER_STEPS = ["read", "rewrite", "check"] as const
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -27,15 +26,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { letterText, type LetterDocument } from "@/server/documents/letter"
 import type { getLetterWorkspace } from "@/server/documents/service"
+import { useLocale, useTranslations } from "next-intl"
+import { languageName } from "@/i18n/config"
 
 type Workspace = NonNullable<Awaited<ReturnType<typeof getLetterWorkspace>>>
 
-const DECISION: Record<string, string> = {
-  required: "This posting asks for a cover letter.",
-  optional: "A cover letter is optional here — include one if it strengthens your application.",
-  not_requested: "This posting says no cover letter is needed.",
-  not_mentioned: "The posting doesn’t mention a cover letter; a short one can still help.",
-}
+const DECISIONS = ["required", "optional", "not_requested", "not_mentioned"] as const
 
 const words = (text: string) => text.split(/\s+/).filter(Boolean).length
 const isInstruction = (text: string) => /^\s*\[/.test(text)
@@ -63,6 +59,8 @@ export function LetterWorkspace({
   savedTemplates: SavedDesign[]
   startDesign?: { tokens: DesignTokens; name: string }
 }) {
+  const t = useTranslations("letterWorkspace")
+  const locale = useLocale()
   if (!workspace?.current) {
     return (
       <DocumentStart
@@ -73,11 +71,11 @@ export function LetterWorkspace({
         language={language}
         steps={AI_STEPS.letter}
         action={generateLetterAction}
-        label="Draft with AI"
+        label={t("draft")}
         icon={<PenLineIcon />}
-        title="Your cover letter for this job"
-        lead={`AI writes a complete letter in ${LANGUAGE_NAME[language] ?? language.toUpperCase()} using the job posting. You can review it, edit it yourself, or ask AI for changes.`}
-        note={decision ? DECISION[decision.decision] : undefined}
+        title={t("title")}
+        lead={t("lead", { language: languageName(language, locale) })}
+        note={decision && (DECISIONS as readonly string[]).includes(decision.decision) ? t(`decision.${decision.decision as (typeof DECISIONS)[number]}`) : undefined}
         design={startDesign.tokens}
         designName={startDesign.name}
       />
@@ -87,6 +85,7 @@ export function LetterWorkspace({
 }
 
 function Editor({ applicationId, jobTitle, company, language, workspace, jobId, research, savedTemplates }: { applicationId: string; jobTitle: string; company: string; language: string; workspace: Workspace; jobId: string; research: Research | null; savedTemplates: SavedDesign[] }) {
+  const t = useTranslations("letterWorkspace")
   const router = useRouter()
   const current = workspace.current!
   const [draft, setDraft] = useState<LetterDocument>(current.content)
@@ -98,7 +97,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
   const [previousDraft, setPreviousDraft] = useState<LetterDocument | null>(null)
 
   const ask = (request: string) => {
-    const text = request.trim() || "Improve this letter"
+    const text = request.trim() || t("improve")
     setWorking(text)
     setDirection("")
     startAsking(async () => {
@@ -112,7 +111,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
         setPreviousDraft(draft)
         setDraft(result.data)
       }
-      setTurns((current) => [...current, { id: `${current.length}`, request: text, outcome: unchanged ? ("unchanged" as const) : ("applied" as const), summary: unchanged ? "AI kept your wording." : "Rewritten in the editor below.", detail: unchanged ? undefined : "Not saved yet: read it, then Save. Undo brings back your version." }].slice(-6))
+      setTurns((current) => [...current, { id: `${current.length}`, request: text, outcome: unchanged ? ("unchanged" as const) : ("applied" as const), summary: unchanged ? t("kept") : t("rewritten"), detail: unchanged ? undefined : t("notSavedYet") }].slice(-6))
     })
   }
   const dirty = JSON.stringify(draft) !== JSON.stringify(current.content)
@@ -129,19 +128,19 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
     (content: LetterDocument, message?: string, onSaved?: () => void) =>
       startTransition(async () => {
         const result = await saveCvEditAction(applicationId, workspace.document.id, content)
-        if (!result.ok) return void toast.error("Not saved", { description: result.error })
+        if (!result.ok) return void toast.error(t("notSaved"), { description: result.error })
         onSaved?.()
-        if (message) toast.success(message, { description: result.data.ready ? "Ready to send." : `Quality ${result.data.score} — see Checks for what’s left.` })
+        if (message) toast.success(message, { description: result.data.ready ? t("readyToSend") : t("quality", { score: result.data.score }) })
         router.refresh()
       }),
-    [applicationId, router, workspace.document.id],
+    [applicationId, router, workspace.document.id, t],
   )
 
   const restore = (revisionId: string) =>
     startTransition(async () => {
       const result = await setCurrentRevisionAction(applicationId, workspace.document.id, revisionId)
       if (!result.ok) return void toast.error(result.error)
-      toast.success("Restored that version")
+      toast.success(t("restored"))
       router.refresh()
     })
 
@@ -162,49 +161,49 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
   const content = (
     <fieldset disabled={asking} className="grid min-w-0 grid-cols-1 gap-5">
       <div className="grid gap-2 rounded-lg border p-3">
-        <Label htmlFor="letter-notes">Your reasons for applying</Label>
+        <Label htmlFor="letter-notes">{t("reasons")}</Label>
         <Textarea id="letter-notes" value={draft.authorNotes ?? ""} maxLength={1500} rows={3}
-          placeholder="What drew you to this role? A few words are enough."
+          placeholder={t("reasonsPlaceholder")}
           onChange={(event) => update((doc) => void (doc.authorNotes = event.target.value))} />
         <div className="flex items-center justify-between gap-2">
-          <Label htmlFor="letter-direction">Ask AI to change it</Label>
-          {previousDraft && !asking ? <Button size="xs" variant="ghost" onClick={() => { setDraft(previousDraft); setPreviousDraft(null) }}>Undo last change</Button> : null}
+          <Label htmlFor="letter-direction">{t("askAi")}</Label>
+          {previousDraft && !asking ? <Button size="xs" variant="ghost" onClick={() => { setDraft(previousDraft); setPreviousDraft(null) }}>{t("undoLast")}</Button> : null}
         </div>
-        <AgentThread turns={turns} working={asking ? working : null} steps={LETTER_STEPS} pose="writing-letter" intro="Want a different tone or a shorter letter? Tell me, and I’ll rewrite it without adding anything you can’t back up." />
-        <AgentComposer label="What should Naruvi change?" value={direction} onChange={setDirection} onSend={ask} busy={pending || asking}
-          placeholder="For example, make it shorter and more conversational"
-          suggestions={turns.length ? [] : ["Make it shorter", "More conversational", "Mention the company’s mission", "More formal"]} />
+        <AgentThread turns={turns} working={asking ? working : null} steps={LETTER_STEPS.map((step) => t(`steps.${step}`))} pose="writing-letter" intro={t("intro")} />
+        <AgentComposer label={t("composer")} value={direction} onChange={setDirection} onSend={ask} busy={pending || asking}
+          placeholder={t("composerPlaceholder")}
+          suggestions={turns.length ? [] : [t("ideas.shorter"), t("ideas.conversational"), t("ideas.mission"), t("ideas.formal")]} />
       </div>
       <AiReviewPanel assistance={draft.aiAssistance} pending={pending}
         changes={[
-          ...draft.paragraphs.filter((paragraph) => paragraph.originalText).map((paragraph) => ({ label: paragraph.kind, original: paragraph.originalText!, text: paragraph.text, sources: paragraph.sourceUrls })),
+          ...draft.paragraphs.filter((paragraph) => paragraph.originalText).map((paragraph) => ({ label: t(`kinds.${paragraph.kind}`), original: paragraph.originalText!, text: paragraph.text, sources: paragraph.sourceUrls })),
           ...draft.highlights.filter((highlight) => highlight.originalText).map((highlight) => ({ label: highlight.organization, original: highlight.originalText!, text: highlight.text })),
         ]}
         onApprove={() => {
           const next = structuredClone(draft)
           if (next.aiAssistance) next.aiAssistance.reviewed = true
-          persist(next, "AI draft reviewed", () => setDraft(next))
+          persist(next, t("reviewed"), () => setDraft(next))
         }} />
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-        <span>Edit any paragraph in your own voice.</span>
-        <span className={cn("shrink-0 tabular-nums", total > 250 && "text-amber-600")}>{total} words</span>
+        <span>{t("editHint")}</span>
+        <span className={cn("shrink-0 tabular-nums", total > 250 && "text-amber-600")}>{t("words", { count: total })}</span>
       </div>
-      <Field label="Subject">
+      <Field label={t("subject")}>
         <Input value={draft.subject} onChange={(event) => update((doc) => void (doc.subject = event.target.value))} />
       </Field>
-      <Field label="Greeting">
+      <Field label={t("greeting")}>
         <Input value={draft.salutation} onChange={(event) => update((doc) => void (doc.salutation = event.target.value))} />
       </Field>
       {draft.paragraphs.map((paragraph, index) => {
         if (paragraph.kind === "highlights") {
           return (
-            <Field key={paragraph.id} label="Highlights from an earlier draft">
+            <Field key={paragraph.id} label={t("highlights")}>
               <Button type="button" size="sm" variant="outline" className="w-fit" onClick={() => update((doc) => {
                 doc.paragraphs = doc.paragraphs.filter((item) => item.kind !== "highlights")
                 doc.highlights = []
                 doc.highlightsIntro = ""
-              })}>Remove highlights</Button>
-              <Input aria-label="Introduction to the highlights" value={draft.highlightsIntro} onChange={(event) => update((doc) => void (doc.highlightsIntro = event.target.value))} />
+              })}>{t("removeHighlights")}</Button>
+              <Input aria-label={t("highlightsIntro")} value={draft.highlightsIntro} onChange={(event) => update((doc) => void (doc.highlightsIntro = event.target.value))} />
               {draft.highlights.length ? (
                 <ul className="grid min-w-0 grid-cols-1 gap-0.5 rounded-lg border p-1.5">
                   {draft.highlights.map((highlight, h) => (
@@ -216,14 +215,14 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
                         </span>
                       </label>
                       <span className="flex shrink-0 opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100">
-                        <button type="button" aria-label="Move up" disabled={h === 0} className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30" onClick={() => update((doc) => void ([doc.highlights[h - 1], doc.highlights[h]] = [doc.highlights[h], doc.highlights[h - 1]]))}>
+                        <button type="button" aria-label={t("moveUp")} disabled={h === 0} className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30" onClick={() => update((doc) => void ([doc.highlights[h - 1], doc.highlights[h]] = [doc.highlights[h], doc.highlights[h - 1]]))}>
                           <ArrowUpIcon className="size-3.5" />
                         </button>
-                        <button type="button" aria-label="Move down" disabled={h === draft.highlights.length - 1} className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30" onClick={() => update((doc) => void ([doc.highlights[h + 1], doc.highlights[h]] = [doc.highlights[h], doc.highlights[h + 1]]))}>
+                        <button type="button" aria-label={t("moveDown")} disabled={h === draft.highlights.length - 1} className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30" onClick={() => update((doc) => void ([doc.highlights[h + 1], doc.highlights[h]] = [doc.highlights[h], doc.highlights[h + 1]]))}>
                           <ArrowDownIcon className="size-3.5" />
                         </button>
                       </span>
-                      {highlight.originalText ? <Textarea aria-label={`AI highlight ${h + 1}`} value={highlight.text} maxLength={600} rows={2} onChange={(event) => update((doc) => {
+                      {highlight.originalText ? <Textarea aria-label={t("aiHighlight", { n: h + 1 })} value={highlight.text} maxLength={600} rows={2} onChange={(event) => update((doc) => {
                         doc.highlights[h].text = event.target.value
                         if (doc.aiAssistance) doc.aiAssistance.reviewed = false
                       })} className="mb-2 w-full text-xs" /> : null}
@@ -231,25 +230,25 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
                   ))}
                 </ul>
               ) : (
-                <p className="rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">No approved bullet in this language backs a proven requirement yet.</p>
+                <p className="rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">{t("noHighlights")}</p>
               )}
             </Field>
           )
         }
         const motivation = paragraph.kind === "motivation"
         const needsWords = motivation && (isInstruction(paragraph.text) || !paragraph.text.trim())
-        const label = motivation ? "Why this company" : paragraph.kind === "opening" ? "Opening" : paragraph.kind === "closing" ? "Closing" : "Paragraph"
+        const label = motivation ? t("why") : paragraph.kind === "opening" ? t("kinds.opening") : paragraph.kind === "closing" ? t("kinds.closing") : t("kinds.custom")
         return (
           <Field
             key={paragraph.id}
             label={label}
-            badge={needsWords ? <Badge variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-400">your words</Badge> : null}
-            hint={motivation && !isInstruction(paragraph.text) && paragraph.text.trim() ? `${words(paragraph.text)} words · 40–90 is plenty` : undefined}
+            badge={needsWords ? <Badge variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-400">{t("yourWords")}</Badge> : null}
+            hint={motivation && !isInstruction(paragraph.text) && paragraph.text.trim() ? t("motivationWords", { count: words(paragraph.text) }) : undefined}
           >
             {motivation && needsWords ? (
               <div className="flex gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
                 <LightbulbIcon className="mt-0.5 size-3.5 shrink-0" />
-                <span>What caught your attention about {company || "the team"} or this role? Add a sentence here, or give AI a few rough notes above.</span>
+                <span>{t("whatCaught", { company: company || t("theTeam") })}</span>
               </div>
             ) : null}
             {motivation ? (
@@ -287,7 +286,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
           </Field>
         )
       })}
-      <Field label="Sign-off">
+      <Field label={t("signoff")}>
         <Input value={draft.signoff} onChange={(event) => update((doc) => void (doc.signoff = event.target.value))} />
       </Field>
     </fieldset>
@@ -307,7 +306,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, jobId, 
       pageBudget={1}
       dirty={dirty}
       pending={pending || asking}
-      onSave={() => persist(draft, "Saved")}
+      onSave={() => persist(draft, t("saved"))}
       onDiscard={() => { setDraft(current.content); setPreviousDraft(null) }}
       design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} design={draft.design} templateRef={draft.templateRef} saved={savedTemplates} onChange={applyDesign} disabled={pending || asking} />}
       versions={<VersionsPanel revisions={workspace.history} currentId={current.id} pending={pending || asking} onRestore={restore} />}
@@ -322,7 +321,7 @@ function Field({ label, hint, badge, children }: { label: string; hint?: string;
       <div className="flex items-center gap-2">
         <Label className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</Label>
         {badge}
-        {hint ? <span className="ml-auto text-xs text-muted-foreground tabular-nums">{hint}</span> : null}
+        {hint ? <span className="ms-auto text-xs text-muted-foreground tabular-nums">{hint}</span> : null}
       </div>
       {children}
     </div>

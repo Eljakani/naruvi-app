@@ -19,6 +19,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 type Theme = "light" | "dark";
 
@@ -206,6 +207,7 @@ export default function SwitchButton({
   onClick,
   ...props
 }: SwitchButtonProps) {
+  const t = useTranslations("ui");
   const maskId = `${useId()}-moon`;
   const iconRef = useRef<SVGSVGElement>(null);
   const labelRef = useRef<HTMLSpanElement>(null);
@@ -260,7 +262,7 @@ export default function SwitchButton({
 
   return (
     <button
-      aria-label="Dark theme"
+      aria-label={t("darkTheme")}
       aria-pressed={current ? current === "dark" : undefined}
       className={cn(
         "group/switch relative inline-flex shrink-0 cursor-pointer select-none items-center justify-center rounded-lg font-medium",

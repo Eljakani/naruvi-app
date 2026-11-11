@@ -145,7 +145,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Run `npm run worker` in a second terminal for queued background jobs. Then set up your model in **Settings → Language model**.
+Set up your model in **Integrations → Language model**. To check the development queue connection, run `npm run worker` in a second terminal.
 
 </details>
 

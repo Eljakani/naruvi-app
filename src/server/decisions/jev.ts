@@ -23,9 +23,9 @@ const answer = z.discriminatedUnion("type", [
   z.object({ type: z.literal("score"), score: z.number(), confidence: z.number(), probabilities: z.record(z.string(), z.number()) }),
   z.object({ type: z.literal("noul"), noul: z.number() }),
 ])
-const response = z.object({ model: z.string(), answers: z.record(z.string(), answer), usage: z.object({ input_tokens: z.number(), output_tokens: z.number() }) })
+export const decisionResponse = z.object({ model: z.string(), answers: z.record(z.string(), answer), usage: z.object({ input_tokens: z.number(), output_tokens: z.number() }) })
 export type DecisionAnswer = z.infer<typeof answer>
-export type DecisionResult = z.infer<typeof response>
+export type DecisionResult = z.infer<typeof decisionResponse>
 
 export type DecisionConfig = { apiKey: string; model: string }
 export type Decide = (state: unknown, questions: Record<string, Question>) => Promise<DecisionResult>
@@ -36,20 +36,19 @@ export class DecisionError extends Error {
   }
 }
 
-/** One request answers every question in parallel against the same state. */
-export function jevClient(config: DecisionConfig, { fetcher = fetch, timeoutMs = 20_000, retries = 2 }: { fetcher?: typeof fetch; timeoutMs?: number; retries?: number } = {}): Decide {
-  return async (state, questions) => {
-    if (!config.apiKey) throw new DecisionError("No decision model key configured.")
-    const ids = Object.keys(questions)
-    if (!ids.length) return { model: config.model, answers: {}, usage: { input_tokens: 0, output_tokens: 0 } }
+type RequestOptions = { fetcher?: typeof fetch; timeoutMs?: number; retries?: number }
+
+export function decisionRequest(apiKey: string, { fetcher = fetch, timeoutMs = 20_000, retries = 2 }: RequestOptions = {}) {
+  return async (url: string, body: unknown): Promise<unknown> => {
+    if (!apiKey) throw new DecisionError("No decision model key configured.")
     for (let attempt = 0; ; attempt += 1) {
       let res: Response
       try {
-        res = await fetcher(JEV_URL, {
+        res = await fetcher(url, {
           method: "POST",
           redirect: "error",
-          headers: { authorization: `Bearer ${config.apiKey}`, "content-type": "application/json" },
-          body: JSON.stringify({ model: config.model, state, questions }),
+          headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+          body: JSON.stringify(body),
           signal: AbortSignal.timeout(timeoutMs),
         })
       } catch {
@@ -64,17 +63,35 @@ export function jevClient(config: DecisionConfig, { fetcher = fetch, timeoutMs =
       // Never surface the provider's body: it may echo the request.
       if (res.status === 401) throw new DecisionError("The decision model rejected the API key. Check it in Integrations.", 401)
       if (!res.ok) throw new DecisionError(`The decision model returned HTTP ${res.status}.`, res.status)
-      const parsed = response.safeParse(await res.json().catch(() => null))
-      if (!parsed.success) throw new DecisionError("The decision model returned an unexpected response.")
-      return parsed.data
+      return res.json().catch(() => null)
     }
   }
+}
+
+export function parseDecisionResponse(raw: unknown): DecisionResult {
+  const parsed = decisionResponse.safeParse(raw)
+  if (!parsed.success) throw new DecisionError("The decision model returned an unexpected response.")
+  return parsed.data
+}
+
+/** One request answers every question in parallel against the same state. */
+export function jevClient(config: DecisionConfig, options?: RequestOptions): Decide {
+  const request = decisionRequest(config.apiKey, options)
+  return async (state, questions) => {
+    if (!config.apiKey) throw new DecisionError("No decision model key configured.")
+    if (!Object.keys(questions).length) return emptyDecision(config.model)
+    return parseDecisionResponse(await request(JEV_URL, { model: config.model, state, questions }))
+  }
+}
+
+export function emptyDecision(model: string): DecisionResult {
+  return { model, answers: {}, usage: { input_tokens: 0, output_tokens: 0 } }
 }
 
 /** Splits many questions into requests that stay well under the context limit. */
 export async function decideInChunks(decide: Decide, state: unknown, questions: Record<string, Question>, size = 120): Promise<DecisionResult> {
   const entries = Object.entries(questions)
-  const merged: DecisionResult = { model: "", answers: {}, usage: { input_tokens: 0, output_tokens: 0 } }
+  const merged = emptyDecision("")
   for (let offset = 0; offset < entries.length; offset += size) {
     const result = await decide(state, Object.fromEntries(entries.slice(offset, offset + size)))
     merged.model = result.model

@@ -3,24 +3,26 @@
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
 import { BriefcaseBusinessIcon, Building2Icon, FileTextIcon, LayoutDashboardIcon, LayoutTemplateIcon, PlusIcon, SearchIcon, SettingsIcon, SparklesIcon, UserIcon, UsersIcon, ActivityIcon, type LucideIcon } from "lucide-react"
-import { quickSearchAction } from "@/app/(app)/search/actions"
+import { quickSearchAction } from "@/app/[locale]/(app)/search/actions"
 import { Button } from "@/components/ui/button"
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command"
 import { Command } from "@/components/ui/command"
+import { useTranslations } from "next-intl"
 
-const PAGES: { label: string; href: string; icon: LucideIcon; keywords?: string }[] = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboardIcon, keywords: "home needs attention" },
-  { label: "Applications", href: "/applications", icon: FileTextIcon, keywords: "board pipeline" },
-  { label: "Archived applications", href: "/applications?show=archived", icon: FileTextIcon },
-  { label: "Jobs", href: "/jobs", icon: BriefcaseBusinessIcon, keywords: "postings" },
-  { label: "Companies", href: "/companies", icon: Building2Icon, keywords: "employers" },
-  { label: "Contacts", href: "/contacts", icon: UsersIcon, keywords: "people recruiters hr managers spontaneous" },
-  { label: "Profile", href: "/profile", icon: UserIcon, keywords: "experience facts" },
-  { label: "Templates", href: "/templates", icon: LayoutTemplateIcon, keywords: "design themes" },
-  { label: "Runs", href: "/runs", icon: ActivityIcon, keywords: "traces ai" },
-  { label: "Settings", href: "/settings", icon: SettingsIcon, keywords: "documents fonts data export" },
-  { label: "AI models", href: "/integrations#ai", icon: SettingsIcon, keywords: "model api key llm openai gemini claude dictation whisper" },
-  { label: "Setup guide", href: "/setup", icon: SparklesIcon, keywords: "onboarding start install first run" },
+// Labels and search keywords live in the `search.pages` catalog (keywords: English + the locale's own words).
+const PAGES: { key: "dashboard" | "applications" | "archived" | "jobs" | "companies" | "contacts" | "profile" | "templates" | "runs" | "settings" | "ai" | "setup"; href: string; icon: LucideIcon }[] = [
+  { key: "dashboard", href: "/", icon: LayoutDashboardIcon },
+  { key: "applications", href: "/applications", icon: FileTextIcon },
+  { key: "archived", href: "/applications?show=archived", icon: FileTextIcon },
+  { key: "jobs", href: "/jobs", icon: BriefcaseBusinessIcon },
+  { key: "companies", href: "/companies", icon: Building2Icon },
+  { key: "contacts", href: "/contacts", icon: UsersIcon },
+  { key: "profile", href: "/profile", icon: UserIcon },
+  { key: "templates", href: "/templates", icon: LayoutTemplateIcon },
+  { key: "runs", href: "/runs", icon: ActivityIcon },
+  { key: "settings", href: "/settings", icon: SettingsIcon },
+  { key: "ai", href: "/integrations#ai", icon: SettingsIcon },
+  { key: "setup", href: "/setup", icon: SparklesIcon },
 ]
 
 type Results = Awaited<ReturnType<typeof quickSearchAction>>
@@ -28,6 +30,7 @@ type Results = Awaited<ReturnType<typeof quickSearchAction>>
 /** Ctrl/⌘ K: jump to any page, job, application or company. */
 export function CommandMenu() {
   const router = useRouter()
+  const t = useTranslations("search")
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<Results>({ jobs: [], companies: [] })
@@ -69,36 +72,36 @@ export function CommandMenu() {
     router.push(href)
   }
   const q = query.trim().toLowerCase()
-  const pages = PAGES.filter((page) => !q || `${page.label} ${page.keywords ?? ""}`.toLowerCase().includes(q))
+  const pages = PAGES.map((page) => ({ ...page, label: t(`pages.${page.key}.label`) })).filter((page) => !q || `${page.label} ${t(`pages.${page.key}.keywords`)}`.toLowerCase().includes(q))
   const jobs = q ? results.jobs : []
   const companies = q ? results.companies : []
 
   return (
     <>
-      <Button variant="outline" size="sm" aria-label="Search" className="size-8 justify-center gap-2 text-muted-foreground @min-[30rem]/workspace:h-8 @min-[30rem]/workspace:w-64 @min-[30rem]/workspace:justify-start" onClick={() => setOpen(true)}>
+      <Button variant="outline" size="sm" aria-label={t("search")} className="size-8 justify-center gap-2 text-muted-foreground @min-[30rem]/workspace:h-8 @min-[30rem]/workspace:w-64 @min-[30rem]/workspace:justify-start" onClick={() => setOpen(true)}>
         <SearchIcon />
-        <span className="hidden flex-1 text-left @min-[30rem]/workspace:inline">Search…</span>
+        <span className="hidden flex-1 text-start @min-[30rem]/workspace:inline">{t("placeholderShort")}</span>
         <kbd className="hidden rounded border px-1 font-mono text-[11px] @min-[30rem]/workspace:inline">Ctrl K</kbd>
       </Button>
-      <CommandDialog className="sm:max-w-xl" open={open} onOpenChange={(value) => { setOpen(value); if (!value) setQuery("") }} title="Search" description="Jump to a page, job, application or company">
+      <CommandDialog className="sm:max-w-xl" open={open} onOpenChange={(value) => { setOpen(value); if (!value) setQuery("") }} title={t("search")} description={t("description")}>
         <Command shouldFilter={false} value={selected} onValueChange={setSelected}>
-          <CommandInput placeholder="Search jobs, companies and pages…" value={query} onValueChange={setQuery} />
+          <CommandInput placeholder={t("placeholder")} value={query} onValueChange={setQuery} />
           <CommandList>
-            <CommandEmpty>{pending ? "Searching…" : "Nothing found."}</CommandEmpty>
+            <CommandEmpty>{pending ? t("searching") : t("empty")}</CommandEmpty>
             {jobs.length ? (
-              <CommandGroup heading="Jobs and applications">
+              <CommandGroup heading={t("jobsAndApplications")}>
                 {jobs.map((job) => (
                   <CommandItem key={job.id} value={`job-${job.id}`} onSelect={() => go(job.applicationId ? `/applications/${job.applicationId}` : `/jobs/${job.id}`)}>
                     <BriefcaseBusinessIcon />
                     <span className="truncate">{job.title}</span>
                     {job.company ? <span className="truncate text-muted-foreground">{job.company}</span> : null}
-                    <CommandShortcut>{job.applicationId ? "Application" : "Job"}</CommandShortcut>
+                    <CommandShortcut>{job.applicationId ? t("application") : t("job")}</CommandShortcut>
                   </CommandItem>
                 ))}
               </CommandGroup>
             ) : null}
             {companies.length ? (
-              <CommandGroup heading="Companies">
+              <CommandGroup heading={t("companies")}>
                 {companies.map((company) => (
                   <CommandItem key={company.id} value={`company-${company.id}`} onSelect={() => go(`/companies/${company.id}`)}>
                     <Building2Icon />
@@ -109,7 +112,7 @@ export function CommandMenu() {
             ) : null}
             {(jobs.length || companies.length) && pages.length ? <CommandSeparator /> : null}
             {pages.length ? (
-              <CommandGroup heading="Go to">
+              <CommandGroup heading={t("goTo")}>
                 {pages.map((page) => (
                   <CommandItem key={page.href} value={`page-${page.href}`} onSelect={() => go(page.href)}>
                     <page.icon />
@@ -118,21 +121,21 @@ export function CommandMenu() {
                 ))}
               </CommandGroup>
             ) : null}
-            {!q || "add a new job".includes(q) ? (
-              <CommandGroup heading="Actions">
-                <CommandItem value="action-add-job" onSelect={() => go("/jobs/new")}>
-                  <PlusIcon /> Add a job
+            {!q || t("addJobMatch").toLowerCase().includes(q) ? (
+              <CommandGroup heading={t("actions")}>
+                <CommandItem value="action-add-job" onSelect={() => go("/jobs?add=1")}>
+                  <PlusIcon /> {t("addJob")}
                 </CommandItem>
                 {q ? null : (
                   <CommandItem value="action-search-jobs" onSelect={() => go("/jobs")}>
-                    <SearchIcon /> Search all jobs
+                    <SearchIcon /> {t("searchAllJobs")}
                   </CommandItem>
                 )}
               </CommandGroup>
             ) : (
-              <CommandGroup heading="Actions">
+              <CommandGroup heading={t("actions")}>
                 <CommandItem value="action-search-q" onSelect={() => go(`/jobs?q=${encodeURIComponent(query.trim())}`)}>
-                  <SearchIcon /> Search jobs for “{query.trim()}”
+                  <SearchIcon /> {t("searchJobsFor", { query: query.trim() })}
                 </CommandItem>
               </CommandGroup>
             )}

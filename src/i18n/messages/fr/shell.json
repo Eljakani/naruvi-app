@@ -1,0 +1,320 @@
+{
+  "meta": { "description": "Des candidatures honnêtes, sur mesure et vérifiées — en local." },
+  "common": {
+    "connected": "Connecté", "notSetUp": "Non configuré", "on": "Activé", "off": "Désactivé",
+    "clearSearch": "Effacer la recherche", "clear": "Effacer"
+  },
+  "assistantResults": {
+    "reads": {
+      "what_needs_attention": {
+        "running": "Vérification des priorités",
+        "done": "Priorités vérifiées"
+      },
+      "list_applications": {
+        "running": "Consultation de vos candidatures",
+        "done": "Candidatures consultées"
+      },
+      "get_application": {
+        "running": "Ouverture d’une candidature",
+        "done": "Candidature ouverte"
+      },
+      "search_jobs": {
+        "running": "Recherche dans vos offres enregistrées",
+        "done": "Recherche terminée dans vos offres enregistrées"
+      },
+      "get_job": {
+        "running": "Lecture d’une offre",
+        "done": "Offre lue"
+      },
+      "list_companies": {
+        "running": "Consultation des entreprises",
+        "done": "Entreprises consultées"
+      },
+      "get_company": {
+        "running": "Ouverture d’une fiche d’entreprise",
+        "done": "Fiche d’entreprise ouverte"
+      },
+      "read_careers_page": {
+        "running": "Vérification du lien vers la page carrières",
+        "done": "Lien vers la page carrières vérifié"
+      },
+      "list_contacts": {
+        "running": "Consultation de vos contacts",
+        "done": "Contacts consultés"
+      },
+      "profile_overview": {
+        "running": "Lecture de votre profil",
+        "done": "Profil consulté"
+      },
+      "read_profile_details": {
+        "running": "Vérification des détails du profil",
+        "done": "Détails du profil vérifiés"
+      },
+      "find_profile_entries": {
+        "running": "Recherche d’une entrée du profil",
+        "done": "Entrées correspondantes vérifiées"
+      }
+    },
+    "counts": {
+      "applications": "{count, plural, one {# candidature} other {# candidatures}}",
+      "jobs": "{count, plural, one {# offre} other {# offres}}",
+      "contacts": "{count, plural, one {# contact} other {# contacts}}",
+      "companies": "{count, plural, one {# entreprise} other {# entreprises}}",
+      "entries": "{count, plural, one {# entrée} other {# entrées}}",
+      "attention": "{count, plural, one {# élément} other {# éléments}}"
+    },
+    "applications": "Candidatures",
+    "archived": "Archivée",
+    "failed": "Échec de la recherche",
+    "failures": "Recherches · {count, number} en échec",
+    "completed": "{count, plural, one {# recherche terminée} other {# recherches terminées}}",
+    "progress": "{settled, number} sur {total, number}"
+  },
+  "assistantWelcome": {
+    "message": "Écrire à Naruvi",
+    "addImages": "Ajouter des images",
+    "imageCount": "{count, number} images sur {limit, number}",
+    "imageLimit": "Limite d’images atteinte",
+    "dashboard": "votre tableau de bord",
+    "letter": "cette lettre de motivation",
+    "cv": "ce CV",
+    "application": "cette candidature",
+    "job": "cette offre",
+    "jobs": "vos offres",
+    "contacts": "vos contacts",
+    "companies": "vos entreprises",
+    "profile": "votre profil",
+    "applications": "vos candidatures",
+    "today": "Que devrais-je faire aujourd’hui ?",
+    "bestFit": "Quelles offres enregistrées me correspondent le mieux ?",
+    "spontaneous": "Préparer une candidature spontanée",
+    "recruiter": "Ajouter un recruteur à mes contacts",
+    "shorter": "Raccourcir cette lettre et la rendre plus directe",
+    "specific": "Ajouter un détail sur l’entreprise",
+    "recipient": "À qui dois-je l’envoyer ?",
+    "missingCv": "Que manque-t-il à ce CV pour cette offre ?",
+    "weak": "À quelles exigences est-ce que je réponds le moins ?",
+    "letterToo": "Rédiger aussi la lettre de motivation",
+    "progress": "Résumer l’état de cette candidature",
+    "draftLetter": "Rédiger la lettre de motivation",
+    "followUp": "Planifier une relance pour la semaine prochaine",
+    "who": "Qui devrais-je contacter ?",
+    "fit": "Cette offre me correspond-elle ?",
+    "start": "Préparer une candidature pour cette offre",
+    "research": "Faire des recherches sur cette entreprise",
+    "jobLink": "Ajouter une offre à partir d’un lien",
+    "notApplied": "À quelles offres n’ai-je pas encore postulé ?",
+    "noEmail": "Quels contacts n’ont pas encore d’adresse e-mail ?",
+    "mostApplied": "Auprès de quelles entreprises ai-je le plus postulé ?",
+    "missingProfile": "Que manque-t-il à mon profil ?",
+    "noFacts": "Quelles entrées ne contiennent encore aucun fait ?",
+    "skills": "Quelles sont mes compétences les plus solides ?",
+    "noNews": "Quelles candidatures sont restées sans nouvelles ?",
+    "nextApp": "Quelle candidature devrais-je faire avancer en priorité ?",
+    "context": "Page affichée : {page}",
+    "ideas": "Idées pour {page}",
+    "late": "Encore debout ? Je suis Naruvi.",
+    "morning": "Bonjour, je suis Naruvi.",
+    "afternoon": "Bonjour, je suis Naruvi.",
+    "evening": "Bonsoir, je suis Naruvi.",
+    "intro": "Je connais vos offres, vos candidatures, vos contacts et votre profil. Dites-moi ce dont vous avez besoin et je le préparerai. Tout changement attend votre accord.",
+    "queuedPlaceholder": "Naruvi lira votre message ensuite…",
+    "followUpPlaceholder": "Ajoutez un message à envoyer quand Naruvi aura terminé…",
+    "replyPlaceholder": "Répondez ou posez une autre question…",
+    "askPlaceholder": "Posez une question ou dites à Naruvi quoi faire…",
+    "hint": "Collez ou déposez des images · les changements attendent votre accord",
+    "reading": "Lecture des images…",
+    "queuedHint": "Entrée pour mettre le message en attente",
+    "sendHint": "Entrée pour envoyer · Maj+Entrée pour une nouvelle ligne",
+    "send": "Envoyer",
+    "stop": "Arrêter",
+    "close": "Fermer l’assistant",
+    "newChat": "Nouvelle conversation",
+    "thinkingPhrases": {"thinking": "Naruvi réfléchit", "working": "Je m’en occupe", "figuring": "J’examine la question"},
+    "thinking": "Réflexion…",
+    "working": "En cours…",
+    "writing": "Rédaction…"
+  },
+  "assistantTrigger": {"ask": "Demander à Naruvi", "shortcut": "Demander à Naruvi ({shortcut})", "open": "Naruvi est là", "close": "Fermer Naruvi", "wake": "Réveiller Naruvi"},
+  "language": { "label": "Langue" },
+  "theme": { "dark": "Thème sombre", "toLight": "Passer en clair", "toDark": "Passer en sombre" },
+  "nav": {
+    "home": "Accueil Naruvi",
+    "localWorkspace": "Espace de travail local",
+    "addJob": "Ajouter une offre",
+    "yourProfile": "Votre profil",
+    "profileMenu": "Menu du profil de {name}",
+    "signOut": "Se déconnecter",
+    "groups": { "search": "Recherche d’emploi", "material": "Vos documents", "workspace": "Espace de travail" },
+    "items": {
+      "dashboard": { "title": "Tableau de bord", "description": "Votre pipeline et les prochaines actions" },
+      "jobs": { "title": "Offres", "description": "Nouvelles offres à examiner, pas encore suivies" },
+      "applications": { "title": "Candidatures", "description": "Chaque poste visé, de l’enregistrement à l’offre" },
+      "companies": { "title": "Entreprises", "description": "Offres et candidatures par entreprise" },
+      "contacts": { "title": "Contacts", "description": "Recruteurs, RH et managers" },
+      "profile": { "title": "Profil", "description": "Faits vérifiés — la source de vérité" },
+      "templates": { "title": "Modèles", "description": "L’apparence de vos documents" },
+      "integrations": { "title": "Intégrations", "description": "E-mail, agenda et autres connexions" },
+      "runs": { "title": "Le travail de Naruvi", "description": "Ce que Naruvi a fait, étape par étape" },
+      "settings": { "title": "Paramètres", "description": "Documents, polices et données" }
+    },
+    "badge": {
+      "applications": "{count, plural, one {# candidature vous attend} other {# candidatures vous attendent}}",
+      "jobs": "{count, plural, one {# nouvelle piste} other {# nouvelles pistes}}"
+    },
+    "week": {
+      "title": "Cette semaine",
+      "count": {
+        "sent": "{n, plural, one {<b>#</b> envoyée} other {<b>#</b> envoyées}}",
+        "interviews": "{n, plural, one {<b>#</b> entretien} other {<b>#</b> entretiens}}",
+        "offers": "{n, plural, one {<b>#</b> offre} other {<b>#</b> offres}}"
+      },
+      "offer": "Une offre cette semaine. Ça se fête.",
+      "interviews": "Ils veulent vous parler. Votre travail paie.",
+      "sent": "Belle dynamique. Continuez les relances.",
+      "checked": "Vous avez vérifié des correspondances. Prêt à en envoyer une ?",
+      "quiet": "Semaine calme. Une bonne candidature suffit pour relancer la machine."
+    }
+  },
+  "notFound": {
+    "title": "J’ai cherché partout, mais cette page n’existe pas",
+    "dashboard": "Retour au tableau de bord",
+    "applications": "Ouvrir les candidatures",
+    "body": "Elle a peut-être été archivée ou supprimée, ou le lien provient d’une ancienne version de Naruvi."
+  },
+  "auth": {
+    "opening": "Ouverture de votre espace",
+    "openingEllipsis": "Ouverture de votre espace…",
+    "copied": "Copié",
+    "copy": "Copier {command}",
+    "commandCopied": "Commande copiée",
+    "usernameRule": "Utilisez 3 à 64 lettres, chiffres, tirets bas ou traits d’union.",
+    "passwordRule": "Utilisez 16 à 128 caractères.",
+    "mismatch": "Les mots de passe ne correspondent pas encore.",
+    "confirmRequired": "Confirmez votre mot de passe.",
+    "tooMany": "{seconds, plural, one {Trop de tentatives. Réessayez dans # seconde.} other {Trop de tentatives. Réessayez dans # secondes.}}",
+    "needsRefresh": "Cette page doit être actualisée. Rechargez-la et réessayez.",
+    "cantConnect": "Impossible de se connecter à Naruvi. Veuillez réessayer.",
+    "cantReach": "Naruvi est injoignable. Vérifiez votre connexion et réessayez.",
+    "username": "Nom d’utilisateur",
+    "password": "Mot de passe",
+    "confirm": "Confirmer le mot de passe",
+    "hidePasswords": "Masquer les mots de passe",
+    "showPasswords": "Afficher les mots de passe",
+    "usernameHint": "Lettres, chiffres, tirets bas ou traits d’union.",
+    "lengthMet": "Longueur suffisante.",
+    "passwordHint": "Au moins 16 caractères. Une phrase de passe unique fonctionne bien.",
+    "match": "Les mots de passe correspondent.",
+    "enterAgain": "Saisissez à nouveau votre mot de passe.",
+    "capsLock": "Le verrouillage des majuscules est activé.",
+    "ready": "Espace prêt",
+    "signedIn": "Vous êtes connecté",
+    "creating": "Création de votre espace…",
+    "signingIn": "Connexion…",
+    "create": "Créer mon espace",
+    "signIn": "Se connecter",
+    "oneOwner": "Un seul compte propriétaire. Votre espace reste privé.",
+    "setupTitle": "Faites de cet espace le vôtre.",
+    "welcomeBack": "Bon retour sur Naruvi.",
+    "waitingTitle": "Votre espace vous attend.",
+    "setupBody": "Créez votre compte propriétaire, puis nous vous aiderons à configurer Naruvi.",
+    "welcomeBody": "Connectez-vous pour reprendre là où vous en étiez.",
+    "waitingBody": "Naruvi est installé. Créez votre compte propriétaire avec le lien de configuration privé fourni par votre serveur.",
+    "sessionEnded": "Votre session a expiré. Connectez-vous pour continuer.",
+    "alreadyConfigured": "Cet espace est déjà configuré. Connectez-vous avec votre compte propriétaire.",
+    "setupExpired": "Ce lien de configuration a expiré ou a été remplacé. Obtenez-en un nouveau ci-dessous.",
+    "requestFailed": "Nous n’avons pas pu traiter cette demande. Vérifiez vos informations et réessayez.",
+    "getLink": "Obtenir votre lien de configuration",
+    "getLinkBody": "Exécutez ceci là où Naruvi est installé, puis ouvrez le lien affiché. Il ne fonctionne qu’une fois et expire au bout d’une heure.",
+    "checkAgain": "J’ai ouvert le lien, vérifier à nouveau",
+    "tagline": "Votre carrière. Votre espace."
+  },
+  "search": {
+    "search": "Rechercher",
+    "placeholderShort": "Rechercher…",
+    "description": "Accéder à une page, une offre, une candidature ou une entreprise",
+    "placeholder": "Rechercher des offres, entreprises et pages…",
+    "searching": "Recherche…",
+    "empty": "Aucun résultat.",
+    "jobsAndApplications": "Offres et candidatures",
+    "application": "Candidature",
+    "job": "Offre",
+    "companies": "Entreprises",
+    "goTo": "Aller à",
+    "actions": "Actions",
+    "addJob": "Ajouter une offre",
+    "addJobMatch": "ajouter une nouvelle offre",
+    "searchAllJobs": "Rechercher toutes les offres",
+    "searchJobsFor": "Rechercher des offres pour « {query} »",
+    "pages": {
+      "dashboard": { "label": "Tableau de bord", "keywords": "accueil à faire attention home dashboard" },
+      "applications": { "label": "Candidatures", "keywords": "tableau pipeline applications" },
+      "archived": { "label": "Candidatures archivées", "keywords": "archives archived" },
+      "jobs": { "label": "Offres", "keywords": "annonces emplois postes jobs" },
+      "companies": { "label": "Entreprises", "keywords": "employeurs sociétés companies" },
+      "contacts": { "label": "Contacts", "keywords": "personnes recruteurs rh managers candidature spontanée" },
+      "profile": { "label": "Profil", "keywords": "expérience faits profile" },
+      "templates": { "label": "Modèles", "keywords": "design thèmes templates" },
+      "runs": { "label": "Exécutions", "keywords": "traces ia runs" },
+      "settings": { "label": "Paramètres", "keywords": "documents polices données export langue settings" },
+      "ai": { "label": "Modèles d’IA", "keywords": "modèle clé api llm openai gemini claude dictée whisper" },
+      "setup": { "label": "Guide de démarrage", "keywords": "prise en main démarrer installation premier lancement setup" }
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "description": "Langue de l’interface, préférences des documents, polices et données locales.",
+    "setupGuide": "Guide de démarrage",
+    "somethingWrong": "Une erreur s’est produite",
+    "saveFailed": "Impossible d’enregistrer ou d’actualiser les paramètres. Réessayez.",
+    "defaultsSaved": "Préférences enregistrées",
+    "sectionsLabel": "Sections des paramètres",
+    "sections": {
+      "interface": { "title": "Interface", "description": "La langue dans laquelle Naruvi s’adresse à vous." },
+      "documents": { "title": "Documents", "description": "Préférences pour les nouveaux CV et lettres, et polices pour d’autres écritures." },
+      "data": { "title": "Données et stockage", "description": "Tout reste sur cet ordinateur. Exportez-en une copie quand vous le souhaitez." },
+      "version": { "title": "Version et mises à jour", "description": "Les mises à jour se lancent depuis un terminal, après une sauvegarde. L’application ne se met jamais à jour toute seule." }
+    },
+    "interfaceLanguage": "Langue de l’interface",
+    "interfaceLanguageHint": "Menus, boutons et messages. Vos documents conservent leur propre langue.",
+    "aiMoved": { "title": "Modèles d’IA, modèle de décision et dictée", "body": "Ils se trouvent désormais dans Intégrations, avec vos autres connexions." },
+    "defaults": {
+      "title": "Préférences des documents",
+      "description": "Réglages de départ pour les nouveaux CV et lettres de motivation.",
+      "language": "Langue des documents par défaut",
+      "languageHint": "Utilisée pour les nouvelles candidatures et en secours pour les éléments non traduits.",
+      "languageSaved": "Langue par défaut : {language}",
+      "design": "Mise en page",
+      "designHint": "Les nouveaux documents utilisent votre modèle par défaut.",
+      "openTemplates": "Ouvrir les modèles",
+      "photo": "Afficher la photo",
+      "photoHint": "Courant en France, en Allemagne et en Espagne ; généralement omis aux États-Unis, au Royaume-Uni et au Canada."
+    },
+    "fonts": {
+      "title": "Polices",
+      "description": "Le latin, le cyrillique, le grec, l’arabe, l’hébreu, le devanagari et le thaï sont inclus. Le chinois, le japonais et le coréen se téléchargent à la première utilisation.",
+      "names": { "SC": "Chinois (simplifié)", "JP": "Japonais", "KR": "Coréen" },
+      "installed": "Installée · {size} Mo",
+      "onFirstUse": "Téléchargée à la première utilisation",
+      "downloadAll": "Télécharger toutes les polices"
+    },
+    "data": {
+      "title": "Vos données",
+      "description": "Téléchargez une copie de votre profil, de vos offres, candidatures et documents.",
+      "export": "Exporter en JSON",
+      "counts": { "entries": "Éléments du profil", "facts": "Faits", "bullets": "Puces", "jobs": "Offres", "applications": "Candidatures", "revisions": "Versions de documents" },
+      "storage": "Détails du stockage",
+      "database": "Base de données",
+      "files": "Fichiers"
+    },
+    "version": {
+      "available": "La version {version} est disponible.",
+      "latest": "Vous utilisez la dernière version connue.",
+      "updateBadge": "Mise à jour disponible",
+      "upToDate": "À jour",
+      "howTo": "Pour mettre à jour, exécutez ceci là où Naruvi est installé :",
+      "whatsNew": "Nouveautés de la version {version}",
+      "changelog": "Journal des modifications"
+    }
+  }
+}

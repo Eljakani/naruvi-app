@@ -3,21 +3,18 @@
 import { useTransition } from "react"
 import { Loader2Icon, RefreshCwIcon } from "lucide-react"
 import { toast } from "sonner"
-import { refreshJobInsightsAction } from "@/app/(app)/jobs/actions"
+import { refreshJobInsightsAction } from "@/app/[locale]/(app)/jobs/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { JobInsights as Insights } from "@/server/jobs/enrich"
+import { useTranslations } from "next-intl"
 
-const LABEL: Record<string, string> = {
-  intern: "Internship", junior: "Junior", mid: "Mid-level", senior: "Senior", lead: "Lead / staff", manager: "Manager", executive: "Executive",
-  onsite: "On-site", hybrid: "Hybrid", remote: "Remote",
-  permanent: "Permanent", fixed_term: "Fixed-term", freelance: "Freelance", internship: "Internship", apprenticeship: "Apprenticeship / alternance",
-  student_job: "Student job", volunteer: "Volunteer programme", temporary: "Temp agency", seasonal: "Seasonal",
-}
-const ENGINE: Record<Insights["engine"], string> = { decisions: "Decision model", "language-model": "Language model", rules: "Rules" }
+const GROUP = { seniority: "seniority", workMode: "workMode", contract: "contract" } as const
 
 export function JobInsights({ jobId, insights }: { jobId: string; insights: Insights | null }) {
+  const t = useTranslations("jobs.insights")
+  const tl = useTranslations("labels")
   const [pending, startTransition] = useTransition()
   const refresh = () =>
     startTransition(async () => {
@@ -27,20 +24,20 @@ export function JobInsights({ jobId, insights }: { jobId: string; insights: Insi
 
   const facts = insights
     ? ([
-        ["Seniority", insights.seniority],
-        ["Work mode", insights.workMode],
-        ["Contract", insights.contract],
+        ["seniority", insights.seniority],
+        ["workMode", insights.workMode],
+        ["contract", insights.contract],
       ] as const).filter(([, value]) => value !== "unspecified")
     : []
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>At a glance</CardTitle>
-        <CardDescription>{insights ? `${ENGINE[insights.engine]}${insights.model ? ` · ${insights.model}` : ""}` : "Not analyzed yet."}</CardDescription>
+        <CardTitle>{t("title")}</CardTitle>
+        <CardDescription>{insights ? `${t(`engine.${insights.engine}`)}${insights.model ? ` · ${insights.model}` : ""}` : t("notYet")}</CardDescription>
         <CardAction>
-          <Button size="sm" variant="ghost" onClick={refresh} disabled={pending} aria-label="Refresh insights">
-            {pending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} {insights ? "Refresh" : "Summarize"}
+          <Button size="sm" variant="ghost" onClick={refresh} disabled={pending} aria-label={t("refreshLabel")}>
+            {pending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} {insights ? t("refresh") : t("summarize")}
           </Button>
         </CardAction>
       </CardHeader>
@@ -51,20 +48,20 @@ export function JobInsights({ jobId, insights }: { jobId: string; insights: Insi
             <div className="flex flex-wrap gap-2">
               {facts.map(([label, value]) => (
                 <Badge key={label} variant="secondary">
-                  {label}: {LABEL[value] ?? value}
+                  {t(`facts.${label}`)}: {tl.has(`${GROUP[label]}.${value}` as never) ? tl(`${GROUP[label]}.${value}` as never) : value}
                 </Badge>
               ))}
-              {insights.programme?.duration ? <Badge variant="secondary">Duration: {insights.programme.duration}</Badge> : null}
-              {insights.programme?.start ? <Badge variant="secondary">Starts: {insights.programme.start}</Badge> : null}
-              {insights.programme?.rhythm ? <Badge variant="secondary">Rhythm: {insights.programme.rhythm}</Badge> : null}
-              {insights.yearsRequired ? <Badge variant="secondary">{insights.yearsRequired}+ years</Badge> : null}
-              {insights.visaSponsorship === true ? <Badge variant="secondary">Visa / relocation support</Badge> : null}
-              {insights.visaSponsorship === false ? <Badge variant="outline">No sponsorship</Badge> : null}
+              {insights.programme?.duration ? <Badge variant="secondary">{t("duration", { value: insights.programme.duration })}</Badge> : null}
+              {insights.programme?.start ? <Badge variant="secondary">{t("starts", { value: insights.programme.start })}</Badge> : null}
+              {insights.programme?.rhythm ? <Badge variant="secondary">{t("rhythm", { value: insights.programme.rhythm })}</Badge> : null}
+              {insights.yearsRequired ? <Badge variant="secondary">{t("years", { years: insights.yearsRequired })}</Badge> : null}
+              {insights.visaSponsorship === true ? <Badge variant="secondary">{t("visa")}</Badge> : null}
+              {insights.visaSponsorship === false ? <Badge variant="outline">{t("noSponsor")}</Badge> : null}
             </div>
           ) : null}
           {insights.skills.required.length ? (
             <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">Required skills</span>
+              <span className="text-xs text-muted-foreground">{t("required")}</span>
               <div className="flex flex-wrap gap-1">
                 {insights.skills.required.map((skill) => (
                   <Badge key={skill}>{skill}</Badge>
@@ -74,7 +71,7 @@ export function JobInsights({ jobId, insights }: { jobId: string; insights: Insi
           ) : null}
           {insights.skills.nice.length ? (
             <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">Nice to have</span>
+              <span className="text-xs text-muted-foreground">{t("nice")}</span>
               <div className="flex flex-wrap gap-1">
                 {insights.skills.nice.map((skill) => (
                   <Badge key={skill} variant="outline">

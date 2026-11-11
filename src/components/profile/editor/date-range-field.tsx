@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { durationMonths, formatDateRange, formatDuration, parseDateRange, rangeError, type DateRange, type MonthYear } from "@/lib/date-range"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 type Lang = "en" | "fr"
 
@@ -35,6 +36,7 @@ function MonthPicker({ value, onChange, lang, label, present, min }: {
   /** Months before this are greyed out (the end can't come before the start). */
   min?: MonthYear | null
 }) {
+  const tr = useTranslations("dateRange")
   const t = T[lang]
   const thisYear = new Date().getFullYear()
   const current = value && value !== "present" ? value : null
@@ -108,13 +110,13 @@ function MonthPicker({ value, onChange, lang, label, present, min }: {
           />
         </form>
         <div className="flex items-center justify-between px-1">
-          <button type="button" aria-label="Previous year" onClick={() => setViewYear(viewYear - 1)} disabled={viewYear <= 1970} className="grid size-7 place-content-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30">
+          <button type="button" aria-label={tr("previousYear")} onClick={() => setViewYear(viewYear - 1)} disabled={viewYear <= 1970} className="grid size-7 place-content-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30">
             <ChevronLeftIcon className="size-4" />
           </button>
           <motion.span key={viewYear} initial={reduce ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }} className="text-sm font-semibold tabular-nums">
             {viewYear}
           </motion.span>
-          <button type="button" aria-label="Next year" onClick={() => setViewYear(viewYear + 1)} disabled={viewYear >= thisYear + 5} className="grid size-7 place-content-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30">
+          <button type="button" aria-label={tr("nextYear")} onClick={() => setViewYear(viewYear + 1)} disabled={viewYear >= thisYear + 5} className="grid size-7 place-content-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30">
             <ChevronRightIcon className="size-4" />
           </button>
         </div>
@@ -168,6 +170,7 @@ function MonthPicker({ value, onChange, lang, label, present, min }: {
  * editable as free text.
  */
 export function DateRangeField({ id, lang, value, onChange }: { id: string; lang: Lang; value: string; onChange: (text: Partial<Record<Lang, string>>) => void }) {
+  const tr = useTranslations("dateRange")
   const t = T[lang]
   const parsed = parseDateRange(value)
   const [freeText, setFreeText] = useState(parsed === null)
@@ -180,15 +183,15 @@ export function DateRangeField({ id, lang, value, onChange }: { id: string; lang
   return (
     <div className="grid gap-2">
       <div className="flex items-center justify-between gap-2">
-        {freeText ? <label htmlFor={id} className="text-sm font-medium">Dates</label> : <span className="text-sm font-medium">Dates</span>}
+        {freeText ? <label htmlFor={id} className="text-sm font-medium">{tr("dates")}</label> : <span className="text-sm font-medium">{tr("dates")}</span>}
         <button type="button" onClick={() => setFreeText(!freeText)} className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
-          {freeText ? <><CalendarIcon className="size-3" /> Use the calendar</> : <><PenLineIcon className="size-3" /> Type it instead</>}
+          {freeText ? <><CalendarIcon className="size-3" /> {tr("calendar")}</> : <><PenLineIcon className="size-3" /> {tr("type")}</>}
         </button>
       </div>
       {freeText ? (
         <>
           <Input id={id} value={value} onChange={(event) => onChange({ [lang]: event.target.value })} placeholder={lang === "en" ? "Feb. 2024 – Present" : "févr. 2024 – aujourd’hui"} />
-          {parsed === null && value.trim() ? <p className="text-xs text-muted-foreground">Written as is. Only this language changes.</p> : null}
+          {parsed === null && value.trim() ? <p className="text-xs text-muted-foreground">{tr("asIs")}</p> : null}
         </>
       ) : (
         <>

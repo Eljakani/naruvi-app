@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation"
 import * as React from "react"
 import { Suspense } from "react"
 import { PlusIcon } from "lucide-react"
-import { AddJobDialog } from "@/components/jobs/job-reader"
+import { AddJobDialog } from "@/components/jobs/add-job-dialog"
 import { AssistantSidebarItem } from "@/components/assistant/assistant-panel"
 import { NaruviMark } from "@/components/naruvi-mark"
-import { navCountsAction } from "@/app/(app)/nav/actions"
+import { navCountsAction } from "@/app/[locale]/(app)/nav/actions"
 import { NAV_GROUPS, settingsItem, type NavItem } from "@/components/nav"
 import { NavUser } from "@/components/nav-user"
 import {
@@ -24,21 +24,23 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { useTranslations } from "next-intl"
 
 export function AppSidebar({
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { user: { name: string; email: string; avatar: string } }) {
+  const t = useTranslations("nav")
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/" aria-label="Naruvi home" />}>
+            <SidebarMenuButton size="lg" render={<Link href="/" aria-label={t("home")} />}>
               <NaruviMark className="size-8 shrink-0" />
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid flex-1 text-start text-sm leading-tight">
                 <span className="truncate font-semibold">Naruvi</span>
-                <span className="truncate text-xs text-muted-foreground">Local workspace</span>
+                <span className="truncate text-xs text-muted-foreground">{t("localWorkspace")}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -49,9 +51,9 @@ export function AppSidebar({
           <SidebarMenu>
             <SidebarMenuItem>
               <AddJobDialog trigger={
-                <SidebarMenuButton tooltip="Add a job" aria-label="Add a job" className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground">
+                <SidebarMenuButton tooltip={t("addJob")} aria-label={t("addJob")} className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground">
                   <PlusIcon />
-                  <span>Add a job</span>
+                  <span>{t("addJob")}</span>
                 </SidebarMenuButton>
               } />
             </SidebarMenuItem>
@@ -90,34 +92,23 @@ function ActiveWeekCard() {
 
 /** Naruvi's short weekly recap in the sidebar's spare space: real numbers, one encouraging line. */
 function WeekCard({ counts }: { counts: Record<string, number> }) {
+  const t = useTranslations("nav.week")
   if (!("week.sent" in counts)) return null
-  const items = [
-    { n: counts["week.sent"], one: "sent", many: "sent" },
-    { n: counts["week.interviews"], one: "interview", many: "interviews" },
-    { n: counts["week.offers"], one: "offer", many: "offers" },
-  ].filter((item) => item.n)
-  const line = counts["week.offers"]
-    ? "An offer this week. That’s worth celebrating."
-    : counts["week.interviews"]
-      ? "They want to talk. Your work is paying off."
-      : counts["week.sent"]
-        ? "Good momentum. Keep the follow-ups coming."
-        : counts["week.checked"]
-          ? "You’ve been checking fits. Ready to send one?"
-          : "A quiet week. One good application is enough to restart."
+  const items = (["sent", "interviews", "offers"] as const).map((key) => ({ key, n: counts[`week.${key}`] })).filter((item) => item.n)
+  const line = t(counts["week.offers"] ? "offer" : counts["week.interviews"] ? "interviews" : counts["week.sent"] ? "sent" : counts["week.checked"] ? "checked" : "quiet")
   return (
     <Link href="/" className="group/week mx-1 mb-1 grid gap-2 rounded-xl border border-brand/15 bg-gradient-to-br from-brand-soft/80 to-transparent p-3 transition-colors hover:border-brand/30 group-data-[collapsible=icon]:hidden">
       <span className="flex items-center gap-2">
         <span className="grid size-7 shrink-0 place-content-center overflow-hidden rounded-full ring-1 ring-brand/25">
           <NaruviMark className="size-7" />
         </span>
-        <span className="text-xs font-medium">This week</span>
+        <span className="text-xs font-medium">{t("title")}</span>
       </span>
       {items.length ? (
         <span className="flex flex-wrap gap-1.5">
           {items.map((item) => (
-            <span key={item.one} className="rounded-full bg-background/80 px-2 py-0.5 text-xs tabular-nums ring-1 ring-border">
-              <span className="font-semibold">{item.n}</span> {item.n === 1 ? item.one : item.many}
+            <span key={item.key} className="rounded-full bg-background/80 px-2 py-0.5 text-xs tabular-nums ring-1 ring-border">
+              {t.rich(`count.${item.key}`, { n: item.n, b: (chunks) => <span className="font-semibold">{chunks}</span> })}
             </span>
           ))}
         </span>
@@ -148,21 +139,20 @@ function useNavCounts(pathname: string | null) {
   return counts
 }
 
-const BADGE_LABEL: Record<string, string> = { "/applications": "applications need you", "/jobs": "new job leads" }
-
 function NavGroups({ pathname }: { pathname: string | null }) {
   const counts = useNavCounts(pathname)
+  const t = useTranslations("nav")
   return NAV_GROUPS.map((group) => (
-    <SidebarGroup key={group.label}>
-      <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+    <SidebarGroup key={group.key}>
+      <SidebarGroupLabel>{t(`groups.${group.key}`)}</SidebarGroupLabel>
       <SidebarMenu>
         {group.items.map((item) => {
           const count = counts[item.url] ?? 0
           return (
             <SidebarMenuItem key={item.url}>
-              <NavLink item={item} active={isActive(pathname, item.url)} tooltip={count ? `${item.title} · ${count}` : item.title} />
+              <NavLink item={item} active={isActive(pathname, item.url)} tooltip={count ? `${t(`items.${item.key}.title`)} · ${count}` : t(`items.${item.key}.title`)} />
               {count ? (
-                <SidebarMenuBadge className={item.url === "/applications" ? "font-semibold text-brand" : "font-normal text-muted-foreground"} aria-label={`${count} ${BADGE_LABEL[item.url]}`}>
+                <SidebarMenuBadge className={item.url === "/applications" ? "font-semibold text-brand" : "font-normal text-muted-foreground"} aria-label={item.url === "/applications" ? t("badge.applications", { count }) : t("badge.jobs", { count })}>
                   {count > 99 ? "99+" : count}
                 </SidebarMenuBadge>
               ) : null}
@@ -175,10 +165,11 @@ function NavGroups({ pathname }: { pathname: string | null }) {
 }
 
 function SettingsLink({ pathname }: { pathname: string | null }) {
+  const t = useTranslations("nav.items")
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <NavLink item={settingsItem} active={isActive(pathname, settingsItem.url)} tooltip={settingsItem.title} />
+        <NavLink item={settingsItem} active={isActive(pathname, settingsItem.url)} tooltip={t("settings.title")} />
       </SidebarMenuItem>
     </SidebarMenu>
   )
@@ -189,6 +180,7 @@ function SettingsLink({ pathname }: { pathname: string | null }) {
  * copper icon); others stay quieter, and hover is lighter than "current".
  */
 function NavLink({ item, active, tooltip }: { item: NavItem; active: boolean; tooltip: string }) {
+  const t = useTranslations("nav.items")
   return (
     <SidebarMenuButton
       tooltip={tooltip}
@@ -198,7 +190,7 @@ function NavLink({ item, active, tooltip }: { item: NavItem; active: boolean; to
       render={<Link href={item.url} />}
     >
       <item.icon />
-      <span>{item.title}</span>
+      <span>{t(`${item.key}.title`)}</span>
     </SidebarMenuButton>
   )
 }

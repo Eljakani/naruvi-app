@@ -5,13 +5,14 @@ import { usePathname, useRouter } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { AlarmClockIcon, BellIcon, BriefcaseBusinessIcon, CalendarCheckIcon, CheckIcon, CircleAlertIcon, MailIcon, MailXIcon, PartyPopperIcon, type LucideIcon } from "lucide-react"
-import { inboxAction, markInboxSeenAction } from "@/app/(app)/nav/notifications"
+import { inboxAction, markInboxSeenAction } from "@/app/[locale]/(app)/nav/notifications"
 import { Otter } from "@/components/naruvi/otter"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ago } from "@/components/runs/labels"
 import { cn } from "@/lib/utils"
 import type { InboxItem } from "@/server/notifications/inbox"
+import { useLocale, useNow, useTranslations } from "next-intl"
 
 const ICON: Record<InboxItem["kind"], [LucideIcon, string]> = {
   interview: [CalendarCheckIcon, "text-brand"],
@@ -33,6 +34,9 @@ export function NotificationBell() {
   const [items, setItems] = useState<InboxItem[]>([])
   const [seenAt, setSeenAt] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
+  const t = useTranslations("inbox")
+  const locale = useLocale()
+  const now = useNow({ updateInterval: 60_000 })
   const known = useRef<Set<string> | null>(null)
 
   const load = useCallback(async () => {
@@ -45,11 +49,11 @@ export function NotificationBell() {
       const fresh = next.items.filter((item) => !known.current!.has(item.id) && TOAST.includes(item.kind)).slice(0, 2)
       for (const item of fresh) {
         const [Icon, tone] = ICON[item.kind]
-        toast(item.title, { description: item.body, icon: <Icon className={cn("size-4", tone)} />, action: { label: "Open", onClick: () => router.push(item.href) } })
+        toast(item.title, { description: item.body, icon: <Icon className={cn("size-4", tone)} />, action: { label: t("open"), onClick: () => router.push(item.href) } })
       }
     }
     known.current = new Set(next.items.map((item) => item.id))
-  }, [router])
+  }, [router, t])
 
   useEffect(() => {
     const first = window.setTimeout(load, 0)
@@ -72,19 +76,19 @@ export function NotificationBell() {
   return (
     <Popover open={open} onOpenChange={openChange}>
       <PopoverTrigger render={
-        <Button size="icon-sm" variant="ghost" className="relative" aria-label={unread ? `Notifications, ${unread} new` : "Notifications"} />
+        <Button size="icon-sm" variant="ghost" className="relative" aria-label={unread ? t("labelUnread", { count: unread }) : t("title")} />
       }>
         <BellIcon className={cn(unread && "naruvi-bell-ring")} />
         {unread ? (
-          <span aria-hidden className="cb-pop pointer-events-none absolute top-0.5 right-0.5 grid h-3.5 min-w-3.5 place-content-center rounded-full bg-brand px-0.5 text-[9px] leading-none font-semibold text-brand-foreground ring-2 ring-background tabular-nums">
+          <span aria-hidden className="cb-pop pointer-events-none absolute top-0.5 end-0.5 grid h-3.5 min-w-3.5 place-content-center rounded-full bg-brand px-0.5 text-[9px] leading-none font-semibold text-brand-foreground ring-2 ring-background tabular-nums">
             {unread > 9 ? "9+" : unread}
           </span>
         ) : null}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))] gap-0 overflow-hidden p-0">
         <div className="flex items-center justify-between border-b px-3.5 py-2.5">
-          <p className="text-sm font-semibold">Notifications</p>
-          {unread ? <span className="text-xs text-brand">{unread} new</span> : null}
+          <p className="text-sm font-semibold">{t("title")}</p>
+          {unread ? <span className="text-xs text-brand">{t("newCount", { count: unread })}</span> : null}
         </div>
         {items.length ? (
           <ul className="max-h-[min(26rem,70vh)] divide-y overflow-y-auto overscroll-contain">
@@ -98,11 +102,11 @@ export function NotificationBell() {
                     <span className="grid min-w-0 flex-1 gap-0.5">
                       <span className="flex items-baseline gap-2">
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</span>
-                        <time dateTime={item.at} className="shrink-0 text-xs text-muted-foreground">{item.kind === "due" ? "today" : ago(new Date(item.at))}</time>
+                        <time dateTime={item.at} className="shrink-0 text-xs text-muted-foreground">{item.kind === "due" ? t("today") : ago(new Date(item.at), now.getTime(), locale)}</time>
                       </span>
                       <span className="line-clamp-2 text-xs text-muted-foreground">{item.body}</span>
                     </span>
-                    {fresh ? <span aria-label="New" className="mt-1.5 size-2 shrink-0 rounded-full bg-brand" /> : null}
+                    {fresh ? <span aria-label={t("new")} className="mt-1.5 size-2 shrink-0 rounded-full bg-brand" /> : null}
                   </Link>
                 </li>
               )
@@ -111,8 +115,8 @@ export function NotificationBell() {
         ) : (
           <div className="grid justify-items-center gap-2 px-6 py-8 text-center">
             <Otter pose="all-checked" height={84} />
-            <p className="text-sm font-medium">You’re all caught up</p>
-            <p className="text-xs text-pretty text-muted-foreground">Replies, due steps and finished work will show up here.</p>
+            <p className="text-sm font-medium">{t("emptyTitle")}</p>
+            <p className="text-xs text-pretty text-muted-foreground">{t("emptyBody")}</p>
           </div>
         )}
       </PopoverContent>

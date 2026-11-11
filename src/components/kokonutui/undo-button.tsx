@@ -22,6 +22,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 const EASE_OUT = [0.23, 1, 0.32, 1] as const;
 const STROKE = 1.5;
@@ -89,6 +90,7 @@ export default function UndoButton({
   id,
   className,
 }: UndoButtonProps) {
+  const t = useTranslations("ui");
   const [phase, setPhase] = useState<Phase>("idle");
   const [seconds, setSeconds] = useState(Math.ceil(duration / 1000));
   const [width, setWidth] = useState<number>();
@@ -318,7 +320,7 @@ export default function UndoButton({
         aria-hidden
         className="pointer-events-none absolute inset-0 size-full overflow-visible"
       >
-        <title>Time left to undo</title>
+        <title>{t("undoTimeLeft")}</title>
         <motion.path
           animate={{ opacity: phase === "pending" ? 1 : 0 }}
           className="stroke-foreground"

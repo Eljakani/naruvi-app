@@ -1,0 +1,72 @@
+{
+  "runs": {
+    "title": "Le travail de Naruvi",
+    "description": "Tout ce que Naruvi a fait pour vous : ce qu’il a lu, vérifié et rédigé, et comment ça s’est passé.",
+    "tabs": { "activity": "Activité", "quality": "Qualité" },
+    "range": { "all": "Depuis le début", "day": "Dernières 24 heures", "days": "{days} derniers jours" },
+    "percent": "{value} %",
+    "failedCount": "{count, plural, one {# en échec} other {# en échec}}",
+    "runningCount": "{count} en cours",
+    "runCount": "{count, plural, one {# exécution} other {# exécutions}}",
+    "stats": {
+      "tasks": "Tâches", "wentWell": "Réussies", "nothingFailed": "Aucun échec", "usualTime": "Durée habituelle",
+      "almostAll": "Presque toutes sous {time}", "aiUsage": "Utilisation de l’IA",
+      "tokens": "{count, plural, one {jetons · # requête} other {jetons · # requêtes}}", "noAi": "Aucune requête IA"
+    },
+    "clearFilters": "Effacer les filtres",
+    "aiRequests": "{count, plural, one {# requête IA} other {# requêtes IA}}",
+    "steps": "{count, plural, one {# étape} other {# étapes}}",
+    "tokenCount": "{count} jetons",
+    "running": "en cours…",
+    "newest": "Plus récentes",
+    "older": "Exécutions plus anciennes",
+    "empty": {
+      "title": "Rien pour l’instant",
+      "filtered": "Rien ne correspond à ces filtres. Essayez une période plus longue.",
+      "body": "Ajoutez une offre, vérifiez la correspondance ou rédigez un document, et vous verrez ici ce que Naruvi a fait."
+    },
+    "byTask": { "title": "Par tâche", "description": "{range}. Choisissez-en une pour filtrer.", "none": "Aucune exécution sur cette période.", "legend": "Durée habituelle · nombre" },
+    "quality": {
+      "percent": "{value} %",
+      "documents": "Documents vérifiés", "documentsHint": "Dernière version de chaque CV et lettre",
+      "average": "Score moyen", "averageHint": "Score du contrôle qualité, de 0 à 100",
+      "clean": "Sans erreur bloquante", "cleanHint": "{clean} sur {total}",
+      "title": "Contrôles qualité",
+      "description": "À quelle fréquence chaque contrôle échoue ou avertit sur vos derniers documents. Ceux du haut sont ceux où la génération doit progresser.",
+      "check": "Contrôle", "passing": "Réussite", "warn": "Avert.", "fail": "Échec",
+      "empty": "Générez un CV ou une lettre de motivation pour voir les données de qualité."
+    },
+    "filters": {
+      "allTasks": "Toutes les tâches", "workflow": "Tâche", "statusLabel": "Statut", "range": "Période",
+      "status": { "all": "Tous les statuts", "failed": "Échec", "running": "En cours" },
+      "ranges": { "24h": "24 h", "7d": "7 jours", "30d": "30 jours", "all": "Tout" }
+    },
+    "evals": {
+      "title": "Évaluations de l’import d’offres",
+      "description": "Annonces capturées avec réponses vérifiées. S’exécute hors ligne avec l’analyseur actuel ; les mêmes cas tournent dans npm test.",
+      "run": "Lancer",
+      "passing": "<b>{passed}/{total}</b> cas réussis",
+      "case": "Cas", "result": "Résultat", "failedChecks": "Contrôles en échec", "time": "Durée",
+      "pass": "Réussi", "fail": "Échec",
+      "mismatch": "{name} : attendu {expected}, obtenu {actual}",
+      "checks": "{count, plural, one {# contrôle} other {# contrôles}}",
+      "ms": "{ms} ms",
+      "notRun": "Pas encore lancé dans cette session."
+    }
+  },
+  "trace": {
+    "title": "Trace",
+    "runs": "Exécutions", "newer": "Plus récente", "older": "Plus ancienne",
+    "jobAt": "{job} chez {company}",
+    "failed": "L’exécution a échoué",
+    "duration": "Durée", "running": "en cours…",
+    "steps": "Étapes", "failedCount": "{count} en échec",
+    "modelRequests": "Requêtes au modèle", "tokensInOut": "Jetons entrée / sortie",
+    "models": "{count, plural, one {Modèle} other {Modèles}}", "none": "Aucun",
+    "stepsHint": "Les barres montrent quand chaque étape a commencé et combien de temps elle a pris. Ouvrez une étape pour les détails.",
+    "slowest": "la plus lente",
+    "type": "Type", "model": "Modèle", "tokens": "Jetons", "tokensValue": "{input, number} en entrée · {output, number} en sortie", "started": "Début",
+    "noSteps": "Cette exécution n’a enregistré aucune étape.",
+    "privacy": "Les traces ne conservent que des métadonnées opérationnelles : jamais les prompts, les réponses du modèle ni vos documents."
+  }
+}

@@ -535,6 +535,11 @@ export const jobLeads = pgTable(
     source: text().notNull().default(""),
     /** Page text captured by the browser extension (pages behind a login). Untrusted input. */
     text: text(),
+    /** The employer, not the site hosting the posting (Greenhouse, Lever…). Empty when the source didn't say. */
+    company: text().notNull().default(""),
+    location: text().notNull().default(""),
+    /** The company's logo (a stored asset), when the source gave one or the company is known. */
+    logoPath: text(),
     state: text().notNull().default("new"),
     jobId: uuid().references(() => jobs.id, { onDelete: "set null" }),
     foundAt: timestamp({ withTimezone: true }).notNull(),

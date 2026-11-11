@@ -1,0 +1,200 @@
+{
+ "mail": {
+  "applyFailed": "Couldn’t apply it",
+  "updatedFromEmail": "Updated from the email",
+  "apply": "Apply",
+  "dismiss": "Dismiss",
+  "todayAt": "Today, {time}",
+  "yesterdayAt": "Yesterday, {time}",
+  "you": "You",
+  "unknownSender": "Unknown sender",
+  "kinds": {
+   "rejection": "Rejection",
+   "interview": "Interview",
+   "offer": "Offer",
+   "info_request": "Asks for information",
+   "acknowledgement": "Received",
+   "other": "Other"
+  },
+  "noSubject": "No subject",
+  "noText": "No message text",
+  "to": "To {to}",
+  "fromTo": "From <b>{from}</b> · to {to}",
+  "unreadable": "This email has no readable text.",
+  "hideQuote": "Hide quoted text",
+  "showQuote": "Show quoted text",
+  "linkedBecause": "Linked: {reason}",
+  "conversation": "Conversation",
+  "messages": "{count, plural, one {# message} other {# messages}}",
+  "newCount": "{count} new",
+  "canMove": "I can move this application to {status}.",
+  "updateApplication": "Update application"
+ },
+ "interviewCalendar": {
+  "holdAdded": "Tentative hold added",
+  "added": "Interview added",
+  "addedBody": "Saved to Naruvi’s calendar and your calendar feed.",
+  "saveFailed": "Couldn’t save the interview. Try again.",
+  "label": "Interview calendar",
+  "hold": "Tentative interview hold",
+  "onCalendar": "Interview on your calendar",
+  "ask": "Add an interview to your calendar?",
+  "minutes": "{count} min",
+  "intro": "Your reply is sent. Choose the agreed slot, or save a tentative hold while you wait for confirmation.",
+  "edit": "Edit details",
+  "addButton": "Add to calendar",
+  "saved": "Saved in Naruvi.",
+  "awaiting": "Awaiting recruiter confirmation.",
+  "download": "Download .ics",
+  "downloadFailed": "Couldn’t download the calendar event. Try again.",
+  "when": "Date and time",
+  "zone": "Time zone",
+  "duration": "Duration in minutes",
+  "status": "Status",
+  "tentative": "Tentative · awaiting confirmation",
+  "confirmed": "Confirmed with the recruiter",
+  "location": "Location or meeting link",
+  "optional": "(optional)",
+  "locationPlaceholder": "Video call link or office address",
+  "replaces": "Replaces this application’s next-step reminder. No calendar invitation is sent to the recruiter.",
+  "save": "Save to calendar",
+  "cancel": "Cancel",
+  "notNow": "Not now"
+ },
+ "compose": {
+  "kinds": {
+   "apply": "Send my application",
+   "follow_up": "Follow up",
+   "thank_you": "Thank you after an interview",
+   "reply": "Reply"
+  },
+  "purpose": {
+   "reply": "Respond to the latest conversation",
+   "follow_up": "Ask about progress or the next step",
+   "thank_you": "Send a thoughtful note after meeting",
+   "apply": "Introduce yourself and your application"
+  },
+  "intents": {
+   "apply": {
+    "short": "Keep it short and mention the attached CV",
+    "referred": "Mention who referred me",
+    "why": "Explain why this company in one line"
+   },
+   "thanks": {
+    "time": "Thank them for their time and the conversation",
+    "interested": "Say I’m still very interested and look forward to next steps"
+   },
+   "followUp": {
+    "status": "Ask politely where things stand",
+    "available": "Confirm I’m still interested and available"
+   },
+   "interview": {
+    "accept": "Accept and offer Tuesday or Thursday afternoon",
+    "format": "Accept and ask for the format and who I’ll meet",
+    "move": "Ask to move it to next week"
+   },
+   "offer": {
+    "written": "Thank them and ask for the written offer",
+    "time": "Thank them and ask for a few days to decide",
+    "accept": "Accept the offer"
+   },
+   "rejection": {
+    "feedback": "Thank them and ask for brief feedback",
+    "mind": "Thank them and ask to keep me in mind"
+   },
+   "info": {
+    "answer": "Answer their questions briefly",
+    "details": "Send the details they asked for"
+   },
+   "other": {
+    "answer": "Thank them and answer briefly",
+    "next": "Ask what the next step is"
+   }
+  },
+  "connect": "Connect email",
+  "review": "Review email",
+  "write": "Write email",
+  "gone": "This application is no longer available.",
+  "loadFailed": "Couldn’t load your email draft. Try again.",
+  "draftReady": "Draft ready",
+  "draftReadyBody": "Review the wording and any details to complete.",
+  "aiFailed": "Couldn’t reach the drafting service. Your message is unchanged. Try again.",
+  "notSent": "Not sent",
+  "sent": "Email sent",
+  "sentBody": "A copy is saved on this application.",
+  "unconfirmed": "Couldn’t confirm delivery",
+  "unconfirmedBody": "Check your Sent folder before trying again.",
+  "replyTo": "Reply to {name}",
+  "hint": {
+   "drafting": "Naruvi is writing from your context…",
+   "queued": "Sending in a moment. Undo if you changed your mind.",
+   "noSend": "Connect outgoing email to send.",
+   "placeholders": "Fill in the bracketed details first.",
+   "restored": "Restored your unsent draft.",
+   "undo": "You get 5 seconds to undo after sending."
+  },
+  "preparing": "Preparing your email…",
+  "sentTitle": "Sent. Nicely done.",
+  "sentHint": "A copy is saved on this application. If they proposed a time, save it to your calendar below.",
+  "tryAgain": "Try again",
+  "noOutgoing": "Outgoing email isn’t connected.",
+  "setupSending": "Set up sending",
+  "from": "From",
+  "yourMailbox": "your connected mailbox",
+  "to": "To",
+  "ccPlaceholder": "Other recipients, comma separated",
+  "subject": "Subject",
+  "message": "Message",
+  "bodyPlaceholder": "Write your message, or let Naruvi draft it.",
+  "loading": {
+   "read": "Reading their email",
+   "words": "Finding the right words",
+   "short": "Keeping it short",
+   "label": "Naruvi is drafting your email"
+  },
+  "check": "Check before sending",
+  "replaceBrackets": "Replace the bracketed details in your message.",
+  "attachments": "Attachments",
+  "cv": "CV",
+  "letter": "Cover letter",
+  "draftIt": "Let Naruvi draft it",
+  "fromJob": "From this job and your verified facts.",
+  "fromEmail": "From their email. No CV recap: they’ve read it.",
+  "ideasLabel": "Write it for me with one of these",
+  "ownWords": "Or say it in your words",
+  "placeholder": {
+   "reply": "Dates, a question, a detail to mention…",
+   "thanks": "Who you met and what you discussed…",
+   "other": "Details the email should include…"
+  },
+  "tone": "Tone",
+  "tones": {
+   "formal": "Formal",
+   "warm": "Warm",
+   "short": "Short"
+  },
+  "language": "Language",
+  "auto": "Auto",
+  "writing": "Writing…",
+  "rewrite": "Rewrite",
+  "writeForMe": "Write it for me",
+  "back": "Back to my version",
+  "connectAi": "Connect an AI model",
+  "connectAiBody": "to draft and refine emails. You can still write your own message.",
+  "done": "Done",
+  "cancel": "Cancel",
+  "sending": "Sending…",
+  "send": "Send email",
+  "sentShort": "Sent",
+  "discard": {
+   "title": "Discard this draft?",
+   "body": "Your unsent message and drafting notes will be lost.",
+   "keep": "Keep editing",
+   "confirm": "Discard draft"
+  },
+  "generateFirst": "Generate it first on this application",
+  "notMade": "not made yet",
+  "hideEmail": "Hide email",
+  "showEmail": "Show email"
+ }
+}

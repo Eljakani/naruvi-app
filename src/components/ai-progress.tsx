@@ -4,20 +4,27 @@ import { NaruviAvatar, Otter } from "@/components/naruvi/otter"
 import { useEffect, useId, useState } from "react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
-/** What each AI action does, in the order the server actually does it. */
+/** What each AI action does, in the order the server actually does it. Message keys under `aiSteps`. */
 export const AI_STEPS = {
-  importJob: ["Fetching the posting", "Reading role, company and location", "Finding the company website", "Looking for the logo"],
-  analyze: ["Reading the posting", "Separating requirements from hiring steps and perks", "Matching each requirement to your verified facts", "Double-checking every match", "Scoring your fit"],
-  cv: ["Picking your strongest evidence", "Tailoring bullets to this job", "Ordering skills by relevance", "Verifying every rewritten line", "Rendering the PDF and running quality checks"],
-  letter: ["Reading the posting and your notes", "Drafting a short letter", "Checking the draft and rendering the PDF"],
-  research: ["Checking what the site allows", "Reading the company’s own pages", "Finding mission, values and facts", "Writing cited angles"],
-  bullets: ["Reading your facts", "Drafting bullets in each language", "Checking each one against its facts"],
-  cvImport: ["Reading your CV", "Finding each job, school and project", "Splitting achievements into facts", "Picking out skills and dates", "Checking every number against your CV"],
-  describe: ["Reading what you wrote", "Finding role, dates and place", "Turning it into facts", "Picking out skills"],
-  extras: ["Reading your facts", "Picking out skills they name", "Finding topics for job matching", "Drafting rules against overstating"],
-  translate: ["Translating titles and dates", "Translating bullets", "Checking every number is unchanged"],
+  importJob: ["importJob.0", "importJob.1", "importJob.2", "importJob.3"],
+  analyze: ["analyze.0", "analyze.1", "analyze.2", "analyze.3", "analyze.4"],
+  cv: ["cv.0", "cv.1", "cv.2", "cv.3", "cv.4"],
+  letter: ["letter.0", "letter.1", "letter.2"],
+  research: ["research.0", "research.1", "research.2", "research.3"],
+  bullets: ["bullets.0", "bullets.1", "bullets.2"],
+  cvImport: ["cvImport.0", "cvImport.1", "cvImport.2", "cvImport.3", "cvImport.4"],
+  describe: ["describe.0", "describe.1", "describe.2", "describe.3"],
+  extras: ["extras.0", "extras.1", "extras.2", "extras.3"],
+  translate: ["translate.0", "translate.1", "translate.2"],
 } as const
+
+/** A step key in the reader's language; other text (already translated) passes through. */
+export function useAiStepText() {
+  const t = useTranslations("aiSteps")
+  return (step: string) => (t.has(step as never) ? t(step as never) : step)
+}
 
 const STEP_MS = 1800
 
@@ -39,12 +46,13 @@ export function useStep(active: boolean, count: number) {
 
 /** Naruvi + shimmering current step + progress dots. */
 export function AiSteps({ steps, step, className, avatar = true }: { steps: readonly string[]; step: number; className?: string; avatar?: boolean }) {
+  const text = useAiStepText()
   return (
     <div role="status" aria-live="polite" className={cn("flex min-w-0 items-center gap-2.5", className)}>
       {avatar ? <NaruviAvatar size={28} className="cb-breathe" /> : null}
       <div className="grid min-w-0 gap-1.5">
         <span key={step} className="cb-step cb-shimmer truncate text-sm font-medium">
-          {steps[step]}…
+          {text(steps[step])}…
         </span>
         <span className="flex gap-1" aria-hidden>
           {steps.map((label, index) => (

@@ -5,12 +5,14 @@ import { loadPdfJs } from "@/components/documents/pdf-preview"
 import type { DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
 import { fetchTemplatePreview } from "@/lib/template-preview"
+import { useTranslations } from "next-intl"
 
 const cache = new Map<string, ArrayBuffer>()
 const CACHE_LIMIT = 24
 
 /** Render only tiles near the viewport. A revision-aware cache stores successful PDFs. */
 export function PdfThumb({ tokens, className, revision, retryable = false, kind = "cv" }: { tokens: DesignTokens; className?: string; revision?: string; retryable?: boolean; kind?: "cv" | "letter" }) {
+  const t = useTranslations("templates")
   const wrapper = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [visible, setVisible] = useState(false)
@@ -110,8 +112,8 @@ export function PdfThumb({ tokens, className, revision, retryable = false, kind 
       <canvas ref={canvas} aria-hidden="true" className={cn("absolute inset-0 size-full transition-opacity duration-200 ease-(--ease-out)", ready ? "opacity-100" : "opacity-0")} />
       {failed ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-muted p-2 text-center text-xs text-muted-foreground">
-          <span>Preview unavailable</span>
-          {retryable ? <button type="button" className="relative z-10 min-h-7 rounded px-2 font-medium text-foreground underline underline-offset-2" onClick={() => setAttempt((value) => value + 1)}>Retry preview</button> : null}
+          <span>{t("previewUnavailable")}</span>
+          {retryable ? <button type="button" className="relative z-10 min-h-7 rounded px-2 font-medium text-foreground underline underline-offset-2" onClick={() => setAttempt((value) => value + 1)}>{t("retryPreview")}</button> : null}
         </div>
       ) : null}
     </div>

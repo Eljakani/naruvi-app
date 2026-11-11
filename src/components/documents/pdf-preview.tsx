@@ -5,6 +5,7 @@ import { ExternalLinkIcon, Loader2Icon, MaximizeIcon, MinusIcon, PlusIcon } from
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 type PdfJs = typeof import("pdfjs-dist/legacy/build/pdf.mjs")
 let pdfjsPromise: Promise<PdfJs> | null = null
@@ -36,6 +37,7 @@ const ZOOMS = [0.5, 0.65, 0.8, 1, 1.25, 1.5]
  * Renders each page to a canvas at device pixel ratio for crisp text.
  */
 export function PdfPreview({ url, data, pageBudget, className, busy = false, onRetry }: { url?: string; data?: ArrayBuffer; pageBudget?: number; className?: string; busy?: boolean; onRetry?: () => void }) {
+  const t = useTranslations("pdfPreview")
   const viewport = useRef<HTMLDivElement>(null)
   const pagesRef = useRef<HTMLDivElement>(null)
   const [pageCount, setPageCount] = useState(0)
@@ -93,7 +95,7 @@ export function PdfPreview({ url, data, pageBudget, className, busy = false, onR
           canvas.className = "block rounded-sm bg-white shadow-[0_1px_2px_rgba(0,0,0,.06),0_8px_24px_-6px_rgba(0,0,0,.18)]"
           canvas.dataset.page = String(index)
           canvas.setAttribute("role", "img")
-          canvas.setAttribute("aria-label", `Page ${index} of ${pdf.numPages}`)
+          canvas.setAttribute("aria-label", t("page", { current: index, total: pdf.numPages }))
           task = page.render({ canvas, canvasContext: canvas.getContext("2d")!, viewport: view })
           await task.promise
           if (cancelled) return
@@ -120,7 +122,7 @@ export function PdfPreview({ url, data, pageBudget, className, busy = false, onR
       void loading?.destroy().catch(() => {})
       loading = undefined
     }
-  }, [url, data, width, zoom])
+  }, [url, data, width, zoom, t])
 
   // Current page from scroll position.
   const onScroll = useCallback(() => {
@@ -145,36 +147,36 @@ export function PdfPreview({ url, data, pageBudget, className, busy = false, onR
     <div className={cn("flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-muted/50", className)}>
       <div className="flex flex-wrap items-center gap-1 border-b bg-background px-2 py-1.5">
         <span className={cn("rounded-md px-2 py-0.5 text-xs tabular-nums", over ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400" : "text-muted-foreground")}>
-          {pageCount ? `Page ${current} of ${pageCount}` : "—"}
-          {pageBudget !== undefined && pageCount ? ` · budget ${pageBudget}` : ""}
+          {pageCount ? t("page", { current, total: pageCount }) : "—"}
+          {pageBudget !== undefined && pageCount ? ` · ${t("budget", { count: pageBudget })}` : ""}
         </span>
-        <div className="ml-auto flex items-center gap-0.5">
+        <div className="ms-auto flex items-center gap-0.5">
           <Tooltip>
-            <TooltipTrigger render={<Button size="icon-sm" variant="ghost" aria-label="Zoom out" onClick={() => step(-1)} />}>
+            <TooltipTrigger render={<Button size="icon-sm" variant="ghost" aria-label={t("zoomOut")} onClick={() => step(-1)} />}>
               <MinusIcon />
             </TooltipTrigger>
-            <TooltipContent>Zoom out</TooltipContent>
+            <TooltipContent>{t("zoomOut")}</TooltipContent>
           </Tooltip>
           <button type="button" onClick={() => setZoom("fit")} className={cn("min-w-14 rounded-md px-2 py-1 text-xs tabular-nums hover:bg-muted", zoom === "fit" && "font-medium")}>
-            {zoom === "fit" ? "Fit" : `${Math.round(zoom * 100)}%`}
+            {zoom === "fit" ? t("fit") : `${Math.round(zoom * 100)}%`}
           </button>
           <Tooltip>
-            <TooltipTrigger render={<Button size="icon-sm" variant="ghost" aria-label="Zoom in" onClick={() => step(1)} />}>
+            <TooltipTrigger render={<Button size="icon-sm" variant="ghost" aria-label={t("zoomIn")} onClick={() => step(1)} />}>
               <PlusIcon />
             </TooltipTrigger>
-            <TooltipContent>Zoom in</TooltipContent>
+            <TooltipContent>{t("zoomIn")}</TooltipContent>
           </Tooltip>
           <Tooltip>
-            <TooltipTrigger render={<Button size="icon-sm" variant="ghost" aria-label="Fit width" onClick={() => setZoom("fit")} />}>
+            <TooltipTrigger render={<Button size="icon-sm" variant="ghost" aria-label={t("fitWidth")} onClick={() => setZoom("fit")} />}>
               <MaximizeIcon />
             </TooltipTrigger>
-            <TooltipContent>Fit width</TooltipContent>
+            <TooltipContent>{t("fitWidth")}</TooltipContent>
           </Tooltip>
           <Tooltip>
-            <TooltipTrigger render={<Button size="icon-sm" variant="ghost" aria-label="Open in new tab" {...(url ? { nativeButton: false, render: <a href={url} target="_blank" rel="noreferrer" /> } : { onClick: () => openBytes(data) })} />}>
+            <TooltipTrigger render={<Button size="icon-sm" variant="ghost" aria-label={t("newTab")} {...(url ? { nativeButton: false, render: <a href={url} target="_blank" rel="noreferrer" /> } : { onClick: () => openBytes(data) })} />}>
               <ExternalLinkIcon />
             </TooltipTrigger>
-            <TooltipContent>Open the PDF in a new tab</TooltipContent>
+            <TooltipContent>{t("newTabHint")}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -185,8 +187,8 @@ export function PdfPreview({ url, data, pageBudget, className, busy = false, onR
           </div>
         ) : null}
         {state === "error" ? <div role="status" className="grid justify-items-center gap-2 p-6 text-center text-sm text-muted-foreground">
-          <p>Couldn’t display this PDF. {onRetry ? "Retry or open it in a new tab." : "Use ‘Open in new tab’."}</p>
-          {onRetry ? <Button size="sm" variant="outline" onClick={onRetry}>Retry preview</Button> : null}
+          <p>{t("failed")} {onRetry ? t("retryHint") : t("openHint")}</p>
+          {onRetry ? <Button size="sm" variant="outline" onClick={onRetry}>{t("retry")}</Button> : null}
         </div> : null}
         <div
           ref={pagesRef}

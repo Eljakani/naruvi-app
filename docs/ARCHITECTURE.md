@@ -26,9 +26,9 @@ that plugin are baked into the design from day one instead of patched in.
    discarded — but still stored for inspection.
 4. **Immutable revisions.** Documents are append-only revisions. "Undo" is a
    pointer move. Nothing the AI does is destructive.
-5. **Durable, idempotent jobs.** Long work (fetch, analyze, generate, compile,
-   check) runs in a Postgres-backed queue with retries, per-application locks and
-   idempotency keys. Closing the browser never leaves half-written state.
+5. **Queue infrastructure.** The worker initializes the Postgres-backed pg-boss
+   queue. User-triggered workflows currently run in the app and record their
+   progress in PostgreSQL.
 6. **Untrusted input stays data.** Job pages, company sites and research sources
    are untrusted: fenced in prompts, never given tool authority, and never
    allowed to change instructions (prompt-injection defense).
@@ -49,7 +49,7 @@ that plugin are baked into the design from day one instead of patched in.
 | `db`      | PostgreSQL 17 + pgvector. Single source of truth (data, queue, traces). |
 | `migrate` | One-shot: applies Drizzle migrations, then exits. |
 | `app`     | Next.js (App Router) UI + route handlers / server actions. |
-| `worker`  | Queue consumer (pg-boss) running workflow steps. |
+| `worker`  | Initializes pg-boss and checks queue connectivity. |
 
 Local dev runs `db` in Docker and `app`/`worker` on the host with hot reload.
 
@@ -110,7 +110,7 @@ src/
     agents/            LLM steps: prompts (versioned), schemas, tools
     integrations/      job boards, company resolver, latex client, LLM provider
   lib/                 shared utils, env (validated with zod)
-worker/                queue consumer entrypoint
+worker/                queue initialization entrypoint
 evals/                 golden fixtures + eval runner
 docs/                  architecture and decisions (ADRs)
 ```
@@ -309,11 +309,11 @@ Naruvi is AI-first: the model does the work at every step below, and determinist
 
 Each AI request is a traced step with model, prompt version and token counts (see Runs).
 
-## 18. Decisions vs writing (TypeSafe Jev)
+## 18. Decision models
 
-Classification and verification are decisions, not text. When a TypeSafe Jev key is configured (Settings → Decision model, or `TYPESAFE_API_KEY`), they run on Jev, a "System One" model that returns typed, calibrated answers (choice / score / yes-no probabilities) in one parallel request, and never generates text. The language model is then used only for writing.
+In Integrations → Decision model, choose TypeSafe Jev, Cloudflare Workers AI (Clef, Clef-flash, or Clef-omni), or OpenAI Decisions (GPT-6 Luna). Cloudflare requires an account ID and a Workers AI API token. OpenAI requires an API key. The active provider’s key is stored encrypted. `TYPESAFE_API_KEY` still configures Jev when no decision settings have been saved.
 
-| Work | With Jev | Without Jev |
+| Work | With a decision model | Without a decision model |
 | --- | --- | --- |
 | Requirement filtering | One choice per posting item; exclusions need ≥ 60% confidence | Language model, else rules |
 | Fit matching | Per requirement: status choice + best-fact choice over the whole catalog (facts ≥ 15% probability are cited) | Language model review, else rules |
@@ -321,4 +321,4 @@ Classification and verification are decisions, not text. When a TypeSafe Jev key
 | Verification (`decisions/verify.ts`) | Every AI-rewritten CV bullet, letter passage and suggested bullet is checked against its evidence; unsupported ones revert | Word-level grounding checks only |
 | Writing (CV, letter, summary, angles, bullets) | Language model | Language model |
 
-Client: `src/server/decisions/jev.ts` (POST `https://api.typesafe.ai/v1/systemone`, retries 429/529, never surfaces provider bodies). Each request is traced as a step with its token count.
+The adapters in `src/server/decisions/` return the same choice, score, and yes/no results to callers. Cloudflare requests are split at 64 questions. All providers share timeout, retry, and error handling. Runs record the model and token counts.

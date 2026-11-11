@@ -33,7 +33,7 @@ export async function getLead(id: string) {
 }
 
 /** New leads, minus jobs already saved and leads already seen. Returns how many were added. */
-export async function addLeads(found: { url: string; title: string; board: string }[], source: string, foundAt: Date) {
+export async function addLeads(found: { url: string; title: string; board: string; text?: string; logoPath?: string | null; company?: string; location?: string }[], source: string, foundAt: Date) {
   if (!found.length) return 0
   const known = await db.select({ url: jobs.sourceUrl, canonical: jobs.canonicalUrl }).from(jobs)
   const saved = new Set(known.flatMap((row) => [row.url, row.canonical]).filter(Boolean) as string[])

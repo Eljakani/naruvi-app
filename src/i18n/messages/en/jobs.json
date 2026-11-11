@@ -1,0 +1,275 @@
+{
+  "jobs": {
+    "title": "Jobs",
+    "addJob": "Add a job",
+    "trackAndCheck": "Track & check my fit",
+    "first": {
+      "title": "Let’s find your first posting",
+      "add": "Add your first job",
+      "body": "Paste a link from LinkedIn, Greenhouse, Lever, Ashby, Workday or any careers page. Job-alert emails and the browser extension will bring more here."
+    },
+    "search": "Search title, company, location, text…",
+    "tag": "Tag",
+    "anyTag": "Any tag",
+    "stage": "Stage",
+    "stages": {
+      "new": "Not tracked yet",
+      "all": "Every posting",
+      "active": "Tracked, in progress",
+      "closed": "Closed or archived"
+    },
+    "goal": "Goal fit",
+    "goals": {
+      "all": "Any goal fit",
+      "ok": "Fits my goals",
+      "check": "Needs a look",
+      "blocked": "Off my goals",
+      "hide_blocked": "Hide off-goal"
+    },
+    "workMode": "Work mode",
+    "anyWorkMode": "Any work mode",
+    "contract": "Contract",
+    "anyContract": "Any contract",
+    "seniority": "Seniority",
+    "anySeniority": "Any seniority",
+    "ofTotal": "{count} of {total}",
+    "count": "{count, plural, one {# job} other {# jobs}}",
+    "sort": "Sort",
+    "sorts": {
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "fit": "Best fit",
+      "goal": "Fits my goals first",
+      "company": "Company A–Z"
+    },
+    "archived": "Archived",
+    "notAnalyzed": "Not analyzed",
+    "boards": {
+      "manual": "Pasted",
+      "generic": "Careers page",
+      "jobBoard": "Job board"
+    },
+    "nothingNew": {
+      "title": "Nothing new to look at right now",
+      "open": "Open Applications",
+      "body": "Everything you saved is already in Applications. I’ll put new links from your job-alert emails and your browser here as they come in."
+    },
+    "noMatch": {
+      "title": "No matching postings",
+      "query": "Nothing matches “{query}” with these filters.",
+      "filters": "No posting matches these filters.",
+      "hint": "Try fewer words or clear a filter."
+    },
+    "pages": "Pages",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {page} of {pages}",
+    "leads": {
+      "title": "Job leads",
+      "description": "{count, plural, one {# posting from your job alerts, browser and searches, not saved yet. Import one to read and check it.} other {# postings from your job alerts, browser and searches, not saved yet. Import one to read and check it.}}",
+      "import": "Import",
+      "dismiss": "Dismiss {title}",
+      "thisPosting": "this posting",
+      "showAll": "Show all {count}",
+      "showFewer": "Show fewer",
+      "fromSearch": "Your search",
+      "matchesLabel": "Skills it names",
+      "dismissAll": "Dismiss all",
+      "details": "Details",
+      "detailsFailed": "Couldn’t load this posting.",
+      "noText": "No posting text was saved with this lead. Open the original to read it.",
+      "openOriginal": "Open on {board}",
+      "dismissShort": "Dismiss"
+    },
+    "tags": {
+      "remove": "Remove tag {tag}",
+      "tag": "Tag",
+      "add": "Add a tag",
+      "title": "Tags",
+      "description": "Group jobs your own way, for example by search or priority. Filter by tag on the Jobs page.",
+      "new": "New tag",
+      "addButton": "Add"
+    },
+    "track": {
+      "saving": "Saving",
+      "tracked": "Tracked",
+      "track": "Track it"
+    },
+    "overview": {
+      "title": "Job description",
+      "description": "Original text, kept unchanged. Treated as untrusted input by every AI step.",
+      "original": "Original posting",
+      "posted": "Posted {date}"
+    },
+    "insights": {
+      "title": "At a glance",
+      "engine": {
+        "decisions": "Decision model",
+        "language-model": "Language model",
+        "rules": "Rules"
+      },
+      "notYet": "Not analyzed yet.",
+      "refreshLabel": "Refresh insights",
+      "refresh": "Refresh",
+      "summarize": "Summarize",
+      "facts": {
+        "seniority": "Seniority",
+        "workMode": "Work mode",
+        "contract": "Contract"
+      },
+      "duration": "Duration: {value}",
+      "starts": "Starts: {value}",
+      "rhythm": "Rhythm: {value}",
+      "years": "{years}+ years",
+      "visa": "Visa / relocation support",
+      "noSponsor": "No sponsorship",
+      "required": "Required skills",
+      "nice": "Nice to have"
+    },
+    "salary": {
+      "title": "Pay",
+      "thisJob": "This job",
+      "saved": "Your saved jobs",
+      "similar": "{count, plural, one {# similar posting with a salary} other {# similar postings with a salary}}",
+      "market": "Market · {where}",
+      "middleHalf": "Middle half of {count, number} Adzuna postings",
+      "inLine": "In line with what similar roles pay.",
+      "above": "About {diff}% above what similar roles pay.",
+      "below": "About {diff}% below what similar roles pay. Worth raising when you negotiate.",
+      "yearly": "Yearly amounts, before tax.",
+      "noPay": "This posting doesn’t say what it pays.",
+      "addMarket": "<link>Add market data</link> to compare with other employers.",
+      "range": "{label}: {low} to {high}",
+      "middle": "middle {value}",
+      "period": {
+        "hour": "The posting gives a rate per hour. Turned into a yearly figure (1,607 hours) for comparison.",
+        "day": "The posting gives a day rate. Turned into a yearly figure (218 days) for comparison.",
+        "month": "The posting gives a monthly amount. Turned into a yearly figure (12 months) for comparison."
+      },
+      "checkOn": "Check on"
+    },
+    "description": "Postings to look at before you commit: from job-alert emails, your browser and links you paste. Track one to start its application.",
+    "descriptionView": {
+      "none": "No description.",
+      "sections": "Sections",
+      "less": "Show less",
+      "full": "Show full description"
+    },
+    "discover": {
+      "button": "Discover",
+      "searching": "Searching job boards…",
+      "added": "{count, plural, one {# new posting in your leads} other {# new postings in your leads}}",
+      "none": "No new postings this time",
+      "partial": "Some searches failed; these are the results of the others.",
+      "wait": "This takes a minute or two. You can keep working.",
+      "failed": "The search didn’t work",
+      "setup": "Set up job discovery first",
+      "setupHelp": "It needs your own Apify token to search LinkedIn and Indeed.",
+      "setupOpen": "Set up",
+      "where": "They are in your job leads, best matches first.",
+      "seen": "Everything found was already in your jobs or leads, or outside your search goals."
+    }
+  },
+  "jobReader": {
+    "steps": {
+      "fetch": "Fetching the posting",
+      "read": "Reading role, company and location",
+      "website": "Finding the company website",
+      "logo": "Looking for the logo",
+      "text": "Reading the text"
+    },
+    "failed": "Couldn’t read that posting",
+    "pastedText": "Pasted text",
+    "how": "How to add the job",
+    "link": "Link",
+    "paste": "Paste text",
+    "linkPlaceholder": "Paste a job link…",
+    "linkLabel": "Job link",
+    "read": "Read",
+    "worksWith": "Works with {boards} and any careers page. Behind a login? Use Paste text, or the browser extension.",
+    "textPlaceholder": "Paste the full job description, including the company name and role.",
+    "textLabel": "Job description",
+    "more": "{count, plural, one {# more character} other {# more characters}}",
+    "chars": "{count, plural, one {# character} other {# characters}}",
+    "readText": "Read text",
+    "reading": "Reading the posting…",
+    "nothingSaved": "Nothing is saved until you check it.",
+    "title": "Add a job",
+    "description": "Paste the link to the posting. Naruvi reads it, finds the company’s own website and logo, and lets you check everything before saving."
+  },
+  "newJob": {
+    "groups": {"role": "The job", "company": "The company", "terms": "Terms", "language": "Posting language"},
+    "reviewTitle": "Check and save",
+    "reviewDescription": "Fix anything the reader got wrong, then save the job.",
+    "source": {
+      "link": "found in a link on the posting",
+      "email": "from the recruiter's e-mail domain",
+      "text": "mentioned in the description",
+      "structured": "from the posting's structured data",
+      "postingUrl": "from the posting address",
+      "known": "saved earlier",
+      "manual": "entered by you",
+      "guess": "guessed from the name and verified on the site",
+      "verified": "{source}, verified on the site"
+    },
+    "notSaved": "Not saved",
+    "saved": "Saved to Applications",
+    "savedBody": "Check your fit whenever you’re ready.",
+    "applications": "Applications",
+    "title": "Add a job",
+    "fromBrowser": "Saved from your browser · {host}. Read the text, check the details, then save.",
+    "description": "Paste the link to the posting. Naruvi reads it, finds the company’s own website and logo, and lets you check everything before saving.",
+    "startOver": "Start over",
+    "confidence": "Parsed with {confidence}% confidence",
+    "saving": "Saving…",
+    "save": "Save job",
+    "dup": {
+      "same": "You already saved this posting",
+      "similar": "This looks like a job you already have",
+      "sameBody": "Saving again updates the existing job with this text; your analysis and documents stay.",
+      "similarBody": "Same company and a very similar title. Open the existing one, or save this as a separate job if it’s a different opening.",
+      "added": "added {date}",
+      "notAnalyzed": "not analyzed"
+    },
+    "details": "Check the details",
+    "detailsBody": "Everything here is editable. Fix anything the parser got wrong before saving.",
+    "fields": {
+      "role": "Role",
+      "company": "Company",
+      "website": "Company website",
+      "logo": "Logo",
+      "location": "Location",
+      "remote": "Remote policy",
+      "remotePlaceholder": "Hybrid, Remote…",
+      "contract": "Contract",
+      "contractPlaceholder": "Full-time, CDI…",
+      "salary": "Salary",
+      "language": "Posting language"
+    },
+    "openWebsite": "Open website",
+    "websiteFrom": "Website {source}. Never the job board itself.",
+    "websiteMissing": "Not found. Adding it improves research and the logo.",
+    "logoLooking": "Looking for the logo on this website…",
+    "logoNotFound": "No logo found on this website. Import one or paste its URL.",
+    "languageHint": "Your CV for this job will be written in this language by default.",
+    "descriptionTitle": "Job description",
+    "chars": "{count, plural, one {# character · saved unchanged} other {# characters · saved unchanged}}",
+    "openOriginal": "open original",
+    "preview": "Preview",
+    "editText": "Edit text",
+    "hints": {
+      "ai": "the AI, in the posting",
+      "labelled": "a labelled field",
+      "hiring": "the hiring sentence",
+      "join": "the “join us” sentence",
+      "titleLine": "the title line",
+      "firstLines": "the first lines",
+      "firstLine": "the first line",
+      "about": "the “About …” heading",
+      "location": "a location mention"
+    },
+    "detected": "Detected from {from} — check it.",
+    "notFound": "Not found in the text. Please fill it in.",
+    "fromDiscovery": "Found by a discovery search · {host}. Read the text, check the details, then save."
+  }
+}

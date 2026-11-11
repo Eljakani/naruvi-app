@@ -3,17 +3,19 @@
 import { useRouter } from "next/navigation"
 import { BookmarkPlusIcon } from "lucide-react"
 import { toast } from "sonner"
-import { trackJobAction } from "@/app/(app)/jobs/actions"
+import { trackJobAction } from "@/app/[locale]/(app)/jobs/actions"
 import ParticleButton from "@/components/kokonutui/particle-button"
+import { useTranslations } from "next-intl"
 
 /** Move a posting from Jobs into Applications, at "Saved", without analyzing it yet. */
 export function TrackJobButton({ jobId }: { jobId: string }) {
+  const t = useTranslations("jobs.track")
   const router = useRouter()
   return (
     <ParticleButton
       variant="outline"
-      pendingLabel="Saving"
-      successLabel="Tracked"
+      pendingLabel={t("saving")}
+      successLabel={t("tracked")}
       onClick={async () => {
         const result = await trackJobAction(jobId)
         if (!result.ok) {
@@ -23,7 +25,7 @@ export function TrackJobButton({ jobId }: { jobId: string }) {
         router.push(`/applications/${result.data.applicationId}?tab=overview`)
       }}
     >
-      <BookmarkPlusIcon /> Track it
+      <BookmarkPlusIcon /> {t("track")}
     </ParticleButton>
   )
 }
