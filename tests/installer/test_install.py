@@ -29,7 +29,9 @@ class InstallerTest(unittest.TestCase):
                 p.write_text(content)
                 p.chmod(0o700)
             root = base / 'installation'
-            env = dict(os.environ, PATH=f'{binaries}:{os.environ["PATH"]}',
+            home = base / 'home'
+            (home / '.local' / 'bin').mkdir(parents=True)  # so the PATH-link prompt always appears
+            env = dict(os.environ, PATH=f'{binaries}:{os.environ["PATH"]}', HOME=str(home),
                        NARUVI_INSTALL_DIR=str(root), TEST_REPO=str(REPO),
                        TEST_STATUS='200', NO_COLOR='1')
             master, slave = pty.openpty()
