@@ -5,6 +5,12 @@ Update an installation from a terminal with `naruvi update`.
 
 ## Unreleased
 
+## 0.4.1 — 2026-11-12
+
+### Fixed
+- When the installer has just added you to the `docker` group, it now downloads the published image instead of building for half an hour. `naruvi` commands also work before you log in again.
+- A failed image download now shows Docker's reason instead of claiming there is no image for this machine.
+
 ## 0.4.0 — 2026-11-12
 
 ### Added

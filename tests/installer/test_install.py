@@ -14,7 +14,7 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class InstallerTest(unittest.TestCase):
-    def run_install(self, mode, preview=False, install_docker=None, release=None, verified=True):
+    def run_install(self, mode, preview=False, install_docker=None, release=None, verified=True, pull_error=None):
         """install_docker: None = Docker present; 'y'/'n' = Docker missing, answer to the offer.
         release: a published release tag (the image path); None = no release, so main is built."""
         with tempfile.TemporaryDirectory() as tmp:
@@ -23,6 +23,7 @@ class InstallerTest(unittest.TestCase):
             binaries.mkdir()
             mocks = {
                 'docker': ('#!/bin/sh\ncase "$*" in\n'
+                           '  "pull "*) [ -z "$TEST_PULL_ERROR" ] || { echo "$TEST_PULL_ERROR" >&2; exit 1; };;\n'
                            '  *hash-password*) cat >/dev/null; printf \'$2a$14$testhash\\n\';;\n'
                            '  *Server.Arch*) [ -z "$TEST_RELEASE" ] || echo amd64;;\n'
                            '  "image inspect"*) echo "ghcr.io/eljakani/naruvi-app@sha256:$(printf %064d 7)";;\n'
@@ -63,7 +64,8 @@ class InstallerTest(unittest.TestCase):
             path = str(binaries) if install_docker else f'{binaries}:{os.environ["PATH"]}'
             env = dict(os.environ, PATH=path, HOME=str(home), MOCK_BIN=str(binaries), DOCKER_MOCK=docker_mock,
                        NARUVI_INSTALL_DIR=str(root), TEST_REPO=str(REPO),
-                       TEST_STATUS='200', NO_COLOR='1', TEST_RELEASE=release or '', TEST_VERIFIED='1' if verified else '0')
+                       TEST_STATUS='200', NO_COLOR='1', TEST_RELEASE=release or '', TEST_VERIFIED='1' if verified else '0',
+                       TEST_PULL_ERROR=pull_error or '')
             master, slave = pty.openpty()
             def terminal():
                 os.setsid()
@@ -130,7 +132,17 @@ class InstallerTest(unittest.TestCase):
                 self.assertIn('Naruvi is ready', output)
                 self.assertEqual((root / 'naruvi').stat().st_mode & 0o777, 0o700)
                 self.assertIn('COMPOSE_PROJECT_NAME=naruvi', config)
-                if release:
+                if release and pull_error:
+                    # A download that fails says why, then builds here instead.
+                    self.assertIn('NARUVI_IMAGE=naruvi-app:source', config)
+                    self.assertIn('build.yaml', config)
+                    if 'manifest unknown' in pull_error:
+                        self.assertIn(f'none for {release} on this machine', output)
+                    else:
+                        self.assertIn("couldn't download it; building instead", output)
+                        self.assertIn('Docker: ' + pull_error, output)
+                    self.assertIn('Build image', output)
+                elif release:
                     # The verified release image, pinned by digest; nothing built here.
                     self.assertIn('NARUVI_IMAGE=ghcr.io/eljakani/naruvi-app@sha256:' + '0' * 63 + '7', config)
                     self.assertNotIn('build.yaml', config)
@@ -168,6 +180,12 @@ class InstallerTest(unittest.TestCase):
 
     def test_release_uses_signed_image(self):
         self.run_install('2', release='v9.9.9')
+
+    def test_download_error_is_shown_then_builds(self):
+        self.run_install('1', release='v9.9.9', pull_error='permission denied while trying to connect to the docker API at unix:///var/run/docker.sock')
+
+    def test_missing_image_builds(self):
+        self.run_install('1', release='v9.9.9', pull_error='Error response from daemon: manifest unknown')
 
     def test_unverified_image_stops(self):
         self.run_install('1', release='v9.9.9', verified=False)
