@@ -35,7 +35,7 @@ export type RequirementExtraction = { candidates: Requirement[]; requirements: R
 
 function excludedSection(heading: string): ExclusionCategory | null {
   if (/(?:recruitment|hiring|interview) (?:process|steps|stages|experience)|how (?:we|to) (?:hire|apply)|(?:processus|process|étapes?|déroulement).*(?:recrutement|entretien|candidature)|^(?:interviews?|entretiens?)$/i.test(heading)) return "recruitment_process"
-  if (/^(?:benefits?|perks|avantages|salary|rémunération|what we offer|ce que nous (?:offrons|proposons))/i.test(heading)) return "benefits"
+  if (/^(?:benefits?|perks|avantages|salary|rémunération|what we offer|ce que nous (?:offrons|proposons)|ce qu['’]on (?:vous )?(?:offre|propose)|nos avantages|les \+|les plus|pourquoi (?:nous )?rejoindre|why (?:join|work)|what['’]s in it for you|life at|la vie (?:chez|à|au)|vie d['’]équipe|team life|on vous offre|we offer)/i.test(heading)) return "benefits"
   if (/^(?:about (?:us|the company)|à propos|who we are|our company|qui sommes-nous)/i.test(heading)) return "company_information"
   if (/^(?:how to apply|apply now|comment postuler|pour postuler|modalités de candidature)/i.test(heading)) return "application_instructions"
   return SKIP.test(heading) ? "other" : null
@@ -44,6 +44,19 @@ function excludedSection(heading: string): ExclusionCategory | null {
 /** Strong labels describe a step the applicant goes through, not a skill they need. */
 export function isRecruitmentStep(text: string): boolean {
   return /^(?:[ée]change(?:s)?\s+(?:rh|op[ée]rationnel(?:le)?|technique)|entretien\s+(?:rh|technique|op[ée]rationnel|t[ée]l[ée]phonique)|(?:hr|technical|final|recruiter)\s+(?:interview|screening)|interview\s+(?:stage|step))\s*[:–—-]/i.test(text.trim())
+}
+
+/**
+ * What the employer offers or how the team lives: events, afterworks, food, perks,
+ * insurance, leave, equity. Found anywhere in a posting (often mixed into the profile
+ * list), it's never a candidate requirement. Items that also state a skill or
+ * experience are left alone.
+ */
+const PERK = /\b(?:after[- ]?works?|team[- ]?buildings?|s[ée]minaires?|soir[ée]es?|f[êe]tes?|[ée]v[ée]nements?|[eè]v[eè]nements?|events?(?![- ](?:driven|sourcing|streaming|bus|loop|store))|petits?[- ]d[ée]jeuners?|breakfasts?|snacks?|fruits?|caf[ée]s? offerts?|free (?:lunch|coffee|food)|catered|baby[- ]?foot|ping[- ]?pong|tickets?[- ](?:resto|restaurant)|carte (?:swile|tr|d[ée]jeuner)|swile|mutuelle|pr[ée]voyance|health (?:insurance|care)|rtt|cong[ée]s?|jours? (?:off|de cong[ée]s)|paid (?:time off|leave)|pto|vacations?|salle de sport|gym(?:pass)?|abonnement|navigo|forfait mobilit[ée]|comit[ée] d['’]entreprise|\bcse\b|int[ée]ressement|participation aux b[ée]n[ée]fices|bspce|stock[- ]options|equity|surprises?|goodies|rooftop|terrasse|locaux|bureaux (?:spacieux|lumineux|neufs|en plein)|remote allowance|home office allowance)\b/i
+const CANDIDATE_TERMS = /exp[ée]rience|ma[iî]tris|connaissance|comp[ée]tence|savoir|skills?|knowledge|proficien|years?|ans\b|dipl[ôo]m|degree|master|bac\s*\+|certif|fluent|courant|niveau|capacit[ée]|ability|able to|vous (?:[êe]tes|avez|savez)|you (?:are|have|can)/i
+
+export function isEmployerPerk(text: string): boolean {
+  return PERK.test(text) && !CANDIDATE_TERMS.test(text)
 }
 
 const EXCLUDED_REASONS: Record<ExclusionCategory, string> = {
@@ -109,7 +122,7 @@ export function extractRequirementCandidates(rawText: string): RequirementExtrac
       const itemKind: RequirementKind = kind !== "responsibility" && /\b(a plus|un plus|bonus|nice to have|preferred|idéalement|appréci)/i.test(item) ? "nice" : kind ?? "must"
       const requirement: Requirement = { id: `r${candidates.length + 1}`, text: item, kind: itemKind, section: heading, keywords: keywordsIn(item), terms: termsIn(item), years: years(item), ...(lead ? { lead } : {}) }
       candidates.push(requirement)
-      const category = isRecruitmentStep(item) ? "recruitment_process" : listExclusion
+      const category = isRecruitmentStep(item) ? "recruitment_process" : isEmployerPerk(item) ? "benefits" : listExclusion
       if (category) excluded.push({ requirement, category, source: "rules", reason: EXCLUDED_REASONS[category] })
       else if (kind) preferred.push(requirement)
       else fallback.push(requirement)

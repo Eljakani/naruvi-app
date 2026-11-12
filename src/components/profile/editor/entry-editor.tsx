@@ -3,7 +3,7 @@
 import UndoButton from "@/components/kokonutui/undo-button"
 import { Presence, PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react"
 import {
   ChevronDownIcon,
@@ -33,7 +33,7 @@ import {
   XIcon,
 } from "lucide-react"
 import { toast } from "sonner"
-import { deleteEntryAction, saveEntryAction } from "@/app/[locale]/(app)/profile/actions"
+import { deleteEntryAction, entryTranslationAction, saveEntryAction } from "@/app/[locale]/(app)/profile/actions"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { LogoField } from "@/components/profile/editor/logo-field"
 import { BulletSuggestions } from "@/components/profile/editor/bullet-suggestions"
@@ -43,7 +43,8 @@ import { AskExtrasButton, GuardrailFields, SkillFields, useExtras } from "@/comp
 import { LanguageSwitch } from "@/components/profile/language-switch"
 import ParticleButton from "@/components/kokonutui/particle-button"
 import { Otter } from "@/components/naruvi/otter"
-import { DateRangeField } from "@/components/profile/editor/date-range-field"
+import { AutoBadge, KindFields } from "@/components/profile/editor/kind-fields"
+import { describeEntry, entryView, hasHeading, KIND_FIELDS } from "@/lib/entry-fields"
 import { Segmented } from "@/components/ui/segmented"
 import { type Draft, type DraftBullet, type Lang, LANGS, newKey, pairRows, toDraft, toInput } from "@/components/profile/editor/draft"
 
@@ -61,7 +62,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
 import { verifySupport } from "@/server/domain/grounding"
@@ -81,14 +81,8 @@ const KIND_ICONS = {
   other: ShapesIcon,
 } as const
 
-
 const LOGO_KINDS = new Set<Draft["kind"]>(["experience", "education", "project", "certification", "achievement"])
 
-/** Degree level words in the CV's own language, not the interface's. */
-const DEGREE_LEVELS: Record<Lang, string[]> = {
-  en: ["High school diploma", "Associate degree", "Bachelor’s", "Master’s", "PhD"],
-  fr: ["Baccalauréat", "BTS / DUT", "Licence", "Master", "Doctorat"],
-}
 const SECTIONS = ["basics", "display", "facts", "bullets", "skills", "guardrails"] as const
 
 export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null; initialKind?: Draft["kind"] }) {
@@ -96,10 +90,10 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   const tp = useTranslations("profileLabels")
   const locale = useLocale()
   const router = useRouter()
-  const [initial] = useState(() => ({ ...toDraft(entry), ...(entry || !initialKind ? {} : { kind: initialKind }) }))
+  const [initial, setInitial] = useState(() => ({ ...toDraft(entry), ...(entry || !initialKind ? {} : { kind: initialKind }) }))
   const [draft, setDraft] = useState<Draft>(initial)
-  const copy = { role: t(`fields.${draft.kind}.role`), organization: t(`fields.${draft.kind}.organization`), rolePlaceholder: t(`fields.${draft.kind}.rolePlaceholder`), orgPlaceholder: t(`fields.${draft.kind}.orgPlaceholder`) }
-  const [lang, setLang] = useState<Lang>("en")
+  // Open on the language that holds data (e.g. a French CV import fills only `fr`), so imported fields are visible.
+  const [lang, setLang] = useState<Lang>(() => (LANGS as readonly Lang[]).find((code) => Object.values(initial.display[code]).some((value) => String(value).trim())) ?? "en")
   const [hoverFact, setHoverFact] = useState<string | null>(null)
   const [confirmLeave, setConfirmLeave] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -118,6 +112,25 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   }, [saveStatus])
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(initial), [draft, initial])
   const patch = useCallback((value: Partial<Draft>) => setDraft((current) => ({ ...current, ...value })), [])
+  const dirtyRef = useRef(dirty)
+  useEffect(() => {
+    dirtyRef.current = dirty
+  }, [dirty])
+  const [translating, setTranslating] = useState(false)
+  /** A save queues a translation into the other CV language: show it as soon as it lands. */
+  const showTranslation = useCallback(async (pending: ReturnType<typeof entryTranslationAction>) => {
+    const result = await pending
+    if (!result.ok || !result.data) return
+    if (dirtyRef.current) return void toast(t("translation.readyLater"))
+    const next = toDraft(result.data)
+    setInitial(next)
+    setDraft(next)
+    toast.success(t("translation.ready"))
+  }, [t])
+  const followTranslation = useCallback((id: string) => {
+    setTranslating(true)
+    return showTranslation(entryTranslationAction(id)).finally(() => setTranslating(false))
+  }, [showTranslation])
 
   /* ---------- derived: grounding + readiness ---------- */
   const facts = draft.facts.filter((fact) => fact.statement.trim())
@@ -138,10 +151,12 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   }, [draft.bullets])
   const claimBullets = draft.bullets.filter((bullet) => bullet.role === "bullet" && bullet.text.trim())
   const ungrounded = claimBullets.filter((bullet) => !grounding[bullet.key]?.grounded)
+  // A name written per language must exist in each CV language; a shared one (company, project name) once.
+  const translatedName = KIND_FIELDS[draft.kind].find((spec) => spec.required)?.translated
   const readiness = [
-    { label: t("ready.named"), done: Boolean(draft.display.en.role || draft.display.fr.role || draft.title.trim()), section: "basics" },
-    { label: t("ready.titleIn", { language: languageName("en", locale) }), done: Boolean(draft.display.en.role), section: "display" },
-    { label: t("ready.titleIn", { language: languageName("fr", locale) }), done: Boolean(draft.display.fr.role), section: "display" },
+    ...(translatedName
+      ? LANGS.map((code) => ({ label: t("ready.titleIn", { language: languageName(code, locale) }), done: hasHeading(draft, code), section: "display" }))
+      : [{ label: t("ready.named"), done: hasHeading(draft, "en"), section: "display" }]),
     ...(draft.kind === "skill" ? [{ label: t("ready.skills"), done: draft.skills.length > 0, section: "skills" }] : draft.kind === "experience" || draft.kind === "project" ? [{ label: t("ready.fact"), done: facts.length > 0, section: "facts" }] : []),
     { label: draft.status === "verified" ? t("ready.checked") : t("ready.markChecked"), done: draft.status === "verified", section: "basics", action: () => patch({ status: "verified" }) },
   ]
@@ -157,9 +172,12 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
         })
         if (then) router.push(then)
         else if (!entry && result.data) router.replace(`/profile/${result.data}`)
-        else router.refresh()
+        else {
+          router.refresh()
+          if (result.data) void followTranslation(result.data)
+        }
       }),
-    [draft, entry, router, ungrounded.length, t],
+    [draft, entry, router, ungrounded.length, t, followTranslation],
   )
 
   useEffect(() => {
@@ -179,6 +197,12 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
       window.removeEventListener("beforeunload", onUnload)
     }
   }, [dirty, pending, save])
+
+  // A just-created entry opens here while its translation may still be running.
+  useEffect(() => {
+    if (entry?.id) void showTranslation(entryTranslationAction(entry.id))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per entry
+  }, [entry?.id])
 
   const leave = (href: string) => (dirty ? setConfirmLeave(href) : router.push(href))
   const remove = () =>
@@ -211,7 +235,9 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
   const extras = useExtras(draft)
   const [showLines, setShowLines] = useState(draft.bullets.some((bullet) => bullet.text.trim()))
 
-  const title = draft.display.en.role || draft.display.fr.role || draft.title || t("newEntry")
+  const view = entryView(draft, lang)
+  const title = view.heading || t("newEntry")
+  const hasText = (code: Lang) => Object.values(draft.display[code]).some((value) => value.trim())
 
   return (
     <div className="-mx-4 -mt-4 md:-mx-6 md:-mt-6">
@@ -220,7 +246,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
         <Button variant="ghost" size="icon-sm" onClick={() => leave("/profile")} aria-label={t("back")} title={t("back")}>
           <ArrowLeftIcon />
         </Button>
-        {LOGO_KINDS.has(draft.kind) ? <EntryLogo path={draft.logoPath} name={draft.display.en.organization || title} size={36} className="rounded-lg" /> : null}
+        {LOGO_KINDS.has(draft.kind) ? <EntryLogo path={draft.logoPath} name={view.subheading || title} size={36} className="rounded-lg" /> : null}
         <div className="min-w-48 flex-1 basis-64">
           <div className="truncate font-semibold" title={title}>{title}</div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -233,16 +259,16 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -3 }}
                 transition={{ duration: 0.15 }}
-                className={cn("inline-flex items-center gap-1", dirty && "text-amber-600 dark:text-amber-400")}
+                className={cn("inline-flex items-center gap-1", dirty && "text-warning")}
               >
-                {dirty ? <span className="size-1.5 rounded-full bg-amber-500" aria-hidden /> : entry ? <CheckIcon className="size-3 text-emerald-600" aria-hidden /> : null}
-                {dirty ? t("unsaved") : entry ? t("allSaved") : t("notSaved")}
+                {dirty ? <span className="size-1.5 rounded-full bg-warning" aria-hidden /> : entry ? <CheckIcon className="size-3 text-success" aria-hidden /> : null}
+                {dirty ? t("unsaved") : translating ? t("translation.working") : entry ? t("allSaved") : t("notSaved")}
               </motion.span>
             </AnimatePresence>
           </div>
         </div>
         <div className="ms-auto flex flex-wrap items-center gap-2">
-          <LanguageSwitch value={lang} onChange={setLang} languages={LANGS} filled={(code) => Boolean(draft.display[code].role.trim())} label={t("writingIn")} />
+          <LanguageSwitch value={lang} onChange={setLang} languages={LANGS} filled={hasText} label={t("writingIn")} />
           <span className="hidden h-5 w-px bg-border sm:block" aria-hidden />
           <Segmented
             value={draft.status}
@@ -257,9 +283,9 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                 </>
               ),
               ...(status === "verified"
-                ? { thumbClassName: "bg-emerald-50 ring-1 ring-emerald-200 dark:bg-emerald-950/60 dark:ring-emerald-900", activeClassName: "text-emerald-700 dark:text-emerald-400" }
+                ? { thumbClassName: "bg-success-soft ring-1 ring-success/30", activeClassName: "text-success" }
                 : status === "needs_review"
-                  ? { thumbClassName: "bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-950/60 dark:ring-amber-900", activeClassName: "text-amber-700 dark:text-amber-400" }
+                  ? { thumbClassName: "bg-warning-soft ring-1 ring-warning/30", activeClassName: "text-warning" }
                   : {}),
             }))}
           />
@@ -305,19 +331,10 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
                 )
               })}
             </ToggleGroup>
-            <div className="grid gap-2">
-              <Label htmlFor="title">{t("basics.internalName")}</Label>
-              <Input id="title" value={draft.title} onChange={(event) => {
-                const title = event.target.value
-                const display = Object.fromEntries(LANGS.map((code) => [code, !draft.display[code].role || draft.display[code].role === draft.title ? { ...draft.display[code], role: title } : draft.display[code]]))
-                patch({ title, display: display as Draft["display"] })
-              }} placeholder={copy.orgPlaceholder || t("basics.internalPlaceholder")} />
-              <p className="text-xs text-muted-foreground">{t("basics.internalHint")}</p>
-            </div>
             {LOGO_KINDS.has(draft.kind) ? (
               <div className="grid gap-2">
                 <span className="text-sm font-medium">{t(`basics.logo.${draft.kind === "education" ? "education" : draft.kind === "certification" ? "certification" : draft.kind === "project" ? "project" : "company"}`)}</span>
-                <LogoField value={draft.logoPath} name={draft.display.en.organization || draft.title || title} onChange={(logoPath) => patch({ logoPath })} />
+                <LogoField value={draft.logoPath} name={view.subheading || title} onChange={(logoPath) => patch({ logoPath })} />
               </div>
             ) : null}
           </Section>
@@ -329,46 +346,12 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             title={t("display.title")}
             description={t("display.description", { language: languageName(lang, locale) })}
           >
-            <div key={lang} className="cb-fade grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2 sm:col-span-2">
-                {draft.kind === "education" ? (
-                  <ToggleGroup
-                    value={DEGREE_LEVELS[lang].filter((level) => draft.display[lang].role.startsWith(level))}
-                    onValueChange={(value) => {
-                      const current = draft.display[lang].role
-                      const prefix = DEGREE_LEVELS[lang].find((level) => current.startsWith(level))
-                      const role = prefix ? current.slice(prefix.length).trim() : current
-                      const picked = value.at(-1)
-                      patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], role: picked ? `${picked} ${role}`.trim() : role } } })
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="flex flex-wrap justify-start"
-                    spacing={1}
-                    aria-label={t("degree.label")}
-                  >
-                    {DEGREE_LEVELS[lang].map((level) => (
-                      <ToggleGroupItem key={level} value={level}>{level}</ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
-                ) : null}
-                <Field id={`${lang}-role`} label={copy.role} value={draft.display[lang].role} placeholder={copy.rolePlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], role: value } } })} />
-              </div>
-              <Field id={`${lang}-org`} label={copy.organization} value={draft.display[lang].organization} placeholder={copy.orgPlaceholder} onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], organization: value } } })} />
-              <Field id={`${lang}-location`} label={t("display.location")} value={draft.display[lang].location} placeholder="Paris, France" onChange={(value) => patch({ display: { ...draft.display, [lang]: { ...draft.display[lang], location: value } } })} />
-              <div className="sm:col-span-2">
-                <DateRangeField
-                  key={lang}
-                  id={`${lang}-dates`}
-                  lang={lang}
-                  value={draft.display[lang].dates}
-                  onChange={(text) => patch({ display: { en: { ...draft.display.en, dates: text.en ?? draft.display.en.dates }, fr: { ...draft.display.fr, dates: text.fr ?? draft.display.fr.dates } } })}
-                />
-              </div>
+            <div key={`${draft.kind}-${lang}`} className="cb-fade">
+              <KindFields draft={draft} lang={lang} patch={patch} />
             </div>
             {(() => {
               const other = LANGS.find((code) => code !== lang)!
-              return !draft.display[lang].role && draft.display[other].role ? (
+              return !hasText(lang) && hasText(other) ? (
                 <Button variant="outline" size="sm" className="w-fit" onClick={() => patch({ display: { ...draft.display, [lang]: { ...draft.display[other] } } })}>
                   <CopyIcon /> {t("display.startFrom", { language: languageName(other, locale) })}
                 </Button>
@@ -411,7 +394,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
               }
               renderAside={(item) =>
                 !item.text.trim() ? null : usage[item.key] ? (
-                  <span title={t("facts.backs", { count: usage[item.key] })} className="inline-flex h-6 items-center gap-1 rounded-full bg-emerald-500/10 px-2 text-[11px] font-medium text-emerald-700 tabular-nums dark:text-emerald-400">
+                  <span title={t("facts.backs", { count: usage[item.key] })} className="inline-flex h-6 items-center gap-1 rounded-full bg-success/10 px-2 text-[11px] font-medium text-success tabular-nums">
                     <CheckIcon className="size-3" /> {t("facts.lines", { count: usage[item.key] })}
                   </span>
                 ) : (
@@ -423,7 +406,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
               renderBelow={(item, focused) => (
                 <Presence show={focused && item.text.trim().length > 12 && (!/\d/.test(item.text) || item.text.length > 220)}>
                   <p className="flex items-center gap-1.5 px-3 pt-0.5 pb-1.5 text-xs text-muted-foreground">
-                    <LightbulbIcon className="size-3.5 shrink-0 text-amber-500" />
+                    <LightbulbIcon className="size-3.5 shrink-0 text-warning" />
                     {item.text.length > 220 ? t("facts.long") : t("facts.number")}
                   </p>
                 </Presence>
@@ -461,8 +444,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             <BulletSuggestions
               input={{
                 kind: draft.kind,
-                role: draft.display.en.role || draft.display.fr.role || draft.title,
-                organization: draft.display.en.organization || draft.display.fr.organization,
+                entry: describeEntry(draft, lang),
                 facts: facts.map((fact) => ({ key: fact.key, statement: fact.statement })),
                 existing: draft.bullets.map((bullet) => bullet.text).filter(Boolean),
                 languages: [...LANGS],
@@ -615,7 +597,7 @@ function Section({ id, n, title, description, action, meta, done, children }: { 
             <span
               className={cn(
                 "mt-0.5 grid size-6 shrink-0 place-content-center rounded-full text-xs font-semibold tabular-nums transition-colors duration-300",
-                done ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-muted text-muted-foreground",
+                done ? "bg-success/15 text-success" : "bg-muted text-muted-foreground",
               )}
             >
               <AnimatePresence mode="popLayout" initial={false}>
@@ -645,7 +627,7 @@ function Section({ id, n, title, description, action, meta, done, children }: { 
 /** A live count in a section header, e.g. "3/4 on CV lines". */
 function Meta({ value, label, warn }: { value: string; label: string; warn?: boolean }) {
   return (
-    <span className={cn("inline-flex items-baseline gap-1 rounded-full px-2.5 py-1 text-xs", warn ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" : "bg-muted text-muted-foreground")}>
+    <span className={cn("inline-flex items-baseline gap-1 rounded-full px-2.5 py-1 text-xs", warn ? "bg-warning/10 text-warning" : "bg-muted text-muted-foreground")}>
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.span key={value} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.16, ease: EASE }} className="font-semibold text-foreground tabular-nums">
           {value}
@@ -662,15 +644,6 @@ function EmptyState({ title, body, action }: { title: string; body: string; acti
       <p className="text-sm font-medium">{title}</p>
       <p className="max-w-md text-xs text-pretty text-muted-foreground">{body}</p>
       <div className="mt-1">{action}</div>
-    </div>
-  )
-}
-
-function Field({ id, label, value, placeholder, onChange }: { id: string; label: string; value: string; placeholder?: string; onChange: (value: string) => void }) {
-  return (
-    <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input id={id} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
     </div>
   )
 }
@@ -705,7 +678,7 @@ function BulletCard({
       className={cn(
         "group/bullet grid gap-1.5 rounded-lg border border-transparent bg-background p-1.5 pe-1 shadow-xs ring-1 ring-foreground/5 transition-[box-shadow,border-color] duration-200 focus-within:ring-foreground/15",
         highlighted && "ring-2 ring-brand/50 focus-within:ring-brand/50",
-        warn && "border-amber-500/40",
+        warn && "border-warning/40",
       )}
     >
       <div className="flex items-start gap-1">
@@ -715,9 +688,9 @@ function BulletCard({
           ) : empty ? (
             <span className="size-1.5 rounded-full bg-muted-foreground/40" />
           ) : check?.grounded ? (
-            <ShieldCheckIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
+            <ShieldCheckIcon className="size-4 text-success" />
           ) : (
-            <AlertTriangleIcon className="size-4 text-amber-500" />
+            <AlertTriangleIcon className="size-4 text-warning" />
           )}
         </span>
         <GrowText
@@ -763,8 +736,9 @@ function BulletCard({
             ))}
           </PresenceList>
           <FactPicker facts={facts} selected={bullet.factKeys} onChange={(factKeys) => onChange({ factKeys })} />
+          {bullet.autoText && bullet.text === bullet.autoText ? <AutoBadge /> : null}
           {warn ? (
-            <span className="cb-fade inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
+            <span className="cb-fade inline-flex items-center gap-1 text-xs text-warning">
               {check?.unsupportedNumbers.length ? t("bullet.noFactStates", { numbers: check.unsupportedNumbers.join(", ") }) : t("bullet.link")}
             </span>
           ) : long ? (
@@ -779,38 +753,39 @@ function BulletCard({
 function Preview({ draft, lang, grounding }: { draft: Draft; lang: Lang; grounding: Record<string, ReturnType<typeof verifySupport>> }) {
   const locale = useLocale()
   const t = useTranslations("entryEditor")
-  const display = draft.display[lang]
+  const view = entryView({ ...draft, display: { [lang]: draft.display[lang] } }, lang)
   const bullets = draft.bullets.filter((bullet) => bullet.language === lang && bullet.role === "bullet" && bullet.text.trim())
-  if (!display.role && !bullets.length) {
+  if (!view.heading && !bullets.length) {
     return <p className="text-xs text-muted-foreground">{t("preview.fill", { language: languageName(lang, locale) })}</p>
   }
   return (
     <div className="grid gap-2 rounded-md border bg-white p-3 text-[12.5px] leading-snug text-zinc-900 shadow-sm dark:bg-zinc-50">
       <div className="flex items-start gap-2.5">
-        {draft.logoPath ? <EntryLogo path={draft.logoPath} name={display.organization || draft.title} size={30} className="border-zinc-200 bg-white" /> : null}
+        {draft.logoPath ? <EntryLogo path={draft.logoPath} name={view.subheading || view.heading} size={30} className="border-zinc-200 bg-white" /> : null}
         <div className="grid min-w-0 flex-1 gap-0.5">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="font-semibold">{display.role || "—"}</span>
-            <span className="shrink-0 text-[11px] text-zinc-500">{display.dates}</span>
+            <span className="font-semibold">{view.heading || "—"}</span>
+            <span className="shrink-0 text-[11px] text-zinc-500">{view.dates}</span>
           </div>
-          {display.organization || display.location ? (
+          {view.subheading || view.location ? (
             <div className="flex justify-between gap-2 text-[11px] text-zinc-600 italic">
-              <span>{display.organization}</span>
-              <span>{display.location}</span>
+              <span>{view.subheading}</span>
+              <span>{view.location}</span>
             </div>
           ) : null}
+          {view.details.length ? <div className="text-[11px] text-zinc-500">{view.details.join(" · ")}</div> : null}
         </div>
       </div>
       {bullets.length ? (
         <ul className="grid list-disc gap-1 ps-4">
           {bullets.map((bullet) => (
-            <li key={bullet.key} className={cn(!grounding[bullet.key]?.grounded && "decoration-amber-500 decoration-wavy underline-offset-2 [text-decoration-line:underline]")}>
+            <li key={bullet.key} className={cn(!grounding[bullet.key]?.grounded && "decoration-warning decoration-wavy underline-offset-2 [text-decoration-line:underline]")}>
               {bullet.text.replace(/\*\*(.+?)\*\*/g, "$1")}
             </li>
           ))}
         </ul>
       ) : null}
-      {bullets.some((bullet) => !grounding[bullet.key]?.grounded) ? <p className="text-[10.5px] text-amber-700">{t("preview.wavy")}</p> : null}
+      {bullets.some((bullet) => !grounding[bullet.key]?.grounded) ? <p className="text-[10.5px] text-warning">{t("preview.wavy")}</p> : null}
     </div>
   )
 }
@@ -831,14 +806,14 @@ function ProgressRing({ value, total }: { value: number; total: number }) {
         <circle cx="18" cy="18" r={r} className="fill-none stroke-muted" strokeWidth="3.5" />
         <motion.circle
           cx="18" cy="18" r={r} strokeWidth="3.5" strokeLinecap="round" strokeDasharray={c}
-          className={cn("fill-none", complete ? "stroke-emerald-500" : "stroke-amber-500")}
+          className={cn("fill-none", complete ? "stroke-success" : "stroke-warning")}
           initial={reduce ? false : { strokeDashoffset: c }}
           animate={{ strokeDashoffset: c * (1 - value / total) }}
           transition={{ duration: 0.6, ease: EASE }}
         />
       </svg>
       <span className="absolute inset-0 grid place-content-center">
-        {complete ? <CheckCircle2Icon className="size-4 text-emerald-500" /> : <span className="text-[11px] font-semibold tabular-nums">{value}/{total}</span>}
+        {complete ? <CheckCircle2Icon className="size-4 text-success" /> : <span className="text-[11px] font-semibold tabular-nums">{value}/{total}</span>}
       </span>
     </div>
   )
@@ -853,7 +828,7 @@ function Readiness({ items, onJump }: { items: Check[]; onJump: (id: string) => 
   const todo = items.filter((item) => !item.done)
   const finished = items.filter((item) => item.done)
   return (
-    <Card size="sm" className={cn("gap-0 overflow-hidden transition-colors", complete && "border-emerald-200/70 bg-gradient-to-b from-emerald-50/60 to-transparent dark:border-emerald-900/50 dark:from-emerald-950/20")}>
+    <Card size="sm" className={cn("gap-0 overflow-hidden transition-colors", complete && "border-success/30 bg-gradient-to-b from-success-soft to-transparent")}>
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-1 text-start">
         {complete ? <Otter pose="all-checked" height={44} className="-my-1" /> : <ProgressRing value={done} total={items.length} />}
         <span className="grid min-w-0 flex-1 gap-0.5">
@@ -868,8 +843,8 @@ function Readiness({ items, onJump }: { items: Check[]; onJump: (id: string) => 
             <ul className="grid gap-0.5 px-2 pt-2 pb-1">
               {[...todo, ...finished].map((item) => (
                 <li key={item.label}>
-                  <button type="button" onClick={() => (!item.done && item.action ? item.action() : onJump(item.section))} className={cn("group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-muted", !item.done && "bg-amber-50/70 dark:bg-amber-950/20")}>
-                    {item.done ? <CheckCircle2Icon className="size-4 shrink-0 text-emerald-500" /> : item.section === "bullets" ? <AlertTriangleIcon className="size-4 shrink-0 text-amber-500" /> : <CircleDashedIcon className="size-4 shrink-0 text-amber-500" />}
+                  <button type="button" onClick={() => (!item.done && item.action ? item.action() : onJump(item.section))} className={cn("group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-muted", !item.done && "bg-warning-soft")}>
+                    {item.done ? <CheckCircle2Icon className="size-4 shrink-0 text-success" /> : item.section === "bullets" ? <AlertTriangleIcon className="size-4 shrink-0 text-warning" /> : <CircleDashedIcon className="size-4 shrink-0 text-warning" />}
                     <span className={cn("min-w-0 flex-1", item.done ? "text-muted-foreground" : "font-medium")}>{item.label}</span>
                     {!item.done ? <span className={cn("text-[11px] text-muted-foreground transition-opacity", item.action ? "font-medium text-primary" : "opacity-0 group-hover:opacity-100")}>{item.action ? t("readiness.confirm") : t("readiness.fix")}</span> : null}
                   </button>
@@ -945,7 +920,7 @@ function SectionIndex({ sections, incomplete, onJump }: { sections: readonly { i
               >
                 <span className="w-3 text-muted-foreground tabular-nums">{index + 1}</span>
                 <span className="min-w-0 flex-1 truncate">{section.label}</span>
-                {incomplete.has(section.id) ? <span className="size-1.5 rounded-full bg-amber-500" aria-label={t("needsSomething")} /> : null}
+                {incomplete.has(section.id) ? <span className="size-1.5 rounded-full bg-warning" aria-label={t("needsSomething")} /> : null}
               </button>
             </li>
           ))}

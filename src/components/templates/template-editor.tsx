@@ -13,6 +13,7 @@ import type { AgentResult, DesignTurn } from "@/server/templates/design-agent"
 import { aiDesignAction, deleteTemplateAction, restoreTemplateVersionAction, saveTemplateAction, setDefaultDesignAction, templateVersionsAction } from "@/app/[locale]/(app)/templates/actions"
 import { PdfThumb } from "@/components/templates/pdf-thumb"
 import { fetchTemplatePreview } from "@/lib/template-preview"
+import { usePreviewSource } from "@/lib/use-preview-source"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { TemplateVersion } from "@/server/templates/service"
@@ -136,7 +137,9 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
   const dirty = JSON.stringify({ name, tokens }) !== savedKey
   // CV or letter preview: one template styles both, so you can check the pair.
   const [previewKind, setPreviewKind] = useState<"cv" | "letter">("cv")
-  const tokenKey = `${previewVersion}:${previewKind}:${JSON.stringify(tokens)}`
+  // Re-render when the content behind the preview changes (profile, photo, latest CV), not only the design.
+  const previewSource = usePreviewSource()
+  const tokenKey = `${previewVersion}:${previewSource}:${previewKind}:${JSON.stringify(tokens)}`
   const failed = previewError?.key === tokenKey && previewError.attempt === attempt
   const rendering = !failed && (preview?.key !== tokenKey || preview.attempt !== attempt)
   const busy = asking || saving || !draftReady

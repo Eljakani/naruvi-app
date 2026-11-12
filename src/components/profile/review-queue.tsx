@@ -1,5 +1,6 @@
 "use client"
 
+import { entryView } from "@/lib/entry-fields"
 import Link from "next/link"
 import { useCallback, useEffect, useState, useTransition } from "react"
 import {
@@ -24,7 +25,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Progress } from "@/components/ui/progress"
 import type { ReviewItem } from "@/server/profile/repository"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 
 type Outcome = "fixed" | "skipped"
 
@@ -115,16 +116,16 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewItem[] }) {
 function EntryHeader({ entry }: { entry: ReviewItem["entry"] }) {
   const tk = useTranslations("profileLabels.kindSingular")
   const t = useTranslations("reviewQueue")
-  const display = entry.display.en ?? entry.display.fr ?? {}
+  const view = entryView(entry, useLocale())
   return (
     <div className="flex items-center gap-3">
-      <EntryLogo path={entry.logoPath} name={display.organization || entry.title} size={40} />
+      <EntryLogo path={entry.logoPath} name={view.subheading || view.heading} size={40} />
       <div className="min-w-0">
-        <div className="truncate text-sm font-medium">{display.role || entry.title}</div>
+        <div className="truncate text-sm font-medium">{view.heading}</div>
         <div className="truncate text-xs text-muted-foreground">
           {entry.kind in KIND_SINGULAR ? tk(entry.kind as Kind) : entry.kind}
-          {display.organization ? ` · ${display.organization}` : ""}
-          {display.dates ? ` · ${display.dates}` : ""}
+          {view.subheading ? ` · ${view.subheading}` : ""}
+          {view.dates ? ` · ${view.dates}` : ""}
         </div>
       </div>
       <Button size="sm" variant="ghost" className="ms-auto text-muted-foreground" nativeButton={false} render={<Link href={`/profile/${entry.id}`} />}>
@@ -154,7 +155,7 @@ function EntryReview({ item, onDone }: { item: ReviewItem; onDone: (outcome: Out
       <CardContent className="grid gap-4">
         <div className="flex flex-wrap gap-2">
           {reasons.map((reason) => (
-            <Badge key={reason} variant="outline" className="gap-1 border-amber-300 text-amber-700 dark:text-amber-400">
+            <Badge key={reason} variant="outline" className="gap-1 border-warning/30 text-warning">
               <CircleAlertIcon className="size-3" /> {reason in REASON_KEY ? t(`reasons.${REASON_KEY[reason as keyof typeof REASON_KEY]}`) : reason}
             </Badge>
           ))}

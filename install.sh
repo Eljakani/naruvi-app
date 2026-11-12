@@ -356,7 +356,7 @@ if [[ -n ${NARUVI_SOURCE_DIR:-} ]]; then
   mkdir "$root/source"
   run 'Copy local source' sh -c 'tar -C "$1" --exclude=.git --exclude=node_modules --exclude=.next --exclude=data --exclude=".env*" --exclude="*.log" -cf - . | tar -C "$2" -xf -' _ "$NARUVI_SOURCE_DIR" "$root/source"
 else
-  run 'Download source' git clone --depth 1 --branch "$ref" https://github.com/Eljakani/naruvi.git "$root/source"
+  run 'Download source' git clone --depth 1 --branch "$ref" https://github.com/Eljakani/naruvi-app.git "$root/source"
 fi
 chmod -R go+rX "$root/source" # public code; the image runs as `node` and must read it despite umask 077
 cp "$root/source/deploy/compose.yaml" "$root/compose.yaml"

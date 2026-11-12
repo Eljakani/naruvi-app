@@ -1,5 +1,6 @@
 "use client"
 
+import { describeEntry } from "@/lib/entry-fields"
 import { useMemo, useState, useTransition } from "react"
 import { LockIcon, SearchIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -44,8 +45,7 @@ export function useExtras(draft: Draft) {
     startTransition(async () => {
       const result = await suggestEntryExtrasAction({
         kind: draft.kind,
-        role: draft.display.en.role || draft.display.fr.role || draft.title,
-        organization: draft.display.en.organization || draft.display.fr.organization,
+        entry: describeEntry(draft, "en"),
         facts,
         skills: draft.skills,
         keywords: draft.tags,
@@ -137,10 +137,10 @@ export function GuardrailFields({ draft, patch, extras }: { draft: Draft; patch:
         htmlFor="entry-nda"
         className={cn(
           "flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors",
-          draft.confidential ? "border-amber-500/40 bg-amber-500/8" : "hover:bg-muted/40",
+          draft.confidential ? "border-warning/40 bg-warning/8" : "hover:bg-muted/40",
         )}
       >
-        <span className={cn("grid size-9 shrink-0 place-content-center rounded-lg transition-colors", draft.confidential ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : "bg-muted text-muted-foreground")}>
+        <span className={cn("grid size-9 shrink-0 place-content-center rounded-lg transition-colors", draft.confidential ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground")}>
           <LockIcon className="size-4" />
         </span>
         <span className="grid min-w-0 flex-1 gap-0.5">

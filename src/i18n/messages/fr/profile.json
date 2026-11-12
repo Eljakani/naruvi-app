@@ -16,7 +16,7 @@
       "skill": "Groupe de compétences",
       "education": "Formation",
       "certification": "Certification",
-      "language": "Langues",
+      "language": "Langue",
       "achievement": "Réalisation",
       "other": "Autre"
     },
@@ -31,14 +31,14 @@
     "description": "Tout ce que vos CV et lettres disent de vous vient d’ici, et de nulle part ailleurs.",
     "start": {
       "title": "Créez votre profil",
-      "body": "Importez votre CV et l’IA remplit votre profil pour vous, ou ajoutez des éléments à la main. Rien n’est utilisé pour la génération avant que vous l’ayez vérifié.",
+      "body": "Importez votre CV et Naruvi le classe en éléments pour vous, ou ajoutez-les à la main. Vous vérifiez chaque élément avant qu’il soit enregistré, et seuls les éléments enregistrés vont dans vos CV.",
       "fromCv": "Partir de mon CV"
     },
     "addEntry": "Ajouter un élément",
     "changePhoto": "Changer la photo",
     "addPhoto": "Ajouter une photo",
     "yourName": "Votre nom",
-    "addHeadline": "+ Ajouter un titre d’une ligne",
+    "addHeadline": "Ajouter un titre d’une ligne",
     "edit": "Modifier",
     "contact": {
       "email": "e-mail",
@@ -49,7 +49,7 @@
     "available": "Disponible {when}",
     "ready": "{ready} éléments prêts sur {total}",
     "allReady": "Tous les éléments sont prêts",
-    "stats": "{facts} faits · {percent} % des lignes de CV justifiées",
+    "stats": "{facts} faits · {percent} % des lignes de CV justifiées par un fait",
     "review": "{count, plural, one {Revoir # élément} other {Revoir # éléments}}",
     "checksOut": "Tout est en ordre. Vos CV peuvent tout utiliser.",
     "search": "Rechercher dans votre profil…",
@@ -101,20 +101,22 @@
       "noFacts": "Pas encore de faits",
       "lineNeedsFact": "Une ligne de CV a besoin d’un fait",
       "nda": "Confidentiel",
-      "ready": "Prêt"
+      "ready": "Prêt",
+      "unnamed": "Sans nom"
     },
     "languageSwitch": {
       "label": "Langue",
       "notFilledTitle": "{language} (pas encore rempli)",
       "filled": ", rempli",
       "notFilled": ", pas encore rempli"
-    }
+    },
+    "searchLabel": "Rechercher dans votre profil"
   },
   "identity": {
     "saveFailed": "Impossible d’enregistrer",
     "saved": "Identité enregistrée",
     "title": "Identité et coordonnées",
-    "description": "Reprises telles quelles dans chaque CV et lettre. L’IA ne les modifie jamais.",
+    "description": "Votre nom et vos coordonnées sont repris tels quels dans chaque CV et lettre.",
     "who": "Qui vous êtes",
     "fullName": "Nom complet",
     "intro": "Comment vous vous présentez",
@@ -167,7 +169,7 @@
     "defaultName": "Ma recherche",
     "dialog": {
       "roles": "Postes recherchés",
-      "rolesPlaceholder": "Ingénieur DevOps, SRE",
+      "rolesPlaceholder": "Analyste de données, Chef de produit",
       "rolesHint": "3 au plus. La découverte d’offres les recherche, dans les lieux de cet objectif.",
       "new": "Nouvel objectif de recherche",
       "edit": "Modifier l’objectif de recherche",
@@ -192,7 +194,9 @@
       "delete": "Supprimer",
       "cancel": "Annuler",
       "save": "Enregistrer l’objectif"
-    }
+    },
+    "monthsMin": "{min} mois et plus",
+    "monthsMax": "Jusqu’à {max} mois"
   },
   "profileImport": {
     "toast": {
@@ -204,7 +208,7 @@
     },
     "back": "Profil",
     "title": "Partir de votre CV",
-    "description": "Donnez-moi votre CV, votre export LinkedIn ou quelques notes. Je les classe en emplois, études, projets et compétences, et je découpe vos réalisations en faits. Je n’ajoute jamais rien que vous n’ayez écrit, et rien n’est utilisé avant que vous l’ayez vérifié.",
+    "description": "Donnez-moi votre CV, votre export LinkedIn ou quelques notes. Je les classe en emplois, études, projets et compétences, et je découpe vos réalisations en faits. Je n’ajoute jamais rien que vous n’ayez écrit, et rien n’est enregistré avant que vous l’ayez confirmé.",
     "drop": "Déposez votre CV ici ou cliquez pour choisir",
     "formats": "PDF, export LinkedIn (.zip) ou texte, 8 Mo maximum",
     "orPaste": "ou collez du texte",
@@ -212,7 +216,7 @@
     "timing": "En général 15 à 40 secondes. Je vous montre tout avant d’enregistrer.",
     "read": "Lire mon CV",
     "startOver": "Recommencer",
-    "found": "Voici ce que nous avons trouvé",
+    "found": "Voici ce que j’ai trouvé",
     "summary": "{created} nouveau(x) · {merged} à mettre à jour · {skipped} ignoré(s). Les éléments existants ne reçoivent que les nouveautés ; rien de ce que vous avez écrit n’est écrasé.",
     "apply": "C’est bon, enregistrer dans mon profil",
     "you": "Vous",

@@ -43,6 +43,6 @@ test("bullet suggestions: cite real facts and add no numbers", async () => {
       { language: "de", text: "Rückstand um 40% reduziert", facts: ["F1"] },
     ] }),
   })
-  const result = await suggestBullets({ kind: "experience", role: "Support lead", organization: "Acme", facts: [{ key: "k1", statement: "Cut the ticket backlog by 40% by introducing triage." }], existing: [], languages: ["en", "fr"] }, complete)
+  const result = await suggestBullets({ kind: "experience", entry: "experience: Support lead | Acme", facts: [{ key: "k1", statement: "Cut the ticket backlog by 40% by introducing triage." }], existing: [], languages: ["en", "fr"] }, complete)
   assert.deepEqual(result.bullets, [{ language: "en", text: "Reduced ticket backlog by 40% through triage", factKeys: ["k1"] }])
 })

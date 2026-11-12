@@ -16,7 +16,7 @@ import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect
 import {
   ArrowRightIcon, ArrowUpIcon, BanIcon, BriefcaseBusinessIcon, CalendarClockIcon, CheckIcon, ChevronDownIcon, CircleAlertIcon, FileTextIcon, GaugeIcon, GlobeIcon,
   CopyIcon, ExternalLinkIcon, LinkIcon, RotateCcwIcon, MailIcon, MailSearchIcon, SendIcon, SquarePenIcon, Trash2Icon, UserPenIcon, UserPlusIcon, UserRoundIcon, XIcon,
-  Building2Icon, type LucideIcon,
+  Building2Icon, ArchiveIcon, BadgeCheckIcon, ShieldIcon, TagIcon, TargetIcon, FileUpIcon, UnlinkIcon, type LucideIcon,
 } from "lucide-react"
 import { FitRing } from "@/components/applications/fit-ring"
 import AIPrompt from "@/components/kokonutui/ai-prompt"
@@ -610,6 +610,11 @@ const READS = [
   "profile_overview",
   "read_profile_details",
   "find_profile_entries",
+  "get_profile_entry",
+  "read_search_goals",
+  "list_job_leads",
+  "salary_for_job",
+  "check_mail",
 ] as const
 
 const isReadTool = (name: string): name is (typeof READS)[number] => READS.some((tool) => tool === name)
@@ -1012,6 +1017,24 @@ const ACTIONS: Record<string, Action> = {
     details: (i) => [`Current: ${profileEditValue(i.previous)}`, `After approval: ${profileEditValue(i.value)}`],
     approve: "Apply change", working: "Updating profile details", done: () => "Profile updated",
   },
+  edit_profile_entry: {
+    icon: UserPenIcon, title: (i) => s(i.label) || "Update a profile entry",
+    details: (i) => [
+      ...Object.entries((i.text ?? {}) as Record<string, unknown>).map(([key, value]) => `${key}: ${s(value) || "(cleared)"}`),
+      ...Object.entries((i.fields ?? {}) as Record<string, unknown>).map(([key, value]) => `${key}: ${typeof value === "object" && value ? [s((value as Record<string, unknown>).start), s((value as Record<string, unknown>).end)].filter(Boolean).join(" – ") : s(value) || "(cleared)"}`),
+    ],
+    approve: "Apply change", working: "Updating the entry", done: (o) => `Updated ${s(o.name)}`,
+  },
+  create_profile_entry: {
+    icon: UserPenIcon, title: (i) => `Add to your profile · ${s(i.label)}`,
+    details: (i) => [
+      ...Object.entries((i.text ?? {}) as Record<string, unknown>).map(([key, value]) => `${key}: ${s(value)}`),
+      ...Object.entries((i.fields ?? {}) as Record<string, unknown>).map(([key, value]) => `${key}: ${typeof value === "object" && value ? [s((value as Record<string, unknown>).start), s((value as Record<string, unknown>).end) || "present"].filter(Boolean).join(" – ") : s(value)}`),
+      ...(Array.isArray(i.facts) ? i.facts.map((fact) => `• ${s(fact)}`) : []),
+      Array.isArray(i.skills) && i.skills.length ? `Skills: ${i.skills.join(", ")}` : "",
+    ],
+    approve: "Add entry", working: "Adding to your profile", done: (o) => `Added ${s(o.name)}`,
+  },
   add_profile_fact: {
     icon: UserPenIcon, title: (i) => `Add a fact to ${s(i.label)}`,
     details: (i) => [s(i.statement), Array.isArray(i.skills) && i.skills.length ? `Skills: ${i.skills.join(", ")}` : ""],
@@ -1050,6 +1073,64 @@ const ACTIONS: Record<string, Action> = {
   update_contact: {
     icon: UserPenIcon, title: (i) => `Update ${s(i.name) || "contact"}`, details: (i) => Object.entries(i).filter(([key, value]) => key !== "id" && value).map(([key, value]) => `${key === "companyName" ? "Company" : key[0].toUpperCase() + key.slice(1)} → ${String(value)}`),
     approve: "Save", working: "Saving", done: () => "Contact updated",
+  },
+  set_entry_status: {
+    icon: BadgeCheckIcon,
+    title: (i) => `${{ verified: "Verify", needs_review: "Send back to review", archived: "Archive" }[s(i.status)] ?? "Update"} · ${s(i.label)}`,
+    details: (i) => [s(i.status) === "verified" ? "Its facts can then be used in your CVs and letters" : s(i.status) === "archived" ? "Hidden from your profile and documents, kept in the archive" : "Its facts won't be used until you verify it again"],
+    approve: "Apply", working: "Updating the entry", done: (o) => `${s(o.name)} is now ${s(o.status).replace("_", " ")}`,
+  },
+  delete_profile_entry: {
+    icon: Trash2Icon, title: (i) => `Delete ${s(i.label)}`, details: () => ["Deletes the entry with its facts and CV lines. This can't be undone."],
+    approve: "Delete", working: "Deleting", done: (o) => `Deleted ${s(o.name)}`, destructive: true,
+  },
+  edit_profile_fact: {
+    icon: UserPenIcon, title: (i) => s(i.statement) ? `Reword a fact · ${s(i.label)}` : `Remove a fact · ${s(i.label)}`,
+    details: (i) => [s(i.statement) ? `New wording: ${s(i.statement)}` : "The fact is removed and unlinked from your CV lines"],
+    approve: "Apply", working: "Updating the fact", done: (o) => (o.removed ? "Fact removed" : "Fact updated"), destructive: false,
+  },
+  remove_entry_skills: {
+    icon: UserPenIcon, title: (i) => `Remove skills · ${s(i.label)}`, details: (i) => [Array.isArray(i.skills) ? i.skills.join(", ") : ""],
+    approve: "Remove", working: "Updating skills", done: (o) => `Removed ${typeof o.removed === "number" ? o.removed : 0} skill(s)`,
+  },
+  set_entry_guards: {
+    icon: ShieldIcon, title: (i) => s(i.label) || "Update NDA and rules",
+    details: (i) => [
+      i.confidential === true ? "Mark as NDA: documents stay high-level about it" : i.confidential === false ? "Remove the NDA mark" : "",
+      ...(Array.isArray(i.addRules) ? i.addRules.map((rule) => `+ ${s(rule)}`) : []),
+      ...(Array.isArray(i.removeRules) ? i.removeRules.map((rule) => `− ${s(rule)}`) : []),
+    ],
+    approve: "Apply", working: "Updating the entry", done: () => "Entry updated",
+  },
+  save_search_goal: {
+    icon: TargetIcon, title: (i) => s(i.label) || "Update a search goal",
+    details: (i) => {
+      if (i.remove === true) return ["Remove this goal"]
+      const goal = (i.goal ?? {}) as Record<string, unknown>
+      const list = (key: string) => (Array.isArray(goal[key]) ? (goal[key] as unknown[]).map(s).filter(Boolean).join(", ") : "")
+      return [s(goal.name), list("roles") && `Roles: ${list("roles")}`, list("contracts") && `Contracts: ${list("contracts")}`, list("places") && `Places: ${list("places")}`, list("workModes") && `Work mode: ${list("workModes")}`, s(goal.startFrom) && `Start: ${s(goal.startFrom)}`].filter(Boolean) as string[]
+    },
+    approve: "Save goal", working: "Saving your goals", done: () => "Goals updated",
+  },
+  import_profile_text: {
+    icon: FileUpIcon, title: (i) => `Import into your profile · ${s(i.label)}`, details: (i) => [`${s(i.text).length.toLocaleString()} characters`, "Creates new entries with facts and skills, skips ones you already have. New entries need review."],
+    approve: "Import", working: "Reading and importing", done: (o) => `${typeof o.created === "number" ? o.created : 0} entr${o.created === 1 ? "y" : "ies"} added${o.skipped ? `, ${o.skipped} already there` : ""}`,
+  },
+  dismiss_job_leads: {
+    icon: ArchiveIcon, title: (i) => s(i.label) || "Dismiss job leads", details: (i) => [`${Array.isArray(i.leadIds) ? i.leadIds.length : 0} lead(s)`],
+    approve: "Dismiss", working: "Dismissing", done: (o) => `Dismissed ${typeof o.dismissed === "number" ? o.dismissed : 0}`,
+  },
+  tag_job: {
+    icon: TagIcon, title: (i) => `Tags · ${s(i.label)}`, details: (i) => [Array.isArray(i.tags) && i.tags.length ? i.tags.join(", ") : "No tags"],
+    approve: "Apply", working: "Tagging", done: () => "Tags updated",
+  },
+  revise_cv: {
+    icon: FileTextIcon, title: (i) => `Revise CV · ${s(i.label)}`, details: (i) => [s(i.request), `${LANG[s(i.language)] ?? s(i.language)} CV · checked against your verified facts, saved as a new revision`],
+    approve: "Revise", working: "Revising the CV", done: (o) => (o.changed ? `CV revised · score ${String(o.scoreBefore)} → ${String(o.scoreAfter)}` : s(o.note) || "No change needed"),
+  },
+  unlink_contact: {
+    icon: UnlinkIcon, title: (i) => s(i.label) || "Unlink contact", details: () => ["The contact stays in your contacts"],
+    approve: "Unlink", working: "Unlinking", done: () => "Unlinked",
   },
   delete_contact: {
     icon: Trash2Icon, title: (i) => `Delete ${s(i.name)}`, details: () => ["Removes them from Naruvi and their links to applications"],

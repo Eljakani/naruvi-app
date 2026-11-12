@@ -3,7 +3,7 @@ import { z } from "zod"
 import { supportedWording } from "@/server/documents/ai-compose"
 import type { CompletionInput, Completion } from "@/server/llm/transport"
 
-export const BULLETS_PROMPT_VERSION = "profile-bullets-v1"
+export const BULLETS_PROMPT_VERSION = "profile-bullets-v2"
 type Complete = (input: CompletionInput) => Promise<Completion>
 export type BulletSuggestion = { language: string; text: string; factKeys: string[] }
 
@@ -14,12 +14,12 @@ Each bullet: one line, starts with a strong past-tense verb (or present for a cu
 Use ONLY the cited facts. Never add numbers, tools, skills, scope, seniority or outcomes they don't state. Never turn helping into leading.
 Cite the fact ids each bullet relies on. Do not repeat an existing bullet. Write each bullet in every requested language (a faithful translation, citing the same facts).`
 
-export async function suggestBullets(input: { kind: string; role: string; organization: string; facts: { key: string; statement: string }[]; existing: string[]; languages: string[] }, complete: Complete): Promise<{ bullets: BulletSuggestion[]; model: string }> {
+export async function suggestBullets(input: { kind: string; entry: string; facts: { key: string; statement: string }[]; existing: string[]; languages: string[] }, complete: Complete): Promise<{ bullets: BulletSuggestion[]; model: string }> {
   const facts = input.facts.filter((fact) => fact.statement.trim()).slice(0, 40).map((fact, index) => ({ id: `F${index + 1}`, ...fact }))
   if (!facts.length) return { bullets: [], model: "" }
   const completion = await complete({
     system: SYSTEM, schema: reply, maxTokens: 2500,
-    user: JSON.stringify({ entry: { kind: input.kind, role: input.role, organization: input.organization }, languages: input.languages, facts: facts.map(({ id, statement }) => ({ id, statement })), existingBullets: input.existing.slice(0, 30), task: "Suggest up to 4 bullets per language that a CV could use. Return {\"bullets\":[{\"language\":\"en\",\"text\":\"...\",\"facts\":[\"F1\"]}]}." }),
+    user: JSON.stringify({ entry: input.entry, languages: input.languages, facts: facts.map(({ id, statement }) => ({ id, statement })), existingBullets: input.existing.slice(0, 30), task: "Suggest up to 4 bullets per language that a CV could use. Return {\"bullets\":[{\"language\":\"en\",\"text\":\"...\",\"facts\":[\"F1\"]}]}." }),
   })
   const parsed = reply.parse(JSON.parse(completion.text))
   const existing = new Set(input.existing.map((text) => text.trim().toLowerCase()))

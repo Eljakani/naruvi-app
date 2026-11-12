@@ -4,19 +4,18 @@ import { NaruviAvatar, Otter } from "@/components/naruvi/otter"
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
-import { ArrowDownIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon, LanguagesIcon, MinusIcon, SparklesIcon, XIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon, MinusIcon, SparklesIcon, XIcon } from "lucide-react"
 import { useAutoResizeTextarea } from "@/hooks/use-auto-resize-textarea"
 import { Kbd } from "@/components/ui/kbd"
 import { toast } from "sonner"
-import { describeEntryAction, translateEntryAction } from "@/app/[locale]/(app)/profile/actions"
-import { AI_STEPS, AiSteps, useAiStepText, useStep } from "@/components/ai-progress"
+import { describeEntryAction } from "@/app/[locale]/(app)/profile/actions"
+import { AI_STEPS, AiSteps, useStep } from "@/components/ai-progress"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { DictateButton } from "@/components/dictation"
 import { cn } from "@/lib/utils"
 import { type Draft, type Lang, LANGS, newKey } from "./draft"
 import { useLocale, useTranslations } from "next-intl"
-import { languageName } from "@/i18n/config"
 
 
 /** One question at a time, the way a good recruiter or career coach would ask. Answers in any language. */
@@ -34,7 +33,6 @@ const questionsFor = (kind: string, t: ReturnType<typeof useTranslations<"entryA
 export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Partial<Draft>) => void }) {
   const t = useTranslations("entryAssist")
   const locale = useLocale()
-  const stepText = useAiStepText()
   const [words, setWords] = useState("")
   const [mode, setMode] = useState<"free" | "guided">("free")
   const [step, setStep] = useState(0)
@@ -42,7 +40,6 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
   // New or empty entries start open; filled ones keep the editor uncluttered.
   const [open, setOpen] = useState(() => draft.facts.length === 0)
   const [describing, startDescribing] = useTransition()
-  const [translating, startTranslating] = useTransition()
   const describeStep = useStep(describing, AI_STEPS.describe.length)
   const reduced = useReducedMotion()
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
@@ -58,11 +55,7 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [open, describing])
-  const translateStep = useStep(translating, AI_STEPS.translate.length)
 
-  const filled = (lang: Lang) => Boolean(draft.display[lang].role || draft.display[lang].organization) || draft.bullets.some((bullet) => bullet.language === lang && bullet.text.trim())
-  const from = LANGS.find(filled)
-  const to = from ? LANGS.find((lang) => lang !== from && (!draft.display[lang].role || draft.bullets.filter((b) => b.language === lang).length < draft.bullets.filter((b) => b.language === from).length)) : undefined
 
   const questions = questionsFor(draft.kind, t)
   const guidedText = () => questions.flatMap((question, index) => (answers[index]?.trim() ? [`${question}\n${answers[index].trim()}`] : [])).join("\n\n")
@@ -73,11 +66,13 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
       const { entry, language } = result.data
       const lang: Lang = (LANGS as string[]).includes(language) ? (language as Lang) : "en"
       const current = draft.display[lang]
-      const isNew = !draft.facts.length && !draft.title.trim()
+      const isNew = !draft.facts.length && !Object.values(draft.display).some((values) => Object.values(values).some(Boolean)) && !Object.keys(draft.fields).length
+      // Only fill what is empty; text and fields belong to the entry's kind.
+      const sameKind = isNew || entry.kind === draft.kind
       patch({
         kind: isNew ? entry.kind : draft.kind,
-        title: draft.title.trim() || entry.title,
-        display: { ...draft.display, [lang]: { role: current.role || entry.display.role, organization: current.organization || entry.display.organization, dates: current.dates || entry.display.dates, location: current.location || entry.display.location } },
+        display: sameKind ? { ...draft.display, [lang]: { ...entry.text, ...Object.fromEntries(Object.entries(current).filter(([, value]) => value.trim())) } } : draft.display,
+        fields: sameKind ? { ...entry.fields, ...Object.fromEntries(Object.entries(draft.fields).filter(([, value]) => value)) } : draft.fields,
         facts: [...draft.facts.filter((fact) => fact.statement.trim()), ...entry.facts.map((statement) => ({ key: newKey(), statement }))],
         skills: [...new Set([...draft.skills, ...entry.skills])],
       })
@@ -86,29 +81,6 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
       setStep(0)
       setResult({ facts: entry.facts.length, skills: entry.skills.length, dropped: entry.dropped ?? 0 })
       // The panel shows what was added (no duplicate toast).
-    })
-
-  const translate = () =>
-    startTranslating(async () => {
-      if (!from || !to) return
-      const counts = new Map<string, number>()
-      for (const bullet of draft.bullets) if (bullet.language === to) counts.set(bullet.group, (counts.get(bullet.group) ?? 0) + 1)
-      const missing = draft.bullets.filter((bullet) => {
-        if (bullet.language !== from || !bullet.text.trim()) return false
-        const left = counts.get(bullet.group) ?? 0
-        if (left > 0) { counts.set(bullet.group, left - 1); return false }
-        return true
-      })
-      const result = await translateEntryAction({ from, to, display: draft.display[from], bullets: missing.map((bullet) => ({ id: bullet.key, text: bullet.text })) })
-      if (!result.ok) return void toast.error(result.message)
-      const target = draft.display[to]
-      const translatedDisplay = result.data.display
-      const byId = new Map(result.data.bullets.map((bullet) => [bullet.id, bullet.text]))
-      patch({
-        display: { ...draft.display, [to]: { role: target.role || translatedDisplay.role, organization: target.organization || translatedDisplay.organization, dates: target.dates || translatedDisplay.dates, location: target.location || translatedDisplay.location } },
-        bullets: [...draft.bullets, ...missing.filter((bullet) => byId.has(bullet.key)).map((bullet) => ({ ...bullet, key: newKey(), language: to, text: byId.get(bullet.key)! }))],
-      })
-      toast.success(t("translated", { language: languageName(to, locale) }), { description: t("translatedBody", { count: result.data.bullets.length }) })
     })
 
   const text = mode === "guided" ? guidedText() : words
@@ -127,11 +99,6 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
         <span className="min-w-0 flex-1 text-sm text-muted-foreground">
           {words.trim() || answered ? t("waiting") : t("invite")}
         </span>
-        {from && to ? (
-          <Button size="sm" variant="ghost" onClick={translate} disabled={translating}>
-            <LanguagesIcon className={translating ? "cb-breathe" : undefined} /> {translating ? stepText(AI_STEPS.translate[translateStep]) : t("addVersion", { language: languageName(to, locale) })}
-          </Button>
-        ) : null}
         <Button size="sm" variant={open ? "secondary" : "outline"} onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="entry-assist-panel">
           <SparklesIcon className="text-brand" /> {open ? t("hide") : t("tell")}
         </Button>
@@ -175,7 +142,7 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
               </div>
 
               {result && !describing && !text.trim() ? (
-                <div className="cb-step flex items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
+                <div className="cb-step flex items-center gap-3 rounded-xl border border-success/25 bg-success/5 p-3">
                   <Otter pose="all-checked" height={56} className="-my-1 shrink-0" />
                   <div className="grid min-w-0 flex-1 gap-1">
                     <p className="text-sm font-medium">{result.skills ? t("addedBoth", { facts: result.facts, skills: result.skills }) : t("added", { facts: result.facts })}</p>
@@ -200,7 +167,7 @@ export function EntryAssist({ draft, patch }: { draft: Draft; patch: (value: Par
                     />
                     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                       <DictateButton value={words} onChange={(value) => { setWords(value); setResult(null) }} />
-                      <span className={cn("ms-auto text-xs tabular-nums", words.trim().length && words.trim().length < 20 ? "text-amber-600" : "text-muted-foreground")}>
+                      <span className={cn("ms-auto text-xs tabular-nums", words.trim().length && words.trim().length < 20 ? "text-warning" : "text-muted-foreground")}>
                         {words.trim().length && words.trim().length < 20 ? t("more") : words.length ? `${words.length.toLocaleString(locale)} / ${(4000).toLocaleString(locale)}` : t("helps")}
                       </span>
                     </div>

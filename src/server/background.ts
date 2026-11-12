@@ -17,6 +17,8 @@ export async function runBackgroundTasks() {
   await discoverIfDue().catch((error) => console.error("[naruvi] job discovery:", error instanceof Error ? error.message : error))
   const { refreshRoleGroups } = await import("@/server/contacts/role-groups")
   await refreshRoleGroups().catch((error) => console.error("[naruvi] role groups:", error instanceof Error ? error.message : error))
+  const { repairProfileIfDue } = await import("@/server/profile/repair")
+  await repairProfileIfDue().catch((error) => console.error("[naruvi] profile repair:", error instanceof Error ? error.message : error))
   const { runNotifications } = await import("@/server/integrations/notify")
   await runNotifications()
 }

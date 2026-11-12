@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion, useReducedMotion } from "motion/react"
-import { ArrowRightIcon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon, PenLineIcon, XIcon } from "lucide-react"
+import { ArrowRightIcon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { durationMonths, formatDateRange, formatDuration, parseDateRange, rangeError, type DateRange, type MonthYear } from "@/lib/date-range"
@@ -11,10 +11,6 @@ import { useTranslations } from "next-intl"
 
 type Lang = "en" | "fr"
 
-const T = {
-  en: { start: "Start", end: "End", present: "Present", yearOnly: "Year only", clear: "Clear", type: "Or type: mar 2023, 03/2023, 2019", pick: "Pick a month", onCv: "On the CV", fills: "Fills the French version too", stillHere: "Still there? Choose Present." },
-  fr: { start: "Début", end: "Fin", present: "Aujourd’hui", yearOnly: "Année seule", clear: "Effacer", type: "Ou tapez : mars 2023, 03/2023, 2019", pick: "Choisir un mois", onCv: "Sur le CV", fills: "Remplit aussi la version anglaise", stillHere: "Vous y êtes encore ? Choisissez Aujourd’hui." },
-} as const
 
 const SHORT: Record<Lang, string[]> = {
   en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
@@ -37,7 +33,6 @@ function MonthPicker({ value, onChange, lang, label, present, min }: {
   min?: MonthYear | null
 }) {
   const tr = useTranslations("dateRange")
-  const t = T[lang]
   const thisYear = new Date().getFullYear()
   const current = value && value !== "present" ? value : null
   const [open, setOpen] = useState(false)
@@ -53,7 +48,7 @@ function MonthPicker({ value, onChange, lang, label, present, min }: {
   const before = (year: number, month: number) => Boolean(min && (year < min.year || (year === min.year && min.month !== null && month < min.month)))
   const typedPoint = typed.trim() ? parseDateRange(typed)?.start ?? null : null
 
-  const text = value === "present" ? t.present : current ? (current.month === null ? String(current.year) : `${short(lang, current.month)} ${current.year}`) : null
+  const text = value === "present" ? tr("present") : current ? (current.month === null ? String(current.year) : `${short(lang, current.month)} ${current.year}`) : null
 
   return (
     <Popover
@@ -67,10 +62,10 @@ function MonthPicker({ value, onChange, lang, label, present, min }: {
         render={
           <button
             type="button"
-            aria-label={`${label}: ${text ?? t.pick}`}
+            aria-label={`${label}: ${text ?? tr("pick")}`}
             className={cn(
               "group flex h-10 w-full min-w-0 items-center gap-2 rounded-lg border bg-background px-3 text-start text-sm shadow-xs transition-[border-color,box-shadow] outline-none hover:border-foreground/25 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[popup-open]:border-ring data-[popup-open]:ring-[3px] data-[popup-open]:ring-ring/30",
-              value === "present" && "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20",
+              value === "present" && "border-success/30 bg-success-soft",
             )}
           />
         }
@@ -80,11 +75,11 @@ function MonthPicker({ value, onChange, lang, label, present, min }: {
           <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">{label}</span>
           <span className={cn("truncate", text ? "font-medium" : "text-muted-foreground")}>
             {value === "present" ? (
-              <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                <span className="size-1.5 rounded-full bg-emerald-500" /> {t.present}
+              <span className="inline-flex items-center gap-1.5 text-success">
+                <span className="size-1.5 rounded-full bg-success" /> {tr("present")}
               </span>
             ) : (
-              text ?? t.pick
+              text ?? tr("pick")
             )}
           </span>
         </span>
@@ -104,7 +99,7 @@ function MonthPicker({ value, onChange, lang, label, present, min }: {
               const point = parseDateRange(event.target.value)?.start
               if (point) setViewYear(point.year)
             }}
-            placeholder={t.type}
+            placeholder={tr("typeHint")}
             aria-label={`${label}, typed`}
             className="h-8 text-xs"
           />
@@ -146,16 +141,16 @@ function MonthPicker({ value, onChange, lang, label, present, min }: {
         </div>
         <div className="flex items-center gap-1 border-t pt-2">
           <button type="button" onClick={() => choose({ year: viewYear, month: null })} disabled={before(viewYear, 11)} className={cn("h-7 rounded-md px-2 text-xs transition-colors hover:bg-muted disabled:opacity-30", current?.year === viewYear && current.month === null && "bg-muted font-medium")}>
-            {t.yearOnly} · {viewYear}
+            {tr("yearOnly")} · {viewYear}
           </button>
           {present ? (
-            <button type="button" onClick={() => choose("present")} className={cn("inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40", value === "present" && "bg-emerald-50 dark:bg-emerald-950/40")}>
-              <span className="size-1.5 rounded-full bg-emerald-500" /> {t.present}
+            <button type="button" onClick={() => choose("present")} className={cn("inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-success transition-colors hover:bg-success-soft", value === "present" && "bg-success-soft")}>
+              <span className="size-1.5 rounded-full bg-success" /> {tr("present")}
             </button>
           ) : null}
           {value ? (
             <button type="button" onClick={() => choose(null)} className="ms-auto inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-              <XIcon className="size-3" /> {t.clear}
+              <XIcon className="size-3" /> {tr("clear")}
             </button>
           ) : null}
         </div>
@@ -165,57 +160,47 @@ function MonthPicker({ value, onChange, lang, label, present, min }: {
 }
 
 /**
- * Start → End as two month pickers. Writes the dates in English and French at
- * once, in the same CV style. Text it can't read ("Summer 2020") stays
- * editable as free text.
+ * Start → End as two month pickers. The range is stored once; every CV
+ * language writes it in its own words.
  */
-export function DateRangeField({ id, lang, value, onChange }: { id: string; lang: Lang; value: string; onChange: (text: Partial<Record<Lang, string>>) => void }) {
+export function DateRangeField({ lang, value, onChange, label }: { lang: Lang; value: DateRange; onChange: (range: DateRange) => void; label?: string }) {
   const tr = useTranslations("dateRange")
-  const t = T[lang]
-  const parsed = parseDateRange(value)
-  const [freeText, setFreeText] = useState(parsed === null)
-  const range: DateRange = parsed ?? { start: null, end: null }
-  const set = (next: DateRange) => onChange({ en: formatDateRange(next, "en"), fr: formatDateRange(next, "fr") })
-  const months = durationMonths(range)
-  const error = rangeError(range)
+  const months = durationMonths(value)
+  const error = rangeError(value)
   const other: Lang = lang === "en" ? "fr" : "en"
 
   return (
     <div className="grid gap-2">
-      <div className="flex items-center justify-between gap-2">
-        {freeText ? <label htmlFor={id} className="text-sm font-medium">{tr("dates")}</label> : <span className="text-sm font-medium">{tr("dates")}</span>}
-        <button type="button" onClick={() => setFreeText(!freeText)} className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
-          {freeText ? <><CalendarIcon className="size-3" /> {tr("calendar")}</> : <><PenLineIcon className="size-3" /> {tr("type")}</>}
-        </button>
+      <span className="text-sm font-medium">{label ?? tr("dates")}</span>
+      <div className="grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <MonthPicker label={tr("start")} lang={lang} value={value.start} onChange={(start) => onChange({ ...value, start: start === "present" ? null : start })} />
+        <ArrowRightIcon className="hidden size-4 text-muted-foreground sm:block" aria-hidden />
+        <MonthPicker label={tr("end")} lang={lang} value={value.end} present min={value.start} onChange={(end) => onChange({ ...value, end })} />
       </div>
-      {freeText ? (
-        <>
-          <Input id={id} value={value} onChange={(event) => onChange({ [lang]: event.target.value })} placeholder={lang === "en" ? "Feb. 2024 – Present" : "févr. 2024 – aujourd’hui"} />
-          {parsed === null && value.trim() ? <p className="text-xs text-muted-foreground">{tr("asIs")}</p> : null}
-        </>
-      ) : (
-        <>
-          <div className="grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-            <MonthPicker label={t.start} lang={lang} value={range.start} onChange={(start) => set({ ...range, start: start === "present" ? null : start })} />
-            <ArrowRightIcon className="hidden size-4 text-muted-foreground sm:block" aria-hidden />
-            <MonthPicker label={t.end} lang={lang} value={range.end} present min={range.start} onChange={(end) => set({ ...range, end })} />
-          </div>
-          <p className={cn("flex flex-wrap items-center gap-x-2 text-xs", error ? "text-destructive" : "text-muted-foreground")} aria-live="polite">
-            {error ? (
-              error
-            ) : range.start ? (
-              <>
-                {months ? <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground tabular-nums">{formatDuration(months, lang)}</span> : null}
-                <span>{t.onCv}: {formatDateRange(range, lang)}</span>
-                <span aria-hidden>·</span>
-                <span>{formatDateRange(range, other)}</span>
-              </>
-            ) : (
-              t.fills
-            )}
-          </p>
-        </>
-      )}
+      <p className={cn("flex flex-wrap items-center gap-x-2 text-xs", error ? "text-destructive" : "text-muted-foreground")} aria-live="polite">
+        {error ? (
+          error
+        ) : value.start ? (
+          <>
+            {months ? <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground tabular-nums">{formatDuration(months, lang)}</span> : null}
+            <span>{tr("onCv")}: {formatDateRange(value, lang)}</span>
+            <span aria-hidden>·</span>
+            <span>{formatDateRange(value, other)}</span>
+          </>
+        ) : (
+          tr("fills")
+        )}
+      </p>
+    </div>
+  )
+}
+
+/** One month (or year), e.g. when a certification was issued. */
+export function MonthField({ lang, label, value, onChange }: { lang: Lang; label: string; value: MonthYear | null; onChange: (value: MonthYear | null) => void }) {
+  return (
+    <div className="grid gap-2">
+      <span className="text-sm font-medium">{label}</span>
+      <MonthPicker label={label} lang={lang} value={value} onChange={(next) => onChange(next === "present" ? null : next)} />
     </div>
   )
 }

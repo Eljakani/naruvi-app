@@ -65,7 +65,7 @@ export async function saveResendAction(raw: ResendAccountInput): Promise<Result>
 
 export async function syncMailAction(): Promise<Result<{ checked: number; stored: number }>> {
   try {
-    const result = await syncMail({ rescan: true })
+    const result = await syncMail({ rescan: true, wait: true })
     revalidatePath("/integrations")
     revalidatePath("/")
     revalidatePath("/applications")

@@ -5,7 +5,7 @@
  * as a fallback, verified facts) in the target language. It only *selects and
  * orders* them for a job, using the fit analysis.
  */
-import { compareRangesDesc, parseDateRange } from "@/lib/dates"
+import { entryName, entryView, sortKey, type EntryFields } from "@/lib/entry-fields"
 import { keywordsIn } from "@/server/analysis/keywords"
 import { sectionTitle, type CvBullet, type CvDocument, type CvItem, type CvSection } from "./model"
 
@@ -13,8 +13,9 @@ export type ComposeEntry = {
   id: string
   kind: string
   status: string
-  title: string
-  display: Record<string, { role?: string; organization?: string; dates?: string; location?: string; label?: string }>
+  /** Kind-specific text per language and shared fields (src/lib/entry-fields.ts). */
+  display: Record<string, Record<string, string>>
+  fields: EntryFields
   skills: string[]
   logoPath: string | null
   sortOrder: number
@@ -71,14 +72,17 @@ function bulletsFor(entry: ComposeEntry, language: string, defaultLanguage: stri
   return ranked.map((item, rank) => ({ ...item.bullet, included: rank < limit }))
 }
 
+/** The CV line of an entry, from its own fields: e.g. a job's position at its company, a project's name and tagline. */
 function itemFor(entry: ComposeEntry, language: string, bullets: CvBullet[]): CvItem {
-  const display = entry.display[language] ?? entry.display.en ?? Object.values(entry.display)[0] ?? {}
+  const view = entryView(entry, language)
+  // A contract type that isn't the default (internship, freelance…) belongs next to the position.
+  const contract = entry.kind === "experience" && entry.fields.employment && entry.fields.employment !== "full_time" ? view.details[0] : ""
   return {
     entryId: entry.id,
-    title: display.role || display.label || entry.title,
-    organization: display.organization ?? "",
-    dates: display.dates ?? "",
-    location: display.location ?? "",
+    title: contract ? `${view.heading} (${contract})` : view.heading,
+    organization: view.subheading,
+    dates: view.dates,
+    location: view.location,
     logoPath: entry.logoPath,
     included: true,
     bullets,
@@ -95,9 +99,8 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
   const missing: { entryId: string; title: string }[] = []
 
   const build = (kind: string, sectionKind: CvSection["kind"], limit: number, sortByRelevance: boolean, bulletsTop: number, bulletsOther: number) => {
-    // Newest first by the dates the user wrote (any language); undated entries keep their order.
-    const dates = (entry: ComposeEntry) => parseDateRange(entry.display[language]?.dates ?? entry.display.en?.dates ?? Object.values(entry.display)[0]?.dates)
-    const list = verified.filter((entry) => entry.kind === kind).sort((a, b) => compareRangesDesc(dates(a), dates(b)) || a.sortOrder - b.sortOrder)
+    // Newest first; undated entries keep their order.
+    const list = verified.filter((entry) => entry.kind === kind).sort((a, b) => sortKey(b) - sortKey(a) || a.sortOrder - b.sortOrder)
     // Relevance decides *which* entries make it; order stays chronological for
     // experience/education and by relevance for projects.
     const keep = new Set([...list].sort(byRelevance).slice(0, limit).map((entry) => entry.id))
@@ -107,7 +110,7 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
       const top = (rank.get(entry.id) ?? 999) < 3
       const bullets = bulletsFor(entry, language, profile.defaultLanguage, analysis, top ? bulletsTop : bulletsOther)
       if (bullets === null) {
-        missing.push({ entryId: entry.id, title: entry.title })
+        missing.push({ entryId: entry.id, title: entryName(entry, language) })
         continue
       }
       items.push(itemFor(entry, language, bullets))
@@ -133,7 +136,7 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
       kind: "certification",
       title: sectionTitle("certification", language),
       included: true,
-      items: certifications.map((entry) => ({ ...itemFor(entry, language, []), bullets: [] })),
+      items: certifications.sort((a, b) => sortKey(b) - sortKey(a)).map((entry) => ({ ...itemFor(entry, language, []), bullets: [] })),
       groups: [],
     })
   }
@@ -143,7 +146,7 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
   const skillGroups = verified
     .filter((entry) => entry.kind === "skill" && entry.skills.length)
     .map((entry) => {
-      const label = entry.phrasings.find((p) => p.role === "label" && p.language === language)?.text ?? entry.display[language]?.label ?? entry.title
+      const label = entry.phrasings.find((p) => p.role === "label" && p.language === language)?.text ?? entryView(entry, language).heading
       const values = [...entry.skills].sort((a, b) => Number(keywordsIn(b).some((k) => jobKeys.has(k))) - Number(keywordsIn(a).some((k) => jobKeys.has(k))))
       const score = entry.skills.filter((skill) => keywordsIn(skill).some((k) => jobKeys.has(k))).length
       return { label: clean(label), values: values.map((v) => v.replace(/\s*\(.*\)$/, "")), score }
@@ -151,9 +154,10 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
     .sort((a, b) => b.score - a.score)
   if (skillGroups.length) sections.push({ id: "skills", kind: "skills", title: sectionTitle("skills", language), included: true, items: [], groups: skillGroups.map(({ label, values }) => ({ label, values })) })
 
-  const languageEntry = verified.find((entry) => entry.kind === "language")
-  if (languageEntry?.facts.length) {
-    sections.push({ id: "languages", kind: "languages", title: sectionTitle("languages", language), included: true, items: [], groups: [{ label: "", values: languageEntry.facts.map((fact) => fact.statement.replace(/\.$/, "")) }] })
+  // One entry per language: "English (C1)".
+  const spoken = verified.filter((entry) => entry.kind === "language").map((entry) => entryView(entry, language)).filter((view) => view.heading)
+  if (spoken.length) {
+    sections.push({ id: "languages", kind: "languages", title: sectionTitle("languages", language), included: true, items: [], groups: [{ label: "", values: spoken.map((view) => (view.subheading ? `${view.heading} (${view.subheading})` : view.heading)) }] })
   }
 
   return {

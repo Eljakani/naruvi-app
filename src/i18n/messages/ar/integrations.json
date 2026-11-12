@@ -125,7 +125,7 @@
       "clientSecret": "سر العميل",
       "keepSecret": "اتركه فارغًا للاحتفاظ بالسر المحفوظ",
       "tenant": "المستأجر",
-      "tenantHint": "استخدم common لمعظم الحسابات، أو consumers للحسابات الشخصية فقط، أو معرّف مستأجر مؤسستك.",
+      "tenantHint": "حسابات العمل أو المدرسة (Microsoft 365) فقط — لا تعمل الحسابات الشخصية مثل Outlook.com وHotmail وLive. استخدم common أو organizations أو معرّف مستأجر مؤسستك. للبريد الشخصي، استخدم IMAP/SMTP بدلاً من ذلك.",
       "cancel": "إلغاء",
       "ready": "تسجيل الدخول عبر {name} جاهز",
       "readyBody": "انقر على «تسجيل الدخول عبر {name}».",

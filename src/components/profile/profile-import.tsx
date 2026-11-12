@@ -1,5 +1,6 @@
 "use client"
 
+import { entryView } from "@/lib/entry-fields"
 import { Otter } from "@/components/naruvi/otter"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -57,8 +58,8 @@ export function ProfileImport() {
       const response = await saveImportAction({
         language: result.language,
         identity: result.identity,
-        entries: result.entries.filter((_, index) => decisions[index] === "new").map((entry) => ({ kind: entry.kind, title: entry.title, display: entry.display, facts: entry.facts, skills: entry.skills, bullets: entry.bullets })),
-        merges: result.entries.flatMap((entry, index) => (decisions[index] === "merge" && entry.match ? [{ entryId: entry.match.entryId, facts: entry.match.newFacts, skills: entry.match.newSkills, display: entry.display }] : [])),
+        entries: result.entries.filter((_, index) => decisions[index] === "new").map((entry) => ({ kind: entry.kind, text: entry.text, fields: entry.fields, facts: entry.facts, skills: entry.skills, bullets: entry.bullets })),
+        merges: result.entries.flatMap((entry, index) => (decisions[index] === "merge" && entry.match ? [{ entryId: entry.match.entryId, facts: entry.match.newFacts, skills: entry.match.newSkills, text: entry.text, fields: entry.fields }] : [])),
       })
       if (!response.ok) return void toast.error(response.message)
       const { created, merged, factsAdded, reverify } = response.data
@@ -148,16 +149,17 @@ export function ProfileImport() {
           const match = entry.match
           const facts = decision === "merge" && match ? match.newFacts : entry.facts
           const skills = decision === "merge" && match ? match.newSkills : entry.skills
+          const view = entryView({ kind: entry.kind, display: { [result.language]: entry.text }, fields: entry.fields }, result.language)
           return (
             <Card key={index} size="sm" className={cn("transition-opacity", decision === "skip" && "opacity-50")}>
               <CardHeader>
-                <CardTitle className="truncate">{entry.display.role || entry.title}</CardTitle>
+                <CardTitle className="truncate">{view.heading || "—"}</CardTitle>
                 <CardDescription className="truncate">
                   {entry.kind in KIND_SINGULAR ? tk(entry.kind as Kind) : entry.kind}
-                  {[entry.display.organization, entry.display.dates, entry.display.location].filter(Boolean).map((part) => ` · ${part}`)}
+                  {[view.subheading, view.dates, view.location].filter(Boolean).map((part) => ` · ${part}`)}
                 </CardDescription>
                 <CardAction>
-                  <ToggleGroup value={[decision]} onValueChange={(value) => value[0] && decide(index, value[0] as Decision)} variant="outline" size="sm" aria-label={t("whatToDo", { title: entry.title })}>
+                  <ToggleGroup value={[decision]} onValueChange={(value) => value[0] && decide(index, value[0] as Decision)} variant="outline" size="sm" aria-label={t("whatToDo", { title: view.heading })}>
                     {match ? <ToggleGroupItem value="merge">{t("update")}</ToggleGroupItem> : null}
                     <ToggleGroupItem value="new">{match ? t("addNew") : t("add")}</ToggleGroupItem>
                     <ToggleGroupItem value="skip">{t("skip")}</ToggleGroupItem>
@@ -168,7 +170,7 @@ export function ProfileImport() {
                 <CardContent className="grid gap-2">
                   {match ? (
                     <p className="text-xs text-muted-foreground">
-                      {t.rich("matches", { title: match.title, b: (chunks) => <span className="font-medium text-foreground">{chunks}</span> })}
+                      {t.rich("matches", { title: match.name, b: (chunks) => <span className="font-medium text-foreground">{chunks}</span> })}
                       {match.knownFacts ? ` · ${t("known", { count: match.knownFacts })}` : ""}
                       {decision === "merge" && !facts.length && !skills.length ? ` · ${t("nothingNew")}` : ""}
                       {decision === "merge" && facts.length && match.status === "verified" ? ` · ${t("recheck")}` : ""}

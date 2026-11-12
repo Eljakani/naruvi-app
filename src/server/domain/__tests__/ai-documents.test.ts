@@ -9,7 +9,7 @@ import type { CompletionInput } from "../../llm/transport"
 
 const profile = { fullName: "Fictional Candidate", headlines: { en: "Store Manager" }, email: "private@example.test", phone: "private-phone", location: "Lyon", links: [], photoPath: null, defaultLanguage: "en" }
 const shop: ComposeEntry = {
-  id: "shop", kind: "experience", status: "verified", title: "Shop", display: { en: { role: "Store Manager", organization: "Fresh Market", dates: "2020–2024" } }, skills: [], logoPath: null, sortOrder: 0,
+  id: "shop", kind: "experience", status: "verified", display: { en: { position: "Store Manager" } }, fields: { company: "Fresh Market", dates: { start: "2020", end: "2024" } }, skills: [], logoPath: null, sortOrder: 0,
   facts: [{ id: "f1", statement: "Reduced stock losses by 20% through weekly audits." }, { id: "f2", statement: "Managed a team of 12." }],
   phrasings: [
     { id: "p1", group: "Ops", role: "bullet", language: "en", text: "Reduced stock losses by 20% through weekly audits.", factIds: ["f1"], grounding: { grounded: true } },
@@ -37,7 +37,7 @@ test("CV AI tailors wording while preserving identity, history, citations and or
   assert.equal(next.aiAssistance?.status, "applied")
   assert.equal(next.aiAssistance?.reviewed, false)
   assert.deepEqual(next.header, base.header)
-  assert.equal(next.sections[0].items[0].dates, "2020–2024")
+  assert.equal(next.sections[0].items[0].dates, "2020 – 2024")
   const bullet = next.sections[0].items[0].bullets[0]
   assert.equal(bullet.text, "Led a team of 12.")
   assert.deepEqual(bullet.factIds, ["f2"])

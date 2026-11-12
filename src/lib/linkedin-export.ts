@@ -3,15 +3,21 @@
  * profile entries. Pure and exact: no AI, nothing added that isn't in the
  * files. Everything still arrives as "needs review".
  */
+import { looseFields, type EntryFields } from "@/lib/entry-fields"
+
 export type ExportEntry = {
   kind: "experience" | "education" | "project" | "skill" | "certification" | "language" | "achievement"
-  title: string
-  display: { role: string; organization: string; dates: string; location: string }
+  /** Per-language fields of the kind, in the export's language. */
+  text: Record<string, string>
+  fields: EntryFields
   facts: string[]
   skills: string[]
   bullets: { text: string; facts: number[] }[]
   dropped: number
 }
+/** LinkedIn's proficiency wording, as CEFR. */
+const LEVELS: [RegExp, string][] = [[/native|bilingual/i, "native"], [/full professional/i, "C1"], [/professional working/i, "B2"], [/limited working/i, "B1"], [/elementary/i, "A2"]]
+
 export type ExportIdentity = { fullName: string; headline: string; email: string; phone: string; location: string; links: { label: string; url: string }[] }
 
 /** RFC 4180 CSV: quoted fields, doubled quotes, newlines inside quotes. */
@@ -97,30 +103,31 @@ export function linkedinImport(files: Record<string, string>) {
 
   const entries: ExportEntry[] = []
   const base = { skills: [] as string[], bullets: [] as { text: string; facts: number[] }[], dropped: 0 }
+  const push = (kind: ExportEntry["kind"], text: Record<string, string | undefined>, fields: Record<string, unknown>, facts: string[] = [], skills: string[] = []) =>
+    entries.push({ ...base, kind, text: Object.fromEntries(Object.entries(text).filter((pair): pair is [string, string] => Boolean(pair[1]?.trim()))), fields: looseFields(kind, fields), facts, skills })
   for (const row of pick("Positions")) {
     if (!row.Title && !row["Company Name"]) continue
-    entries.push({ ...base, kind: "experience", title: [row["Company Name"], row.Title].filter(Boolean).join(" — "), display: { role: row.Title ?? "", organization: row["Company Name"] ?? "", dates: span(row["Started On"], row["Finished On"]), location: row.Location ?? "" }, facts: descriptionFacts(row.Description ?? "") })
+    push("experience", { position: row.Title, location: row.Location }, { company: row["Company Name"], dates: span(row["Started On"], row["Finished On"]) }, descriptionFacts(row.Description ?? ""))
   }
   for (const row of pick("Education")) {
     if (!row["School Name"]) continue
-    entries.push({ ...base, kind: "education", title: [row["School Name"], row["Degree Name"]].filter(Boolean).join(" — "), display: { role: row["Degree Name"] ?? "", organization: row["School Name"], dates: span(row["Start Date"], row["End Date"]), location: "" }, facts: descriptionFacts([row.Notes, row.Activities].filter(Boolean).join("\n")) })
+    push("education", { degree: row["Degree Name"] }, { school: row["School Name"], dates: span(row["Start Date"], row["End Date"]) }, descriptionFacts([row.Notes, row.Activities].filter(Boolean).join("\n")))
   }
   for (const row of pick("Projects")) {
     if (!row.Title) continue
-    entries.push({ ...base, kind: "project", title: row.Title, display: { role: "", organization: "", dates: span(row["Started On"], row["Finished On"]), location: "" }, facts: descriptionFacts(row.Description ?? "") })
+    push("project", {}, { name: row.Title, url: row.Url, dates: span(row["Started On"], row["Finished On"]) }, descriptionFacts(row.Description ?? ""))
   }
   for (const row of pick("Certifications")) {
     if (!row.Name) continue
-    entries.push({ ...base, kind: "certification", title: row.Name, display: { role: "", organization: row.Authority ?? "", dates: row["Started On"] ?? "", location: "" }, facts: [] })
+    push("certification", {}, { name: row.Name, issuer: row.Authority, issued: row["Started On"], expires: row["Finished On"], credentialId: row["License Number"], url: row.Url })
   }
   for (const row of pick("Honors")) {
     if (!row.Title) continue
-    entries.push({ ...base, kind: "achievement", title: row.Title, display: { role: "", organization: "", dates: row["Issued On"] ?? "", location: "" }, facts: descriptionFacts(row.Description ?? "") })
+    push("achievement", { title: row.Title }, { date: row["Issued On"] }, descriptionFacts(row.Description ?? ""))
   }
   const skills = [...new Set(pick("Skills").map((row) => row.Name).filter(Boolean))]
-  chunk(skills, 40).forEach((group, index) => entries.push({ ...base, kind: "skill", title: index ? `Skills from LinkedIn (${index + 1})` : "Skills from LinkedIn", display: { role: "", organization: "", dates: "", location: "" }, facts: [], skills: group }))
-  const languages = pick("Languages").filter((row) => row.Name).map((row) => (row.Proficiency ? `${row.Name} (${row.Proficiency.replace(/ proficiency$/i, "")})` : row.Name))
-  if (languages.length) entries.push({ ...base, kind: "language", title: "Languages", display: { role: "", organization: "", dates: "", location: "" }, facts: [], skills: languages.slice(0, 40) })
+  chunk(skills, 40).forEach((group, index) => push("skill", { name: index ? `LinkedIn skills (${index + 1})` : "LinkedIn skills" }, {}, [], group))
+  for (const row of pick("Languages").filter((row) => row.Name)) push("language", { language: row.Name }, { level: LEVELS.find(([pattern]) => pattern.test(row.Proficiency ?? ""))?.[1] })
 
   const sample = [profile.Summary, ...pick("Positions").map((row) => row.Description)].filter(Boolean).join(" ")
   return { language: guessLanguage(sample), identity, entries, found: entries.length > 0 || Boolean(identity.fullName) }

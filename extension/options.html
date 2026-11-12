@@ -1,18 +1,59 @@
 <!doctype html>
-<html lang="en">
+<html>
   <head>
     <meta charset="utf-8" />
-    <link rel="stylesheet" href="style.css" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Naruvi</title>
+    <link rel="icon" href="icons/icon-32.png" />
+    <link rel="stylesheet" href="ui.css" />
+    <style>
+      body { min-height: 100vh; background: var(--muted); }
+      .wrap { max-width: 560px; margin: 0 auto; padding: 40px 20px 60px; display: grid; gap: 16px; }
+      .brandline { display: flex; align-items: center; gap: 12px; }
+      .brandline img { width: 40px; height: 40px; border-radius: 10px; }
+      h1 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
+      h2 { margin: 0; font-size: 14px; }
+      .card { padding: 18px; display: grid; gap: 12px; }
+      .switch { position: relative; width: 36px; height: 20px; flex: none; appearance: none; border-radius: 999px; background: var(--input); cursor: pointer; transition: background 0.15s; margin: 0; }
+      .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: white; box-shadow: var(--shadow); transition: transform 0.15s; }
+      .switch:checked { background: var(--brand); }
+      .switch:checked::after { transform: translateX(16px); }
+      .hero-row { display: flex; gap: 14px; align-items: center; }
+      .hero-row img { width: 84px; height: 84px; object-fit: contain; flex: none; }
+    </style>
   </head>
-  <body class="options">
-    <h1>Save to Naruvi: settings</h1>
-    <label for="server">Naruvi address</label>
-    <input id="server" type="url" placeholder="http://localhost:3000" />
-    <label for="key">API key</label>
-    <input id="key" type="password" placeholder="nrv_…" autocomplete="off" />
-    <p class="muted">Create a key in Naruvi under Integrations → API &amp; browser extension. It stays in this browser only.</p>
-    <button id="save">Save</button>
-    <p id="status" role="status" class="muted"></p>
-    <script src="options.js"></script>
+  <body>
+    <div class="wrap">
+      <div class="brandline">
+        <img src="icons/icon-128.png" alt="" />
+        <div><h1 id="title"></h1><div class="small muted" id="lead"></div></div>
+      </div>
+
+      <section class="card">
+        <label class="field"><span class="label" id="l-server"></span><input class="input" id="server" type="url" placeholder="http://localhost:3000" /></label>
+        <label class="field"><span class="label" id="l-key"></span><input class="input" id="key" type="password" placeholder="nrv_…" autocomplete="off" spellcheck="false" /><span class="hint" id="h-key"></span></label>
+        <div class="row"><button class="btn primary" id="save"></button><button class="btn ghost" id="open" hidden></button></div>
+        <div id="status" role="status"></div>
+      </section>
+
+      <section class="card">
+        <div class="row" style="align-items: flex-start">
+          <div class="grow"><h2 id="badge-title"></h2><p class="small muted" id="badge-body" style="margin: 4px 0 0"></p></div>
+          <input type="checkbox" class="switch" id="badge" role="switch" />
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 id="shortcuts"></h2>
+        <div class="row small"><span class="grow" id="s-open"></span><kbd>Alt</kbd><kbd>Shift</kbd><kbd>N</kbd></div>
+        <div class="row small"><span class="grow" id="s-read"></span><kbd>Alt</kbd><kbd>Shift</kbd><kbd>S</kbd></div>
+        <div><button class="btn outline sm" id="change-shortcuts"></button></div>
+      </section>
+
+      <section class="card soft">
+        <div class="hero-row"><img src="art/thinking.png" alt="" /><div><h2 id="privacy"></h2><p class="small muted" id="privacy-body" style="margin: 4px 0 0"></p></div></div>
+      </section>
+    </div>
+    <script type="module" src="options.js"></script>
   </body>
 </html>

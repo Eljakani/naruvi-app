@@ -3,7 +3,7 @@ import { join } from "node:path"
 import pkg from "../../package.json"
 
 export const APP_VERSION = pkg.version
-const RELEASES = "https://api.github.com/repos/Eljakani/naruvi/releases/latest"
+const RELEASES = "https://api.github.com/repos/Eljakani/naruvi-app/releases/latest"
 const DAY_HALF = 12 * 60 * 60 * 1000
 
 export type Release = { version: string; date: string | null; groups: { title: string | null; items: string[] }[] }

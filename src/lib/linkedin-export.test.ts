@@ -24,9 +24,10 @@ test("a LinkedIn export becomes entries, skills, languages and identity", () => 
   assert.equal(result.identity.email, "alex@example.org")
   assert.deepEqual(result.identity.links, [{ label: "Portfolio", url: "https://alex.dev" }])
   const job = result.entries.find((entry) => entry.kind === "experience")!
-  assert.equal(job.display.dates, "Mar 2023 – Present")
+  assert.deepEqual(job.fields.dates, { start: "2023-03", end: "present" })
   assert.deepEqual(job.facts, ["Ran threat modeling for 12 teams", "Built the SAST pipeline"])
   assert.deepEqual(result.entries.find((entry) => entry.kind === "skill")?.skills, ["Terraform", "Kubernetes"])
-  assert.deepEqual(result.entries.find((entry) => entry.kind === "language")?.skills, ["French (Native or bilingual)"])
-  assert.equal(result.entries.find((entry) => entry.kind === "education")?.display.dates, "2015 – 2020")
+  const language = result.entries.find((entry) => entry.kind === "language")
+  assert.deepEqual([language?.text, language?.fields], [{ language: "French" }, { level: "native" }])
+  assert.deepEqual(result.entries.find((entry) => entry.kind === "education")?.fields.dates, { start: "2015", end: "2020" })
 })

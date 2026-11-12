@@ -26,7 +26,7 @@ import { displayFitScore, type RequirementMatch } from "@/server/analysis/match"
 import type { StoredAnalysis } from "@/server/applications/repository"
 import { useLocale, useTranslations } from "next-intl"
 
-type FactRow = { id: string; statement: string; entryId: string; entryTitle: string; display: Record<string, { organization?: string; role?: string }>; logoPath: string | null }
+type FactRow = { id: string; statement: string; entryId: string; entryTitle: string; logoPath: string | null }
 
 const STATUS = {
   met: { icon: CheckCircle2Icon, className: "text-emerald-600", pill: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400" },
@@ -109,9 +109,9 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
                 <ul className="grid gap-1">
                   {evidence.map((fact) => (
                     <li key={fact.id} className="flex items-start gap-2 rounded-md bg-muted/50 px-2 py-1.5 text-xs">
-                      <EntryLogo path={fact.logoPath} name={fact.display.en?.organization || fact.entryTitle} size={18} className="mt-px rounded" />
+                      <EntryLogo path={fact.logoPath} name={fact.entryTitle} size={18} className="mt-px rounded" />
                       <span className="min-w-0 flex-1 text-muted-foreground">
-                        <span className="font-medium text-foreground">{fact.display.en?.organization || fact.entryTitle}</span> — {fact.statement}
+                        <span className="font-medium text-foreground">{fact.entryTitle}</span> — {fact.statement}
                       </span>
                     </li>
                   ))}

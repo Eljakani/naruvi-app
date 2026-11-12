@@ -46,8 +46,10 @@ test("parses an experience pool into display, facts, phrasings and rules", () =>
   assert.equal(entry.kind, "experience")
   assert.equal(entry.status, "verified")
   assert.deepEqual(entry.tags, ["devsecops", "cloud", "oci"])
-  assert.equal(entry.display.en.role, "DevSecOps Engineer - Final Year Internship")
-  assert.equal(entry.display.fr.role, "Ingénieur DevSecOps - Stage PFE")
+  // The contract type moves out of the position into its own field.
+  assert.equal(entry.display.en.position, "DevSecOps Engineer")
+  assert.equal(entry.display.fr.position, "Ingénieur DevSecOps")
+  assert.equal(entry.fields.employment, "internship")
   assert.equal(entry.facts.length, 2)
   assert.deepEqual(entry.phrasings.map((p) => [p.group, p.language]), [["DevSecOps / Cloud", "en"], ["DevSecOps / Cloud", "fr"]])
   assert.equal(entry.doNotClaim.length, 1)

@@ -120,7 +120,7 @@ export function LogoField({ value, name, onChange }: { value: string | null; nam
         />
       </div>
       {warning ? (
-        <p className="flex items-start gap-1.5 text-xs text-amber-600">
+        <p className="flex items-start gap-1.5 text-xs text-warning">
           <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" /> {warning}
         </p>
       ) : null}

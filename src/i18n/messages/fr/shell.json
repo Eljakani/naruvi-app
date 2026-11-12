@@ -53,7 +53,12 @@
       "find_profile_entries": {
         "running": "Recherche d’une entrée du profil",
         "done": "Entrées correspondantes vérifiées"
-      }
+      },
+      "get_profile_entry": { "running": "Lecture de l’entrée du profil", "done": "Entrée du profil lue" },
+      "read_search_goals": { "running": "Lecture de vos objectifs de recherche", "done": "Objectifs de recherche lus" },
+      "list_job_leads": { "running": "Consultation de vos pistes", "done": "Pistes consultées" },
+      "salary_for_job": { "running": "Recherche des données de salaire", "done": "Données de salaire consultées" },
+      "check_mail": { "running": "Vérification de votre boîte mail", "done": "Boîte mail vérifiée" }
     },
     "counts": {
       "applications": "{count, plural, one {# candidature} other {# candidatures}}",

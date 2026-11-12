@@ -3,14 +3,16 @@
  * Pure: text in, structured record out. Unknown sections are kept as facts so
  * nothing the user wrote is silently dropped.
  */
-import type { EntryDisplay } from "@/server/db/schema"
+import { fromLegacy, type EntryFields, type EntryText, type LegacyDisplay } from "@/lib/entry-fields"
 
 export type ParsedEntry = {
   key: string
   kind: "experience" | "education" | "project" | "skill" | "certification" | "language" | "achievement" | "other"
   status: "verified" | "needs_review"
-  title: string
-  display: Record<string, EntryDisplay>
+  /** The pool's own heading, for import reports only (not stored). */
+  name: string
+  display: EntryText
+  fields: EntryFields
   tags: string[]
   skills: string[]
   facts: string[]
@@ -43,7 +45,7 @@ const KIND: Record<string, ParsedEntry["kind"]> = {
 }
 
 const LANG: Record<string, string> = { english: "en", french: "fr", anglais: "en", "français": "fr", francais: "fr" }
-const DISPLAY_KEYS: Record<string, keyof EntryDisplay> = {
+const DISPLAY_KEYS: Record<string, keyof LegacyDisplay> = {
   role: "role",
   title: "role",
   degree: "role",
@@ -101,12 +103,14 @@ export function parsePool(markdown: string, fallbackKey: string): ParsedEntry {
   const doc = sections(markdown)
   const meta = Object.fromEntries(keyValues(doc.header))
   const statusRaw = String(meta.status ?? "").toLowerCase()
+  const legacy: Record<string, LegacyDisplay> = {}
   const entry: ParsedEntry = {
     key: meta.id || fallbackKey,
     kind: KIND[String(meta.type ?? "").toLowerCase()] ?? "other",
     status: /^(verified|current)/.test(statusRaw) ? "verified" : "needs_review",
-    title: doc.title || meta.id || fallbackKey,
+    name: doc.title || meta.id || fallbackKey,
     display: {},
+    fields: {},
     tags: csv(meta.tags),
     skills: [],
     facts: [],
@@ -121,7 +125,7 @@ export function parsePool(markdown: string, fallbackKey: string): ParsedEntry {
     if (heading === "display") {
       const lang = LANG[section.sub.toLowerCase()] ?? (section.sub ? null : "neutral")
       if (lang === null) continue
-      const target = (entry.display[lang] ??= {})
+      const target = (legacy[lang] ??= {})
       for (const [key, value] of keyValues(section.lines)) {
         const field = DISPLAY_KEYS[key]
         if (field) target[field] = value
@@ -142,11 +146,12 @@ export function parsePool(markdown: string, fallbackKey: string): ParsedEntry {
   }
 
   // A neutral display applies to every language that has no own value.
-  const neutral = entry.display.neutral
+  const neutral = legacy.neutral
   if (neutral) {
-    delete entry.display.neutral
-    for (const lang of ["en", "fr"]) entry.display[lang] = { ...neutral, ...entry.display[lang] }
+    delete legacy.neutral
+    for (const lang of ["en", "fr"]) legacy[lang] = { ...neutral, ...legacy[lang] }
   }
+  Object.assign(entry, fromLegacy(entry.kind, entry.name, legacy))
   if (entry.doNotClaim.some((rule) => /\bNDA\b/.test(rule))) entry.confidential = true
   entry.facts = [...new Set(entry.facts)]
   return entry

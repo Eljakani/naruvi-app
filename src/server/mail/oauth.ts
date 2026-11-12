@@ -17,7 +17,7 @@ export const oauthClientInput = z.object({
   clientId: z.string().trim().min(10, "Paste the client ID").max(300),
   /** Empty keeps the saved secret. */
   clientSecret: z.string().trim().max(500).default(""),
-  tenant: z.string().trim().regex(/^[\w.-]{1,100}$/, "Use common, consumers, organizations or your tenant ID").default("common"),
+  tenant: z.string().trim().regex(/^[\w.-]{1,100}$/, "Use common, organizations or your tenant ID (personal Microsoft accounts are not supported)").default("common"),
 })
 
 async function readClient(provider: OAuthProviderId) {

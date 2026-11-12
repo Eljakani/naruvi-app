@@ -15,7 +15,8 @@ const BATCH_LIMIT = 200
 const MAX_SOURCE_BYTES = 2_000_000
 const MAX_TEXT = 20_000
 const RESCAN_WINDOW_MS = 30 * 86_400_000
-type SyncOptions = { rescan?: boolean }
+/** `wait`: queue behind a sync already in progress (manual "check now") instead of skipping. */
+type SyncOptions = { rescan?: boolean; wait?: boolean }
 
 /** Applications with known contacts and both sides of their email threads. */
 async function candidates(): Promise<MatchCandidate[]> {
@@ -61,8 +62,14 @@ async function collectLeads(html: string, text: string, source: string, foundAt:
 export async function syncMail(options: SyncOptions = {}): Promise<SyncResult> {
   // A transaction-scoped lock lives on one pooled connection and is released when it ends.
   return db.transaction(async (tx) => {
-    const [lock] = await tx.execute<{ ok: boolean }>(sql`select pg_try_advisory_xact_lock(hashtext('naruvi:mail-sync')) as ok`)
-    if (!lock?.ok) return { checked: 0, stored: 0, skipped: "A sync is already running." }
+    if (options.wait) {
+      // Give up after a while rather than hang the request if the other sync is stuck.
+      await tx.execute(sql`set local lock_timeout = '90s'`)
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('naruvi:mail-sync'))`)
+    } else {
+      const [lock] = await tx.execute<{ ok: boolean }>(sql`select pg_try_advisory_xact_lock(hashtext('naruvi:mail-sync')) as ok`)
+      if (!lock?.ok) return { checked: 0, stored: 0, skipped: "A sync is already running." }
+    }
     return runSync(options)
   })
 }

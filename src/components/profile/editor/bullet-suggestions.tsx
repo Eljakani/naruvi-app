@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import type { BulletSuggestion } from "@/server/profile/ai-bullets"
 import { useTranslations } from "next-intl"
 
-type Input = { kind: string; role: string; organization: string; facts: { key: string; statement: string }[]; existing: string[]; languages: string[] }
+type Input = { kind: string; entry: string; facts: { key: string; statement: string }[]; existing: string[]; languages: string[] }
 
 /** Asks the model for fact-grounded bullet drafts; the user keeps the ones they like. */
 export function BulletSuggestions({ input, unused, factNumber, onAdd }: { input: Input; unused: number; factNumber: (key: string) => number; onAdd: (suggestions: BulletSuggestion[]) => void }) {

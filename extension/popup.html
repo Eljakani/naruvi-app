@@ -1,16 +1,34 @@
 <!doctype html>
-<html lang="en">
+<html>
   <head>
     <meta charset="utf-8" />
-    <link rel="stylesheet" href="style.css" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="stylesheet" href="ui.css" />
+    <style>
+      body { width: 372px; min-height: 220px; }
+      header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: color-mix(in oklch, var(--background) 88%, transparent); backdrop-filter: blur(8px); z-index: 2; }
+      header .mark { width: 26px; height: 26px; border-radius: 7px; }
+      main { padding: 12px; max-height: 540px; overflow-y: auto; overflow-x: hidden; }
+      footer { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-top: 1px solid var(--border); }
+    </style>
   </head>
   <body>
-    <h1>Save to Naruvi</h1>
-    <p id="page" class="muted">Reading this tab…</p>
-    <button id="save" disabled>Save this job</button>
-    <button id="contact" class="secondary" hidden>Save this person as a contact</button>
-    <p id="status" role="status" class="muted"></p>
-    <p class="footer"><a href="#" id="settings">Settings</a></p>
-    <script src="popup.js"></script>
+    <header>
+      <img class="mark" src="icons/icon-48.png" alt="" />
+      <div class="grow">
+        <div class="strong truncate" id="greeting">Naruvi</div>
+      </div>
+      <div class="tabs" role="tablist" id="tabs" hidden>
+        <button class="tab" role="tab" id="tab-page" aria-selected="true"></button>
+        <button class="tab" role="tab" id="tab-today" aria-selected="false"></button>
+      </div>
+      <button class="icon-btn" id="settings"></button>
+    </header>
+    <main id="view" aria-live="polite"></main>
+    <footer>
+      <span class="tiny muted" id="hint"></span>
+      <a class="btn ghost sm" id="open-app" href="#"></a>
+    </footer>
+    <script type="module" src="popup.js"></script>
   </body>
 </html>

@@ -13,10 +13,10 @@
     "kindSingular": {
       "experience": "Experience",
       "project": "Project",
-      "skill": "Skill cluster",
+      "skill": "Skill group",
       "education": "Education",
       "certification": "Certification",
-      "language": "Languages",
+      "language": "Language",
       "achievement": "Achievement",
       "other": "Other"
     },
@@ -31,14 +31,14 @@
     "description": "Everything your CVs and letters say about you comes from here, and nothing else.",
     "start": {
       "title": "Start your profile",
-      "body": "Upload your CV and AI fills your profile for you, or add entries by hand. Nothing is used for generation until you verify it.",
+      "body": "Upload your CV and Naruvi sorts it into entries for you, or add entries by hand. You check each entry before it's saved, and only saved entries go into your CVs.",
       "fromCv": "Start from my CV"
     },
     "addEntry": "Add entry",
     "changePhoto": "Change photo",
     "addPhoto": "Add a photo",
     "yourName": "Your name",
-    "addHeadline": "+ Add a one-line headline",
+    "addHeadline": "Add a one-line headline",
     "edit": "Edit",
     "contact": {
       "email": "email",
@@ -49,11 +49,11 @@
     "available": "Available {when}",
     "ready": "{ready} of {total} entries ready",
     "allReady": "Every entry is ready",
-    "stats": "{facts} facts · {percent}% of CV lines backed",
+    "stats": "{facts} facts · {percent}% of CV lines backed by a fact",
     "review": "{count, plural, one {Review # entry} other {Review # entries}}",
     "checksOut": "Every entry checks out. Your CVs can use all of it.",
     "search": "Search your profile…",
-    "needsLook": "Needs a look · {count}",
+    "needsLook": "Needs review · {count}",
     "addFromCv": "Add from CV",
     "noMatch": "Nothing matches",
     "noMatchBody": "Try another word, or clear the filter.",
@@ -97,24 +97,26 @@
     "logo": "{name} logo",
     "card": {
       "archived": "Archived",
-      "needsLook": "Needs a look",
+      "needsLook": "Needs review",
       "noFacts": "No facts yet",
       "lineNeedsFact": "A CV line needs a fact",
       "nda": "NDA",
-      "ready": "Ready"
+      "ready": "Ready",
+      "unnamed": "Unnamed"
     },
     "languageSwitch": {
       "label": "Language",
       "notFilledTitle": "{language} (not filled in yet)",
       "filled": ", filled in",
       "notFilled": ", not filled in yet"
-    }
+    },
+    "searchLabel": "Search your profile"
   },
   "identity": {
     "saveFailed": "Could not save",
     "saved": "Identity saved",
     "title": "Identity & contact",
-    "description": "Copied as-is into every CV and letter. AI never changes these.",
+    "description": "Your name and contact details are copied as-is into every CV and letter.",
     "who": "Who you are",
     "fullName": "Full name",
     "intro": "How you introduce yourself",
@@ -167,7 +169,7 @@
     "defaultName": "My search",
     "dialog": {
       "roles": "Roles you're looking for",
-      "rolesPlaceholder": "DevOps engineer, SRE",
+      "rolesPlaceholder": "Data analyst, Product manager",
       "rolesHint": "Up to 3. Job discovery searches for these, in this goal's places.",
       "new": "New search goal",
       "edit": "Edit search goal",
@@ -192,7 +194,9 @@
       "delete": "Delete",
       "cancel": "Cancel",
       "save": "Save goal"
-    }
+    },
+    "monthsMin": "{min}+ months",
+    "monthsMax": "Up to {max} months"
   },
   "profileImport": {
     "toast": {
@@ -204,7 +208,7 @@
     },
     "back": "Profile",
     "title": "Start from your CV",
-    "description": "Give me your CV, your LinkedIn export or a few notes. I’ll sort it into jobs, studies, projects and skills, and split achievements into facts. I never add anything you didn’t write, and nothing is used until you verify it.",
+    "description": "Give me your CV, your LinkedIn export or a few notes. I’ll sort it into jobs, studies, projects and skills, and split achievements into facts. I never add anything you didn’t write, and nothing is saved until you confirm it.",
     "drop": "Drop your CV here or click to choose",
     "formats": "PDF, LinkedIn export (.zip) or text, up to 8 MB",
     "orPaste": "or paste text",
@@ -212,7 +216,7 @@
     "timing": "Usually 15–40 seconds. I’ll show you everything before saving.",
     "read": "Read my CV",
     "startOver": "Start over",
-    "found": "Here’s what we found",
+    "found": "Here’s what I found",
     "summary": "{created} new · {merged} to update · {skipped} skipped. Entries you already have are updated with only what’s new; nothing you wrote is overwritten.",
     "apply": "Looks right, save to my profile",
     "you": "You",

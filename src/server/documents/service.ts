@@ -314,6 +314,30 @@ export async function reviseWithChecks(run: Awaited<ReturnType<typeof startRun>>
   return checked ? { ...result, doc: checked.doc, rejected: result.rejected + checked.reverted } : result
 }
 
+/** Apply a free-form request to the current CV of an application (assistant) and save it as a new revision. */
+export async function reviseSavedCv(applicationId: string, language: string, request: string) {
+  if (!(await getLlmOverview().catch(() => null))?.configured) throw new Error("No language model is configured.")
+  const [application, entries, workspace] = await Promise.all([getApplication(applicationId), listEntries(), getCvWorkspace(applicationId, language)])
+  if (!application) throw new Error("Application not found.")
+  if (!workspace?.current) throw new Error("There is no CV for this application in that language yet. Draft it first.")
+  const facts = new Map(entries.filter((entry) => entry.status === "verified").flatMap((entry) => entry.facts.map((fact) => [fact.id, fact.statement] as const)))
+  const job = { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }
+  const requirements = application.analysis?.requirements ?? []
+  const run = await startRun("cv.revise", { request: request.slice(0, 120), scope: "cv", via: "assistant" }, applicationId)
+  try {
+    const agent = await run.step("CV agent (revise, render, score, fix)", () => runCvAgent(cvDocument.parse(workspace.current!.content), { request, protectFacts: new Set(requirements.filter((r) => r.kind === "must" && (r.status === "met" || r.status === "partial")).flatMap((r) => r.factIds)) }, {
+      evaluate: (doc) => scoreCvDraft(doc, requirements),
+      revise: (doc, instruction) => reviseWithChecks(run, doc, instruction, facts, job, entries),
+    }), (value) => `${value.rounds.length} round(s) · score ${value.scoreBefore} → ${value.scoreAfter} · ${value.pages} page(s)`)
+    const saved = agent.improved ? await saveCvEdit(workspace.document.id, agent.doc) : null
+    await run.finish("succeeded", { rounds: agent.rounds.length, scoreBefore: agent.scoreBefore, scoreAfter: agent.scoreAfter, saved: Boolean(saved) })
+    return { changed: Boolean(saved), note: agent.note, scoreBefore: agent.scoreBefore, scoreAfter: agent.scoreAfter, pages: agent.pages }
+  } catch (error) {
+    await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
+    throw error
+  }
+}
+
 /** Renders and scores a CV draft without saving it. */
 export async function scoreCvDraft(doc: CvDocument, requirements: Parameters<typeof checkQuality>[2]) {
   const { pages, quality } = await evaluate(doc, requirements)

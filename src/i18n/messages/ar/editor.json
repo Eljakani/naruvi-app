@@ -1,58 +1,8 @@
 {
   "entryEditor": {
-    "fields": {
-      "experience": {
-        "role": "الوظيفة",
-        "organization": "الشركة",
-        "rolePlaceholder": "مدير متجر",
-        "orgPlaceholder": "اسم الشركة"
-      },
-      "project": {
-        "role": "اسم المشروع",
-        "organization": "السياق",
-        "rolePlaceholder": "تطبيق حديقة مجتمعية",
-        "orgPlaceholder": "مشروع شخصي"
-      },
-      "education": {
-        "role": "الشهادة",
-        "organization": "المؤسسة التعليمية",
-        "rolePlaceholder": "بكالوريوس تمريض",
-        "orgPlaceholder": "اسم الجامعة"
-      },
-      "certification": {
-        "role": "الشهادة المهنية",
-        "organization": "الجهة المانحة",
-        "rolePlaceholder": "KCNA",
-        "orgPlaceholder": "Linux Foundation"
-      },
-      "skill": {
-        "role": "اسم المجموعة",
-        "organization": "السياق",
-        "rolePlaceholder": "خدمة العملاء",
-        "orgPlaceholder": ""
-      },
-      "language": {
-        "role": "التسمية",
-        "organization": "السياق",
-        "rolePlaceholder": "اللغات",
-        "orgPlaceholder": ""
-      },
-      "achievement": {
-        "role": "العنوان",
-        "organization": "الحدث / الجهة",
-        "rolePlaceholder": "المركز الأول",
-        "orgPlaceholder": "WOCS'hAck 2026"
-      },
-      "other": {
-        "role": "العنوان",
-        "organization": "المؤسسة",
-        "rolePlaceholder": "",
-        "orgPlaceholder": ""
-      }
-    },
     "sections": {
-      "basics": "الأساسيات",
-      "display": "طريقة العرض",
+      "basics": "ما هذا؟",
+      "display": "التفاصيل",
       "facts": "ما قمت به",
       "bullets": "أسطر السيرة الذاتية",
       "skills": "المهارات والكلمات المفتاحية",
@@ -60,7 +10,7 @@
     },
     "ready": {
       "named": "مُسمّى",
-      "titleIn": "العنوان والتواريخ باللغة {language}",
+      "titleIn": "مكتوب بـ{language}",
       "skills": "المهارات مُدرجة",
       "fact": "حقيقة واحدة على الأقل",
       "ungrounded": "{count, plural, one {سطر واحد في السيرة بلا حقيقة} two {سطران في السيرة بلا حقيقة} few {# أسطر في السيرة بلا حقيقة} other {# سطرًا في السيرة بلا حقيقة}}",
@@ -94,9 +44,6 @@
       "title": "ما هو؟",
       "description": "تتكيّف الحقول أدناه مع النوع.",
       "type": "نوع العنصر",
-      "internalName": "الاسم الداخلي",
-      "internalPlaceholder": "كيف ستتعرّف عليه في القوائم",
-      "internalHint": "لك وحدك. يرى مسؤولو التوظيف حقول العرض أدناه.",
       "logo": {
         "education": "شعار المؤسسة التعليمية",
         "certification": "شعار الجهة المانحة",
@@ -105,9 +52,8 @@
       }
     },
     "display": {
-      "title": "كيف يظهر في السيرة الذاتية",
-      "description": "العنوان والمكان والتواريخ باللغة {language}. بدّل اللغة من الأعلى.",
-      "location": "الموقع",
+      "title": "التفاصيل",
+      "description": "محتوى هذا الإدخال؛ النصوص بـ{language}. الحقول المعلَّمة «كل اللغات» مشتركة بين كل السير الذاتية.",
       "startFrom": "ابدأ من الحقول باللغة {language}"
     },
     "facts": {
@@ -194,8 +140,163 @@
     "sectionsLabel": "الأقسام",
     "onThisPage": "في هذه الصفحة",
     "needsSomething": "يحتاج إلى شيء",
-    "degree": {
-      "label": "المستوى الدراسي"
+    "kindFields": {
+      "shared": "كل اللغات",
+      "sharedHint": "يُكتب مرة واحدة ويُستخدم في كل السير الذاتية مهما كانت لغتها.",
+      "experience": {
+        "position": {
+          "label": "المنصب",
+          "placeholder": "مدير مشروع"
+        },
+        "company": {
+          "label": "الشركة",
+          "placeholder": "Northwind"
+        },
+        "employment": {
+          "label": "نوع العقد"
+        },
+        "workMode": {
+          "label": "نمط العمل"
+        },
+        "location": {
+          "label": "المكان",
+          "placeholder": "Lyon, France"
+        },
+        "dates": {
+          "label": "التواريخ"
+        }
+      },
+      "education": {
+        "degree": {
+          "label": "الشهادة",
+          "placeholder": "إجازة"
+        },
+        "field": {
+          "label": "التخصص",
+          "placeholder": "علم الأحياء"
+        },
+        "school": {
+          "label": "المؤسسة",
+          "placeholder": "Riverside University"
+        },
+        "location": {
+          "label": "المكان",
+          "placeholder": "Lyon, France"
+        },
+        "honours": {
+          "label": "الميزة أو المعدل",
+          "placeholder": "With honours"
+        },
+        "dates": {
+          "label": "التواريخ"
+        }
+      },
+      "project": {
+        "name": {
+          "label": "اسم المشروع",
+          "placeholder": "Pocket Planner"
+        },
+        "tagline": {
+          "label": "وصف قصير",
+          "placeholder": "Budget app for students"
+        },
+        "context": {
+          "label": "الإطار"
+        },
+        "url": {
+          "label": "الموقع أو العرض",
+          "placeholder": "https://…"
+        },
+        "repo": {
+          "label": "مستودع الشيفرة",
+          "placeholder": "https://github.com/…"
+        },
+        "dates": {
+          "label": "التواريخ"
+        }
+      },
+      "skill": {
+        "name": {
+          "label": "اسم المجموعة",
+          "placeholder": "Cloud & DevOps"
+        }
+      },
+      "certification": {
+        "name": {
+          "label": "الشهادة",
+          "placeholder": "Cloud Practitioner"
+        },
+        "issuer": {
+          "label": "الجهة المانحة",
+          "placeholder": "Example Cloud Institute"
+        },
+        "issued": {
+          "label": "تاريخ الحصول"
+        },
+        "expires": {
+          "label": "تاريخ الانتهاء"
+        },
+        "credentialId": {
+          "label": "رقم الشهادة",
+          "placeholder": "LF-abc123"
+        },
+        "url": {
+          "label": "رابط التحقق",
+          "placeholder": "https://…"
+        }
+      },
+      "language": {
+        "language": {
+          "label": "اللغة",
+          "placeholder": "English"
+        },
+        "level": {
+          "label": "المستوى"
+        },
+        "test": {
+          "label": "اختبار أو شهادة",
+          "placeholder": "TOEIC 950"
+        }
+      },
+      "achievement": {
+        "title": {
+          "label": "العنوان",
+          "placeholder": "1st place"
+        },
+        "issuer": {
+          "label": "الحدث أو الجهة المانحة",
+          "placeholder": "City Hackathon 2024"
+        },
+        "date": {
+          "label": "التاريخ"
+        },
+        "context": {
+          "label": "السياق",
+          "placeholder": "Out of 120 teams"
+        }
+      },
+      "other": {
+        "title": {
+          "label": "العنوان"
+        },
+        "subtitle": {
+          "label": "العنوان الفرعي"
+        },
+        "dates": {
+          "label": "التواريخ"
+        },
+        "url": {
+          "label": "الرابط",
+          "placeholder": "https://…"
+        }
+      }
+    },
+    "translation": {
+      "working": "جارٍ الترجمة…",
+      "ready": "نسخة اللغة الأخرى جاهزة",
+      "readyLater": "الترجمة جاهزة: احفظ ثم أعد الفتح لرؤيتها",
+      "auto": "مترجم",
+      "autoHint": "ترجم Naruvi هذا النص ويحافظ على توافقه مع اللغة الأخرى. عدّله ليصبح لك، وعندها لن يغيّره Naruvi."
     }
   },
   "entryAssist": {
@@ -364,6 +465,15 @@
     "type": "اكتبها بدلًا من ذلك",
     "asIs": "مكتوبة كما هي. تتغير هذه اللغة فقط.",
     "previousYear": "السنة السابقة",
-    "nextYear": "السنة التالية"
+    "nextYear": "السنة التالية",
+    "start": "البداية",
+    "end": "النهاية",
+    "present": "حتى الآن",
+    "yearOnly": "السنة فقط",
+    "clear": "مسح",
+    "typeHint": "أو اكتب: mar 2023، 03/2023، 2019",
+    "pick": "اختر شهرًا",
+    "onCv": "في سيرك الذاتية",
+    "fills": "تُكتب تلقائيًا بكل لغة للسيرة الذاتية"
   }
 }

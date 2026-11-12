@@ -1,17 +1,24 @@
 import type { ProfileEntry } from "@/server/profile/repository"
 import type { EntryInput } from "@/server/profile/schemas"
 import { entryKinds, entryStatuses } from "@/server/profile/schemas"
+import type { EntryFields } from "@/lib/entry-fields"
+import type { EntryTranslations } from "@/server/db/schema"
 
 export type Lang = "en" | "fr"
 export const LANGS: Lang[] = ["en", "fr"]
-export type DisplayFields = { role: string; organization: string; dates: string; location: string }
+/** Per-language text fields of the entry's kind (position, degree, tagline…). */
+export type DisplayFields = Record<string, string>
 export type DraftFact = { key: string; statement: string }
-export type DraftBullet = { key: string; group: string; role: "bullet" | "label"; language: string; text: string; factKeys: string[] }
+/** autoText/autoSource: set when Naruvi translated the line (it stays Naruvi's until edited). */
+export type DraftBullet = { key: string; group: string; role: "bullet" | "label"; language: string; text: string; factKeys: string[]; autoText?: string | null; autoSource?: string | null }
 export type Draft = {
-  title: string
   kind: (typeof entryKinds)[number]
   status: (typeof entryStatuses)[number]
   display: Record<Lang, DisplayFields>
+  /** Fields stored once (company, dates, issuer…). */
+  fields: EntryFields
+  /** What Naruvi translated automatically (read-only here; the server keeps it). */
+  translations: EntryTranslations
   tags: string[]
   skills: string[]
   evidence: string[]
@@ -23,15 +30,15 @@ export type Draft = {
 }
 
 export const newKey = () => crypto.randomUUID()
-const emptyDisplay = (): DisplayFields => ({ role: "", organization: "", dates: "", location: "" })
 
 export function toDraft(entry: ProfileEntry | null): Draft {
   if (!entry) {
     return {
-      title: "",
       kind: "experience",
       status: "needs_review",
-      display: { en: emptyDisplay(), fr: emptyDisplay() },
+      display: { en: {}, fr: {} },
+      fields: {},
+      translations: {},
       tags: [],
       skills: [],
       evidence: [],
@@ -43,10 +50,11 @@ export function toDraft(entry: ProfileEntry | null): Draft {
     }
   }
   return {
-    title: entry.title,
     kind: entry.kind,
     status: entry.status,
-    display: { en: { ...emptyDisplay(), ...entry.display.en }, fr: { ...emptyDisplay(), ...entry.display.fr } },
+    display: { en: { ...entry.display.en }, fr: { ...entry.display.fr } },
+    fields: entry.fields,
+    translations: entry.translations,
     tags: entry.tags,
     skills: entry.skills,
     evidence: entry.evidence,
@@ -61,6 +69,8 @@ export function toDraft(entry: ProfileEntry | null): Draft {
       language: phrasing.language,
       text: phrasing.text,
       factKeys: phrasing.factIds,
+      autoText: phrasing.autoText,
+      autoSource: phrasing.autoSource,
     })),
   }
 }
@@ -70,7 +80,6 @@ export function toInput(draft: Draft): EntryInput {
   const facts = draft.facts.filter((fact) => fact.statement.trim())
   const index = new Map(facts.map((fact, i) => [fact.key, i]))
   return {
-    title: draft.title.trim() || draft.display.en.role || draft.display.fr.role || "Untitled entry",
     kind: draft.kind,
     status: draft.status,
     display: Object.fromEntries(
@@ -78,6 +87,7 @@ export function toInput(draft: Draft): EntryInput {
         ([, fields]) => Object.keys(fields).length,
       ),
     ),
+    fields: draft.fields,
     tags: draft.tags,
     skills: draft.skills,
     evidence: draft.evidence,
@@ -92,6 +102,8 @@ export function toInput(draft: Draft): EntryInput {
         role: bullet.role,
         language: bullet.language,
         text: bullet.text.trim(),
+        autoText: bullet.autoText ?? null,
+        autoSource: bullet.autoSource ?? null,
         factRefs: bullet.factKeys.map((key) => index.get(key)).filter((value): value is number => value !== undefined),
       })),
   }

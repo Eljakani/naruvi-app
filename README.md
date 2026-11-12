@@ -12,11 +12,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Eljakani/naruvi/actions/workflows/checks.yml"><img alt="Checks" src="https://img.shields.io/github/actions/workflow/status/Eljakani/naruvi/checks.yml?branch=main&style=flat-square&label=checks&labelColor=2b2b2b" /></a>
+  <a href="https://github.com/Eljakani/naruvi-app/actions/workflows/checks.yml"><img alt="Checks" src="https://img.shields.io/github/actions/workflow/status/Eljakani/naruvi-app/checks.yml?branch=main&style=flat-square&label=checks&labelColor=2b2b2b" /></a>
   <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-a95832?style=flat-square&labelColor=2b2b2b" /></a>
   <a href="docs/INSTALLATION.md"><img alt="Self-hosted with Docker" src="https://img.shields.io/badge/self--hosted-Docker-a95832?style=flat-square&labelColor=2b2b2b&logo=docker&logoColor=white" /></a>
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-a95832?style=flat-square&labelColor=2b2b2b&logo=nextdotjs&logoColor=white" />
-  <a href="https://github.com/Eljakani/naruvi/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/Eljakani/naruvi?style=flat-square&labelColor=2b2b2b&color=a95832" /></a>
+  <a href="https://github.com/Eljakani/naruvi-app/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/Eljakani/naruvi-app?style=flat-square&labelColor=2b2b2b&color=a95832" /></a>
   <a href="CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-a95832?style=flat-square&labelColor=2b2b2b" /></a>
 </p>
 
@@ -27,7 +27,7 @@
   <a href="docs/SELF-HOSTING.md">Self-hosting guide</a> ·
   <a href="#documentation">Docs</a> ·
   <a href="CONTRIBUTING.md">Contribute</a> ·
-  <a href="https://github.com/Eljakani/naruvi/issues">Issues</a>
+  <a href="https://github.com/Eljakani/naruvi-app/issues">Issues</a>
 </p>
 
 ---
@@ -98,7 +98,7 @@ Start with your experience and verified facts. Save a role, see where your evide
 You need Docker with Compose v2, Git, and OpenSSL. Node.js isn’t needed on the host.
 
 ```bash
-curl -fsSLo install-naruvi.sh https://raw.githubusercontent.com/Eljakani/naruvi/main/install.sh
+curl -fsSLo install-naruvi.sh https://raw.githubusercontent.com/Eljakani/naruvi-app/main/install.sh
 less install-naruvi.sh   # read it first
 bash install-naruvi.sh
 ```
@@ -119,8 +119,8 @@ It ends with a private owner setup link. After that, the `naruvi` command handle
 Requires Git, Node.js 24, and Docker Compose. Node is only used to generate the encryption key; the app runs in containers.
 
 ```bash
-git clone https://github.com/Eljakani/naruvi.git
-cd naruvi
+git clone https://github.com/Eljakani/naruvi-app.git
+cd naruvi-app
 npm ci
 npm run settings:key -- .env
 docker compose --profile full up --build -d
@@ -210,7 +210,7 @@ Set up your model in **Integrations → Language model**. To check the developme
 | Area | Integrations |
 | :--- | :--- |
 | **Models** | Anthropic, any OpenAI-compatible API, local Ollama |
-| **Mail** | IMAP/SMTP, Google or Microsoft OAuth with your own registered app |
+| **Mail** | IMAP/SMTP, Google or Microsoft OAuth with your own registered app (Microsoft OAuth: work/school accounts only, not personal Outlook.com/Hotmail) |
 | **Calendar & alerts** | `.ics` downloads, a private calendar feed, ntfy notifications |
 | **Speech** | Local Whisper in the browser, or a cloud provider with your own key |
 | **Automation** | Browser extension, [REST API](docs/API.md), MCP server |
@@ -241,7 +241,7 @@ Mailbox sign-in depends on the provider. Some accounts need OAuth or an app pass
 
 ## Contributing
 
-Bug reports, documentation fixes, accessibility improvements, integrations, and tests are all welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), or [open an issue](https://github.com/Eljakani/naruvi/issues/new/choose) with a focused problem or proposal.
+Bug reports, documentation fixes, accessibility improvements, integrations, and tests are all welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), or [open an issue](https://github.com/Eljakani/naruvi-app/issues/new/choose) with a focused problem or proposal.
 
 Before opening a pull request, run:
 
@@ -254,8 +254,8 @@ npm test
 > [!IMPORTANT]
 > Use synthetic profiles and sanitized emails in reports and fixtures. Never share real credentials, private CVs, or mailbox exports.
 
-<a href="https://github.com/Eljakani/naruvi/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Eljakani/naruvi" alt="Contributors" />
+<a href="https://github.com/Eljakani/naruvi-app/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Eljakani/naruvi-app" alt="Contributors" />
 </a>
 
 ## License and credits

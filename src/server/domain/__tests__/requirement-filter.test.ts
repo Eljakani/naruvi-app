@@ -172,3 +172,26 @@ Côté compétences, vous maitrisez GitLab et AWS.`
   assert.deepEqual(kept, ["Les profils que nous recrutons ont au minimum 5 années d'expérience sur le poste.", "Côté compétences, vous maitrisez GitLab et AWS."])
   assert.ok(!extracted.candidates.some((item) => /45K€/.test(item.text)), "a dropped duplicate can't be put back by the model")
 })
+
+const perk = "Evènements: afterworks (reprise très bientôt) et plein de petites surprises à découvrir 😉"
+const perkPosting = `Profil recherché\n- Expérience confirmée des projets agiles\n- Plateforme IAC (Terraform, ...), services cloud (Azure, AWS, GCP, ...)\n- Expérience des architectures event-driven (Kafka)\n- ${perk}\n- Tickets restaurant et mutuelle prise en charge à 100 %`
+
+test("perks mixed into the profile list are benefits, not requirements", () => {
+  const extracted = extractRequirementCandidates(perkPosting)
+  const texts = extracted.requirements.map((item) => item.text)
+  assert.ok(!texts.includes(perk))
+  assert.ok(!texts.some((text) => /Tickets restaurant/.test(text)))
+  assert.equal(extracted.excluded.filter((item) => item.category === "benefits").length, 2)
+  // Real requirements stay, including one that mentions events as a technology.
+  assert.ok(texts.some((text) => /projets agiles/.test(text)))
+  assert.ok(texts.some((text) => /Terraform/.test(text)))
+  assert.ok(texts.some((text) => /event-driven/.test(text)))
+})
+
+test("a perk cannot be turned back into a requirement by the AI", async () => {
+  const extraction = extractRequirementCandidates(perkPosting)
+  const all = extraction.candidates.map((item) => ({ id: item.id, category: "must", reason: "Candidate qualification." }))
+  const result = await filterRequirements(extraction, perkPosting, fake(all))
+  assert.ok(!result.requirements.some((item) => item.text === perk))
+  assert.ok(result.requirements.some((item) => /event-driven/.test(item.text)))
+})

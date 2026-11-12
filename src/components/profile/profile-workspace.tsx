@@ -28,7 +28,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Input } from "@/components/ui/input"
 import type { profiles } from "@/server/db/schema"
 import type { ProfileEntry } from "@/server/profile/repository"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 
 type Profile = typeof profiles.$inferSelect
 
@@ -50,6 +50,9 @@ export function needsAttention(entry: ProfileEntry) {
 
 export function ProfileWorkspace({ profile, entries }: { profile: Profile | null; entries: ProfileEntry[] }) {
   const t = useTranslations("profile")
+  const locale = useLocale()
+  // The headline in the interface language when there is one, else in any language it's written in.
+  const headline = profile ? profile.headlines[locale] || profile.headlines[profile.defaultLanguage] || Object.values(profile.headlines).find(Boolean) || "" : ""
   const [reviewOnly, setReviewOnly] = useState(false)
   const [query, setQuery] = useState("")
     const [identityOpen, setIdentityOpen] = useState(false)
@@ -74,7 +77,7 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
       if (reviewOnly && !needsAttention(entry)) return false
       if (!q) return true
       const haystack = [
-        entry.title,
+        ...Object.values(entry.fields).flatMap((value) => (typeof value === "string" ? [value] : [])),
         ...entry.tags,
         ...entry.skills,
         ...Object.values(entry.display).flatMap((display) => Object.values(display)),
@@ -139,9 +142,9 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
             <div className="grid min-w-0 flex-1 gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="truncate text-xl font-semibold tracking-tight">{profile?.fullName ?? t("yourName")}</h2>
-                  {profile?.headlines?.en || profile?.headlines?.fr ? (
-                    <p className="truncate text-sm text-muted-foreground">{profile.headlines.en || profile.headlines.fr}</p>
+                  <h2 className="text-xl font-semibold tracking-tight text-balance sm:truncate">{profile?.fullName ?? t("yourName")}</h2>
+                  {headline ? (
+                    <p className="truncate text-sm text-muted-foreground">{headline}</p>
                   ) : (
                     <button type="button" onClick={() => setIdentityOpen(true)} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
                       {t("addHeadline")}
@@ -149,7 +152,7 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
                   )}
                 </div>
                 <Button size="sm" variant="outline" onClick={() => setIdentityOpen(true)}>
-                  <PencilIcon /> {t("edit")}
+                  <PencilIcon /> <span className="max-sm:sr-only">{t("edit")}</span>
                 </Button>
               </div>
               <div className="flex flex-wrap items-center gap-1.5 text-sm">
@@ -176,10 +179,10 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
               {profile?.links.length || profile?.availability ? (
                 <div className="flex flex-wrap items-center gap-1.5">
                   {profile?.availability ? (
-                    <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-900">
+                    <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-success-soft px-2.5 text-xs font-medium text-success ring-1 ring-success/30">
                       <span className="relative flex size-1.5">
-                        <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60 motion-reduce:animate-none" />
-                        <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                        <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60 motion-reduce:animate-none" />
+                        <span className="relative inline-flex size-1.5 rounded-full bg-success" />
                       </span>
                       {t("available", { when: profile.availability })}
                     </span>
@@ -206,12 +209,12 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
               </div>
             </div>
             {stats.attention ? (
-              <Button size="sm" variant="outline" className="w-full border-amber-200 bg-amber-50/60 text-amber-800 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300" nativeButton={false} render={<Link href="/profile/review" />}>
+              <Button size="sm" variant="outline" className="w-full border-warning/30 bg-warning-soft text-warning hover:bg-warning-soft" nativeButton={false} render={<Link href="/profile/review" />}>
                 <AlertTriangleIcon /> {t("review", { count: stats.attention })}
               </Button>
             ) : (
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <BadgeCheckIcon className="size-4 text-emerald-600" /> {t("checksOut")}
+                <BadgeCheckIcon className="size-4 text-success" /> {t("checksOut")}
               </p>
             )}
           </div>
@@ -223,7 +226,7 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 start-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("search")} className="ps-8" />
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("search")} aria-label={t("searchLabel")} className="ps-8" />
         </div>
         {stats.attention ? (
           <Button variant={reviewOnly ? "secondary" : "ghost"} onClick={() => setReviewOnly(!reviewOnly)} aria-pressed={reviewOnly}>
@@ -305,7 +308,7 @@ function CopyChip({ icon: Icon, value, label }: { icon: React.ElementType; value
     >
       <Icon className="size-3.5 shrink-0" />
       <span className="truncate">{value}</span>
-      {copied ? <CheckIcon className="size-3 shrink-0 text-emerald-600" /> : <CopyIcon className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />}
+      {copied ? <CheckIcon className="size-3 shrink-0 text-success" /> : <CopyIcon className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60 group-focus-visible:opacity-60 pointer-coarse:opacity-60" />}
       <span className="sr-only" aria-live="polite">{copied ? t("copied") : ""}</span>
     </button>
   )
@@ -330,7 +333,7 @@ function ReadyRing({ value, total }: { value: number; total: number }) {
         <circle cx="24" cy="24" r={r} className="fill-none stroke-muted" strokeWidth="4.5" />
         <motion.circle
           cx="24" cy="24" r={r} strokeWidth="4.5" strokeLinecap="round" strokeDasharray={c}
-          className={share === 1 ? "fill-none stroke-emerald-500" : "fill-none stroke-brand"}
+          className={share === 1 ? "fill-none stroke-success" : "fill-none stroke-brand"}
           initial={reduce ? false : { strokeDashoffset: c }}
           animate={{ strokeDashoffset: c * (1 - share) }}
           transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}

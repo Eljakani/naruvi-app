@@ -23,7 +23,7 @@ const blank = (): SearchGoal => ({ id: crypto.randomUUID().slice(0, 8), name: ""
 type Words = { t: ReturnType<typeof useTranslations<"searchGoals">>; tl: ReturnType<typeof useTranslations<"labels">>; locale: string }
 const countryName = (code: string, locale: string) => new Intl.DisplayNames([locale], { type: "region" }).of(code.toUpperCase()) ?? COUNTRIES[code]?.name ?? code
 function summary(goal: SearchGoal, { t, tl, locale }: Words) {
-  const months = goal.minMonths || goal.maxMonths ? t("months", { min: goal.minMonths ?? "?", max: goal.maxMonths ?? "?" }) : ""
+  const months = goal.minMonths && goal.maxMonths ? t("months", { min: goal.minMonths, max: goal.maxMonths }) : goal.minMonths ? t("monthsMin", { min: goal.minMonths }) : goal.maxMonths ? t("monthsMax", { max: goal.maxMonths }) : ""
   const month = (value: string) => new Date(`${value}-01T12:00:00Z`).toLocaleDateString(locale, { month: "long", year: "numeric", timeZone: "UTC" })
   return [
     goal.roles.join(", "),

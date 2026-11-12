@@ -1,4 +1,5 @@
 import "server-only"
+import { entryName, entryView } from "@/lib/entry-fields"
 import { advanceAutomatically } from "@/server/tracking/service"
 import { and, desc, eq, inArray, isNotNull, isNull, sql, type SQL } from "drizzle-orm"
 import { likePattern, prefixQuery } from "@/lib/search"
@@ -26,7 +27,7 @@ export async function loadProfileFacts(profileId: string): Promise<ProfileFact[]
       id: fact.id,
       statement: fact.statement,
       entryId: entry.id,
-      entryTitle: entry.display.en?.organization || entry.title,
+      entryTitle: entryName(entry),
       entryKind: entry.kind,
       entryTags: entry.tags,
       entrySkills: entry.skills,
@@ -161,7 +162,12 @@ export async function getApplication(id: string) {
   if (!application) return null
   const factIds = (application.analysis as StoredAnalysis | null)?.requirements.flatMap((item) => item.factIds) ?? []
   const factRows = factIds.length
-    ? await db.select({ id: facts.id, statement: facts.statement, entryId: facts.entryId, entryTitle: entries.title, display: entries.display, logoPath: entries.logoPath }).from(facts).innerJoin(entries, eq(facts.entryId, entries.id)).where(inArray(facts.id, [...new Set(factIds)]))
+    ? (await db.select({ id: facts.id, statement: facts.statement, entryId: facts.entryId, kind: entries.kind, display: entries.display, fields: entries.fields, logoPath: entries.logoPath }).from(facts).innerJoin(entries, eq(facts.entryId, entries.id)).where(inArray(facts.id, [...new Set(factIds)])))
+        .map(({ kind, display, fields, ...fact }) => {
+          // Where the fact comes from: the company/school/issuer, else the entry's own name.
+          const view = entryView({ kind, display, fields }, "en")
+          return { ...fact, entryTitle: view.subheading && kind !== "project" ? view.subheading : view.heading }
+        })
     : []
   return { ...application, analysis: application.analysis as StoredAnalysis | null, facts: factRows }
 }

@@ -9,6 +9,7 @@
  *  - "placeholder": what only the candidate can say (why this company). The
  *    quality gate refuses "ready" until every placeholder is replaced.
  */
+import { entryView } from "@/lib/entry-fields"
 import { z } from "zod"
 import { aiAssistance, aiReviewCheck } from "./ai-metadata"
 import { templateIds } from "./model"
@@ -217,8 +218,8 @@ export function composeLetter(
       )
       if (!phrasing) continue
       used.add(phrasing.id)
-      const display = entry.display[language] ?? entry.display.en ?? {}
-      highlights.push({ id: phrasing.id, text: clean(phrasing.text), organization: display.organization ?? entry.title, factIds: phrasing.factIds, included: highlights.length < (options.maxHighlights ?? 3) })
+      const view = entryView(entry, language)
+      highlights.push({ id: phrasing.id, text: clean(phrasing.text), organization: (entry.kind === "project" ? view.heading : view.subheading) || view.heading, factIds: phrasing.factIds, included: highlights.length < (options.maxHighlights ?? 3) })
       break
     }
     if (highlights.length >= 6) break

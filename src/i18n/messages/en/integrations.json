@@ -125,7 +125,7 @@
    "clientSecret": "Client secret",
    "keepSecret": "Leave empty to keep the saved secret",
    "tenant": "Tenant",
-   "tenantHint": "common for most people; consumers for personal accounts only, or your organization’s tenant ID.",
+   "tenantHint": "Work or school (Microsoft 365) accounts only — personal Outlook.com, Hotmail and Live accounts don’t work. Use common, organizations or your organization’s tenant ID. For a personal mailbox, use IMAP/SMTP instead.",
    "cancel": "Cancel",
    "ready": "{name} sign-in is ready",
    "readyBody": "Click “Sign in with {name}”.",

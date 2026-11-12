@@ -107,13 +107,17 @@ export async function companyBrandingFromLink(url: string) {
  * Turn a link or pasted text into a reviewable draft. Writes nothing to the
  * jobs table; only a logo file may be stored (content-addressed, harmless).
  */
-export async function previewJob(input: { url?: string; text?: string }): Promise<JobDraft & { runId: string }> {
+export async function previewJob(input: { url?: string; text?: string; html?: string }): Promise<JobDraft & { runId: string }> {
   const url = input.url?.trim() ?? ""
   const pasted = input.text?.trim() ?? ""
-  const run = await startRun("job.preview", { url, textLength: pasted.length })
+  // The browser extension sends the page as the user sees it (signed in): use it as the
+  // browser fallback instead of rendering the page again on the server, where it may be login-walled.
+  const captured = input.html?.trim() ?? ""
+  const renderPage = captured ? async () => ({ html: captured, finalUrl: url }) : renderJobPage
+  const run = await startRun("job.preview", { url, textLength: pasted.length, capturedHtml: captured.length })
   try {
     const { job, page, sources, errors } = url
-      ? await run.step("fetch & parse", () => parseFromUrl(url, { fetchText: safeFetchText, renderPage: renderJobPage }), (value) => `${value.job.source} · confidence ${value.job.confidence}${value.errors.length ? ` · ${value.errors.length} source(s) failed` : ""}`)
+      ? await run.step("fetch & parse", () => parseFromUrl(url, { fetchText: safeFetchText, renderPage }), (value) => `${value.job.source} · confidence ${value.job.confidence}${value.errors.length ? ` · ${value.errors.length} source(s) failed` : ""}`)
       : await run.step("parse text", async () => ({ job: parsedJob.parse(parseJobDocument({ text: pasted })), page: null, sources: [] as { kind: string; html: string; finalUrl: string }[], errors: [] as string[] }), (value) => `confidence ${value.job.confidence}`)
 
     // Prefer the pasted text when the page only gave a teaser.

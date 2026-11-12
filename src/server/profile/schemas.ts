@@ -1,25 +1,20 @@
 import { z } from "zod"
+import { ENTRY_KINDS, cleanFields, cleanText, KIND_FIELDS } from "@/lib/entry-fields"
 
 const lines = z
   .union([z.string(), z.array(z.string())])
   .transform((value) => (Array.isArray(value) ? value : value.split("\n")).map((item) => item.trim()).filter(Boolean))
 
-export const entryKinds = ["experience", "education", "project", "skill", "certification", "language", "achievement", "other"] as const
+export const entryKinds = ENTRY_KINDS
 export const entryStatuses = ["verified", "needs_review", "archived"] as const
 
-export const displaySchema = z.object({
-  role: z.string().trim().max(200).optional(),
-  organization: z.string().trim().max(200).optional(),
-  dates: z.string().trim().max(80).optional(),
-  location: z.string().trim().max(120).optional(),
-  label: z.string().trim().max(200).optional(),
-})
-
 export const entryInput = z.object({
-  title: z.string().trim().min(2, "Give the entry a title.").max(200),
   kind: z.enum(entryKinds),
   status: z.enum(entryStatuses),
-  display: z.record(z.string().regex(/^[a-z]{2}$/), displaySchema).default({}),
+  /** Kind-specific text per language: { fr: { position: "…" } }. */
+  display: z.record(z.string().regex(/^[a-z]{2}$/), z.record(z.string(), z.string())).default({}),
+  /** Kind-specific fields stored once: { company, dates, … }. */
+  fields: z.record(z.string(), z.unknown()).default({}),
   tags: lines.default([]),
   skills: lines.default([]),
   evidence: lines.default([]),
@@ -41,10 +36,27 @@ export const entryInput = z.object({
         text: z.string().trim().min(3).max(600),
         /** Indexes into `facts` (new facts have no id yet). */
         factRefs: z.array(z.number().int().nonnegative()).optional(),
+        /** Kept from an automatic translation, so Naruvi still knows the line is its own (see src/lib/auto-translate.ts). */
+        autoText: z.string().max(600).nullable().optional(),
+        autoSource: z.string().max(600).nullable().optional(),
       }),
     )
     .default([]),
 })
+  .transform((entry, ctx) => {
+    try {
+      const display = cleanText(entry.kind, entry.display)
+      const fields = cleanFields(entry.kind, entry.fields)
+      const required = KIND_FIELDS[entry.kind].find((spec) => spec.required)
+      const named = !required || (required.translated ? Object.values(display).some((text) => text[required.key]) : Boolean(fields[required.key]))
+      if (!named) ctx.addIssue({ code: "custom", path: [required!.translated ? "display" : "fields"], message: `Fill in the ${required!.key}.` })
+      return { ...entry, display, fields }
+    } catch (error) {
+      ctx.addIssue({ code: "custom", path: ["fields"], message: error instanceof Error ? error.message : "Invalid field." })
+      return z.NEVER
+    }
+  })
+
 export type EntryInput = z.input<typeof entryInput>
 
 export const identityInput = z.object({

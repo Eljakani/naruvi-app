@@ -1,4 +1,5 @@
 /** Manual check: rule vs AI fit review and CV polish on your latest application. Reads only; saves nothing. */
+import { entryName } from "../src/lib/entry-fields"
 import { config } from "dotenv"
 config({ path: ".env.local", quiet: true })
 const { completeJson } = await import("../src/server/llm/client")
@@ -17,7 +18,8 @@ const [row] = await db.select({ id: applications.id }).from(applications).orderB
 const app = await getApplication(row.id)
 if (!app) process.exit(0)
 console.log("application:", app.job.title)
-const verified = await db.select({ id: facts.id, statement: facts.statement, entryId: entries.id, entryTitle: entries.title, entryKind: entries.kind, entryTags: entries.tags, entrySkills: entries.skills }).from(facts).innerJoin(entries, eq(facts.entryId, entries.id)).where(eq(entries.status, "verified"))
+const verified = (await db.select({ id: facts.id, statement: facts.statement, entryId: entries.id, display: entries.display, fields: entries.fields, entryKind: entries.kind, entryTags: entries.tags, entrySkills: entries.skills }).from(facts).innerJoin(entries, eq(facts.entryId, entries.id)).where(eq(entries.status, "verified")))
+  .map(({ display, fields, ...fact }) => ({ ...fact, entryTitle: entryName({ kind: fact.entryKind, display, fields }) }))
 const extraction = extractRequirementCandidates(app.job.rawText)
 const filtered = await filterRequirements(extraction, app.job.rawText, completeJson)
 const indexed = indexFacts(verified)

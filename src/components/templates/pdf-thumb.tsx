@@ -5,19 +5,22 @@ import { loadPdfJs } from "@/components/documents/pdf-preview"
 import type { DesignTokens } from "@/lib/design"
 import { cn } from "@/lib/utils"
 import { fetchTemplatePreview } from "@/lib/template-preview"
+import { usePreviewSource } from "@/lib/use-preview-source"
 import { useTranslations } from "next-intl"
 
 const cache = new Map<string, ArrayBuffer>()
 const CACHE_LIMIT = 24
 
 /** Render only tiles near the viewport. A revision-aware cache stores successful PDFs. */
-export function PdfThumb({ tokens, className, revision, retryable = false, kind = "cv" }: { tokens: DesignTokens; className?: string; revision?: string; retryable?: boolean; kind?: "cv" | "letter" }) {
+export function PdfThumb({ tokens, className, revision: initialRevision, retryable = false, kind = "cv" }: { tokens: DesignTokens; className?: string; revision?: string; retryable?: boolean; kind?: "cv" | "letter" }) {
   const t = useTranslations("templates")
   const wrapper = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [visible, setVisible] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const [rendered, setRendered] = useState<{ key: string; ready: boolean }>()
+  // Follows the live preview fingerprint, so a cached thumbnail is dropped as soon as its content changes.
+  const revision = usePreviewSource(initialRevision)
   const body = JSON.stringify({ tokens, kind })
   const cacheKey = revision ? `${revision}:${body}` : undefined
   const renderKey = `${cacheKey ?? body}:${attempt}`

@@ -9,6 +9,10 @@ import { inboxAction, markInboxSeenAction } from "@/app/[locale]/(app)/nav/notif
 import { Otter } from "@/components/naruvi/otter"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Badge } from "@/components/ui/badge"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { ago } from "@/components/runs/labels"
 import { cn } from "@/lib/utils"
 import type { InboxItem } from "@/server/notifications/inbox"
@@ -85,39 +89,45 @@ export function NotificationBell() {
           </span>
         ) : null}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))] gap-0 overflow-hidden p-0">
-        <div className="flex items-center justify-between border-b px-3.5 py-2.5">
+      <PopoverContent align="end" className="w-[min(24rem,calc(100vw-2rem))] gap-0 p-0">
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
           <p className="text-sm font-semibold">{t("title")}</p>
-          {unread ? <span className="text-xs text-brand">{t("newCount", { count: unread })}</span> : null}
+          {unread ? <Badge variant="secondary">{t("newCount", { count: unread })}</Badge> : null}
         </div>
         {items.length ? (
-          <ul className="max-h-[min(26rem,70vh)] divide-y overflow-y-auto overscroll-contain">
-            {items.map((item) => {
-              const [Icon, tone] = ICON[item.kind]
-              const fresh = seenAt !== null && item.at > seenAt
-              return (
-                <li key={item.id}>
-                  <Link href={item.href} onClick={() => openChange(false)} className={cn("flex gap-3 px-3.5 py-3 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none", fresh && "bg-brand-soft/40")}>
-                    <span className="grid size-8 shrink-0 place-content-center rounded-full border bg-background"><Icon className={cn("size-4", tone)} /></span>
-                    <span className="grid min-w-0 flex-1 gap-0.5">
-                      <span className="flex items-baseline gap-2">
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</span>
-                        <time dateTime={item.at} className="shrink-0 text-xs text-muted-foreground">{item.kind === "due" ? t("today") : ago(new Date(item.at), now.getTime(), locale)}</time>
-                      </span>
-                      <span className="line-clamp-2 text-xs text-muted-foreground">{item.body}</span>
-                    </span>
-                    {fresh ? <span aria-label={t("new")} className="mt-1.5 size-2 shrink-0 rounded-full bg-brand" /> : null}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
+          <ScrollArea className="max-h-[min(26rem,70vh)] [&_[data-slot=scroll-area-viewport]]:max-h-[min(26rem,70vh)]">
+            <ItemGroup className="gap-1 p-1.5">
+              {items.map((item) => {
+                const [Icon, tone] = ICON[item.kind]
+                const fresh = seenAt !== null && item.at > seenAt
+                return (
+                  <Item key={item.id} size="sm" variant={fresh ? "muted" : "default"} render={<Link href={item.href} onClick={() => openChange(false)} />} className="flex-nowrap items-start">
+                    <ItemMedia variant="icon" className="size-8 rounded-full border bg-background">
+                      <Icon className={tone} />
+                    </ItemMedia>
+                    <ItemContent className="min-w-0 gap-0.5">
+                      <ItemTitle className="line-clamp-none w-full min-w-0">
+                        <span className={cn("min-w-0 flex-1 truncate", fresh && "font-semibold")}>{item.title}</span>
+                        {fresh ? <span aria-label={t("new")} className="size-1.5 shrink-0 rounded-full bg-brand" /> : null}
+                      </ItemTitle>
+                      <ItemDescription className="line-clamp-2">{item.body}</ItemDescription>
+                    </ItemContent>
+                    <ItemActions className="self-start">
+                      <time dateTime={item.at} className="text-xs whitespace-nowrap text-muted-foreground">{item.kind === "due" ? t("today") : ago(new Date(item.at), now.getTime(), locale)}</time>
+                    </ItemActions>
+                  </Item>
+                )
+              })}
+            </ItemGroup>
+          </ScrollArea>
         ) : (
-          <div className="grid justify-items-center gap-2 px-6 py-8 text-center">
-            <Otter pose="all-checked" height={84} />
-            <p className="text-sm font-medium">{t("emptyTitle")}</p>
-            <p className="text-xs text-pretty text-muted-foreground">{t("emptyBody")}</p>
-          </div>
+          <Empty className="gap-2 border-0 px-6 py-8">
+            <EmptyHeader>
+              <EmptyMedia><Otter pose="all-checked" height={84} /></EmptyMedia>
+              <EmptyTitle className="text-sm">{t("emptyTitle")}</EmptyTitle>
+              <EmptyDescription className="text-xs">{t("emptyBody")}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
       </PopoverContent>
     </Popover>

@@ -1,58 +1,8 @@
 {
   "entryEditor": {
-    "fields": {
-      "experience": {
-        "role": "Poste",
-        "organization": "Entreprise",
-        "rolePlaceholder": "Responsable de magasin",
-        "orgPlaceholder": "Nom de l’entreprise"
-      },
-      "project": {
-        "role": "Nom du projet",
-        "organization": "Contexte",
-        "rolePlaceholder": "Appli de jardin partagé",
-        "orgPlaceholder": "Projet personnel"
-      },
-      "education": {
-        "role": "Diplôme",
-        "organization": "École",
-        "rolePlaceholder": "Licence en soins infirmiers",
-        "orgPlaceholder": "Nom de l’université"
-      },
-      "certification": {
-        "role": "Certification",
-        "organization": "Organisme",
-        "rolePlaceholder": "KCNA",
-        "orgPlaceholder": "Linux Foundation"
-      },
-      "skill": {
-        "role": "Nom du groupe",
-        "organization": "Contexte",
-        "rolePlaceholder": "Relation client",
-        "orgPlaceholder": ""
-      },
-      "language": {
-        "role": "Libellé",
-        "organization": "Contexte",
-        "rolePlaceholder": "Langues",
-        "orgPlaceholder": ""
-      },
-      "achievement": {
-        "role": "Titre",
-        "organization": "Événement / organisme",
-        "rolePlaceholder": "1re place",
-        "orgPlaceholder": "WOCS'hAck 2026"
-      },
-      "other": {
-        "role": "Titre",
-        "organization": "Organisation",
-        "rolePlaceholder": "",
-        "orgPlaceholder": ""
-      }
-    },
     "sections": {
-      "basics": "Bases",
-      "display": "Affichage",
+      "basics": "Qu’est-ce que c’est ?",
+      "display": "Détails",
       "facts": "Ce que vous avez fait",
       "bullets": "Lignes de CV",
       "skills": "Compétences et mots-clés",
@@ -60,7 +10,7 @@
     },
     "ready": {
       "named": "Nommé",
-      "titleIn": "Titre et dates en {language}",
+      "titleIn": "Rédigé en {language}",
       "skills": "Compétences listées",
       "fact": "Au moins un fait",
       "ungrounded": "{count, plural, one {# ligne de CV sans fait} other {# lignes de CV sans fait}}",
@@ -94,9 +44,6 @@
       "title": "De quoi s’agit-il ?",
       "description": "Les champs ci-dessous s’adaptent au type.",
       "type": "Type d’élément",
-      "internalName": "Nom interne",
-      "internalPlaceholder": "Comment vous le reconnaîtrez dans les listes",
-      "internalHint": "Rien que pour vous. Les recruteurs voient les champs d’affichage ci-dessous.",
       "logo": {
         "education": "Logo de l’école",
         "certification": "Logo de l’organisme",
@@ -105,9 +52,8 @@
       }
     },
     "display": {
-      "title": "Affichage sur un CV",
-      "description": "Titre, lieu et dates en {language}. Changez de langue en haut.",
-      "location": "Lieu",
+      "title": "Détails",
+      "description": "Ce que contient cette entrée ; les textes en {language}. Les champs « Toutes langues » servent à tous vos CV.",
       "startFrom": "Partir des champs en {language}"
     },
     "facts": {
@@ -194,8 +140,163 @@
     "sectionsLabel": "Sections",
     "onThisPage": "Sur cette page",
     "needsSomething": "Il manque quelque chose",
-    "degree": {
-      "label": "Niveau du diplôme"
+    "kindFields": {
+      "shared": "Toutes langues",
+      "sharedHint": "Saisi une fois et utilisé sur tous vos CV, quelle que soit leur langue.",
+      "experience": {
+        "position": {
+          "label": "Poste",
+          "placeholder": "Chef de projet"
+        },
+        "company": {
+          "label": "Entreprise",
+          "placeholder": "Northwind"
+        },
+        "employment": {
+          "label": "Contrat"
+        },
+        "workMode": {
+          "label": "Mode de travail"
+        },
+        "location": {
+          "label": "Lieu",
+          "placeholder": "Paris, France"
+        },
+        "dates": {
+          "label": "Dates"
+        }
+      },
+      "education": {
+        "degree": {
+          "label": "Diplôme",
+          "placeholder": "Licence"
+        },
+        "field": {
+          "label": "Spécialité",
+          "placeholder": "Biologie"
+        },
+        "school": {
+          "label": "Établissement",
+          "placeholder": "Riverside University"
+        },
+        "location": {
+          "label": "Lieu",
+          "placeholder": "Lyon, France"
+        },
+        "honours": {
+          "label": "Mention ou note",
+          "placeholder": "Mention très bien"
+        },
+        "dates": {
+          "label": "Dates"
+        }
+      },
+      "project": {
+        "name": {
+          "label": "Nom du projet",
+          "placeholder": "Pocket Planner"
+        },
+        "tagline": {
+          "label": "En une phrase",
+          "placeholder": "Application de budget pour étudiants"
+        },
+        "context": {
+          "label": "Cadre"
+        },
+        "url": {
+          "label": "Site ou démo",
+          "placeholder": "https://…"
+        },
+        "repo": {
+          "label": "Dépôt de code",
+          "placeholder": "https://github.com/…"
+        },
+        "dates": {
+          "label": "Dates"
+        }
+      },
+      "skill": {
+        "name": {
+          "label": "Nom du groupe",
+          "placeholder": "Cloud & DevOps"
+        }
+      },
+      "certification": {
+        "name": {
+          "label": "Certification",
+          "placeholder": "Cloud Practitioner"
+        },
+        "issuer": {
+          "label": "Délivrée par",
+          "placeholder": "Example Cloud Institute"
+        },
+        "issued": {
+          "label": "Obtenue en"
+        },
+        "expires": {
+          "label": "Expire en"
+        },
+        "credentialId": {
+          "label": "Identifiant",
+          "placeholder": "LF-abc123"
+        },
+        "url": {
+          "label": "Lien de vérification",
+          "placeholder": "https://…"
+        }
+      },
+      "language": {
+        "language": {
+          "label": "Langue",
+          "placeholder": "Anglais"
+        },
+        "level": {
+          "label": "Niveau"
+        },
+        "test": {
+          "label": "Test ou certificat",
+          "placeholder": "TOEIC 950"
+        }
+      },
+      "achievement": {
+        "title": {
+          "label": "Titre",
+          "placeholder": "1re place"
+        },
+        "issuer": {
+          "label": "Événement ou décerné par",
+          "placeholder": "City Hackathon 2024"
+        },
+        "date": {
+          "label": "Date"
+        },
+        "context": {
+          "label": "Contexte",
+          "placeholder": "Sur 120 équipes"
+        }
+      },
+      "other": {
+        "title": {
+          "label": "Titre"
+        },
+        "subtitle": {
+          "label": "Sous-titre"
+        },
+        "dates": {
+          "label": "Dates"
+        },
+        "url": {
+          "label": "Lien",
+          "placeholder": "https://…"
+        }
+      }
+    },
+    "translation": {
+      "working": "Traduction…",
+      "ready": "La version dans l’autre langue est prête",
+      "readyLater": "La traduction est prête : enregistrez puis rouvrez pour la voir",
+      "auto": "Traduit",
+      "autoHint": "Naruvi a traduit ce texte et le garde aligné sur l’autre langue. Modifiez-le pour qu’il soit à vous : Naruvi n’y touchera plus."
     }
   },
   "entryAssist": {
@@ -364,6 +465,15 @@
     "type": "Saisir plutôt",
     "asIs": "Écrit tel quel. Seule cette langue change.",
     "previousYear": "Année précédente",
-    "nextYear": "Année suivante"
+    "nextYear": "Année suivante",
+    "start": "Début",
+    "end": "Fin",
+    "present": "Aujourd’hui",
+    "yearOnly": "Année seule",
+    "clear": "Effacer",
+    "typeHint": "Ou tapez : mars 2023, 03/2023, 2019",
+    "pick": "Choisir un mois",
+    "onCv": "Sur vos CV",
+    "fills": "Écrites automatiquement dans chaque langue de CV"
   }
 }

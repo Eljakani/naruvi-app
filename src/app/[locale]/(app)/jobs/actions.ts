@@ -3,16 +3,16 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { findDuplicates, setJobTags } from "@/server/companies/repository"
-import { dismissLead, getLead, markLeadImported } from "@/server/jobs/leads"
+import { dismissLead, getLead } from "@/server/jobs/leads"
 import { discoveredKeywords, leadParts } from "@/lib/discover"
 import { apifyStatus, discoverJobs, removeApify, saveApify } from "@/server/jobs/discover"
-import { companyBrandingFromLink, previewJob, saveJob } from "@/server/jobs/ingest"
+import { companyBrandingFromLink, previewJob } from "@/server/jobs/ingest"
 import { normalizeWebsite } from "@/lib/company-input"
 import { trackJob } from "@/server/applications/repository"
 import { cleanTags } from "@/lib/similar"
 import { refreshJobInsights } from "@/server/jobs/insights"
-import { scheduleResearch } from "@/server/research/auto"
 import type { JobDraft } from "@/server/jobs/schema"
+import { saveAndTrackJob } from "@/server/integrations/extension"
 import { serverError } from "@/i18n/server-errors"
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }
@@ -38,15 +38,11 @@ export async function previewJobAction(raw: { url?: string; text?: string }): Pr
 
 export async function saveJobAction(draft: JobDraft): Promise<ActionResult<{ id: string; applicationId: string | null }>> {
   try {
-    const job = await saveJob(draft)
-    await markLeadImported(job.id, [draft.sourceUrl, draft.canonicalUrl])
-    await refreshJobInsights(job.id)
-    const applicationId = await trackJob(job.id)
-    scheduleResearch(job.id)
+    const { id, applicationId } = await saveAndTrackJob(draft)
     revalidatePath("/jobs")
     revalidatePath("/applications")
     revalidatePath("/")
-    return { ok: true, data: { id: job.id, applicationId } }
+    return { ok: true, data: { id, applicationId } }
   } catch (error) {
     if (error instanceof z.ZodError) return { ok: false, error: error.issues.map((issue) => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; ") }
     return { ok: false, error: error instanceof Error ? error.message : String(error) }

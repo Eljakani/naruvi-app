@@ -1,4 +1,6 @@
 import "server-only"
+import { createHash } from "node:crypto"
+import { APP_VERSION } from "@/server/version"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { ALL_PRESETS, designTokens, type DesignTokens } from "@/lib/design"
 import { db } from "@/server/db/client"
@@ -100,6 +102,31 @@ export async function previewContent(): Promise<CvDocument> {
   return (await previewSource()).content
 }
 
+/** The CV a template preview draws: the person's latest CV with their photo and a summary, so every style is visible. */
+async function previewCv(sample: boolean): Promise<CvDocument> {
+  const source = sample ? SAMPLE : await previewContent()
+  // A template styles the photo, so preview it with the person's photo whenever they have one
+  // (each CV still chooses whether to show it).
+  const [owner] = sample ? [] : await db.select({ fullName: profiles.fullName, photoPath: profiles.photoPath, summaries: profiles.summaries }).from(profiles).limit(1)
+  // Name and photo come from the profile as it is now, not as they were when that CV was generated.
+  const photoPath = owner ? owner.photoPath : source.header.photoPath ?? null
+  // Show the summary styles even if this CV has no summary: profile text, else a sample.
+  const summary = source.header.summary.trim() || owner?.summaries?.[source.language] || Object.values(owner?.summaries ?? {})[0] || SAMPLE.header.summary
+  return { ...source, header: { ...source.header, ...(owner?.fullName ? { name: owner.fullName } : {}), summary, ...(photoPath ? { photoPath, showPhoto: true } : {}) } }
+}
+
+// Changes whenever this code is reloaded (a deploy, or an edit in development), so previews from older code are dropped too.
+const RENDERER = `${APP_VERSION}:${Date.now().toString(36)}`
+
+/**
+ * Fingerprint of everything a preview draws, apart from the design itself. Clients key their
+ * cached previews on it and re-render when it changes, so a preview can never show stale content.
+ */
+export async function previewFingerprint(sample = false) {
+  const [cv, letter] = await Promise.all([previewCv(sample), previewLetter(sample)])
+  return createHash("sha256").update(JSON.stringify({ RENDERER, cv, letter })).digest("hex").slice(0, 20)
+}
+
 export async function renderTemplatePreview(tokens: unknown, sample = false, kind: "cv" | "letter" = "cv") {
   const design = designTokens.parse(tokens)
   const { renderCvPdf, renderLetterPdf } = await import("@/server/documents/render")
@@ -107,14 +134,7 @@ export async function renderTemplatePreview(tokens: unknown, sample = false, kin
     const letter = await previewLetter(sample)
     return renderLetterPdf({ ...letter, template: "custom", design, accent: design.accent })
   }
-  const base = sample ? SAMPLE : await previewContent()
-  // Show the summary styles even if this CV has no summary: profile text, else a sample.
-  let summary = base.header.summary
-  if (!summary.trim()) {
-    const [profile] = await db.select({ summaries: profiles.summaries }).from(profiles).limit(1)
-    summary = profile?.summaries?.[base.language] || Object.values(profile?.summaries ?? {})[0] || SAMPLE.header.summary
-  }
-  return renderCvPdf({ ...base, template: "custom", design, accent: design.accent, header: { ...base.header, summary } })
+  return renderCvPdf({ ...(await previewCv(sample)), template: "custom", design, accent: design.accent })
 }
 
 /** The design a new document will start with (Settings → default), for previews. */

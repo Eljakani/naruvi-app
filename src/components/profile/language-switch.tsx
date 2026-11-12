@@ -26,7 +26,7 @@ export function LanguageSwitch<L extends string>({ value, onChange, languages, f
           title: done ? languageName(code, locale) : t("notFilledTitle", { language: languageName(code, locale) }),
           label: (
             <>
-              <span className={cn("size-1.5 rounded-full transition-colors", done ? "bg-emerald-500" : "bg-muted-foreground/30")} aria-hidden />
+              <span className={cn("size-1.5 rounded-full transition-colors", done ? "bg-success" : "bg-muted-foreground/30")} aria-hidden />
               {languageName(code, locale)}
               <span className="sr-only">{done ? t("filled") : t("notFilled")}</span>
             </>

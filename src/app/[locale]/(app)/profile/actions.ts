@@ -1,12 +1,14 @@
 "use server"
 
+import { looseFields, type EntryFields } from "@/lib/entry-fields"
 import { revalidatePath } from "next/cache"
 import { after } from "next/server"
 import { refreshRoleGroups } from "@/server/contacts/role-groups"
 import { z } from "zod"
 import { safeFetchBytes } from "@/server/assets/safe-fetch"
 import { MAX_IMAGE_BYTES, storeLogo, storePhoto } from "@/server/assets/store"
-import { deleteEntry, saveEntry, saveGoals, saveIdentity, setEntryStatus } from "@/server/profile/repository"
+import { deleteEntry, getEntry, saveEntry, saveGoals, saveIdentity, setEntryStatus } from "@/server/profile/repository"
+import { translateSoon } from "@/server/profile/auto-translate"
 import type { EntryInput, IdentityInput } from "@/server/profile/schemas"
 import { BULLETS_PROMPT_VERSION, suggestBullets, type BulletSuggestion } from "@/server/profile/ai-bullets"
 import { completionForRun } from "@/server/llm/client"
@@ -38,6 +40,16 @@ async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
 
 export async function saveEntryAction(input: EntryInput, entryId?: string) {
   return run(async () => (await saveEntry(input, entryId)).id)
+}
+
+/** Waits for the entry's automatic translation (queued when it was saved) and returns the entry if it changed. */
+export async function entryTranslationAction(entryId: string) {
+  return run(async () => {
+    const id = z.string().uuid().parse(entryId)
+    const { changed } = await translateSoon(id)
+    if (changed) revalidatePath("/profile")
+    return changed ? await getEntry(id) : null
+  })
 }
 
 export async function setEntryStatusAction(entryId: string, status: "verified" | "needs_review" | "archived") {
@@ -96,8 +108,8 @@ export async function uploadPhotoAction(formData: FormData) {
 
 const suggestInput = z.object({
   kind: z.string().max(40),
-  role: z.string().max(200),
-  organization: z.string().max(200),
+  /** The entry described from its own fields (src/lib/entry-fields describeEntry). */
+  entry: z.string().max(400),
   facts: z.array(z.object({ key: z.string().max(64), statement: z.string().max(600) })).max(60),
   existing: z.array(z.string().max(600)).max(80),
   languages: z.array(z.string().regex(/^[a-z]{2}$/)).min(1).max(4),
@@ -186,18 +198,18 @@ export async function readCvAction(formData: FormData) {
 
 const importedEntry = z.object({
   kind: z.enum(["experience", "education", "project", "skill", "certification", "language", "achievement", "other"]),
-  title: z.string().trim().min(1).max(200),
-  display: z.object({ role: z.string().max(200), organization: z.string().max(200), dates: z.string().max(80), location: z.string().max(120) }),
+  text: z.record(z.string().max(40), z.string().max(200)),
+  fields: z.record(z.string().max(40), z.unknown()),
   facts: z.array(z.string().trim().min(3).max(600)).max(30),
   skills: z.array(z.string().max(60)).max(40),
   bullets: z.array(z.object({ text: z.string().min(3).max(600), facts: z.array(z.number().int().nonnegative()) })).max(20),
 })
 const importPayload = z.object({
   language: z.string().regex(/^[a-z]{2}$/),
-  merges: z.array(z.object({ entryId: z.string().uuid(), facts: z.array(z.string().trim().min(3).max(600)).max(30), skills: z.array(z.string().max(60)).max(40), display: z.object({ role: z.string().max(200), organization: z.string().max(200), dates: z.string().max(80), location: z.string().max(120) }) })).max(60).default([]),
+  merges: z.array(z.object({ entryId: z.string().uuid(), facts: z.array(z.string().trim().min(3).max(600)).max(30), skills: z.array(z.string().max(60)).max(40), text: z.record(z.string().max(40), z.string().max(200)), fields: z.record(z.string().max(40), z.unknown()) })).max(60).default([]),
   identity: z.object({ fullName: z.string().max(120), headline: z.string().max(160), email: z.string().max(200), phone: z.string().max(40), location: z.string().max(120), links: z.array(z.object({ label: z.string().max(40), url: z.string().max(500) })).max(10) }),
   entries: z.array(importedEntry).max(60),
-})
+}).transform((data) => ({ ...data, entries: data.entries.map((entry) => ({ ...entry, fields: looseFields(entry.kind, entry.fields) })) }))
 
 export async function saveImportAction(input: unknown) {
   const parsed = importPayload.safeParse(input)
@@ -207,7 +219,7 @@ export async function saveImportAction(input: unknown) {
   let factsAdded = 0
   let reverify = 0
   for (const merge of parsed.data.merges) {
-    const outcome = await mergeIntoEntry(merge.entryId, { facts: merge.facts, skills: merge.skills, display: { language: parsed.data.language, ...merge.display } }, { approvedByUser: true })
+    const outcome = await mergeIntoEntry(merge.entryId, { facts: merge.facts, skills: merge.skills, display: { language: parsed.data.language, text: merge.text, fields: merge.fields as EntryFields } }, { approvedByUser: true })
     merged += 1
     factsAdded += outcome.added
     if (outcome.reverified) reverify += 1
@@ -225,9 +237,9 @@ export async function describeEntryAction(input: { words: string; kind?: string;
   )
 }
 
-export async function translateEntryAction(input: { from: string; to: string; display: { role: string; organization: string; dates: string; location: string }; bullets: { id: string; text: string }[] }) {
+export async function translateEntryAction(input: { from: string; to: string; text: Record<string, string>; bullets: { id: string; text: string }[] }) {
   const lang = z.string().regex(/^[a-z]{2}$/)
-  const parsed = z.object({ from: lang, to: lang, display: z.object({ role: z.string().max(200), organization: z.string().max(200), dates: z.string().max(80), location: z.string().max(120) }), bullets: z.array(z.object({ id: z.string().max(64), text: z.string().max(600) })).max(40) }).safeParse(input)
+  const parsed = z.object({ from: lang, to: lang, text: z.record(z.string().max(40), z.string().max(200)), bullets: z.array(z.object({ id: z.string().max(64), text: z.string().max(600) })).max(40) }).safeParse(input)
   if (!parsed.success) return { ok: false as const, message: await serverError("invalidInput") }
   return withModel("profile.translate", "entry translation", IMPORT_PROMPT_VERSION, (complete, run) =>
     run.step(`translate ${parsed.data.from} → ${parsed.data.to}`, () => translateEntry(parsed.data, complete), (value) => `${value.bullets.length}/${parsed.data.bullets.length} bullets kept`),
@@ -237,7 +249,7 @@ export async function translateEntryAction(input: { from: string; to: string; di
 /** Skills (named in the facts), matching keywords and "never say" rules for one entry. Nothing is saved. */
 export async function suggestEntryExtrasAction(input: unknown) {
   const list = (max: number, len: number) => z.array(z.string().max(len)).max(max)
-  const parsed = z.object({ kind: z.string().max(40), role: z.string().max(200), organization: z.string().max(200), facts: list(60, 600).min(1, "Add a fact first."), skills: list(80, 60), keywords: list(80, 60), rules: list(40, 300), confidential: z.boolean() }).safeParse(input)
+  const parsed = z.object({ kind: z.string().max(40), entry: z.string().max(400), facts: list(60, 600).min(1, "Add a fact first."), skills: list(80, 60), keywords: list(80, 60), rules: list(40, 300), confidential: z.boolean() }).safeParse(input)
   if (!parsed.success) return { ok: false as const, message: parsed.error.issues[0]?.message ?? "Invalid input." }
   return withModel("profile.extras", "entry skills and rules", IMPORT_PROMPT_VERSION, (complete, run) =>
     run.step("suggest skills, keywords and rules", () => suggestEntryExtras(parsed.data, complete), (value) => `${value.skills.length} skills · ${value.keywords.length} keywords · ${value.rules.length} rules`),

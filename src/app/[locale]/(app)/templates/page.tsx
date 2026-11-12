@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { ALL_PRESETS, PRESETS } from "@/lib/design"
 import { getDocumentDefaults } from "@/server/settings/service"
-import { listTemplates, previewSource } from "@/server/templates/service"
+import { listTemplates, previewFingerprint } from "@/server/templates/service"
 import { titled } from "@/i18n/metadata"
 import { useTranslations } from "next-intl"
 import { getTranslations } from "next-intl/server"
@@ -63,7 +63,7 @@ function Tile({ href, name, hint, tokens, badge, revision }: { href: string; nam
 async function Gallery() {
   const t = await getTranslations("templates")
   await connection()
-  const [saved, defaults, { revision }] = await Promise.all([listTemplates(), getDocumentDefaults(), previewSource()])
+  const [saved, defaults, revision] = await Promise.all([listTemplates(), getDocumentDefaults(), previewFingerprint()])
   const customDefault = !defaults.templateRef && defaults.design
   const isDefault = (id: string, saved: boolean) => (saved ? defaults.templateRef === id : !defaults.templateRef && !defaults.design && defaults.template === id)
   return (

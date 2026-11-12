@@ -190,6 +190,20 @@
       "when": 1794357549259,
       "tag": "0026_pale_catseye",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1794371760180,
+      "tag": "0027_entry_kind_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1794373285779,
+      "tag": "0028_auto_translations",
+      "breakpoints": true
     }
   ]
 }

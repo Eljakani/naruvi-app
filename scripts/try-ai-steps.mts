@@ -1,4 +1,5 @@
 /** Manual check: runs the new AI steps against the configured model (reads data, writes only traces). */
+import { describeEntry, entryName } from "../src/lib/entry-fields"
 import { config } from "dotenv"
 config({ path: ".env.local", quiet: true })
 const { getLlmOverview } = await import("../src/server/settings/llm")
@@ -31,7 +32,7 @@ const entryRow = picked ? (await db.select().from(entries).where(eq(entries.id, 
 const entry = entryRow ? { ...entryRow, facts: await db.select().from(facts).where(eq(facts.entryId, entryRow.id)) } : null
 if (entry) {
   const t = Date.now()
-  const result = await suggestBullets({ kind: entry.kind, role: entry.title, organization: "", facts: entry.facts.map((f) => ({ key: f.id, statement: f.statement })), existing: [], languages: ["en", "fr"] }, completeJson)
-  console.log(`\n[bullets] ${Date.now() - t}ms entry "${entry.title}" (${entry.facts.length} facts)`, JSON.stringify(result.bullets, null, 1))
+  const result = await suggestBullets({ kind: entry.kind, entry: describeEntry(entry), facts: entry.facts.map((f) => ({ key: f.id, statement: f.statement })), existing: [], languages: ["en", "fr"] }, completeJson)
+  console.log(`\n[bullets] ${Date.now() - t}ms entry "${entryName(entry)}" (${entry.facts.length} facts)`, JSON.stringify(result.bullets, null, 1))
 }
 process.exit(0)

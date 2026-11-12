@@ -125,7 +125,7 @@
    "clientSecret": "Secret client",
    "keepSecret": "Laissez vide pour conserver le secret enregistré",
    "tenant": "Locataire (tenant)",
-   "tenantHint": "common pour la plupart des gens ; consumers pour les comptes personnels uniquement, ou l’ID de locataire de votre organisation.",
+   "tenantHint": "Comptes professionnels ou scolaires (Microsoft 365) uniquement — les comptes personnels Outlook.com, Hotmail et Live ne fonctionnent pas. Utilisez common, organizations ou l’ID de locataire de votre organisation. Pour une boîte personnelle, utilisez plutôt IMAP/SMTP.",
    "cancel": "Annuler",
    "ready": "La connexion {name} est prête",
    "readyBody": "Cliquez sur « Se connecter avec {name} ».",

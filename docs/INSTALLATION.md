@@ -11,7 +11,7 @@ Linux, macOS (Docker Desktop) or Windows through WSL2. Docker with Compose v2, G
 ## Run the installer
 
 ```bash
-curl -fsSLo install-naruvi.sh https://raw.githubusercontent.com/Eljakani/naruvi/main/install.sh
+curl -fsSLo install-naruvi.sh https://raw.githubusercontent.com/Eljakani/naruvi-app/main/install.sh
 less install-naruvi.sh
 bash install-naruvi.sh
 ```

@@ -1,58 +1,8 @@
 {
   "entryEditor": {
-    "fields": {
-      "experience": {
-        "role": "Role",
-        "organization": "Company",
-        "rolePlaceholder": "Store Manager",
-        "orgPlaceholder": "Company name"
-      },
-      "project": {
-        "role": "Project name",
-        "organization": "Context",
-        "rolePlaceholder": "Community garden app",
-        "orgPlaceholder": "Personal project"
-      },
-      "education": {
-        "role": "Degree",
-        "organization": "School",
-        "rolePlaceholder": "BSc Nursing",
-        "orgPlaceholder": "University name"
-      },
-      "certification": {
-        "role": "Certification",
-        "organization": "Issuer",
-        "rolePlaceholder": "KCNA",
-        "orgPlaceholder": "Linux Foundation"
-      },
-      "skill": {
-        "role": "Cluster label",
-        "organization": "Context",
-        "rolePlaceholder": "Customer service",
-        "orgPlaceholder": ""
-      },
-      "language": {
-        "role": "Label",
-        "organization": "Context",
-        "rolePlaceholder": "Languages",
-        "orgPlaceholder": ""
-      },
-      "achievement": {
-        "role": "Title",
-        "organization": "Event / issuer",
-        "rolePlaceholder": "1st place",
-        "orgPlaceholder": "WOCS'hAck 2026"
-      },
-      "other": {
-        "role": "Title",
-        "organization": "Organization",
-        "rolePlaceholder": "",
-        "orgPlaceholder": ""
-      }
-    },
     "sections": {
-      "basics": "Basics",
-      "display": "How it appears",
+      "basics": "What is it?",
+      "display": "Details",
       "facts": "What you did",
       "bullets": "CV lines",
       "skills": "Skills & keywords",
@@ -60,7 +10,7 @@
     },
     "ready": {
       "named": "Named",
-      "titleIn": "{language} title & dates",
+      "titleIn": "Written in {language}",
       "skills": "Skills listed",
       "fact": "At least one fact",
       "ungrounded": "{count, plural, one {# CV line without a fact} other {# CV lines without a fact}}",
@@ -94,9 +44,6 @@
       "title": "What is it?",
       "description": "The fields below adapt to the type.",
       "type": "Entry type",
-      "internalName": "Internal name",
-      "internalPlaceholder": "How you'll recognise it in lists",
-      "internalHint": "Only for you. Recruiters see the display fields below.",
       "logo": {
         "education": "School logo",
         "certification": "Issuer logo",
@@ -105,9 +52,8 @@
       }
     },
     "display": {
-      "title": "How it appears on a CV",
-      "description": "Title, place and dates in {language}. Switch language at the top.",
-      "location": "Location",
+      "title": "Details",
+      "description": "What this entry is, in {language} for text fields. Fields marked “All languages” are shared by every CV.",
       "startFrom": "Start from the {language} fields"
     },
     "facts": {
@@ -194,8 +140,163 @@
     "sectionsLabel": "Sections",
     "onThisPage": "On this page",
     "needsSomething": "Needs something",
-    "degree": {
-      "label": "Degree level"
+    "kindFields": {
+      "shared": "All languages",
+      "sharedHint": "Written once and used on every CV, whatever its language.",
+      "experience": {
+        "position": {
+          "label": "Position",
+          "placeholder": "Project Manager"
+        },
+        "company": {
+          "label": "Company",
+          "placeholder": "Northwind"
+        },
+        "employment": {
+          "label": "Contract"
+        },
+        "workMode": {
+          "label": "Work mode"
+        },
+        "location": {
+          "label": "Location",
+          "placeholder": "Paris, France"
+        },
+        "dates": {
+          "label": "Dates"
+        }
+      },
+      "education": {
+        "degree": {
+          "label": "Degree",
+          "placeholder": "Bachelor of Science"
+        },
+        "field": {
+          "label": "Field of study",
+          "placeholder": "Biology"
+        },
+        "school": {
+          "label": "School",
+          "placeholder": "Riverside University"
+        },
+        "location": {
+          "label": "Location",
+          "placeholder": "Lyon, France"
+        },
+        "honours": {
+          "label": "Honours or grade",
+          "placeholder": "With honours"
+        },
+        "dates": {
+          "label": "Dates"
+        }
+      },
+      "project": {
+        "name": {
+          "label": "Project name",
+          "placeholder": "Pocket Planner"
+        },
+        "tagline": {
+          "label": "What it is",
+          "placeholder": "Budget app for students"
+        },
+        "context": {
+          "label": "Context"
+        },
+        "url": {
+          "label": "Website or demo",
+          "placeholder": "https://…"
+        },
+        "repo": {
+          "label": "Code repository",
+          "placeholder": "https://github.com/…"
+        },
+        "dates": {
+          "label": "Dates"
+        }
+      },
+      "skill": {
+        "name": {
+          "label": "Group name",
+          "placeholder": "Cloud & DevOps"
+        }
+      },
+      "certification": {
+        "name": {
+          "label": "Certification",
+          "placeholder": "Cloud Practitioner"
+        },
+        "issuer": {
+          "label": "Issued by",
+          "placeholder": "Example Cloud Institute"
+        },
+        "issued": {
+          "label": "Issued"
+        },
+        "expires": {
+          "label": "Expires"
+        },
+        "credentialId": {
+          "label": "Credential ID",
+          "placeholder": "LF-abc123"
+        },
+        "url": {
+          "label": "Verification link",
+          "placeholder": "https://…"
+        }
+      },
+      "language": {
+        "language": {
+          "label": "Language",
+          "placeholder": "English"
+        },
+        "level": {
+          "label": "Level"
+        },
+        "test": {
+          "label": "Test or certificate",
+          "placeholder": "TOEIC 950"
+        }
+      },
+      "achievement": {
+        "title": {
+          "label": "Title",
+          "placeholder": "1st place"
+        },
+        "issuer": {
+          "label": "Event or awarded by",
+          "placeholder": "City Hackathon 2024"
+        },
+        "date": {
+          "label": "Date"
+        },
+        "context": {
+          "label": "Context",
+          "placeholder": "Out of 120 teams"
+        }
+      },
+      "other": {
+        "title": {
+          "label": "Title"
+        },
+        "subtitle": {
+          "label": "Subtitle"
+        },
+        "dates": {
+          "label": "Dates"
+        },
+        "url": {
+          "label": "Link",
+          "placeholder": "https://…"
+        }
+      }
+    },
+    "translation": {
+      "working": "Translating…",
+      "ready": "The other language version is ready",
+      "readyLater": "The translation is ready: save, then reopen to see it",
+      "auto": "Translated",
+      "autoHint": "Naruvi translated this and keeps it in step with the other language. Edit it to make it yours: Naruvi then leaves it alone."
     }
   },
   "entryAssist": {
@@ -364,6 +465,15 @@
     "type": "Type it instead",
     "asIs": "Written as is. Only this language changes.",
     "previousYear": "Previous year",
-    "nextYear": "Next year"
+    "nextYear": "Next year",
+    "start": "Start",
+    "end": "End",
+    "present": "Present",
+    "yearOnly": "Year only",
+    "clear": "Clear",
+    "typeHint": "Or type: mar 2023, 03/2023, 2019",
+    "pick": "Pick a month",
+    "onCv": "On your CVs",
+    "fills": "Written in each CV language automatically"
   }
 }

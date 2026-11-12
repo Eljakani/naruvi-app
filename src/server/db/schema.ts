@@ -1,3 +1,7 @@
+import type { EntryFields } from "@/lib/entry-fields"
+
+/** lang → field → { text Naruvi wrote, source it translated } */
+export type EntryTranslations = Record<string, Record<string, { text: string; source: string }>>
 import { relations, sql } from "drizzle-orm"
 import type { SearchGoal } from "@/lib/search-goals"
 import {
@@ -102,13 +106,8 @@ export const profiles = pgTable("profiles", {
   updatedAt: updatedAt(),
 })
 
-export type EntryDisplay = {
-  role?: string
-  organization?: string
-  dates?: string
-  location?: string
-  label?: string
-}
+/** Per-language text fields of an entry; which keys exist depends on its kind (src/lib/entry-fields.ts). */
+export type EntryDisplay = Record<string, string>
 
 /**
  * A profile record: one job, degree, project, skill cluster, certification…
@@ -125,9 +124,15 @@ export const entries = pgTable(
     key: text().notNull(),
     kind: entryKind().notNull(),
     status: entryStatus().notNull().default("needs_review"),
-    title: text().notNull(),
-    /** Display fields per language: { en: {...}, fr: {...} } */
+    /** Kind-specific text written per language: { en: { position: "…" }, fr: {…} } */
     display: jsonb().$type<Record<string, EntryDisplay>>().notNull().default({}),
+    /** Kind-specific fields stored once: company, dates, issuer, level… (src/lib/entry-fields.ts) */
+    fields: jsonb().$type<EntryFields>().notNull().default({}),
+    /**
+     * What Naruvi translated automatically, per language and field: the text it wrote and the
+     * source text it came from. A field whose current value differs from `text` was edited by the user.
+     */
+    translations: jsonb().$type<EntryTranslations>().notNull().default({}),
     tags: text().array().notNull().default(sql`'{}'::text[]`),
     skills: text().array().notNull().default(sql`'{}'::text[]`),
     evidence: text().array().notNull().default(sql`'{}'::text[]`),
@@ -179,6 +184,10 @@ export const phrasings = pgTable(
     text: text().notNull(),
     factIds: uuid().array().notNull().default(sql`'{}'::uuid[]`),
     sortOrder: integer().notNull().default(0),
+    /** Set when Naruvi translated this line: the text it wrote. While `text` still equals it, the line is Naruvi's to update; once edited, it is the user's. */
+    autoText: text(),
+    /** The source line it was translated from, to notice when that source changes. */
+    autoSource: text(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

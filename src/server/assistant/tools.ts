@@ -4,22 +4,29 @@ import { tool } from "ai"
 import { z } from "zod"
 import { analyzeJob, trackJob } from "@/server/applications/repository"
 import { safeFetch } from "@/server/assets/safe-fetch"
-import { getCompany, listCompanies, findDuplicates , saveCompany, setCompanyWebsite } from "@/server/companies/repository"
-import { MissingWebsite, deleteContact, findEmail, getContact, linkContact, listContacts, saveContact, startSpontaneous } from "@/server/contacts/repository"
-import { generateCv, generateLetter } from "@/server/documents/service"
+import { getCompany, listCompanies, findDuplicates , saveCompany, setCompanyWebsite, setJobTags } from "@/server/companies/repository"
+import { MissingWebsite, deleteContact, findEmail, getContact, linkContact, listContacts, saveContact, startSpontaneous, unlinkContact } from "@/server/contacts/repository"
+import { generateCv, generateLetter, reviseSavedCv } from "@/server/documents/service"
 import { apiApplication, apiApplications, apiUpdateApplication } from "@/server/integrations/api-data"
 import { getJob, previewJob, saveJob } from "@/server/jobs/ingest"
 import { refreshJobInsights } from "@/server/jobs/insights"
-import { markLeadImported } from "@/server/jobs/leads"
+import { dismissLead, markLeadImported, newLeads } from "@/server/jobs/leads"
 import { searchJobs } from "@/server/jobs/search"
 import { registrableDomain } from "@/server/jobs/vendor/company-resolver"
-import { editProfileDetails, entriesForMatching, getProfile, listEntries, mergeIntoEntry } from "@/server/profile/repository"
+import { changeEntryStatus, changeFact, createEntryFromFields, editProfileDetails, entriesForMatching, getEntry, removeEntry, removeSkills, saveGoals, saveImportedProfile, setEntryGuards, getProfile, listEntries, mergeIntoEntry, updateEntryFields } from "@/server/profile/repository"
+import { entryName, fieldGuide } from "@/lib/entry-fields"
 import { profileDetailEdit, profileDetailFields } from "@/server/profile/schemas"
 import { getDashboard } from "@/server/queries/dashboard"
 import { extractPage, visiblePageText } from "@/server/research/extract"
 import { researchForJob } from "@/server/research/service"
 import { scheduleResearch } from "@/server/research/auto"
 import { composeContext, draftApplicationMail } from "@/server/mail/send"
+import { syncMail } from "@/server/mail/sync"
+import { salaryContext } from "@/server/salary/market"
+import { importProfileText, IMPORT_PROMPT_VERSION } from "@/server/profile/ai-import"
+import { completionForRun } from "@/server/llm/client"
+import { startRun } from "@/server/runs/tracer"
+import { searchGoal } from "@/lib/search-goals"
 
 /**
  * Everything Naruvi's assistant can do. Reading runs straight away; anything
@@ -169,35 +176,68 @@ export const assistantTools = {
       if (!profile) return { profile: null }
       return {
         name: profile.fullName, headlines: profile.headlines, location: profile.location,
-        ndaEntries: entries.filter((entry) => entry.confidential && entry.status !== "archived").map((entry) => ({
-          id: entry.id,
-          kind: entry.kind,
-          title: entry.title,
-          organization: (entry.display.en ?? entry.display.fr)?.organization ?? null,
-        })),
-        entries: entries.slice(0, 60).map((entry) => ({ id: entry.id, kind: entry.kind, title: entry.title, status: entry.status, confidential: entry.confidential, facts: entry.facts.slice(0, 6).map((fact) => fact.statement) })),
+        ndaEntries: entries.filter((entry) => entry.confidential && entry.status !== "archived").map((entry) => ({ id: entry.id, kind: entry.kind, name: entryName(entry) })),
+        entries: entries.slice(0, 60).map((entry) => ({ id: entry.id, kind: entry.kind, name: entryName(entry), text: entry.display, fields: entry.fields, status: entry.status, confidential: entry.confidential, facts: entry.facts.slice(0, 6).map((fact) => fact.statement) })),
       }
     },
   }),
 
   find_profile_entries: tool({
-    description: "Find active profile entries by organization, title, or role before proposing a profile update.",
+    description: "Find active profile entries by any of their fields (company, position, project name, school, issuer…) before proposing a profile update.",
     inputSchema: z.object({ q: z.string().trim().min(1).max(160) }),
     execute: async ({ q }) => {
       const term = q.toLowerCase()
       const entries = await entriesForMatching()
       return {
         entries: entries.filter((entry) => [
-          entry.title,
-          ...Object.values(entry.display).flatMap(({ role, organization }) => [role, organization]),
-        ].some((value) => value?.toLowerCase().includes(term))).slice(0, 12).map(({ id, title, kind, display, skills, status }) => ({
-          id, title, kind, organization: (display.en ?? display.fr)?.organization, skills, status,
+          ...Object.values(entry.display).flatMap((text) => Object.values(text)),
+          ...Object.values(entry.fields).filter((value): value is string => typeof value === "string"),
+        ].some((value) => value.toLowerCase().includes(term))).slice(0, 12).map(({ id, kind, display, fields, skills, status }) => ({
+          id, kind, name: entryName({ kind, display, fields }), text: display, fields, skills, status,
         })),
       }
     },
   }),
 
   // ── Asking the user ─────────────────────────────────────────────────────────
+  get_profile_entry: tool({
+    description: "One profile entry in full: fields, facts WITH their ids, skills, NDA flag (confidential), do-not-claim rules and status. Read it before editing or removing a fact, skill or rule.",
+    inputSchema: z.object({ entryId: uuid }),
+    execute: async ({ entryId }) => {
+      const entry = await getEntry(entryId)
+      if (!entry) return { error: "Entry not found" }
+      return { id: entry.id, kind: entry.kind, name: entryName(entry), status: entry.status, text: entry.display, fields: entry.fields, confidential: entry.confidential, doNotClaim: entry.doNotClaim, skills: entry.skills, facts: entry.facts.map((fact) => ({ id: fact.id, statement: fact.statement })), href: `/profile/${entry.id}` }
+    },
+  }),
+  read_search_goals: tool({
+    description: "The user's job search goals (target roles, contracts, places, work modes, work authorization, duration, start month). Read before proposing a goal change.",
+    inputSchema: z.object({}),
+    execute: async () => ({ goals: (await getProfile())?.goals ?? [] }),
+  }),
+  list_job_leads: tool({
+    description: "New job leads waiting for triage: postings from job alert emails, job discovery and pages saved with the browser extension. To save one, use add_job_from_link with its url.",
+    inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
+    execute: async ({ limit }) => ({ leads: (await newLeads(limit)).map((lead) => ({ id: lead.id, title: lead.title, company: lead.company || null, location: lead.location || null, board: lead.board, source: lead.source, url: lead.url, foundAt: lead.foundAt })) }),
+  }),
+  salary_for_job: tool({
+    description: "Salary context for a saved job: the posting's own range, similar saved postings and market data when configured, with links. Use it for salary or negotiation questions.",
+    inputSchema: z.object({ jobId: uuid }),
+    execute: async ({ jobId }) => {
+      const job = await getJob(jobId)
+      if (!job) return { error: "Job not found" }
+      const context = await salaryContext({ id: job.id, title: job.title, location: job.location, salary: job.salary, language: job.language, company: job.company })
+      return { job: { title: job.title, company: job.company?.name ?? null, location: job.location }, ...context }
+    },
+  }),
+  check_mail: tool({
+    description: "Fetch new mail from the connected inbox now (waits for a sync already running), then report. Use before answering whether a company replied.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const result = await syncMail({ rescan: true, wait: true })
+      refresh()
+      return result.skipped ? { checked: 0, note: result.skipped } : { checked: result.checked, newMessagesLinked: result.stored, newLeads: result.leads ?? 0 }
+    },
+  }),
   ask_user: tool({
     description: "Ask a direct question for missing details or an ambiguous request. Omit options for a free-text answer, or provide up to 5 real choices. The user's answer comes back as choice.",
     inputSchema: z.object({ question: z.string().min(1).max(200), options: z.array(z.string().max(80)).max(5).default([]), allowOther: z.boolean().default(true) }),
@@ -230,6 +270,40 @@ export const assistantTools = {
       return { href: "/profile" }
     },
   }),
+  edit_profile_entry: tool({
+    description: `Propose changing the fields of one existing profile entry (e.g. a project's name or tagline, a job's company or dates). Each kind has its own fields; use only these:\n${fieldGuide()}\nPer-language fields go in text with the CV language (en or fr); shared fields go in fields. An empty string clears a field. Read the entry first. Requires user approval.`,
+    inputSchema: z.object({
+      entryId: uuid,
+      label: z.string().trim().min(1).max(160).describe("What changes, in a few words, for the approval card."),
+      language: z.enum(["en", "fr"]).default("en"),
+      text: z.record(z.string(), z.string().max(200)).default({}),
+      fields: z.record(z.string(), z.union([z.string().max(2048), z.object({ start: z.string().optional(), end: z.string().optional() })])).default({}),
+    }),
+    needsApproval: true,
+    execute: async ({ entryId, language, text, fields }) => {
+      const entry = await updateEntryFields(entryId, { language, text, fields })
+      refresh()
+      return { name: entryName(entry, language), text: entry.display, fields: entry.fields, href: `/profile/${entryId}` }
+    },
+  }),
+  create_profile_entry: tool({
+    description: `Propose adding a NEW profile entry (a job, internship, education, project, certification, skill group, language, achievement…) when no existing entry matches. Search with find_profile_entries first; if one matches, use edit_profile_entry or add_profile_fact instead. Each kind has its own fields; use only these:\n${fieldGuide()}\nPer-language fields go in text with the CV language (en or fr); shared fields (company, dates…) go in fields. facts: atomic statements the user supplied (from their message, a screenshot or a document), one claim each, never invented. Requires user approval.`,
+    inputSchema: z.object({
+      kind: z.enum(["experience", "education", "project", "skill", "certification", "language", "achievement", "other"]),
+      label: z.string().trim().min(1).max(160).describe("What is being added, e.g. \"Cloud & Infrastructure Intern at Acme\", for the approval card."),
+      language: z.enum(["en", "fr"]).default("en"),
+      text: z.record(z.string(), z.string().max(200)).default({}),
+      fields: z.record(z.string(), z.union([z.string().max(2048), z.object({ start: z.string().optional(), end: z.string().optional() })])).default({}),
+      facts: z.array(z.string().trim().min(3).max(600)).max(30).default([]),
+      skills: z.array(z.string().trim().min(1).max(80)).max(30).default([]),
+    }),
+    needsApproval: true,
+    execute: async ({ kind, language, text, fields, facts, skills }) => {
+      const entry = await createEntryFromFields({ kind, language, text, fields, facts, skills })
+      refresh()
+      return { id: entry.id, name: entryName(entry, language), facts: facts.length, skills: skills.length, href: `/profile/${entry.id}` }
+    },
+  }),
   add_profile_fact: tool({
     description: "Propose adding one user-supplied fact and any explicitly mentioned skills to an existing profile entry. Requires user approval.",
     inputSchema: z.object({
@@ -243,6 +317,128 @@ export const assistantTools = {
       const result = await mergeIntoEntry(entryId, { facts: [statement], skills }, { approvedByUser: true })
       refresh()
       return { added: result.added, skillsAdded: result.skills, verified: result.verified, href: `/profile/${entryId}` }
+    },
+  }),
+  set_entry_status: tool({
+    description: "Propose verifying a profile entry (its facts can then support CVs and letters), sending it back to review, archiving it (hidden, kept) or restoring it (status verified). Verify only after the user confirms the entry is accurate. Requires approval.",
+    inputSchema: z.object({ entryId: uuid, label: z.string().trim().min(1).max(160), status: z.enum(["verified", "needs_review", "archived"]) }),
+    needsApproval: true,
+    execute: async ({ entryId, status }) => {
+      const result = await changeEntryStatus(entryId, status)
+      refresh()
+      return { ...result, href: `/profile/${entryId}` }
+    },
+  }),
+  delete_profile_entry: tool({
+    description: "Propose permanently deleting a profile entry with its facts. Prefer set_entry_status archived unless the user clearly wants it gone. Requires approval.",
+    inputSchema: z.object({ entryId: uuid, label: z.string().trim().min(1).max(160) }),
+    needsApproval: true,
+    execute: async ({ entryId }) => {
+      const result = await removeEntry(entryId)
+      refresh()
+      return { deleted: true, ...result, href: "/profile" }
+    },
+  }),
+  edit_profile_fact: tool({
+    description: "Propose rewording one fact of a profile entry, or removing it (statement empty). Read the entry with get_profile_entry for the fact id. Use only what the user said. Requires approval.",
+    inputSchema: z.object({ entryId: uuid, factId: uuid, label: z.string().trim().min(1).max(160), statement: z.string().trim().max(600).describe("The new wording; empty removes the fact.") }),
+    needsApproval: true,
+    execute: async ({ entryId, factId, statement }) => {
+      if (statement && statement.length < 3) throw new Error("A fact needs at least a few words.")
+      const result = await changeFact(entryId, factId, statement || null)
+      refresh()
+      return { ...result, removed: !statement, href: `/profile/${entryId}` }
+    },
+  }),
+  remove_entry_skills: tool({
+    description: "Propose removing skills from a profile entry. Requires approval.",
+    inputSchema: z.object({ entryId: uuid, label: z.string().trim().min(1).max(160), skills: z.array(z.string().trim().min(1).max(80)).min(1).max(30) }),
+    needsApproval: true,
+    execute: async ({ entryId, skills }) => {
+      const result = await removeSkills(entryId, skills)
+      refresh()
+      return { ...result, href: `/profile/${entryId}` }
+    },
+  }),
+  set_entry_guards: tool({
+    description: "Propose marking a profile entry as NDA/confidential (documents stay high-level about it) or not, and adding or removing do-not-claim rules (e.g. \"Do not claim team lead\"). Requires approval.",
+    inputSchema: z.object({ entryId: uuid, label: z.string().trim().min(1).max(160), confidential: z.boolean().optional(), addRules: z.array(z.string().trim().min(3).max(200)).max(10).default([]), removeRules: z.array(z.string().trim().min(1).max(200)).max(10).default([]) }),
+    needsApproval: true,
+    execute: async ({ entryId, confidential, addRules, removeRules }) => {
+      const result = await setEntryGuards(entryId, { confidential, addRules, removeRules })
+      refresh()
+      return { ...result, href: `/profile/${entryId}` }
+    },
+  }),
+  save_search_goal: tool({
+    description: "Propose adding or changing one job search goal, or removing it (remove: true). Read read_search_goals first and send the WHOLE goal (keep its id to change it; omit id for a new goal). contracts use the app's contract keys. Requires approval.",
+    inputSchema: z.object({ label: z.string().trim().min(1).max(160), goal: searchGoal.partial({ id: true }), remove: z.boolean().default(false) }),
+    needsApproval: true,
+    execute: async ({ goal, remove }) => {
+      const goals = (await getProfile())?.goals ?? []
+      const id = goal.id ?? `goal-${crypto.randomUUID().slice(0, 8)}`
+      const next = remove ? goals.filter((item) => item.id !== id) : goals.some((item) => item.id === id) ? goals.map((item) => (item.id === id ? { ...goal, id } : item)) : [...goals, { ...goal, id }]
+      await saveGoals(next)
+      refresh()
+      return { goals: next.length, href: "/profile" }
+    },
+  }),
+  import_profile_text: tool({
+    description: "Propose importing a CV, LinkedIn export or career notes the user pasted or attached (pass its full text): creates new profile entries with facts and skills, skipping ones already in the profile. New entries need review. For a single experience prefer create_profile_entry. Requires approval.",
+    inputSchema: z.object({ label: z.string().trim().min(1).max(160), text: z.string().trim().min(80).max(60_000) }),
+    needsApproval: true,
+    execute: async ({ text }) => {
+      const run = await startRun("profile.import", { via: "assistant", length: text.length })
+      try {
+        const result = await run.step("structure CV", () => importProfileText(text, completionForRun(run, "profile import", IMPORT_PROMPT_VERSION)), (value) => `${value.entries.length} entries`)
+        const saved = await saveImportedProfile({ language: result.language, identity: result.identity, entries: result.entries }, { dedupe: true, status: "needs_review" })
+        await run.finish("succeeded")
+        refresh()
+        return { ...saved, href: "/profile" }
+      } catch (error) {
+        await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
+        throw error
+      }
+    },
+  }),
+  dismiss_job_leads: tool({
+    description: "Propose dismissing job leads the user doesn't want (ids from list_job_leads). Requires approval.",
+    inputSchema: z.object({ label: z.string().trim().min(1).max(160), leadIds: z.array(uuid).min(1).max(50) }),
+    needsApproval: true,
+    execute: async ({ leadIds }) => {
+      for (const id of leadIds) await dismissLead(id)
+      refresh()
+      return { dismissed: leadIds.length, href: "/jobs" }
+    },
+  }),
+  tag_job: tool({
+    description: "Propose setting the tags of a saved job (send the full list; read get_job or search_jobs for current tags). Requires approval.",
+    inputSchema: z.object({ jobId: uuid, label: z.string().trim().min(1).max(160), tags: z.array(z.string().trim().min(1).max(40)).max(20) }),
+    needsApproval: true,
+    execute: async ({ jobId, tags }) => {
+      await setJobTags(jobId, [...new Set(tags)])
+      refresh()
+      return { tags, href: `/jobs/${jobId}` }
+    },
+  }),
+  revise_cv: tool({
+    description: "Change an application's existing CV from a request (\"shorter\", \"lead with security\", \"drop the hackathon\"), checked against verified facts, and save it as a new revision. For a fresh CV use draft_cv. Requires approval.",
+    inputSchema: z.object({ applicationId: uuid, label: z.string().trim().min(1).max(160), language, request: z.string().trim().min(2).max(600) }),
+    needsApproval: true,
+    execute: async ({ applicationId, language, request }) => {
+      const result = await reviseSavedCv(applicationId, language, request)
+      refresh()
+      return { ...result, href: `/applications/${applicationId}/cv?lang=${language}` }
+    },
+  }),
+  unlink_contact: tool({
+    description: "Propose removing a contact from an application (the contact itself is kept). Requires approval.",
+    inputSchema: z.object({ applicationId: uuid, contactId: uuid, label: z.string().trim().min(1).max(160) }),
+    needsApproval: true,
+    execute: async ({ applicationId, contactId }) => {
+      await unlinkContact(applicationId, contactId)
+      refresh()
+      return { unlinked: true, href: `/applications/${applicationId}` }
     },
   }),
   update_application: tool({

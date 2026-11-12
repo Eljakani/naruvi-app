@@ -1,14 +1,16 @@
 import "server-only"
 import { readdir, readFile } from "node:fs/promises"
 import { basename, join } from "node:path"
-import { and, asc, eq, inArray, isNull } from "drizzle-orm"
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm"
 import { imageSize } from "@/server/assets/image"
 import { storeLogo, storePhoto } from "@/server/assets/store"
 import { db } from "@/server/db/client"
 import { entries, facts, phrasings, profiles } from "@/server/db/schema"
 import { supportFor, verifySupport } from "@/server/domain/grounding"
 import { searchGoals } from "@/lib/search-goals"
+import { cleanText, entryName, entryView, KIND_FIELDS, looseFields, type EntryFields, type EntryText } from "@/lib/entry-fields"
 import { matchLogo } from "./logo-match"
+import { queueTranslation } from "./auto-translate"
 import { parseIdentity, parsePool } from "./pool-parser"
 import { entryInput, identityInput, profileDetailEdit, type EntryInput, type IdentityInput } from "./schemas"
 
@@ -80,7 +82,7 @@ const refreshVerdicts = async () => (await import("@/server/jobs/goals")).refres
 export async function listEntries() {
   const profile = await getProfile()
   if (!profile) return []
-  const rows = await db.select().from(entries).where(eq(entries.profileId, profile.id)).orderBy(asc(entries.kind), asc(entries.sortOrder), asc(entries.title))
+  const rows = await db.select().from(entries).where(eq(entries.profileId, profile.id)).orderBy(asc(entries.kind), asc(entries.sortOrder), asc(entries.createdAt))
   if (!rows.length) return []
   const ids = rows.map((row) => row.id)
   const [factRows, phrasingRows] = await Promise.all([
@@ -112,14 +114,20 @@ export type ProfileEntry = Awaited<ReturnType<typeof listEntries>>[number]
  * heuristic, so every approved wording points at the truth behind it.
  */
 export async function saveEntry(input: EntryInput, entryId?: string) {
+  const saved = await writeEntry(input, entryId)
+  queueTranslation([saved.id])
+  return saved
+}
+
+async function writeEntry(input: EntryInput, entryId?: string) {
   const data = entryInput.parse(input)
   const profile = await requireProfile()
   return db.transaction(async (tx) => {
     const values = {
-      title: data.title,
       kind: data.kind,
       status: data.status,
       display: data.display,
+      fields: data.fields,
       tags: data.tags,
       skills: data.skills,
       evidence: data.evidence,
@@ -151,6 +159,8 @@ export async function saveEntry(input: EntryInput, entryId?: string) {
           language: phrasing.language,
           text: phrasing.text,
           sortOrder: index,
+          autoText: phrasing.autoText ?? null,
+          autoSource: phrasing.autoSource ?? null,
           factIds: phrasing.factRefs
             ? phrasing.factRefs.map((ref) => savedFacts[ref]?.id).filter((id): id is string => Boolean(id))
             : supportFor(phrasing.text, savedFacts).factIds,
@@ -159,6 +169,96 @@ export async function saveEntry(input: EntryInput, entryId?: string) {
     }
     return entry
   })
+}
+
+/** Set some of an entry's own fields (approved by the user, e.g. from the assistant). Empty strings clear. */
+export async function updateEntryFields(entryId: string, input: { language: string; text: Record<string, string>; fields: Record<string, unknown> }) {
+  const profile = await getProfile()
+  const [entry] = await db.select().from(entries).where(eq(entries.id, entryId))
+  if (!entry || entry.profileId !== profile?.id) throw new Error("Entry not found.")
+  const known = new Set(KIND_FIELDS[entry.kind].map((spec) => spec.key))
+  const unknown = [...Object.keys(input.text), ...Object.keys(input.fields)].filter((key) => !known.has(key))
+  if (unknown.length) throw new Error(`A ${entry.kind} has no ${unknown.join(", ")} field. Its fields: ${[...known].join(", ")}.`)
+  const merged = (base: Record<string, unknown>, changes: Record<string, unknown>) => Object.fromEntries(Object.entries({ ...base, ...changes }).filter(([, value]) => value !== "" && value != null))
+  const display = { ...entry.display, [input.language]: merged(entry.display[input.language] ?? {}, input.text) as Record<string, string> }
+  const fields = merged(entry.fields, Object.fromEntries(Object.entries(input.fields).map(([key, value]) => [key, value === "" ? "" : looseFields(entry.kind, { [key]: value })[key] ?? (() => { throw new Error(`"${String(typeof value === "string" ? value : JSON.stringify(value))}" is not a valid ${key}.`) })()])))
+  const parsed = entryInput.parse({ kind: entry.kind, status: entry.status, display, fields })
+  const [saved] = await db.update(entries).set({ display: parsed.display, fields: parsed.fields }).where(eq(entries.id, entryId)).returning()
+  queueTranslation([saved.id])
+  return saved
+}
+
+/** Create one entry from kind-specific fields (assistant, after the user approved it). Same validation as updateEntryFields. */
+export async function createEntryFromFields(input: { kind: EntryInput["kind"]; language: string; text: Record<string, string>; fields: Record<string, unknown>; facts: string[]; skills: string[] }) {
+  const known = new Set(KIND_FIELDS[input.kind].map((spec) => spec.key))
+  const unknown = [...Object.keys(input.text), ...Object.keys(input.fields)].filter((key) => !known.has(key))
+  if (unknown.length) throw new Error(`A ${input.kind} has no ${unknown.join(", ")} field. Its fields: ${[...known].join(", ")}.`)
+  const text = Object.fromEntries(Object.entries(input.text).map(([key, value]) => [key, value.trim()]).filter(([, value]) => value))
+  const fields = Object.fromEntries(Object.entries(input.fields).filter(([, value]) => value !== "" && value != null).map(([key, value]) => [key, looseFields(input.kind, { [key]: value })[key] ?? (() => { throw new Error(`"${String(typeof value === "string" ? value : JSON.stringify(value))}" is not a valid ${key}.`) })()]))
+  return saveEntry({
+    kind: input.kind,
+    status: "verified",
+    display: Object.keys(text).length ? { [input.language]: text } : {},
+    fields,
+    skills: [...new Set(input.skills.map((skill) => skill.trim()).filter(Boolean))],
+    facts: input.facts.map((statement) => ({ statement })),
+  } as EntryInput)
+}
+
+/** One entry of this profile, or an error the assistant can show. */
+async function ownEntry(entryId: string) {
+  const profile = await getProfile()
+  const [entry] = await db.select().from(entries).where(eq(entries.id, entryId))
+  if (!entry || entry.profileId !== profile?.id) throw new Error("Entry not found.")
+  return entry
+}
+
+/** Change an entry's status (verify it, send it back to review, archive or restore it). */
+export async function changeEntryStatus(entryId: string, status: "verified" | "needs_review" | "archived") {
+  const entry = await ownEntry(entryId)
+  await setEntryStatus(entryId, status)
+  return { name: entryName(entry), previous: entry.status, status }
+}
+
+export async function removeEntry(entryId: string) {
+  const entry = await ownEntry(entryId)
+  await deleteEntry(entryId)
+  return { name: entryName(entry) }
+}
+
+/** Reword one fact, or remove it (statement null). A removed fact is also unlinked from CV lines. */
+export async function changeFact(entryId: string, factId: string, statement: string | null) {
+  const entry = await ownEntry(entryId)
+  const [fact] = await db.select().from(facts).where(and(eq(facts.id, factId), eq(facts.entryId, entryId)))
+  if (!fact) throw new Error("Fact not found on this entry.")
+  await db.transaction(async (tx) => {
+    if (statement === null) {
+      await tx.update(phrasings).set({ factIds: sql`array_remove(${phrasings.factIds}, ${factId}::uuid)` }).where(eq(phrasings.entryId, entryId))
+      await tx.delete(facts).where(eq(facts.id, factId))
+    } else {
+      await tx.update(facts).set({ statement: statement.trim() }).where(eq(facts.id, factId))
+    }
+  })
+  return { name: entryName(entry), previous: fact.statement }
+}
+
+/** Remove skills (case-insensitive) from an entry. */
+export async function removeSkills(entryId: string, skills: string[]) {
+  const entry = await ownEntry(entryId)
+  const drop = new Set(skills.map((skill) => skill.trim().toLowerCase()))
+  const kept = entry.skills.filter((skill) => !drop.has(skill.trim().toLowerCase()))
+  await db.update(entries).set({ skills: kept }).where(eq(entries.id, entryId))
+  return { name: entryName(entry), removed: entry.skills.length - kept.length }
+}
+
+/** NDA flag and "never claim" rules sent to every prompt that uses this entry. */
+export async function setEntryGuards(entryId: string, input: { confidential?: boolean; addRules?: string[]; removeRules?: string[] }) {
+  const entry = await ownEntry(entryId)
+  const remove = new Set((input.removeRules ?? []).map((rule) => rule.trim().toLowerCase()))
+  const rules = [...entry.doNotClaim.filter((rule) => !remove.has(rule.trim().toLowerCase()))]
+  for (const rule of input.addRules ?? []) if (rule.trim() && !rules.some((known) => known.toLowerCase() === rule.trim().toLowerCase())) rules.push(rule.trim())
+  await db.update(entries).set({ doNotClaim: rules, ...(input.confidential === undefined ? {} : { confidential: input.confidential }) }).where(eq(entries.id, entryId))
+  return { name: entryName(entry), confidential: input.confidential ?? entry.confidential, rules }
 }
 
 export async function setEntryStatus(entryId: string, status: "verified" | "needs_review" | "archived") {
@@ -220,13 +320,14 @@ export async function importProfileFolder(folder: string): Promise<ImportSummary
   }
 
   const summary: ImportSummary = { entries: 0, facts: 0, phrasings: 0, logos: 0, ungrounded: [] }
+  const imported: string[] = []
   await db.transaction(async (tx) => {
     for (const [index, item] of parsed.entries()) {
       const values = {
         kind: item.kind,
         status: item.status,
-        title: item.title,
         display: item.display,
+        fields: item.fields,
         tags: item.tags,
         skills: item.skills,
         evidence: item.evidence,
@@ -251,17 +352,19 @@ export async function importProfileFolder(folder: string): Promise<ImportSummary
           item.phrasings.map((phrasing, i) => {
             const support = links[i]
             if (phrasing.role === "bullet" && !support.grounded) {
-              summary.ungrounded.push({ entry: item.title, text: phrasing.text, numbers: support.unsupportedNumbers })
+              summary.ungrounded.push({ entry: item.name, text: phrasing.text, numbers: support.unsupportedNumbers })
             }
             return { entryId: entry.id, group: phrasing.group, role: phrasing.role, language: phrasing.language, text: phrasing.text, sortOrder: i, factIds: support.factIds }
           }),
         )
       }
+      imported.push(entry.id)
       summary.entries += 1
       summary.facts += savedFacts.length
       summary.phrasings += item.phrasings.length
     }
   })
+  queueTranslation(imported)
   summary.logos = await attachLogos(folder, profile.id)
   if (!profile.photoPath) {
     const photo = await readFile(join(folder, "..", "assets", "profile_image.png")).catch(() => null)
@@ -297,8 +400,8 @@ async function attachLogos(profileFolder: string, profileId: string) {
     .where(and(eq(entries.profileId, profileId), isNull(entries.logoPath), inArray(entries.kind, [...LOGO_KINDS])))
   let attached = 0
   for (const entry of missing) {
-    const organization = entry.display.en?.organization || entry.display.fr?.organization || entry.title
-    const file = matchLogo(organization, candidates) ?? matchLogo(entry.title, candidates)
+    const view = entryView(entry, "en")
+    const file = (view.subheading && matchLogo(view.subheading, candidates)) || matchLogo(view.heading, candidates)
     if (!file) continue
     const source = candidates.find((candidate) => candidate.file === file)!
     try {
@@ -340,30 +443,27 @@ export async function getReviewQueue(): Promise<ReviewItem[]> {
 export async function saveImportedProfile(input: {
   language: string
   identity: { fullName: string; headline: string; email: string; phone: string; location: string; links: { label: string; url: string }[] }
-  entries: { kind: EntryInput["kind"]; title: string; display: { role: string; organization: string; dates: string; location: string }; facts: string[]; skills: string[]; bullets: { text: string; facts: number[] }[] }[]
+  entries: { kind: EntryInput["kind"]; text: Record<string, string>; fields: EntryFields; facts: string[]; skills: string[]; bullets: { text: string; facts: number[] }[] }[]
 }, { dedupe = true, status = "needs_review" }: { dedupe?: boolean; status?: "verified" | "needs_review" } = {}) {
   const profile = await requireProfile()
-  const existing = await db.select({ kind: entries.kind, title: entries.title, display: entries.display }).from(entries).where(eq(entries.profileId, profile.id))
-  const key = (kind: string, title: string) => `${kind}:${title.trim().toLowerCase()}`
-  const seen = new Set(existing.flatMap((row) => {
-    const shown = Object.values((row.display ?? {}) as Record<string, { role?: string; organization?: string }>)
-    return [key(row.kind, row.title), ...shown.map((value) => key(row.kind, `${value.role ?? ""}@${value.organization ?? ""}`))]
-  }))
+  const existing = await db.select({ kind: entries.kind, display: entries.display, fields: entries.fields }).from(entries).where(eq(entries.profileId, profile.id))
+  const key = (kind: string, name: string) => `${kind}:${name.trim().toLowerCase()}`
+  const seen = new Set(existing.flatMap((row) => Object.keys(row.display).concat("en").map((lang) => key(row.kind, entryName(row, lang)))))
   let created = 0
   let skipped = 0
   for (const item of input.entries) {
-    if (dedupe && (seen.has(key(item.kind, item.title)) || (item.display.role && seen.has(key(item.kind, `${item.display.role}@${item.display.organization}`))))) {
+    const shaped = { kind: item.kind, display: Object.keys(item.text).length ? { [input.language]: item.text } : {}, fields: item.fields }
+    const name = key(item.kind, entryName(shaped, input.language))
+    if (dedupe && seen.has(name)) {
       skipped += 1
       continue
     }
-    const shown = Object.fromEntries(Object.entries(item.display).filter(([, value]) => value.trim()))
     await saveEntry({
-      title: item.title, kind: item.kind, status,
-      display: Object.keys(shown).length ? { [input.language]: shown } : {},
+      ...shaped, status,
       skills: item.skills, facts: item.facts.map((statement) => ({ statement })),
       phrasings: item.bullets.filter((bullet) => bullet.facts.length).map((bullet) => ({ group: "Imported", role: "bullet" as const, language: input.language, text: bullet.text, factRefs: bullet.facts })),
     })
-    seen.add(key(item.kind, item.title))
+    seen.add(name)
     created += 1
   }
   const empty = (value: string | null | undefined) => !value || !value.trim() || value === "Your name"
@@ -390,8 +490,7 @@ export async function entriesForMatching() {
   const rows = await db.select().from(entries).where(eq(entries.profileId, profile.id))
   const factRows = rows.length ? await db.select({ entryId: facts.entryId, statement: facts.statement }).from(facts).where(inArray(facts.entryId, rows.map((row) => row.id))) : []
   return rows.filter((row) => row.status !== "archived").map((row) => ({
-    id: row.id, kind: row.kind, title: row.title, status: row.status,
-    display: (row.display ?? {}) as Record<string, { role?: string; organization?: string; dates?: string }>,
+    id: row.id, kind: row.kind, status: row.status, display: row.display, fields: row.fields,
     facts: factRows.filter((fact) => fact.entryId === row.id).map((fact) => fact.statement),
     skills: row.skills,
   }))
@@ -403,7 +502,7 @@ export async function entriesForMatching() {
  * goes back to "needs review" when it gains imported facts. An explicit user
  * approval keeps an already verified entry verified.
  */
-export async function mergeIntoEntry(entryId: string, input: { facts: string[]; skills: string[]; display?: { language: string; role: string; organization: string; dates: string; location: string } }, { approvedByUser = false } = {}) {
+export async function mergeIntoEntry(entryId: string, input: { facts: string[]; skills: string[]; display?: { language: string; text: EntryText[string]; fields: EntryFields } }, { approvedByUser = false } = {}) {
   const profile = approvedByUser ? await getProfile() : null
   return db.transaction(async (tx) => {
     const [entry] = await tx.select().from(entries).where(eq(entries.id, entryId)).for("update")
@@ -422,14 +521,18 @@ export async function mergeIntoEntry(entryId: string, input: { facts: string[]; 
       knownSkills.add(key)
       skills.push(skill)
     }
-    const display = { ...((entry.display ?? {}) as Record<string, Record<string, string>>) }
+    // Fill only what is empty: never overwrite a field the person already has.
+    const display = { ...entry.display }
+    let fields = entry.fields
     if (input.display) {
       const current = display[input.display.language] ?? {}
-      const filled = Object.fromEntries((["role", "organization", "dates", "location"] as const).map((key) => [key, current[key] || input.display![key] || ""]).filter(([, value]) => value))
-      if (Object.keys(filled).length) display[input.display.language] = filled
+      const offered = cleanText(entry.kind, { [input.display.language]: input.display.text })[input.display.language] ?? {}
+      display[input.display.language] = { ...offered, ...Object.fromEntries(Object.entries(current).filter(([, value]) => value)) }
+      fields = { ...looseFields(entry.kind, input.display.fields), ...Object.fromEntries(Object.entries(entry.fields).filter(([, value]) => value)) }
     }
     const needsReview = !approvedByUser && fresh.length > 0 && entry.status === "verified"
-    await tx.update(entries).set({ skills, display, ...(needsReview ? { status: "needs_review" as const } : {}) }).where(eq(entries.id, entryId))
+    await tx.update(entries).set({ skills, display, fields, ...(needsReview ? { status: "needs_review" as const } : {}) }).where(eq(entries.id, entryId))
+    if (input.display) queueTranslation([entryId])
     return { added: fresh.length, skills: skills.length - entry.skills.length, reverified: needsReview, verified: entry.status === "verified" && !needsReview }
   })
 }
