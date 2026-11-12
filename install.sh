@@ -17,13 +17,15 @@ Usage: bash install.sh [options]
   --port N                    app port for local/proxy (default 3000)
   --bind ADDRESS              proxy mode: address the app port listens on (default 127.0.0.1)
   --dir PATH                  installation directory (default ~/.local/share/naruvi)
-  --ref REF                   Git branch or tag to install (default main)
+  --ref REF                   release tag or branch to install (default: the latest release)
+  --build                     build the app image from source instead of downloading the
+                              published, signed one (a branch is always built)
   --yes                       no questions; requires --mode (and --domain when needed)
   --install-docker            with --yes: install Docker when it is missing (Linux, needs root or sudo)
   --preview                   walk through the screens without installing anything
   --help                      show this help
 
-Environment: NARUVI_INSTALL_DIR, NARUVI_REF, NARUVI_SOURCE_DIR (local checkout), NO_COLOR.
+Environment: NARUVI_INSTALL_DIR, NARUVI_REF, NARUVI_BUILD=1, NARUVI_SOURCE_DIR (local checkout), NO_COLOR.
 Requires Docker with Compose v2, Git and OpenSSL. When Docker is missing, the installer offers to
 set it up (Linux: Docker's official script; macOS: Docker Desktop with Homebrew). Otherwise it
 installs nothing outside the chosen directory except an optional `naruvi` command link in ~/.local/bin.
@@ -31,7 +33,9 @@ EOF
 }
 
 # ---------- options ----------
-preview=false assume_yes=false install_docker=false mode= domain= port= bind= root=${NARUVI_INSTALL_DIR:-} ref=${NARUVI_REF:-main}
+preview=false assume_yes=false install_docker=false mode= domain= port= bind= root=${NARUVI_INSTALL_DIR:-} ref=${NARUVI_REF:-}
+build=false; [[ ${NARUVI_BUILD:-} != 1 ]] || build=true
+repo_url=https://github.com/Eljakani/naruvi-app.git
 need() { [[ $# -ge 2 && -n $2 ]] || { echo "Missing value for $1" >&2; exit 2; }; }
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -44,6 +48,7 @@ while [[ $# -gt 0 ]]; do
     --bind) need "$@"; bind=$2; shift;;
     --dir) need "$@"; root=$2; shift;;
     --ref) need "$@"; ref=$2; shift;;
+    --build) build=true;;
     --help|-h) usage; exit 0;;
     *) echo "Unknown option: $1 (see --help)" >&2; exit 2;;
   esac
@@ -113,7 +118,7 @@ banner() {
     |_| \_|\__,_|_|   \__,_| \_/ |_|
 ART
   fi
-  out '%s\n  %sYour career. Your workspace.%s   %sinstaller · %s%s\n' "$reset" "$bold" "$reset" "$dim" "$ref" "$reset"
+  out '%s\n  %sYour career. Your workspace.%s   %sinstaller · %s%s\n' "$reset" "$bold" "$reset" "$dim" "${ref:-latest release}" "$reset"
 }
 
 # ---------- input ----------
@@ -317,7 +322,7 @@ else
   elif command -v sysctl >/dev/null; then mem_gb=$(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%d", $1/1073741824+0.5}'); fi
   if [[ -z $mem_gb ]]; then check warn 'Memory' 'unknown'
   elif [[ $mem_gb -ge 2 ]]; then check ok 'Memory' "${mem_gb} GB"
-  else check warn 'Memory' "${mem_gb} GB · the first build needs about 2 GB"; fi
+  else check warn 'Memory' "${mem_gb} GB · building from source needs about 2 GB"; fi
   if [[ $problems != 0 ]]; then
     fail 'Install the missing pieces, then run this again.' \
          'Docker: https://docs.docker.com/get-started/get-docker/' \
@@ -326,6 +331,20 @@ else
   if [[ -n $(docker ps -aq --filter label=com.docker.compose.project=naruvi 2>/dev/null) ]]; then
     fail 'A Naruvi stack (project "naruvi") already runs on this Docker engine.' 'Manage it with its `naruvi` command, or remove it first.'
   fi
+fi
+
+# ---------- version and image ----------
+# Releases come as a published image, signed by the release workflow: downloaded in a minute.
+# Branches, local copies, --build and other processor types build the image here instead.
+if [[ -z $ref && -z ${NARUVI_SOURCE_DIR:-} && $preview == false ]]; then
+  ref=$(git ls-remote --tags --refs "$repo_url" 'v*' 2>/dev/null | sed -n 's|.*refs/tags/\(v[0-9]*\.[0-9]*\.[0-9]*\)$|\1|p' | sort -V | tail -n1 || true)
+  [[ -n $ref ]] || { ref=main; check warn 'Version' 'no release found; installing main'; }
+fi
+ref=${ref:-main}
+use_image=false
+if [[ $build == false && -z ${NARUVI_SOURCE_DIR:-} && $ref =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  if [[ $preview == true ]]; then use_image=true
+  else case $(docker version --format '{{.Server.Arch}}' 2>/dev/null) in amd64|arm64) use_image=true;; esac; fi
 fi
 
 # ---------- 2. where ----------
@@ -405,15 +424,19 @@ case $mode in
 esac
 kv 'Directory' "$root"
 kv 'Version' "$ref"
+if [[ $use_image == true ]]; then kv 'Image' 'published release, signature checked before use'
+else kv 'Image' 'built on this machine from the source'; fi
 kv 'Access' 'one owner account, created from a private link'
 out '\n'; note 'Secrets are generated on this machine and never leave it.'
-note 'The first build takes a few minutes.'
+if [[ $use_image == true ]]; then note 'Downloading the image takes a minute or two.'
+else note 'Building the image takes 5 to 30 minutes, depending on this machine.'; fi
 confirm 'Install now?' y || { out '\n  Nothing changed.\n\n'; exit 0; }
 
 # ---------- 5. install ----------
 step 5 'Install'
 if [[ $preview == true ]]; then
-  for t in 'Download source' 'Generate secrets' 'Validate configuration' 'Build image' 'Start database, app and worker' 'Wait for Naruvi'; do check ok "$t" 'preview'; done
+  image_step='Build image'; [[ $use_image == false ]] || image_step='Download and verify image'
+  for t in 'Download source' 'Generate secrets' "$image_step" 'Validate configuration' 'Start database, app and worker' 'Wait for Naruvi'; do check ok "$t" 'preview'; done
   out '\n  %s%s Preview complete%s · a real install ends with your private setup link.\n\n' "$green" "$ok" "$reset"
   exit 0
 fi
@@ -428,12 +451,13 @@ else
 fi
 chmod -R go+rX "$root/source" # public code; the image runs as `node` and must read it despite umask 077
 cp "$root/source/deploy/compose.yaml" "$root/compose.yaml"
+cp "$root/source/deploy/build.yaml" "$root/build.yaml"
 overlay=$mode.yaml
 cp "$root/source/deploy/$overlay" "$root/$overlay"
 [[ $mode != hosted ]] || cp "$root/source/deploy/Caddyfile" "$root/Caddyfile"
 {
   printf '# Naruvi settings. Keep this file private and backed up: it holds your encryption key.\n'
-  printf 'COMPOSE_PROJECT_NAME=naruvi\nCOMPOSE_FILE=compose.yaml:%s\n' "$overlay"
+  printf 'COMPOSE_PROJECT_NAME=naruvi\n'
   printf 'NARUVI_MODE=%s\nNARUVI_URL=%s\n' "$mode" "$url"
   printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)"
   printf 'SETTINGS_ENCRYPTION_KEY=%s\n' "$(openssl rand -hex 32)"
@@ -449,9 +473,29 @@ cp "$root/source/deploy/naruvi" "$root/naruvi"; chmod 700 "$root/naruvi"
 # Keys that may sign release tags. Copied once; `naruvi update` never replaces it.
 cp "$root/source/deploy/trusted-signers" "$root/trusted-signers"; chmod 600 "$root/trusted-signers"
 cd "$root"
+# Signed release image, pinned by digest; or none for this machine, and it is built instead.
+fetch_image() {
+  local status=0
+  "$root/naruvi" release-image "${ref#v}" "$(git -C "$root/source" rev-parse HEAD)" > "$root/.image" 2>> "$log" || status=$?
+  [[ $status != 2 ]] || { : > "$root/.image"; status=0; }
+  return $status
+}
+image=
+if [[ $use_image == true ]]; then
+  run_hint="The image did not pass signature verification, so it was not used. Try again later, or build it here: bash install.sh --build"
+  run 'Download and verify image' fetch_image
+  run_hint=
+  image=$(cat "$root/.image"); rm -f "$root/.image"
+  [[ -n $image ]] || check warn 'Published image' "none for $ref on this machine; building instead"
+fi
+if [[ -n $image ]]; then
+  printf 'COMPOSE_FILE=compose.yaml:%s\nNARUVI_IMAGE=%s\n' "$overlay" "$image" >> "$root/.env"
+else
+  printf 'COMPOSE_FILE=compose.yaml:%s:build.yaml\nNARUVI_IMAGE=naruvi-app:source\n' "$overlay" >> "$root/.env"
+fi
 run 'Validate configuration' docker compose config --quiet
 [[ $mode != hosted ]] || run 'Validate HTTPS gateway' docker compose run --rm --no-deps gateway caddy validate --config /etc/caddy/Caddyfile
-run 'Build image' docker compose build
+[[ -n $image ]] || run 'Build image' docker compose build
 run 'Start database, app and worker' docker compose up -d
 probe_url=$url/login
 [[ $mode != proxy ]] || probe_url="http://127.0.0.1:$port/login"

@@ -1,12 +1,12 @@
 # Install Naruvi
 
-One owner, your own machine or server. The installer checks your machine, asks a few questions, builds Naruvi with Docker Compose, and finishes with a private link to create your owner account. Afterwards, the `naruvi` command manages everything.
+One owner, your own machine or server. The installer checks your machine, asks a few questions, downloads the signed release image and starts it with Docker Compose, and finishes with a private link to create your owner account. Afterwards, the `naruvi` command manages everything.
 
 Want to try it without touching your machine? Use the [container sandbox](INSTALLER-SANDBOX.md).
 
 ## Requirements
 
-Linux, macOS (Docker Desktop) or Windows through WSL2. Docker with Compose v2, Git and OpenSSL. If Docker is missing, the installer offers to install it: on Linux with Docker's official script (needs sudo), on macOS as Docker Desktop through Homebrew. Non-interactive installs opt in with `--yes --install-docker`. About 6 GB of disk and 2 GB of memory for the first build. Node.js is not needed on the host.
+Linux, macOS (Docker Desktop) or Windows through WSL2. Docker with Compose v2, Git and OpenSSL. If Docker is missing, the installer offers to install it: on Linux with Docker's official script (needs sudo), on macOS as Docker Desktop through Homebrew. Non-interactive installs opt in with `--yes --install-docker`. About 6 GB of disk. Building from source (branches, `--build`) also needs about 2 GB of memory. Node.js is not needed on the host.
 
 ## Run the installer
 
@@ -26,7 +26,7 @@ bash install.sh --yes --mode hosted --domain careers.example.com
 bash install.sh --yes --mode proxy --domain careers.example.com --port 3000
 ```
 
-Other options: `--dir PATH` (default `~/.local/share/naruvi`), `--ref TAG` (default `main`; prefer a reviewed release tag), `--bind ADDRESS` for proxy mode. See `bash install.sh --help`.
+Other options: `--dir PATH` (default `~/.local/share/naruvi`), `--ref TAG` (default: the latest release; a branch such as `main` is built from source), `--build` (build the image on this machine instead of downloading it), `--bind ADDRESS` for proxy mode. See `bash install.sh --help`.
 
 ## Choose where Naruvi runs
 
@@ -85,11 +85,17 @@ naruvi update           # install it
 1. **Verifies it.** Every release tag is signed. The signature must match a key in `trusted-signers`, copied into the installation directory once at install time. Updates never replace that file, so a tampered download cannot bring its own key. Unsigned or unknown tags are refused.
 2. **Shows what changes** (the new changelog entries) and asks before going on.
 3. **Backs up** the database, uploaded files and `.env` into `backups/<timestamp>`.
-4. **Builds the new version while the current one keeps running.** A failed build changes nothing.
+4. **Gets the new image while the current version keeps running.** It downloads the release image and checks its signature (below), or builds from source on a source install. A failed download, check or build changes nothing.
 5. **Migrates and restarts**, then waits for the app to answer.
 6. **Rolls back on failure.** If migrations fail or the app does not start, it restores the database from step 3 and puts the previous images back.
 
-Base images are pinned by digest and npm packages by `package-lock.json`, so a release builds the same way everywhere. `naruvi update v1.2.0` installs a specific release; `naruvi update --ref main --allow-unsigned` follows a branch, without verification. Downgrades are refused: restore a backup instead. The Settings check asks GitHub for the latest release at most twice a day; set `NARUVI_UPDATE_CHECK=off` in `.env` to turn it off.
+### Release images
+
+Each release tag is built once by the [release workflow](../.github/workflows/release.yml) for `linux/amd64` and `linux/arm64` and published as `ghcr.io/eljakani/naruvi-app:X.Y.Z`. The workflow signs it keylessly with Sigstore, so the signature records which workflow, tag and commit produced it. Before using an image, the installer and `naruvi update` check with a pinned `cosign` container that it was signed by that workflow for that release tag, at the commit the signed tag points to. Then they pin it by digest in `.env` (`NARUVI_IMAGE`). An image that fails the check is not used. Servers need nothing but Docker for this.
+
+Installing a branch, using a local copy, passing `--build`, or a processor type without a published image builds from `./source` instead (`build.yaml` in `COMPOSE_FILE`), the same way as before. Installations from before published images keep building. `naruvi use-images` moves one to the published image of the version it runs, keeping the previous `compose.yaml` and `.env` beside the new ones.
+
+Base images are pinned by digest and npm packages by `package-lock.json`, so a release builds the same way everywhere. `naruvi update v1.2.0` installs a specific release; `naruvi update --ref main --allow-unsigned` follows a branch, without verification, on installations that build from source. Downgrades are refused: restore a backup instead. The Settings check asks GitHub for the latest release at most twice a day; set `NARUVI_UPDATE_CHECK=off` in `.env` to turn it off.
 
 Installations from before signed releases get the new `naruvi` command from their own `source` folder once: `cp source/deploy/naruvi naruvi` after a `git -C source pull`, then `naruvi update`. Until a release key is in `trusted-signers`, updates need `--allow-unsigned`.
 

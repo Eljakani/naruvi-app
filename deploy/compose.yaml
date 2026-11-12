@@ -1,4 +1,5 @@
 name: naruvi-installed
+# The app image: the signed release from ghcr.io pinned by digest, or one built from ./source (build.yaml).
 services:
   db:
     image: pgvector/pgvector:pg17@sha256:7d0a41464797aeb9862dfdc0bbf1526b82cfd324cdd8036df19e3545f4a9ccb8
@@ -14,12 +15,12 @@ services:
       timeout: 5s
       retries: 30
   assets-init:
-    build: {context: ./source, target: runner}
+    image: ${NARUVI_IMAGE:?required}
     user: root
     entrypoint: [sh, -c, 'chown node:node /app/data/assets']
     volumes: [assets:/app/data/assets]
   migrate:
-    build: {context: ./source, target: runner}
+    image: ${NARUVI_IMAGE:?required}
     command: [npx, drizzle-kit, migrate]
     environment: &environment
       DATABASE_URL: postgres://naruvi:${POSTGRES_PASSWORD:?required}@db:5432/naruvi
@@ -31,7 +32,7 @@ services:
     depends_on:
       db: {condition: service_healthy}
   app:
-    build: {context: ./source, target: runner}
+    image: ${NARUVI_IMAGE:?required}
     restart: unless-stopped
     environment: *environment
     volumes: [assets:/app/data/assets]
@@ -41,7 +42,7 @@ services:
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
   worker:
-    build: {context: ./source, target: runner}
+    image: ${NARUVI_IMAGE:?required}
     command: [node, --import, tsx, worker/index.mts]
     restart: unless-stopped
     environment: *environment

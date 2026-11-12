@@ -33,6 +33,7 @@ Describe the problem, the resulting behavior, and validation in your pull reques
 
 1. Bump `version` in `package.json` and add a `## X.Y.Z — YYYY-MM-DD` section at the top of `CHANGELOG.md`. Settings shows that file.
 2. Sign the tag with an SSH key listed in `deploy/trusted-signers`: `git tag -s vX.Y.Z -m vX.Y.Z` (with `git config gpg.format ssh` and `user.signingkey` set), then `git push origin vX.Y.Z`.
-3. Publish a GitHub release for the tag with the changelog section as notes. The in-app update notice reads the latest release.
+3. Pushing the tag runs the release workflow, which builds, publishes and signs `ghcr.io/eljakani/naruvi-app:X.Y.Z`. Wait for it to pass before the next step. The first time, set the package's visibility to public (GitHub → Packages → naruvi-app → Package settings) so installations can download it.
+4. Publish a GitHub release for the tag with the changelog section as notes. The in-app update notice reads the latest release.
 
 Adding or rotating a key in `deploy/trusted-signers` only reaches new installations; existing ones keep the file they were installed with.

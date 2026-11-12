@@ -1,0 +1,11 @@
+# Build the app image from ./source instead of downloading the published release:
+# installs of a branch, `install.sh --build`, or machines the release image doesn't cover.
+services:
+  assets-init:
+    build: {context: ./source, target: runner}
+  migrate:
+    build: {context: ./source, target: runner}
+  app:
+    build: {context: ./source, target: runner}
+  worker:
+    build: {context: ./source, target: runner}
