@@ -1,8 +1,9 @@
-# Builds the app image for each signed release tag and publishes it to GitHub's
+# For each signed release tag: builds the app image and publishes it to GitHub's
 # container registry, so installations download it instead of compiling for half
-# an hour. Each image is signed keylessly with this workflow's identity; the
-# installer and `naruvi update` check that signature, and that it was made at the
-# commit of the release tag, before running the image.
+# an hour, then publishes the GitHub release with the changelog section and the
+# browser extension attached. Each image is signed keylessly with this workflow's
+# identity; the installer and `naruvi update` check that signature, and that it
+# was made at the commit of the release tag, before running the image.
 name: Release image
 on:
   push:
@@ -91,3 +92,28 @@ jobs:
         run: cosign sign --yes "$IMAGE@$DIGEST"
         env:
           DIGEST: ${{ steps.tag.outputs.digest }}
+
+  release:
+    needs: publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package the browser extension
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          mkdir -p dist/naruvi-extension
+          cp -R extension/. dist/naruvi-extension/
+          (cd dist && zip -qr "naruvi-extension-$version.zip" naruvi-extension)
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          awk -v v="$version" '$0 ~ "^## "v"( |$)" {on=1; next} /^## / {if (on) exit} on' CHANGELOG.md | sed '/./,$!d' > notes.md
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "dist/naruvi-extension-$version.zip" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md --latest "dist/naruvi-extension-$version.zip"
+          fi

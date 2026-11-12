@@ -149,6 +149,26 @@ Set up your model in **Integrations → Language model**. To check the developme
 
 </details>
 
+### Browser extension
+
+Save job postings, including LinkedIn and other pages behind a login, and people to Naruvi in one click. Install it once, then connect it with one click.
+
+**1. Get it**
+
+- **From your Naruvi (easiest):** go to **Integrations → API & browser extension → Download the extension**. This copy already knows your Naruvi's address.
+- **From GitHub:** download `naruvi-extension-X.Y.Z.zip` from the [latest release](https://github.com/Eljakani/naruvi-app/releases/latest). You'll type your Naruvi's address once.
+
+**2. Install it**
+
+- **Chrome, Edge, Brave, Arc:** unzip the file. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and choose the `naruvi-extension` folder. Keep the folder: the browser loads the extension from it.
+- **Firefox 128+:** open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…**, and choose the zip. Firefox removes temporary add-ons when it restarts.
+
+**3. Connect it**
+
+The extension's settings open by themselves. Check the address and click **Connect**. A Naruvi tab opens: sign in if asked, then click **Connect** there. The extension picks up its own key and closes the tab. There's nothing to copy.
+
+Its key appears under **Integrations → API & browser extension**, where you can revoke it at any time. You can also paste an API key yourself under *Use an API key instead*. See the [extension guide](extension/README.md) for features, shortcuts and privacy.
+
 ## Features
 
 <table>

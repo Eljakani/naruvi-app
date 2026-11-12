@@ -2,7 +2,7 @@
 
 import UndoButton from "@/components/kokonutui/undo-button"
 import { useState, useTransition } from "react"
-import { CheckIcon, CopyIcon, KeyRoundIcon, Loader2Icon, PlusIcon, PuzzleIcon, TrashIcon } from "lucide-react"
+import { CheckIcon, CopyIcon, DownloadIcon, KeyRoundIcon, Loader2Icon, PlusIcon, PuzzleIcon, TrashIcon } from "lucide-react"
 import { toast } from "sonner"
 import { createApiKeyAction, revokeApiKeyAction } from "@/app/[locale]/(app)/integrations/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -111,10 +111,14 @@ export function ApiSettings({ keys, origin, folder }: { keys: Key[]; origin: str
           <summary className="cursor-pointer font-medium marker:text-muted-foreground">{t("ext.title")}</summary>
           <div className="mt-2 grid gap-2">
           <p className="text-muted-foreground">{t("ext.body")}</p>
+          <Button className="w-fit" nativeButton={false} render={<a href="/api/extension/download" download />}>
+            <DownloadIcon /> {t("ext.download")}
+          </Button>
           <ol className="grid list-decimal gap-1 ps-5 text-muted-foreground">
             <li>{t.rich("ext.step1", { code: (chunks) => <code className="rounded bg-muted px-1">{chunks}</code> })}</li>
             <li>{t.rich("ext.step2", { origin, code: (chunks) => <code className="rounded bg-muted px-1">{chunks}</code> })}</li>
           </ol>
+          <p className="text-xs text-muted-foreground">{t.rich("ext.firefox", { code: (chunks) => <code className="rounded bg-muted px-1">{chunks}</code> })}</p>
           </div>
         </details>
 
