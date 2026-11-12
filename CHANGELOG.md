@@ -5,6 +5,8 @@ Update an installation from a terminal with `naruvi update`.
 
 ## Unreleased
 
+## 0.3.0 — 2026-11-12
+
 ### Changed
 - Installing and updating download a ready-made image of the release instead of building it on your machine: a minute or two instead of up to half an hour. The image is signed by the release workflow and checked before use; `--build` still builds from source.
 - The installer installs the latest release by default instead of `main`.
