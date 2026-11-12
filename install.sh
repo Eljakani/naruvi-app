@@ -473,11 +473,13 @@ cp "$root/source/deploy/naruvi" "$root/naruvi"; chmod 700 "$root/naruvi"
 # Keys that may sign release tags. Copied once; `naruvi update` never replaces it.
 cp "$root/source/deploy/trusted-signers" "$root/trusted-signers"; chmod 600 "$root/trusted-signers"
 cd "$root"
-# Signed release image, pinned by digest; or none for this machine, and it is built instead.
+# Signed release image, pinned by digest. When there is none for this machine (2) or it can't be
+# downloaded (3), the image is built here instead, saying why. A failed signature check stops.
 fetch_image() {
   local status=0
-  "$root/naruvi" release-image "${ref#v}" "$(git -C "$root/source" rev-parse HEAD)" > "$root/.image" 2>> "$log" || status=$?
-  [[ $status != 2 ]] || { : > "$root/.image"; status=0; }
+  "$root/naruvi" release-image "${ref#v}" "$(git -C "$root/source" rev-parse HEAD)" > "$root/.image" 2> "$root/.image-error" || status=$?
+  cat "$root/.image-error" >> "$log"
+  if [[ $status == 2 || $status == 3 ]]; then echo "$status" > "$root/.image"; status=0; fi
   return $status
 }
 image=
@@ -485,8 +487,11 @@ if [[ $use_image == true ]]; then
   run_hint="The image did not pass signature verification, so it was not used. Try again later, or build it here: bash install.sh --build"
   run 'Download and verify image' fetch_image
   run_hint=
-  image=$(cat "$root/.image"); rm -f "$root/.image"
-  [[ -n $image ]] || check warn 'Published image' "none for $ref on this machine; building instead"
+  image=$(cat "$root/.image"); reason=$(tail -n1 "$root/.image-error" 2>/dev/null | cut -c1-90); rm -f "$root/.image" "$root/.image-error"
+  case $image in
+    2) image=; check warn 'Published image' "none for $ref on this machine; building instead";;
+    3) image=; check warn 'Published image' "couldn't download it; building instead"; [[ -z $reason ]] || note "    Docker: $reason";;
+  esac
 fi
 if [[ -n $image ]]; then
   printf 'COMPOSE_FILE=compose.yaml:%s\nNARUVI_IMAGE=%s\n' "$overlay" "$image" >> "$root/.env"

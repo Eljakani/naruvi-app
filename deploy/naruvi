@@ -12,6 +12,12 @@ url=$(setting NARUVI_URL) mode=$(setting NARUVI_MODE)
 bold= dim= green= red= reset=
 if [[ -t 1 && ${TERM:-dumb} != dumb && -z ${NO_COLOR+x} ]]; then bold=$'\033[1m' dim=$'\033[90m' green=$'\033[38;5;108m' red=$'\033[38;5;167m' reset=$'\033[0m'; fi
 say() { printf '  %s\n' "$*"; }
+# Just added to the docker group (the installer does that): the group only applies to new
+# logins, so use it through sg until then, the same way the installer does.
+if command -v sg >/dev/null && ! id -nG | tr ' ' '\n' | grep -qx docker \
+  && id -nG "${USER:-$(id -un)}" 2>/dev/null | tr ' ' '\n' | grep -qx docker; then
+  docker() { sg docker -c "$(printf '%q ' docker "$@")"; }
+fi
 compose() { docker compose "$@"; }
 link() { compose exec -T app node --import tsx scripts/setup-link.mts --raw; }
 set_setting() { # key value: replace or add one line of .env, keeping it private
@@ -31,10 +37,15 @@ cosign=ghcr.io/sigstore/cosign/cosign:v2.5.3@sha256:f1946d0f30fc8e3777b02f2201e0
 # Built from ./source (build.yaml, or a compose.yaml from before published images).
 building() { [[ $(setting COMPOSE_FILE) == *build.yaml* ]] || grep -q '^ *build:' compose.yaml; }
 
-# version commit -> prints image@digest. Exit 2: no published image of this version for this machine; 1: not verified.
+# version commit -> prints image@digest. Exit 2: no published image of this version for this machine;
+# 3: it could not be downloaded (Docker's reason on stderr); 1: not verified.
 release_image() {
-  local digest
-  docker pull --quiet "$image_repo:$1" >/dev/null 2>&1 || return 2
+  local digest out
+  if ! out=$(docker pull --quiet "$image_repo:$1" 2>&1); then
+    grep -qiE 'manifest unknown|not found|no matching manifest' <<< "$out" && return 2
+    printf '%s\n' "$out" | grep -v '^[[:space:]]*$' | tail -n1 >&2
+    return 3
+  fi
   digest=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$image_repo:$1" 2>/dev/null | grep "^$image_repo@sha256:" | head -n1)
   [[ -n $digest ]] || return 1
   docker run --rm "$cosign" verify \
@@ -145,6 +156,7 @@ update() {
     if [[ $status != 0 ]]; then
       git -C source checkout --quiet --detach "$previous"; readable
       if [[ $status == 2 ]]; then say "${red}No published image of $ref for this machine yet.${reset} Nothing changed; still on $current. Try again in a few minutes."
+      elif [[ $status == 3 ]]; then say "${red}Couldn't download the $ref image${reset} (Docker's message is above). Nothing changed; still on $current."
       else say "${red}The $ref image did not pass signature verification.${reset} It was not used. Nothing changed; still on $current."; fi
       exit 1
     fi
@@ -187,6 +199,7 @@ use_images() {
   case $status in
     0) ;;
     2) say "${red}No published image of $version for this machine.${reset} Releases from 0.3.0 on have one: run naruvi update first."; exit 1;;
+    3) say "${red}Couldn't download the $version image${reset} (Docker's message is above). Nothing changed."; exit 1;;
     *) say "${red}The $version image did not pass signature verification.${reset} Nothing changed."; exit 1;;
   esac
   cp compose.yaml compose.yaml.before-images; cp .env .env.before-images; chmod 600 .env.before-images
