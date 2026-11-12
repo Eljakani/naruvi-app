@@ -8,7 +8,7 @@ const lines = z
 export const entryKinds = ENTRY_KINDS
 export const entryStatuses = ["verified", "needs_review", "archived"] as const
 
-export const entryInput = z.object({
+const entryShape = z.object({
   kind: z.enum(entryKinds),
   status: z.enum(entryStatuses),
   /** Kind-specific text per language: { fr: { position: "…" } }. */
@@ -43,19 +43,24 @@ export const entryInput = z.object({
     )
     .default([]),
 })
-  .transform((entry, ctx) => {
+
+/** `requireName: false` is for imports: an entry whose name couldn't be read is kept for review rather than lost. */
+const entrySchema = (requireName: boolean) => entryShape.transform((entry, ctx) => {
     try {
       const display = cleanText(entry.kind, entry.display)
       const fields = cleanFields(entry.kind, entry.fields)
       const required = KIND_FIELDS[entry.kind].find((spec) => spec.required)
       const named = !required || (required.translated ? Object.values(display).some((text) => text[required.key]) : Boolean(fields[required.key]))
-      if (!named) ctx.addIssue({ code: "custom", path: [required!.translated ? "display" : "fields"], message: `Fill in the ${required!.key}.` })
+      if (!named && requireName) ctx.addIssue({ code: "custom", path: [required!.translated ? "display" : "fields"], message: `Fill in the ${required!.key}.` })
       return { ...entry, display, fields }
     } catch (error) {
       ctx.addIssue({ code: "custom", path: ["fields"], message: error instanceof Error ? error.message : "Invalid field." })
       return z.NEVER
     }
   })
+
+export const entryInput = entrySchema(true)
+export const importedEntryInput = entrySchema(false)
 
 export type EntryInput = z.input<typeof entryInput>
 

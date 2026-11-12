@@ -8,11 +8,11 @@ import { db } from "@/server/db/client"
 import { entries, facts, phrasings, profiles } from "@/server/db/schema"
 import { supportFor, verifySupport } from "@/server/domain/grounding"
 import { searchGoals } from "@/lib/search-goals"
-import { cleanText, entryName, entryView, KIND_FIELDS, looseFields, type EntryFields, type EntryText } from "@/lib/entry-fields"
+import { cleanText, entryName, entryView, hasHeading, KIND_FIELDS, looseFields, type EntryFields, type EntryText } from "@/lib/entry-fields"
 import { matchLogo } from "./logo-match"
 import { queueTranslation } from "./auto-translate"
 import { parseIdentity, parsePool } from "./pool-parser"
-import { entryInput, identityInput, profileDetailEdit, type EntryInput, type IdentityInput } from "./schemas"
+import { entryInput, identityInput, importedEntryInput, profileDetailEdit, type EntryInput, type IdentityInput } from "./schemas"
 
 /** Single-user app: the first profile is the profile. */
 export async function getProfile() {
@@ -113,14 +113,14 @@ export type ProfileEntry = Awaited<ReturnType<typeof listEntries>>[number]
  * Phrasings are linked to facts explicitly (factRefs) or by the grounding
  * heuristic, so every approved wording points at the truth behind it.
  */
-export async function saveEntry(input: EntryInput, entryId?: string) {
-  const saved = await writeEntry(input, entryId)
+export async function saveEntry(input: EntryInput, entryId?: string, { imported = false } = {}) {
+  const saved = await writeEntry(input, entryId, imported)
   queueTranslation([saved.id])
   return saved
 }
 
-async function writeEntry(input: EntryInput, entryId?: string) {
-  const data = entryInput.parse(input)
+async function writeEntry(input: EntryInput, entryId?: string, imported = false) {
+  const data = (imported ? importedEntryInput : entryInput).parse(input)
   const profile = await requireProfile()
   return db.transaction(async (tx) => {
     const values = {
@@ -143,11 +143,14 @@ async function writeEntry(input: EntryInput, entryId?: string) {
           .returning()
     if (!entry) throw new Error("Entry not found.")
     await tx.delete(phrasings).where(eq(phrasings.entryId, entry.id))
+    // Facts are rewritten on every save: keep the translations of unchanged statements so they aren't redone.
+    const previous = entryId ? await tx.select({ statement: facts.statement, translations: facts.translations }).from(facts).where(eq(facts.entryId, entry.id)) : []
+    const known = new Map(previous.map((fact) => [fact.statement, fact.translations]))
     await tx.delete(facts).where(eq(facts.entryId, entry.id))
     const savedFacts = data.facts.length
       ? await tx
           .insert(facts)
-          .values(data.facts.map((fact, index) => ({ entryId: entry.id, statement: fact.statement, sortOrder: index })))
+          .values(data.facts.map((fact, index) => ({ entryId: entry.id, statement: fact.statement, sortOrder: index, translations: known.get(fact.statement) ?? {} })))
           .returning()
       : []
     if (data.phrasings.length) {
@@ -451,6 +454,8 @@ export async function saveImportedProfile(input: {
   const seen = new Set(existing.flatMap((row) => Object.keys(row.display).concat("en").map((lang) => key(row.kind, entryName(row, lang)))))
   let created = 0
   let skipped = 0
+  /** Entries that could not be saved (kept out of the profile, reported to the person). */
+  const failed: { name: string; reason: string }[] = []
   for (const item of input.entries) {
     const shaped = { kind: item.kind, display: Object.keys(item.text).length ? { [input.language]: item.text } : {}, fields: item.fields }
     const name = key(item.kind, entryName(shaped, input.language))
@@ -458,11 +463,19 @@ export async function saveImportedProfile(input: {
       skipped += 1
       continue
     }
-    await saveEntry({
-      ...shaped, status,
-      skills: item.skills, facts: item.facts.map((statement) => ({ statement })),
-      phrasings: item.bullets.filter((bullet) => bullet.facts.length).map((bullet) => ({ group: "Imported", role: "bullet" as const, language: input.language, text: bullet.text, factRefs: bullet.facts })),
-    })
+    // Without its name an entry can't be verified: keep it, flagged for the person to complete.
+    const unnamed = !hasHeading(shaped, input.language)
+    try {
+      await saveEntry({
+        ...shaped, status: unnamed ? "needs_review" : status,
+        skills: item.skills, facts: item.facts.map((statement) => ({ statement })),
+        phrasings: item.bullets.filter((bullet) => bullet.facts.length).map((bullet) => ({ group: "Imported", role: "bullet" as const, language: input.language, text: bullet.text, factRefs: bullet.facts })),
+      }, undefined, { imported: true })
+    } catch (error) {
+      console.error("[naruvi] import entry:", error instanceof Error ? error.message : error)
+      failed.push({ name: entryName(shaped, input.language), reason: error instanceof Error ? error.message : String(error) })
+      continue
+    }
     seen.add(name)
     created += 1
   }
@@ -480,7 +493,7 @@ export async function saveImportedProfile(input: {
   const newLinks = normalized.filter((link) => link.url && URL.canParse(link.url) && !links.some((known) => known.url === link.url))
   if (newLinks.length) patch.links = [...links, ...newLinks].slice(0, 12)
   if (Object.keys(patch).length) await db.update(profiles).set(patch).where(eq(profiles.id, profile.id))
-  return { created, skipped, identityFields: Object.keys(patch) }
+  return { created, skipped, failed, identityFields: Object.keys(patch) }
 }
 
 /** Existing entries in the shape the import matcher needs. */
@@ -532,7 +545,7 @@ export async function mergeIntoEntry(entryId: string, input: { facts: string[]; 
     }
     const needsReview = !approvedByUser && fresh.length > 0 && entry.status === "verified"
     await tx.update(entries).set({ skills, display, fields, ...(needsReview ? { status: "needs_review" as const } : {}) }).where(eq(entries.id, entryId))
-    if (input.display) queueTranslation([entryId])
+    if (input.display || fresh.length) queueTranslation([entryId])
     return { added: fresh.length, skills: skills.length - entry.skills.length, reverified: needsReview, verified: entry.status === "verified" && !needsReview }
   })
 }

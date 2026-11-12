@@ -204,7 +204,8 @@
       "merged": "{count} mis à jour (+{facts} faits)",
       "nothing": "Rien à ajouter",
       "reverify": "{count, plural, one {# élément vérifié doit être rapidement revu pour les nouveaux faits.} other {# éléments vérifiés doivent être rapidement revus pour les nouveaux faits.}}",
-      "review": "Enregistré et vérifié. Modifiable à tout moment."
+      "review": "Enregistré et vérifié. Modifiable à tout moment.",
+      "failed": "{count, plural, one {# élément n'a pas pu être enregistré ; ajoutez-le à la main.} other {# éléments n'ont pas pu être enregistrés ; ajoutez-les à la main.}}"
     },
     "back": "Profil",
     "title": "Partir de votre CV",
@@ -232,7 +233,8 @@
     "recheck": "il faudra le revoir rapidement",
     "more": "+{count} de plus",
     "dropped": "{count, plural, one {# élément écarté : ses chiffres n’étaient pas dans votre CV.} other {# éléments écartés : leurs chiffres n’étaient pas dans votre CV.}}",
-    "applyHint": "Enregistrer confirme que ces éléments sont exacts. Vous pourrez toujours les modifier."
+    "applyHint": "Enregistrer confirme que ces éléments sont exacts. Vous pourrez toujours les modifier.",
+    "unnamed": "Nom introuvable dans le CV : enregistré à revoir pour que vous le complétiez."
   },
   "reviewQueue": {
     "nothing": "Rien à revoir",

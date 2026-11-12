@@ -37,6 +37,7 @@
     "checkAgain": "Check again",
     "checkFit": "Check my fit",
     "checking": "Checking your fit",
+    "autoChecking": "Checking your fit with this job in the background…",
     "label": "Fit {value} out of 100",
     "archivedOn": "Archived on {date}",
     "archivedBody": "It’s hidden from the board and the dashboard. Restore it to work on it again.",

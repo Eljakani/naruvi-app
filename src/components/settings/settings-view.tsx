@@ -2,9 +2,9 @@
 
 import Link from "next/link"
 import { useState, useTransition } from "react"
-import { ArrowDownToLineIcon, ArrowRightIcon, DatabaseIcon, LanguagesIcon, ExternalLinkIcon, FileTextIcon, HistoryIcon, Loader2Icon, PaletteIcon, SparklesIcon, TypeIcon } from "lucide-react"
+import { ArrowDownToLineIcon, ArrowRightIcon, BriefcaseIcon, DatabaseIcon, LanguagesIcon, ExternalLinkIcon, FileTextIcon, HistoryIcon, Loader2Icon, PaletteIcon, SparklesIcon, TypeIcon } from "lucide-react"
 import { toast } from "sonner"
-import { downloadFontsAction, saveDocumentPhotoDefaultAction, setDefaultLanguageAction } from "@/app/[locale]/(app)/settings/actions"
+import { downloadFontsAction, saveAutoFitCheckAction, saveDocumentPhotoDefaultAction, setDefaultLanguageAction } from "@/app/[locale]/(app)/settings/actions"
 import { SectionLayout, SectionNav, SettingsSection } from "@/components/section-nav"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldSep
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import type { DocumentDefaults, getSystemOverview } from "@/server/settings/service"
+import type { AutomationSettings } from "@/server/settings/automation"
 import type { getAvailableUpdate, Release } from "@/server/version"
 import { useFormatter, useTranslations } from "next-intl"
 import { LanguageSwitcher } from "@/components/language-switcher"
@@ -30,14 +31,16 @@ const FONT_NAMES = { SC: "SC", JP: "JP", KR: "KR" } as const
 
 const sections = [
   { id: "interface", icon: LanguagesIcon },
+  { id: "applications", icon: BriefcaseIcon },
   { id: "documents", icon: FileTextIcon },
   { id: "data", icon: DatabaseIcon },
   { id: "version", icon: HistoryIcon },
 ] as const
 
 
-export function SettingsView({ overview, defaults: initialDefaults, changelog, update }: { overview: Overview; defaults: DocumentDefaults; changelog: Release[]; update: Awaited<ReturnType<typeof getAvailableUpdate>> }) {
+export function SettingsView({ overview, defaults: initialDefaults, changelog, update, automation }: { overview: Overview; defaults: DocumentDefaults; changelog: Release[]; update: Awaited<ReturnType<typeof getAvailableUpdate>>; automation: AutomationSettings }) {
   const [showPhoto, setShowPhoto] = useState(initialDefaults.showPhoto)
+  const [autoFitCheck, setAutoFitCheck] = useState(automation.autoFitCheck)
   const [language, setLanguage] = useState(overview.defaultLanguage)
   const [pending, startTransition] = useTransition()
   const [busy, setBusy] = useState<string | null>(null)
@@ -67,6 +70,14 @@ export function SettingsView({ overview, defaults: initialDefaults, changelog, u
     }, t("defaultsSaved"))
   }
 
+  const saveAutoFitCheck = (next: boolean) => {
+    run("automation", async () => {
+      const result = await saveAutoFitCheckAction(next)
+      if (result.ok) setAutoFitCheck(next)
+      return result
+    }, next ? t("automation.on") : t("automation.off"))
+  }
+
   const missingFonts = overview.fonts.filter((font) => !font.downloaded)
 
   return (
@@ -89,6 +100,20 @@ export function SettingsView({ overview, defaults: initialDefaults, changelog, u
                   <FieldDescription>{t("interfaceLanguageHint")}</FieldDescription>
                 </FieldContent>
                 <LanguageSwitcher id="interface-language" />
+              </Field>
+            </CardContent>
+          </Card>
+        </SettingsSection>
+
+        <SettingsSection id="applications" title={t("sections.applications.title")} description={t("sections.applications.description")}>
+          <Card>
+            <CardContent>
+              <Field orientation="responsive">
+                <FieldContent>
+                  <FieldLabel htmlFor="auto-fit-check">{t("automation.autoFitCheck")}</FieldLabel>
+                  <FieldDescription>{t("automation.autoFitCheckHint")}</FieldDescription>
+                </FieldContent>
+                <Switch className="self-start" id="auto-fit-check" checked={autoFitCheck} disabled={pending} onCheckedChange={saveAutoFitCheck} />
               </Field>
             </CardContent>
           </Card>

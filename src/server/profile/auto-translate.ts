@@ -2,9 +2,9 @@ import "server-only"
 import { and, asc, eq, inArray } from "drizzle-orm"
 import { planTranslations, type PlanEntry, type TranslationJob } from "@/lib/auto-translate"
 import { db } from "@/server/db/client"
-import { entries, phrasings, profiles } from "@/server/db/schema"
+import { entries, facts, phrasings, profiles, type FactTranslations } from "@/server/db/schema"
 import { completionForRun } from "@/server/llm/client"
-import { IMPORT_PROMPT_VERSION, translateEntry } from "@/server/profile/ai-import"
+import { IMPORT_PROMPT_VERSION, translateEntry, translateFacts } from "@/server/profile/ai-import"
 import { startRun } from "@/server/runs/tracer"
 import { getLlmOverview } from "@/server/settings/llm"
 
@@ -18,13 +18,18 @@ import { getLlmOverview } from "@/server/settings/llm"
 
 export const CV_LANGUAGES = ["en", "fr"] as const
 
-type Loaded = PlanEntry & { id: string; profileId: string }
+type LoadedFact = { id: string; statement: string; translations: FactTranslations }
+type Loaded = PlanEntry & { id: string; profileId: string; facts: LoadedFact[] }
+
+/** Facts with a CV language whose translation is missing or was made from an older statement. */
+export const staleFacts = <T extends Pick<LoadedFact, "statement" | "translations">>(list: T[]) => list.filter((fact) => CV_LANGUAGES.some((lang) => fact.translations?.[lang]?.source !== fact.statement))
 
 async function load(entryId: string, tx: Pick<typeof db, "select"> = db): Promise<Loaded | null> {
   const [entry] = await tx.select().from(entries).where(eq(entries.id, entryId))
   if (!entry || entry.status === "archived") return null
   const lines = await tx.select().from(phrasings).where(eq(phrasings.entryId, entryId)).orderBy(asc(phrasings.sortOrder))
-  return { id: entry.id, profileId: entry.profileId, kind: entry.kind, display: entry.display, translations: entry.translations, phrasings: lines }
+  const factRows = await tx.select({ id: facts.id, statement: facts.statement, translations: facts.translations }).from(facts).where(eq(facts.entryId, entryId))
+  return { id: entry.id, profileId: entry.profileId, kind: entry.kind, display: entry.display, translations: entry.translations, phrasings: lines, facts: factRows }
 }
 
 async function preferredLanguage(profileId: string) {
@@ -37,7 +42,7 @@ export async function needsTranslation(entryId: string) {
   const entry = await load(entryId)
   if (!entry) return false
   const plan = planTranslations(entry, CV_LANGUAGES, await preferredLanguage(entry.profileId))
-  return plan.jobs.length > 0 || plan.clearFields.length > 0 || plan.deleteLines.length > 0
+  return plan.jobs.length > 0 || plan.clearFields.length > 0 || plan.deleteLines.length > 0 || staleFacts(entry.facts).length > 0
 }
 
 type Translated = { job: TranslationJob; text: Record<string, string>; lines: Map<number, string> }
@@ -49,8 +54,23 @@ export async function translateEntryNow(entryId: string): Promise<{ changed: num
   const preferred = await preferredLanguage(entry.profileId)
   const plan = planTranslations(entry, CV_LANGUAGES, preferred)
   const results: Translated[] = []
-  if (plan.jobs.length) {
+  const pendingFacts = staleFacts(entry.facts)
+  if (plan.jobs.length || pendingFacts.length) {
     if (!(await getLlmOverview().catch(() => null))?.configured) return { changed: 0 }
+  }
+  let factResults = new Map<string, Record<string, string>>()
+  if (pendingFacts.length) {
+    const run = await startRun("profile.translate", { entryId, facts: pendingFacts.length, to: CV_LANGUAGES.join("+") })
+    try {
+      const reply = await translateFacts({ languages: CV_LANGUAGES, facts: pendingFacts.map((fact) => ({ id: fact.id, text: fact.statement })) }, completionForRun(run, "translate facts", IMPORT_PROMPT_VERSION))
+      await run.finish("succeeded", { facts: reply.facts.length })
+      factResults = new Map(reply.facts.map((fact) => [fact.id, fact.translations]))
+    } catch (error) {
+      await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
+      throw error
+    }
+  }
+  if (plan.jobs.length) {
     for (const job of plan.jobs) {
       const run = await startRun("profile.translate", { entryId, from: job.from, to: job.to, fields: Object.keys(job.text).length, lines: job.lines.length })
       try {
@@ -104,6 +124,16 @@ export async function translateEntryNow(entryId: string): Promise<{ changed: num
     if (now.deleteLines.length) {
       await tx.delete(phrasings).where(and(eq(phrasings.entryId, entryId), inArray(phrasings.id, now.deleteLines)))
       changed += now.deleteLines.length
+    }
+    for (const fact of pendingFacts) {
+      const current = fresh.facts.find((item) => item.id === fact.id)
+      // Edited or deleted while the model was answering: the next pass picks it up.
+      if (!current || current.statement !== fact.statement) continue
+      const reply = factResults.get(fact.id) ?? {}
+      // A language the model couldn't translate faithfully keeps the original wording, so it isn't retried forever.
+      const translations: FactTranslations = Object.fromEntries(CV_LANGUAGES.map((lang) => [lang, { text: reply[lang] ?? current.statement, source: current.statement }]))
+      await tx.update(facts).set({ translations }).where(and(eq(facts.id, fact.id), eq(facts.entryId, entryId)))
+      changed += 1
     }
     if (changed) await tx.update(entries).set({ display: Object.fromEntries(Object.entries(display).filter(([, values]) => Object.keys(values).length)), translations }).where(eq(entries.id, entryId))
     return { changed }

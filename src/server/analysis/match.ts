@@ -20,6 +20,20 @@ export type ProfileFact = {
   entryKind: string
   entryTags: string[]
   entrySkills: string[]
+  /** The statement in the other CV languages (automatic translations), so a French fact meets an English job. */
+  translations?: string[]
+}
+
+/** Everything a fact says, in every language it is written in. */
+export function factText(fact: Pick<ProfileFact, "statement" | "translations">) {
+  const others = [...new Set((fact.translations ?? []).map((text) => text.trim()).filter((text) => text && text !== fact.statement.trim()))]
+  return [fact.statement, ...others].join(" \n ")
+}
+
+/** The statement for a model prompt, with its translations when they differ. */
+export function factForPrompt(fact: Pick<ProfileFact, "statement" | "translations">) {
+  const others = [...new Set((fact.translations ?? []).map((text) => text.trim()).filter((text) => text && text !== fact.statement.trim()))]
+  return others.length ? `${fact.statement} (${others.map((text) => `= "${text}"`).join(" ")})` : fact.statement
 }
 
 export type MatchStatus = "met" | "partial" | "gap" | "judgement"
@@ -50,14 +64,15 @@ function overlap(a: Set<string>, b: Set<string>) {
   return shared / Math.min(a.size, b.size)
 }
 
-type Indexed = ProfileFact & { stmtKeywords: Set<string>; entryKeywords: Set<string>; words: Set<string> }
+type Indexed = ProfileFact & { text: string; stmtKeywords: Set<string>; entryKeywords: Set<string>; words: Set<string> }
 
 export function indexFacts(facts: ProfileFact[]): Indexed[] {
   return facts.map((fact) => ({
     ...fact,
-    stmtKeywords: new Set(keywordsIn(fact.statement)),
+    text: factText(fact),
+    stmtKeywords: new Set(keywordsIn(factText(fact))),
     entryKeywords: new Set(keywordsIn([fact.entryTitle, ...fact.entryTags, ...fact.entrySkills].join(" , "))),
-    words: tokens(fact.statement),
+    words: tokens(factText(fact)),
   }))
 }
 
@@ -72,8 +87,8 @@ export function matchRequirement(requirement: Requirement, facts: Indexed[]): Re
   const terms = requirement.terms ?? []
   if (!terms.length) return result
   // Terms: found anywhere in a fact statement (or entry skills) counts.
-  const termFacts = facts.filter((fact) => terms.some((term) => hasTerm(fact.statement, term)))
-  const coveredTerms = terms.filter((term) => facts.some((fact) => hasTerm(fact.statement, term) || hasTerm(fact.entrySkills.join(" , "), term)))
+  const termFacts = facts.filter((fact) => terms.some((term) => hasTerm(fact.text, term)))
+  const coveredTerms = terms.filter((term) => facts.some((fact) => hasTerm(fact.text, term) || hasTerm(fact.entrySkills.join(" , "), term)))
   const missingTools = terms.filter((term) => !coveredTerms.includes(term) && toolLike(term, requirement.text))
   const label = (term: string) => keywordLabel(term, requirement.text)
   const factIds = [...new Set([...result.factIds, ...termFacts.slice(0, 2).map((fact) => fact.id)])].slice(0, 3)
@@ -95,7 +110,7 @@ function matchKeywords(requirement: Requirement, facts: Indexed[]): RequirementM
   // "Power BI or Tableau": a fact about dashboards is related, not proof.
   const named = Object.fromEntries(wanted.map((key) => [key, namedTools(key, requirement.text)]))
   const statementProves = (fact: Indexed, key: string) =>
-    fact.stmtKeywords.has(key) && (named[key].length === 0 || named[key].some((name) => hasTerm(fact.statement, `term:${name}`)))
+    fact.stmtKeywords.has(key) && (named[key].length === 0 || named[key].some((name) => hasTerm(fact.text, `term:${name}`)))
   const scored = facts
     .map((fact) => {
       const stmtHits = wanted.filter((key) => statementProves(fact, key))
@@ -182,7 +197,7 @@ export function summarize(matches: RequirementMatch[], facts: ProfileFact[], job
   const counts = { met: 0, partial: 0, gap: 0, judgement: 0 } as Record<MatchStatus, number>
   for (const match of matches) counts[match.status] += 1
 
-  const profileKeywords = new Set(keywordsIn(facts.map((fact) => [fact.statement, ...fact.entrySkills, ...fact.entryTags].join(" , ")).join(" \n ")))
+  const profileKeywords = new Set(keywordsIn(facts.map((fact) => [factText(fact), ...fact.entrySkills, ...fact.entryTags].join(" , ")).join(" \n ")))
   const keywords = keywordFrequency(jobText)
     .slice(0, 16)
     .map((item) => ({ ...item, inProfile: profileKeywords.has(item.key) }))
@@ -224,11 +239,11 @@ export function candidateFacts(requirement: Requirement, facts: Indexed[], limit
       score:
         requirement.keywords.filter((key) => fact.stmtKeywords.has(key)).length * 2 +
         requirement.keywords.filter((key) => fact.entryKeywords.has(key)).length * 0.5 +
-        (requirement.terms ?? []).filter((term) => hasTerm(fact.statement, term)).length * 2 +
+        (requirement.terms ?? []).filter((term) => hasTerm(fact.text, term)).length * 2 +
         overlap(words, fact.words),
     }))
     .filter((item) => item.score > 0.2)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map(({ fact }) => ({ id: fact.id, statement: fact.statement, entry: fact.entryTitle, kind: fact.entryKind }))
+    .map(({ fact }) => ({ id: fact.id, statement: factForPrompt(fact), entry: fact.entryTitle, kind: fact.entryKind }))
 }

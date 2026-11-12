@@ -276,6 +276,7 @@
     "sectionsLabel": "Sections des paramètres",
     "sections": {
       "interface": { "title": "Interface", "description": "La langue dans laquelle Naruvi s’adresse à vous." },
+      "applications": { "title": "Candidatures", "description": "Ce que fait Naruvi quand vous ajoutez une offre." },
       "documents": { "title": "Documents", "description": "Préférences pour les nouveaux CV et lettres, et polices pour d’autres écritures." },
       "data": { "title": "Données et stockage", "description": "Tout reste sur cet ordinateur. Exportez-en une copie quand vous le souhaitez." },
       "version": { "title": "Version et mises à jour", "description": "Les mises à jour se lancent depuis un terminal, après une sauvegarde. L’application ne se met jamais à jour toute seule." }
@@ -283,6 +284,7 @@
     "interfaceLanguage": "Langue de l’interface",
     "interfaceLanguageHint": "Menus, boutons et messages. Vos documents conservent leur propre langue.",
     "aiMoved": { "title": "Modèles d’IA, modèle de décision et dictée", "body": "Ils se trouvent désormais dans Intégrations, avec vos autres connexions." },
+    "automation": { "autoFitCheck": "Vérifier la correspondance automatiquement", "autoFitCheckHint": "Quand vous ajoutez une offre, Naruvi la compare tout de suite à votre profil vérifié. Désactivez pour ne la vérifier que sur demande.", "on": "Vérification automatique activée", "off": "Vérification automatique désactivée" },
     "defaults": {
       "title": "Préférences des documents",
       "description": "Réglages de départ pour les nouveaux CV et lettres de motivation.",

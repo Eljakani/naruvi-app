@@ -26,7 +26,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { listEvents } from "@/server/tracking/service"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getApplication } from "@/server/applications/repository"
+import { getApplication, isCheckingFit } from "@/server/applications/repository"
+import { FitChecking } from "@/components/applications/fit-checking"
 import { ComposeEmail } from "@/components/mail/compose-email"
 import { MailThread } from "@/components/mail/mail-thread"
 import { ApplicationPeople } from "@/components/contacts/application-people"
@@ -132,6 +133,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
         <SectionTabs applicationId={application.id} current={tab === "overview" ? "overview" : "analysis"} fit={application.analysis ? displayFitScore(application.analysis) : null} />
       )}
       {job.board === "spontaneous" ? null : <GoalFitNote fit={fit} />}
+      {!application.analysis && job.board !== "spontaneous" && isCheckingFit(job.id) ? <FitChecking /> : null}
       {tab === "overview" && job.board !== "spontaneous" ? (
         <JobOverview job={job} />
       ) : !application.analysis && job.board !== "spontaneous" ? (
@@ -140,7 +142,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
             <span className="grid size-11 place-content-center rounded-full bg-primary/10 text-primary"><ScanSearchIcon className="size-5" /></span>
             <p className="font-medium">{t("fitFirst")}</p>
             <p className="text-sm text-muted-foreground">{t("fitFirstBody")}</p>
-            <AnalyzeButton jobId={job.id} />
+            {isCheckingFit(job.id) ? null : <AnalyzeButton jobId={job.id} />}
           </CardContent>
         </Card>
       ) : (

@@ -276,6 +276,7 @@
     "sectionsLabel": "Settings sections",
     "sections": {
       "interface": { "title": "Interface", "description": "The language Naruvi speaks to you in." },
+      "applications": { "title": "Applications", "description": "What Naruvi does when you add a job." },
       "documents": { "title": "Documents", "description": "Defaults for new CVs and letters, and fonts for other writing systems." },
       "data": { "title": "Data & storage", "description": "Everything stays on this computer. Export a copy whenever you like." },
       "version": { "title": "Version & updates", "description": "Updates run from a terminal, with a backup first. The app never updates itself." }
@@ -283,6 +284,7 @@
     "interfaceLanguage": "Interface language",
     "interfaceLanguageHint": "Menus, buttons and messages. Your documents keep their own language.",
     "aiMoved": { "title": "AI models, decision model and dictation", "body": "They now live in Integrations, next to your other connections." },
+    "automation": { "autoFitCheck": "Check fit automatically", "autoFitCheckHint": "When you add a job, Naruvi checks it against your verified profile right away. Turn this off to check only when you ask.", "on": "Automatic fit check on", "off": "Automatic fit check off" },
     "defaults": {
       "title": "Document defaults",
       "description": "Starting preferences for new CVs and cover letters.",
