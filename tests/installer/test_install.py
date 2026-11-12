@@ -14,7 +14,8 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class InstallerTest(unittest.TestCase):
-    def run_install(self, mode, preview=False):
+    def run_install(self, mode, preview=False, install_docker=None):
+        """install_docker: None = Docker present; 'y'/'n' = Docker missing, answer to the offer."""
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
             binaries = base / 'bin'
@@ -24,6 +25,24 @@ class InstallerTest(unittest.TestCase):
                 'git': '#!/bin/sh\nfor last; do :; done\nmkdir -p "$last"\ncp -R "$TEST_REPO/deploy" "$last/deploy"\n',
                 'curl': '#!/bin/sh\nprintf "%s" "$TEST_STATUS"\n',
             }
+            docker_mock = mocks['docker']
+            if install_docker:
+                del mocks['docker']
+                # get.docker.com is downloaded with -o; its "install" drops the docker mock on PATH.
+                mocks['curl'] = ('#!/bin/sh\ncase "$*" in *get.docker.com*)\n'
+                                 '  while [ "$1" != -o ]; do shift; done\n'
+                                 '  printf \'printf "%%s" "$DOCKER_MOCK" > "$MOCK_BIN/docker"; chmod 700 "$MOCK_BIN/docker"\\n\' > "$2"; exit 0;;\n'
+                                 'esac\nprintf "%s" "$TEST_STATUS"\n')
+                mocks['sudo'] = '#!/bin/sh\nwhile case "$1" in -*) true;; *) false;; esac; do shift; done\n[ $# -eq 0 ] || exec "$@"\n'
+                mocks['uname'] = '#!/bin/sh\necho Linux\n'
+                # Hide any real docker: PATH holds only the mocks plus links to every other tool.
+                for directory in os.environ['PATH'].split(os.pathsep):
+                    if not os.path.isdir(directory):
+                        continue
+                    for tool in os.listdir(directory):
+                        target = os.path.join(directory, tool)
+                        if tool != 'docker' and tool not in mocks and not (binaries / tool).exists() and os.access(target, os.X_OK):
+                            (binaries / tool).symlink_to(target)
             for name, content in mocks.items():
                 p = binaries / name
                 p.write_text(content)
@@ -31,7 +50,8 @@ class InstallerTest(unittest.TestCase):
             root = base / 'installation'
             home = base / 'home'
             (home / '.local' / 'bin').mkdir(parents=True)  # so the PATH-link prompt always appears
-            env = dict(os.environ, PATH=f'{binaries}:{os.environ["PATH"]}', HOME=str(home),
+            path = str(binaries) if install_docker else f'{binaries}:{os.environ["PATH"]}'
+            env = dict(os.environ, PATH=path, HOME=str(home), MOCK_BIN=str(binaries), DOCKER_MOCK=docker_mock,
                        NARUVI_INSTALL_DIR=str(root), TEST_REPO=str(REPO),
                        TEST_STATUS='200', NO_COLOR='1')
             master, slave = pty.openpty()
@@ -41,7 +61,8 @@ class InstallerTest(unittest.TestCase):
             proc = subprocess.Popen(['bash', str(REPO / 'install.sh')] + (['--preview'] if preview else []), stdin=slave,
                                     stdout=slave, stderr=slave, env=env, preexec_fn=terminal)
             os.close(slave)
-            prompts = [('Choose 1-3', mode)]
+            prompts = [('Install Docker now?', install_docker)] if install_docker else []
+            prompts += [('Choose 1-3', mode)]
             if mode in ('2', '3'):
                 prompts += [('Domain, without', 'careers.example.com')]
             if mode in ('1', '3'):
@@ -70,7 +91,16 @@ class InstallerTest(unittest.TestCase):
                     if proc.poll() is not None:
                         break
                 proc.wait(timeout=2)
+                if install_docker == 'n':
+                    self.assertEqual(proc.returncode, 1, output)
+                    self.assertIn('Install Docker now?', output)
+                    self.assertIn("Can't continue", output)
+                    self.assertFalse(root.exists())
+                    return
                 self.assertEqual(proc.returncode, 0, output)
+                if install_docker:
+                    self.assertIn('Install Docker', output)
+                    self.assertTrue((binaries / 'docker').exists())
                 self.assertFalse(prompts, output)
                 self.assertNotIn('\x1b[', output)
                 if preview:
@@ -101,6 +131,12 @@ class InstallerTest(unittest.TestCase):
 
     def test_local(self):
         self.run_install('1')
+
+    def test_installs_missing_docker(self):
+        self.run_install('1', install_docker='y')
+
+    def test_declining_docker_stops(self):
+        self.run_install('1', install_docker='n')
 
     def test_preview_does_not_install(self):
         self.run_install('1', preview=True)

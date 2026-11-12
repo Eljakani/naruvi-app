@@ -6,7 +6,7 @@ Want to try it without touching your machine? Use the [container sandbox](INSTAL
 
 ## Requirements
 
-Linux, macOS (Docker Desktop) or Windows through WSL2. Docker with Compose v2, Git and OpenSSL. About 6 GB of disk and 2 GB of memory for the first build. Node.js is not needed on the host.
+Linux, macOS (Docker Desktop) or Windows through WSL2. Docker with Compose v2, Git and OpenSSL. If Docker is missing, the installer offers to install it: on Linux with Docker's official script (needs sudo), on macOS as Docker Desktop through Homebrew. Non-interactive installs opt in with `--yes --install-docker`. About 6 GB of disk and 2 GB of memory for the first build. Node.js is not needed on the host.
 
 ## Run the installer
 

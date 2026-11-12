@@ -19,22 +19,25 @@ Usage: bash install.sh [options]
   --dir PATH                  installation directory (default ~/.local/share/naruvi)
   --ref REF                   Git branch or tag to install (default main)
   --yes                       no questions; requires --mode (and --domain when needed)
+  --install-docker            with --yes: install Docker when it is missing (Linux, needs root or sudo)
   --preview                   walk through the screens without installing anything
   --help                      show this help
 
 Environment: NARUVI_INSTALL_DIR, NARUVI_REF, NARUVI_SOURCE_DIR (local checkout), NO_COLOR.
-Requires Docker with Compose v2, Git and OpenSSL. Installs nothing outside the chosen directory
-except an optional `naruvi` command link in ~/.local/bin.
+Requires Docker with Compose v2, Git and OpenSSL. When Docker is missing, the installer offers to
+set it up (Linux: Docker's official script; macOS: Docker Desktop with Homebrew). Otherwise it
+installs nothing outside the chosen directory except an optional `naruvi` command link in ~/.local/bin.
 EOF
 }
 
 # ---------- options ----------
-preview=false assume_yes=false mode= domain= port= bind= root=${NARUVI_INSTALL_DIR:-} ref=${NARUVI_REF:-main}
+preview=false assume_yes=false install_docker=false mode= domain= port= bind= root=${NARUVI_INSTALL_DIR:-} ref=${NARUVI_REF:-main}
 need() { [[ $# -ge 2 && -n $2 ]] || { echo "Missing value for $1" >&2; exit 2; }; }
 while [[ $# -gt 0 ]]; do
   case $1 in
     --preview) preview=true;;
     --yes|-y) assume_yes=true;;
+    --install-docker) install_docker=true;;
     --mode) need "$@"; mode=$2; shift;;
     --domain) need "$@"; domain=$2; shift;;
     --port) need "$@"; port=$2; shift;;
@@ -190,7 +193,7 @@ run() { # title command...
   if [[ $status != 0 ]]; then
     check bad "$title" "failed after $((SECONDS-started))s"
     out '\n%s' "$dim"; tail -n 15 "$log" | sed 's/^/    /' >&3; out '%s' "$reset"
-    fail "Full log: $log" "Your settings are kept. Fix the issue, then run: $root/naruvi start"
+    fail "Full log: $log" "${run_hint:-"Your settings are kept. Fix the issue, then run: $root/naruvi start"}"
   fi
   check ok "$title" "$((SECONDS-started))s"
 }
@@ -209,6 +212,70 @@ valid_domain() {
   for label in "${labels[@]}"; do [[ $label =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]] || return 1; done
 }
 valid_port() { [[ $1 =~ ^[0-9]{1,5}$ ]] && [[ $((10#$1)) -ge 1024 && $((10#$1)) -le 65535 ]]; }
+
+# ---------- docker setup: offered, never silent ----------
+# Asked before anything else is checked; with --yes only when --install-docker is given.
+offer() { # question
+  if [[ $interactive == true ]]; then confirm "$1" y; else [[ $install_docker == true ]]; fi
+}
+as_root() { if [[ $EUID == 0 ]]; then "$@"; else sudo -n "$@"; fi; }
+get_root() { # cache sudo credentials, asking for the password on the terminal
+  [[ $EUID != 0 ]] || return 0
+  command -v sudo >/dev/null || return 1
+  ! sudo -n true 2>/dev/null || return 0
+  [[ $interactive == true ]] || return 1
+  out '\n'; sudo -v <&3 >&3 2>&3
+}
+docker_log() { log=$(mktemp "${TMPDIR:-/tmp}/naruvi-docker.XXXXXX"); run_hint='Fix the issue, or install Docker yourself: https://docs.docker.com/engine/install/ — then run this again.'; }
+setup_docker() {
+  local system; system=$(uname -s)
+  if [[ $system == Linux ]] && grep -qi microsoft /proc/version 2>/dev/null; then return 0; fi # WSL2: Docker Desktop
+  if [[ $system == Darwin ]]; then
+    command -v docker >/dev/null || ! command -v brew >/dev/null && return 0
+    note 'Docker is not installed. Homebrew can install Docker Desktop.'
+    offer 'Install Docker Desktop now with Homebrew?' || return 0
+    brew install --cask docker <&3 >&3 2>&3 || fail 'Homebrew could not install Docker Desktop.' 'Install it from https://docs.docker.com/desktop/setup/install/mac-install/ and run this again.'
+    open -a Docker || true
+    note 'Finish Docker Desktop'"'"'s first-run screens; waiting for it to start (up to 5 minutes).'
+    local waited=0; PATH="$PATH:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin"
+    until docker info >/dev/null 2>&1 || [[ $waited -ge 300 ]]; do sleep 2; waited=$((waited+2)); done
+    return 0
+  fi
+  [[ $system == Linux ]] || return 0
+  if ! command -v docker >/dev/null; then
+    note 'Docker is not installed. Docker'"'"'s official script (get.docker.com) can install it; it needs root.'
+    offer 'Install Docker now?' || return 0
+    get_root || fail 'Installing Docker needs root or sudo.' 'Install it yourself: https://docs.docker.com/engine/install/'
+    docker_log; local script="$log.sh"
+    run 'Download Docker install script' curl -fsSL https://get.docker.com -o "$script"
+    run 'Install Docker' as_root sh "$script"
+    rm -f "$script"
+  fi
+  command -v docker >/dev/null || return 0
+  docker info >/dev/null 2>&1 && return 0
+  # Installed but unusable: the service is stopped, or this user lacks access.
+  if command -v systemctl >/dev/null && ! systemctl is-active --quiet docker 2>/dev/null; then
+    offer 'The Docker service is not running. Start it now (and at boot)?' || return 0
+    get_root || return 0
+    docker_log; run 'Start Docker' as_root systemctl enable --now docker
+    docker info >/dev/null 2>&1 && return 0
+  fi
+  [[ $EUID != 0 ]] || return 0
+  get_root || return 0
+  as_root docker info >/dev/null 2>&1 || return 0
+  if ! id -nG | tr ' ' '\n' | grep -qx docker; then
+    if ! id -nG "$USER" 2>/dev/null | tr ' ' '\n' | grep -qx docker; then
+      offer "Let $USER use Docker without sudo (adds you to the docker group)?" || return 0
+      docker_log; run 'Grant Docker access' as_root usermod -aG docker "$USER"
+    fi
+    # The new group applies to new logins; use it for the rest of this run.
+    if command -v sg >/dev/null; then
+      docker() { sg docker -c "$(printf '%q ' docker "$@")"; }
+      docker_relogin=true
+    fi
+  fi
+}
+docker_relogin=false
 
 # ======================================================================
 banner
@@ -229,6 +296,7 @@ fi
 step 1 'Check this machine'
 if [[ $preview == true ]]; then note 'Skipped in preview.'
 else
+  setup_docker
   problems=0
   for tool in docker git openssl; do
     if command -v "$tool" >/dev/null; then check ok "$tool" "$("$tool" --version 2>/dev/null | head -n1 | cut -c1-38)"
@@ -443,4 +511,7 @@ kv "$cli logs" 'follow the logs'
 kv "$cli backup" 'database, files and keys'
 kv "$cli update" 'get the latest version'
 kv "$cli help" 'everything else'
+if [[ $docker_relogin == true ]]; then
+  out '\n'; note 'You were just added to the docker group: log out and back in before using these commands.'
+fi
 out '\n'; rule; out '\n'

@@ -95,7 +95,7 @@ Start with your experience and verified facts. Save a role, see where your evide
 
 ## Quick start
 
-You need Docker with Compose v2, Git, and OpenSSL. Node.js isn’t needed on the host.
+You need Git and OpenSSL. If Docker isn’t installed, the installer offers to set it up for you (Linux, or macOS with Homebrew). Node.js isn’t needed on the host.
 
 ```bash
 curl -fsSLo install-naruvi.sh https://raw.githubusercontent.com/Eljakani/naruvi-app/main/install.sh
