@@ -20,7 +20,7 @@ services:
       retries: 20
 
   migrate:
-    build: { context: ., target: deps }
+    build: { context: ., target: runner }
     command: ["npx", "drizzle-kit", "migrate"]
     environment: &app-env
       DATABASE_URL: postgres://${POSTGRES_USER:-naruvi}:${POSTGRES_PASSWORD:-naruvi}@db:5432/${POSTGRES_DB:-naruvi}
@@ -46,7 +46,7 @@ services:
     profiles: ["full"]
 
   worker:
-    build: { context: ., target: deps }
+    build: { context: ., target: runner }
     command: ["npx", "tsx", "worker/index.mts"]
     environment: *app-env
     depends_on:

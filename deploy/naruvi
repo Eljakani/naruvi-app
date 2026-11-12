@@ -14,6 +14,36 @@ if [[ -t 1 && ${TERM:-dumb} != dumb && -z ${NO_COLOR+x} ]]; then bold=$'\033[1m'
 say() { printf '  %s\n' "$*"; }
 compose() { docker compose "$@"; }
 link() { compose exec -T app node --import tsx scripts/setup-link.mts --raw; }
+set_setting() { # key value: replace or add one line of .env, keeping it private
+  local tmp; tmp=$(mktemp "$root/.env.XXXXXX")
+  grep -v "^$1=" .env > "$tmp" || true
+  printf '%s=%s\n' "$1" "$2" >> "$tmp"
+  chmod 600 "$tmp"; mv "$tmp" .env
+}
+
+# Published images are built by this repository's release workflow and signed
+# keylessly with its identity. One is used only if that signature was made for
+# the release tag, at the commit the signed tag points to.
+image_repo=ghcr.io/eljakani/naruvi-app
+image_signer=https://github.com/Eljakani/naruvi-app/.github/workflows/release.yml
+cosign=ghcr.io/sigstore/cosign/cosign:v2.5.3@sha256:f1946d0f30fc8e3777b02f2201e02efdba9fe38f4918162f937052fac98e083f
+
+# Built from ./source (build.yaml, or a compose.yaml from before published images).
+building() { [[ $(setting COMPOSE_FILE) == *build.yaml* ]] || grep -q '^ *build:' compose.yaml; }
+
+# version commit -> prints image@digest. Exit 2: no published image of this version for this machine; 1: not verified.
+release_image() {
+  local digest
+  docker pull --quiet "$image_repo:$1" >/dev/null 2>&1 || return 2
+  digest=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$image_repo:$1" 2>/dev/null | grep "^$image_repo@sha256:" | head -n1)
+  [[ -n $digest ]] || return 1
+  docker run --rm "$cosign" verify \
+    --certificate-identity "$image_signer@refs/tags/v$1" \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    --certificate-github-workflow-sha "$2" \
+    "$digest" >/dev/null 2>&1 || return 1
+  printf '%s\n' "$digest"
+}
 
 backup() {
   local stamp dir
@@ -50,7 +80,7 @@ healthy() { # the app answers from inside its container, whatever the mode
 
 # Release tags are signed vX.Y.Z tags, checked against ./trusted-signers (copied once at install).
 update() {
-  local check=false unsigned=false assume=false ref= current target previous dir answer images image
+  local check=false unsigned=false assume=false ref= current target previous dir answer images image previous_image= new_image status
   while [[ $# -gt 0 ]]; do
     case $1 in
       --check) check=true;;
@@ -87,6 +117,10 @@ update() {
     say "${red}Refusing $ref:${reset} it is not signed by a key in $root/trusted-signers."
     say "Only if you trust where it came from: naruvi update --ref $ref --allow-unsigned"; exit 1
   fi
+  if ! building && [[ ! $ref =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    say "${red}$ref has no published image.${reset} This installation runs signed release images; only release tags (vX.Y.Z) can be installed."
+    exit 1
+  fi
   say "Naruvi $current → $(git -C source show "$target:package.json" | sed -n 's/^  "version": "\(.*\)",$/\1/p') ($ref)"
   git -C source show "$target:CHANGELOG.md" 2>/dev/null | awk -v cur="$current" '/^## /{ if (index($0, cur)) exit; on=1 } on' | head -n 30 | sed 's/^/    /'
   if [[ $assume == false ]]; then
@@ -99,10 +133,23 @@ update() {
   images=$(compose config --images | grep -v @ | sort -u)
   for image in $images; do docker image tag "$image" "$image-previous" 2>/dev/null || true; done
   git -C source checkout --quiet --detach "$target"; readable
-  say "Building (Naruvi keeps running meanwhile)"
-  if ! compose build --quiet; then
-    git -C source checkout --quiet --detach "$previous"; readable
-    say "${red}Build failed.${reset} Nothing changed; still on $current."; exit 1
+  if building; then
+    say "Building (Naruvi keeps running meanwhile)"
+    if ! compose build --quiet; then
+      git -C source checkout --quiet --detach "$previous"; readable
+      say "${red}Build failed.${reset} Nothing changed; still on $current."; exit 1
+    fi
+  else
+    say "Downloading and verifying the signed image (Naruvi keeps running meanwhile)"
+    status=0; new_image=$(release_image "${ref#v}" "$target") || status=$?
+    if [[ $status != 0 ]]; then
+      git -C source checkout --quiet --detach "$previous"; readable
+      if [[ $status == 2 ]]; then say "${red}No published image of $ref for this machine yet.${reset} Nothing changed; still on $current. Try again in a few minutes."
+      else say "${red}The $ref image did not pass signature verification.${reset} It was not used. Nothing changed; still on $current."; fi
+      exit 1
+    fi
+    previous_image=$(setting NARUVI_IMAGE)
+    set_setting NARUVI_IMAGE "$new_image"
   fi
   say "Migrating and restarting"
   if compose up -d >/dev/null 2>&1 && healthy; then
@@ -110,6 +157,7 @@ update() {
     for file in compose.yaml "$mode.yaml"; do
       cmp -s "source/deploy/$file" "$file" || say "${dim}Note: source/deploy/$file changed. Review it before copying over $file.${reset}"
     done
+    ! grep -q '^ *build:' compose.yaml || say "Tip: ${bold}naruvi use-images${reset} switches to the published, signed image: updates in a minute instead of a full build."
     say "${green}Updated to $(installed_version).${reset} $url  ${dim}(backup: $dir)${reset}"; return 0
   fi
 
@@ -118,10 +166,44 @@ update() {
   compose stop app worker >/dev/null 2>&1 || true
   restore_db "$dir"
   git -C source checkout --quiet --detach "$previous"; readable
+  [[ -z $previous_image ]] || set_setting NARUVI_IMAGE "$previous_image"
   for image in $images; do docker image tag "$image-previous" "$image" 2>/dev/null || true; done
   compose up -d >/dev/null 2>&1 && healthy \
     && say "${green}Rolled back.${reset} Naruvi $current is running with the database from before the update." \
     || say "${red}Rollback did not come up either.${reset} Your backup is in $dir. Run: naruvi logs app"
+  exit 1
+}
+
+# Move an installation that builds from ./source to the published, signed image of the same version.
+use_images() {
+  local version commit image status=0 compose_files
+  if ! building; then say "${green}Already on the published image:${reset} $(setting NARUVI_IMAGE)"; return 0; fi
+  [[ -d source/.git ]] || { say "This installation was made from a local copy; it keeps building from ./source."; exit 1; }
+  version=$(installed_version); commit=$(git -C source rev-parse HEAD)
+  git -C source tag --points-at HEAD | grep -qx "v$version" \
+    || { say "The installed source is not the v$version release. Update to a release first: naruvi update"; exit 1; }
+  say "Downloading and verifying the Naruvi $version image"
+  image=$(release_image "$version" "$commit") || status=$?
+  case $status in
+    0) ;;
+    2) say "${red}No published image of $version for this machine.${reset} Releases from 0.3.0 on have one: run naruvi update first."; exit 1;;
+    *) say "${red}The $version image did not pass signature verification.${reset} Nothing changed."; exit 1;;
+  esac
+  cp compose.yaml compose.yaml.before-images; cp .env .env.before-images; chmod 600 .env.before-images
+  cp source/deploy/compose.yaml compose.yaml
+  cmp -s source/deploy/build.yaml build.yaml 2>/dev/null || cp source/deploy/build.yaml build.yaml
+  compose_files=$(setting COMPOSE_FILE); compose_files=${compose_files//:build.yaml/}
+  set_setting COMPOSE_FILE "$compose_files"
+  set_setting NARUVI_IMAGE "$image"
+  say "Restarting on the published image"
+  if compose up -d >/dev/null 2>&1 && healthy; then
+    say "${green}Done.${reset} Naruvi $version now runs $image. Updates download it instead of building."
+    say "${dim}Your previous compose.yaml and .env are kept as compose.yaml.before-images and .env.before-images.${reset}"
+    return 0
+  fi
+  say "${red}It did not start on the published image.${reset} Putting the previous setup back."
+  mv compose.yaml.before-images compose.yaml; mv .env.before-images .env
+  compose up -d >/dev/null 2>&1 && healthy && say "Back on the source build. See: naruvi logs app" || say "${red}Still not up.${reset} Run: naruvi logs app"
   exit 1
 }
 
@@ -142,6 +224,8 @@ case ${1:-help} in
   reset-password) compose exec app npm run --silent auth:reset-password;;
   backup) backup;;
   update) shift; update "$@";;
+  use-images) use_images;;
+  release-image) release_image "${2:?version}" "${3:?commit}";; # used by the installer
   restore)
     [[ -n ${2:-} && -f $2/database.sql.gz ]] || { say "Usage: naruvi restore backups/<timestamp>"; exit 2; }
     printf '  Replace the current database%s with %s? Type %srestore%s: ' "$([[ -f $2/assets.tar.gz ]] && echo ' and files')" "$2" "$bold" "$reset"; read -r answer
@@ -154,7 +238,9 @@ case ${1:-help} in
   version)
     printf '  Naruvi %s%s%s %s\n' "$bold" "$(installed_version)" "$reset" "$dim$(git -C source rev-parse --short HEAD 2>/dev/null)$reset"
     update --check;;
-  rebuild) compose up -d --build;;
+  rebuild)
+    building || { say "This installation runs the published image; there is nothing to build. Restarting."; compose up -d; exit 0; }
+    compose up -d --build;;
   uninstall)
     say "This stops and removes Naruvi's containers. Your data volumes and $root are kept."
     say "To also delete all data, run: docker compose down -v   (from $root, after a backup)"
@@ -177,10 +263,11 @@ case ${1:-help} in
   ${bold}reset-password${reset}    set a new owner password (signs out every session)
   ${bold}backup${reset}            database, uploaded files and keys into ./backups
   ${bold}version${reset}           installed version, and whether a newer release exists
-  ${bold}update${reset} [vX.Y.Z]   verify the signed release, back up, migrate; rolls back on failure
+  ${bold}update${reset} [vX.Y.Z]   verify the signed release and image, back up, migrate; rolls back on failure
                     --check only looks · --ref REF --allow-unsigned for a branch
   ${bold}restore${reset} DIR       put a backup from ./backups back (database and files)
-  ${bold}rebuild${reset}           rebuild from ./source and restart
+  ${bold}use-images${reset}        switch a source build to the published, signed image
+  ${bold}rebuild${reset}           rebuild from ./source and restart (source builds)
   ${bold}compose${reset} ...       run any docker compose command here
   ${bold}uninstall${reset}         remove containers, keep your data
 
