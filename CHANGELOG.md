@@ -8,6 +8,7 @@ Update an installation from a terminal with `naruvi update`.
 ## 0.2.0 — 2026-11-12
 
 ### Added
+- Adding a job to Applications checks your fit right away, in the background. Turn it off under Settings → Applications.
 - Profile facts are translated automatically between English and French, and the job fit check matches each fact in both languages, so a French CV counts as evidence for an English posting.
 - English, French, and Arabic interface locales, including right-to-left layouts, Arabic assistant replies, and Arabic email templates.
 - Cloudflare Workers AI and OpenAI Decisions as decision-model providers.

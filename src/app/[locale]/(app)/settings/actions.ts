@@ -10,6 +10,7 @@ import { SettingsError } from "@/server/settings/errors"
 import { saveDecisionSettings, testDecisionModel, type DecisionOverview } from "@/server/settings/decisions"
 import { saveSpeechSettings, testSpeech, type SpeechOverview } from "@/server/settings/speech"
 import { serverError } from "@/i18n/server-errors"
+import { saveAutomationSettings } from "@/server/settings/automation"
 
 type Result = { ok: true; message?: string } | { ok: false; message: string }
 
@@ -23,6 +24,18 @@ export async function saveDocumentPhotoDefaultAction(showPhoto: boolean): Promis
     revalidatePath("/integrations")
     revalidatePath("/templates")
     revalidatePath("/templates/[id]", "page")
+    return { ok: true }
+  } catch (error) {
+    return fail(error)
+  }
+}
+
+/** Turn the automatic fit check for newly added jobs on or off. */
+export async function saveAutoFitCheckAction(enabled: boolean): Promise<Result> {
+  if (typeof enabled !== "boolean") return { ok: false, message: await serverError("invalidInput") }
+  try {
+    await saveAutomationSettings({ autoFitCheck: enabled })
+    revalidatePath("/settings")
     return { ok: true }
   } catch (error) {
     return fail(error)

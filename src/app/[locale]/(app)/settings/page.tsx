@@ -8,6 +8,7 @@ import { SettingsView } from "@/components/settings/settings-view"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getDocumentDefaults, getSystemOverview } from "@/server/settings/service"
 import { getAvailableUpdate, getChangelog } from "@/server/version"
+import { getAutomationSettings } from "@/server/settings/automation"
 import { useTranslations } from "next-intl"
 import { getTranslations } from "next-intl/server"
 
@@ -33,6 +34,6 @@ export default function SettingsPage() {
 
 async function Loader() {
   await connection()
-  const [overview, defaults, changelog, update] = await Promise.all([getSystemOverview(), getDocumentDefaults(), getChangelog(), getAvailableUpdate()])
-  return <SettingsView overview={overview} defaults={defaults} changelog={changelog} update={update} />
+  const [overview, defaults, changelog, update, automation] = await Promise.all([getSystemOverview(), getDocumentDefaults(), getChangelog(), getAvailableUpdate(), getAutomationSettings()])
+  return <SettingsView overview={overview} defaults={defaults} changelog={changelog} update={update} automation={automation} />
 }

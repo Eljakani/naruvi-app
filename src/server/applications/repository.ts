@@ -16,6 +16,8 @@ import { FILTER_PROMPT_VERSION, filterRequirements, type RequirementFilterSummar
 import { getProfile } from "@/server/profile/repository"
 import { staleFacts, translateSoon } from "@/server/profile/auto-translate"
 import { startRun } from "@/server/runs/tracer"
+import { getAutomationSettings } from "@/server/settings/automation"
+import { after } from "next/server"
 
 /** Only verified entries are evidence. Needs-review and archived never count. */
 export async function loadProfileFacts(profileId: string): Promise<ProfileFact[]> {
@@ -64,7 +66,41 @@ export async function trackJob(jobId: string): Promise<string | null> {
   const job = await db.query.jobs.findFirst({ columns: { language: true }, where: eq(jobs.id, jobId) })
   if (!job) return null
   const [created] = await db.insert(applications).values({ profileId: profile.id, jobId, status: "draft", language: job.language }).returning({ id: applications.id })
+  await scheduleFitCheck(jobId, profile.id)
   return created.id
+}
+
+/** Jobs whose fit is being checked in the background right now (one Node process). */
+const checking = new Set<string>()
+export const isCheckingFit = (jobId: string) => checking.has(jobId)
+
+/**
+ * Checks the fit of a newly added job after the response is sent, unless the
+ * person turned it off in Settings. Skipped while the profile has no verified
+ * facts (the check would only fail). Never throws: the button still works.
+ */
+export async function scheduleFitCheck(jobId: string, profileId: string) {
+  if (checking.has(jobId)) return
+  const { autoFitCheck } = await getAutomationSettings().catch(() => ({ autoFitCheck: true }))
+  if (!autoFitCheck) return
+  const [verified] = await db.select({ id: entries.id }).from(entries).where(and(eq(entries.profileId, profileId), eq(entries.status, "verified"))).limit(1)
+  if (!verified) return
+  checking.add(jobId)
+  const task = async () => {
+    try {
+      await analyzeJob(jobId)
+    } catch (error) {
+      console.error("[naruvi] automatic fit check:", error instanceof Error ? error.message : error)
+    } finally {
+      checking.delete(jobId)
+    }
+  }
+  // Outside a request (worker, scripts) there is no `after`: run it detached.
+  try {
+    after(task)
+  } catch {
+    void task()
+  }
 }
 
 /** Create (or reuse) the application for a job and (re)run the analysis. */

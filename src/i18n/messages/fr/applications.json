@@ -37,6 +37,7 @@
     "checkAgain": "Vérifier à nouveau",
     "checkFit": "Vérifier la correspondance",
     "checking": "Vérification de la correspondance",
+    "autoChecking": "Vérification de la correspondance avec ce poste en arrière-plan…",
     "label": "Correspondance : {value} sur 100",
     "archivedOn": "Archivée le {date}",
     "archivedBody": "Elle est masquée du tableau et du tableau de bord. Restaurez-la pour y travailler à nouveau.",
