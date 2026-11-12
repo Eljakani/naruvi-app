@@ -204,6 +204,13 @@
       "when": 1794373285779,
       "tag": "0028_auto_translations",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1794506868607,
+      "tag": "0029_fact_translations",
+      "breakpoints": true
     }
   ]
 }

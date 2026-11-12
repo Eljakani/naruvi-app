@@ -161,3 +161,11 @@ test("contract and work-arrangement words are never skills to prove", async () =
   const { termsIn } = await import("../../analysis/keywords")
   assert.deepEqual(termsIn("Poste en CDI ou CDD, Freelance possible, télétravail hybride, F/H/NB").filter((term) => /cdi|cdd|freelance|nb/.test(term)), [])
 })
+
+test("a French fact meets an English requirement through its translation", () => {
+  const french = fact("fr1", "Mise en place de tableaux de bord de supervision", "Contoso", { translations: ["Set up monitoring dashboards with Grafana"] })
+  const plain = fact("fr2", "Mise en place de tableaux de bord de supervision", "Contoso")
+  const requirement = req("Experience with Grafana")
+  assert.equal(matchRequirement(requirement, indexFacts([french])).status, "met")
+  assert.notEqual(matchRequirement(requirement, indexFacts([plain])).status, "met")
+})

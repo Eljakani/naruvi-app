@@ -173,6 +173,15 @@ async function readLinkedinExport(bytes: Uint8Array, csvName: string | null) {
 
 /** Reads a CV (PDF upload or pasted text) or a LinkedIn data export into proposed entries. Saves nothing. */
 export async function readCvAction(formData: FormData) {
+  try {
+    return await readCv(formData)
+  } catch (error) {
+    console.error("[naruvi] read CV:", error)
+    return { ok: false as const, message: error instanceof Error ? error.message : await serverError("couldntReadTextFrom") }
+  }
+}
+
+async function readCv(formData: FormData) {
   const file = formData.get("file")
   const pasted = String(formData.get("text") ?? "").trim()
   let text = pasted
@@ -200,33 +209,50 @@ const importedEntry = z.object({
   kind: z.enum(["experience", "education", "project", "skill", "certification", "language", "achievement", "other"]),
   text: z.record(z.string().max(40), z.string().max(200)),
   fields: z.record(z.string().max(40), z.unknown()),
-  facts: z.array(z.string().trim().min(3).max(600)).max(30),
-  skills: z.array(z.string().max(60)).max(40),
-  bullets: z.array(z.object({ text: z.string().min(3).max(600), facts: z.array(z.number().int().nonnegative()) })).max(20),
+  facts: z.array(z.string().trim().min(3).max(600)).max(40),
+  skills: z.array(z.string().max(60)).max(80),
+  bullets: z.array(z.object({ text: z.string().min(3).max(600), facts: z.array(z.number().int().nonnegative()) })).max(30),
 })
 const importPayload = z.object({
   language: z.string().regex(/^[a-z]{2}$/),
-  merges: z.array(z.object({ entryId: z.string().uuid(), facts: z.array(z.string().trim().min(3).max(600)).max(30), skills: z.array(z.string().max(60)).max(40), text: z.record(z.string().max(40), z.string().max(200)), fields: z.record(z.string().max(40), z.unknown()) })).max(60).default([]),
+  merges: z.array(z.object({ entryId: z.string().uuid(), facts: z.array(z.string().trim().min(3).max(600)).max(40), skills: z.array(z.string().max(60)).max(80), text: z.record(z.string().max(40), z.string().max(200)), fields: z.record(z.string().max(40), z.unknown()) })).max(80).default([]),
   identity: z.object({ fullName: z.string().max(120), headline: z.string().max(160), email: z.string().max(200), phone: z.string().max(40), location: z.string().max(120), links: z.array(z.object({ label: z.string().max(40), url: z.string().max(500) })).max(10) }),
-  entries: z.array(importedEntry).max(60),
+  entries: z.array(importedEntry).max(80),
 }).transform((data) => ({ ...data, entries: data.entries.map((entry) => ({ ...entry, fields: looseFields(entry.kind, entry.fields) })) }))
 
+/**
+ * Saves the reviewed import. Never throws: one entry that can't be saved is
+ * reported and the rest are kept (a thrown server action shows the error page).
+ */
 export async function saveImportAction(input: unknown) {
   const parsed = importPayload.safeParse(input)
-  if (!parsed.success) return { ok: false as const, message: await serverError("someImportedEntriesAre") }
-  const result = await saveImportedProfile(parsed.data, { dedupe: false, status: "verified" })
-  let merged = 0
-  let factsAdded = 0
-  let reverify = 0
-  for (const merge of parsed.data.merges) {
-    const outcome = await mergeIntoEntry(merge.entryId, { facts: merge.facts, skills: merge.skills, display: { language: parsed.data.language, text: merge.text, fields: merge.fields as EntryFields } }, { approvedByUser: true })
-    merged += 1
-    factsAdded += outcome.added
-    if (outcome.reverified) reverify += 1
+  if (!parsed.success) {
+    console.error("[naruvi] import payload:", parsed.error.issues.slice(0, 5))
+    return { ok: false as const, message: await serverError("someImportedEntriesAre") }
   }
-  revalidatePath("/profile")
-  revalidatePath("/", "layout")
-  return { ok: true as const, data: { ...result, merged, factsAdded, reverify } }
+  try {
+    const result = await saveImportedProfile(parsed.data, { dedupe: false, status: "verified" })
+    let merged = 0
+    let factsAdded = 0
+    let reverify = 0
+    const failed = [...result.failed]
+    for (const merge of parsed.data.merges) {
+      try {
+        const outcome = await mergeIntoEntry(merge.entryId, { facts: merge.facts, skills: merge.skills, display: { language: parsed.data.language, text: merge.text, fields: merge.fields as EntryFields } }, { approvedByUser: true })
+        merged += 1
+        factsAdded += outcome.added
+        if (outcome.reverified) reverify += 1
+      } catch (error) {
+        failed.push({ name: merge.entryId, reason: error instanceof Error ? error.message : String(error) })
+      }
+    }
+    revalidatePath("/profile")
+    revalidatePath("/", "layout")
+    return { ok: true as const, data: { ...result, failed: failed.length, merged, factsAdded, reverify } }
+  } catch (error) {
+    console.error("[naruvi] import save:", error)
+    return { ok: false as const, message: error instanceof Error ? error.message : await serverError("someImportedEntriesAre") }
+  }
 }
 
 export async function describeEntryAction(input: { words: string; kind?: string; existingFacts: string[] }) {

@@ -204,7 +204,8 @@
       "merged": "{count} updated (+{facts} facts)",
       "nothing": "Nothing to add",
       "reverify": "{count, plural, one {# verified entry needs a quick re-check for the new facts.} other {# verified entries need a quick re-check for the new facts.}}",
-      "review": "Saved and verified. Edit anything any time."
+      "review": "Saved and verified. Edit anything any time.",
+      "failed": "{count, plural, one {# entry couldn't be saved; add it by hand.} other {# entries couldn't be saved; add them by hand.}}"
     },
     "back": "Profile",
     "title": "Start from your CV",
@@ -232,7 +233,8 @@
     "recheck": "it will need a quick re-check",
     "more": "+{count} more",
     "dropped": "{count, plural, one {# item left out: its numbers weren’t in your CV.} other {# items left out: their numbers weren’t in your CV.}}",
-    "applyHint": "Saving confirms these entries are accurate. You can still edit any of them later."
+    "applyHint": "Saving confirms these entries are accurate. You can still edit any of them later.",
+    "unnamed": "Name not found in the CV: saved for review so you can complete it."
   },
   "reviewQueue": {
     "nothing": "Nothing to review",

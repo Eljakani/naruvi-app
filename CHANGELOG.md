@@ -5,9 +5,18 @@ Update an installation from a terminal with `naruvi update`.
 
 ## Unreleased
 
-- Added English, French, and Arabic interface locales, including right-to-left layouts, Arabic assistant replies, and Arabic email templates.
-- Added Cloudflare Workers AI and OpenAI Decisions as decision-model providers.
+## 0.2.0 — 2026-11-12
+
+### Added
+- Profile facts are translated automatically between English and French, and the job fit check matches each fact in both languages, so a French CV counts as evidence for an English posting.
+- English, French, and Arabic interface locales, including right-to-left layouts, Arabic assistant replies, and Arabic email templates.
+- Cloudflare Workers AI and OpenAI Decisions as decision-model providers.
 - Bundled the interface fonts locally and added production builds and installer tests to CI.
+
+### Fixed
+- Confirming a CV import no longer shows an error page: an entry that can't be saved is reported and the rest are kept, and an entry whose name the CV doesn't give is saved for review.
+- CV import keeps project, certification, school and company names the model put in the wrong field, reads every section of French CVs (education, languages, skills), and no longer rejects a CV with long skill lists.
+- Imported skills are recognized regardless of accents, punctuation and spacing ("Node.js", "node js").
 
 ## 0.1.0 — 2026-11-09
 

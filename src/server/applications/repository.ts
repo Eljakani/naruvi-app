@@ -5,7 +5,7 @@ import { and, desc, eq, inArray, isNotNull, isNull, sql, type SQL } from "drizzl
 import { likePattern, prefixQuery } from "@/lib/search"
 import { db } from "@/server/db/client"
 import { applications, companies, entries, facts, jobs } from "@/server/db/schema"
-import { displayFitScore, indexFacts, matchRequirement, summarize, type Analysis, type ProfileFact } from "@/server/analysis/match"
+import { displayFitScore, factForPrompt, indexFacts, matchRequirement, summarize, type Analysis, type ProfileFact } from "@/server/analysis/match"
 import { DECISION_REVIEW_VERSION, decideMatches, REVIEW_PROMPT_VERSION, reviewAllMatches } from "@/server/analysis/refine"
 import { decisionClient } from "@/server/settings/decisions"
 import { tracedDecide } from "@/server/runs/decisions"
@@ -14,6 +14,7 @@ import { completionForRun } from "@/server/llm/client"
 import { coverLetterDecision, extractRequirementCandidates } from "@/server/analysis/requirements"
 import { FILTER_PROMPT_VERSION, filterRequirements, type RequirementFilterSummary } from "@/server/analysis/filter"
 import { getProfile } from "@/server/profile/repository"
+import { staleFacts, translateSoon } from "@/server/profile/auto-translate"
 import { startRun } from "@/server/runs/tracer"
 
 /** Only verified entries are evidence. Needs-review and archived never count. */
@@ -31,8 +32,21 @@ export async function loadProfileFacts(profileId: string): Promise<ProfileFact[]
       entryKind: entry.kind,
       entryTags: entry.tags,
       entrySkills: entry.skills,
+      // Only translations of the current wording count.
+      translations: Object.values(fact.translations ?? {}).filter((item) => item.source === fact.statement).map((item) => item.text),
     }
   })
+}
+
+/** Waits up to `ms` for verified entries whose facts lack a translation. Returns how many were waited on. */
+async function finishFactTranslations(profileId: string, ms = 45_000) {
+  const verified = await db.select({ id: entries.id }).from(entries).where(and(eq(entries.profileId, profileId), eq(entries.status, "verified")))
+  if (!verified.length) return 0
+  const rows = await db.select({ id: facts.id, entryId: facts.entryId, statement: facts.statement, translations: facts.translations }).from(facts).where(inArray(facts.entryId, verified.map((entry) => entry.id)))
+  const stale = [...new Set(staleFacts(rows).map((fact) => fact.entryId))]
+  if (!stale.length) return 0
+  await Promise.race([Promise.all(stale.map((id) => translateSoon(id))), new Promise((resolve) => setTimeout(resolve, ms))])
+  return stale.length
 }
 
 export type StoredAnalysis = Analysis & { coverLetter: { decision: string; evidence: string }; analyzedAt: string; factCount: number; runId: string; requirementFilter?: RequirementFilterSummary; modelReview: { reviewed: number; changed: number; model?: string } | null }
@@ -67,6 +81,8 @@ export async function analyzeJob(jobId: string) {
     const decide = decisions ? tracedDecide(run, decisions.decide, decisions.model) : undefined
     const filtered = await run.step(decisions ? `filter posting details (decisions: ${decisions.model})` : "filter posting details", () => filterRequirements(extraction, job.rawText, modelConfiguration?.configured ? completionForRun(run, "requirement filtering", FILTER_PROMPT_VERSION) : undefined, decide), (value) => `${value.summary.reviewed} items reviewed · ${value.requirements.length} requirements kept · ${value.summary.excluded.length} posting details excluded · ${value.summary.status}`)
     const requirements = filtered.requirements
+    // A freshly imported CV is still being translated in the background: wait (briefly) so its facts count in every language.
+    await run.step("finish fact translations", () => finishFactTranslations(profile.id), (value) => `${value} entr${value === 1 ? "y" : "ies"} translated`).catch(() => 0)
     const profileFacts = await run.step("load verified facts", () => loadProfileFacts(profile.id), (value) => `${value.length} facts`)
     if (!profileFacts.length) throw new Error("No verified facts yet. Verify at least a few profile entries first.")
     const indexed = indexFacts(profileFacts)
@@ -74,7 +90,7 @@ export async function analyzeJob(jobId: string) {
     let modelReview: { reviewed: number; changed: number; model?: string } | null = null
     if (decide) {
       // Classification belongs to the decision model; the language model is kept for writing.
-      const catalog = profileFacts.map((fact) => ({ id: fact.id, statement: fact.statement, entry: fact.entryTitle, kind: fact.entryKind }))
+      const catalog = profileFacts.map((fact) => ({ id: fact.id, statement: factForPrompt(fact), entry: fact.entryTitle, kind: fact.entryKind }))
       const reviewed = await run
         .step(`decision fit review (${DECISION_REVIEW_VERSION})`, () => decideMatches(matches, catalog, decide), (value) => `reviewed ${value.reviewed}/${matches.length} · changed ${value.changed}`)
         .catch(() => null)
@@ -84,7 +100,7 @@ export async function analyzeJob(jobId: string) {
       }
     } else if (modelConfiguration?.configured) {
       let model = ""
-      const catalog = profileFacts.map((fact) => ({ id: fact.id, statement: fact.statement, entry: fact.entryTitle, kind: fact.entryKind }))
+      const catalog = profileFacts.map((fact) => ({ id: fact.id, statement: factForPrompt(fact), entry: fact.entryTitle, kind: fact.entryKind }))
       const reviewed = await run
         .step(
           `AI fit review (${REVIEW_PROMPT_VERSION})`,

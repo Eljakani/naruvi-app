@@ -2,6 +2,8 @@ import type { EntryFields } from "@/lib/entry-fields"
 
 /** lang → field → { text Naruvi wrote, source it translated } */
 export type EntryTranslations = Record<string, Record<string, { text: string; source: string }>>
+/** Per language: the fact as Naruvi translated it, and the statement it was translated from. */
+export type FactTranslations = Record<string, { text: string; source: string }>
 import { relations, sql } from "drizzle-orm"
 import type { SearchGoal } from "@/lib/search-goals"
 import {
@@ -159,6 +161,8 @@ export const facts = pgTable(
       .notNull()
       .references(() => entries.id, { onDelete: "cascade" }),
     statement: text().notNull(),
+    /** The statement in the other CV languages, written by Naruvi: { en: { text, source } }. Re-translated when `source` no longer equals the statement. */
+    translations: jsonb().$type<FactTranslations>().notNull().default({}),
     sortOrder: integer().notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

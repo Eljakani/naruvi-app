@@ -62,7 +62,8 @@ export function ProfileImport() {
         merges: result.entries.flatMap((entry, index) => (decisions[index] === "merge" && entry.match ? [{ entryId: entry.match.entryId, facts: entry.match.newFacts, skills: entry.match.newSkills, text: entry.text, fields: entry.fields }] : [])),
       })
       if (!response.ok) return void toast.error(response.message)
-      const { created, merged, factsAdded, reverify } = response.data
+      const { created, merged, factsAdded, reverify, failed } = response.data
+      if (failed) toast.warning(t("toast.failed", { count: failed }))
       toast.success([created ? t("toast.created", { count: created }) : "", merged ? t("toast.merged", { count: merged, facts: factsAdded }) : ""].filter(Boolean).join(" · ") || t("toast.nothing"), { description: reverify ? t("toast.reverify", { count: reverify }) : t("toast.review") })
       router.push("/profile")
     })
@@ -193,6 +194,7 @@ export function ProfileImport() {
                       ))}
                     </div>
                   ) : null}
+                  {entry.unnamed && decision === "new" ? <p className="text-xs text-amber-700 dark:text-amber-400">{t("unnamed")}</p> : null}
                   {entry.dropped ? <p className="text-xs text-muted-foreground">{t("dropped", { count: entry.dropped })}</p> : null}
                 </CardContent>
               ) : null}
