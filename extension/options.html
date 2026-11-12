@@ -30,10 +30,16 @@
       </div>
 
       <section class="card">
-        <label class="field"><span class="label" id="l-server"></span><input class="input" id="server" type="url" placeholder="http://localhost:3000" /></label>
-        <label class="field"><span class="label" id="l-key"></span><input class="input" id="key" type="password" placeholder="nrv_…" autocomplete="off" spellcheck="false" /><span class="hint" id="h-key"></span></label>
-        <div class="row"><button class="btn primary" id="save"></button><button class="btn ghost" id="open" hidden></button></div>
+        <label class="field"><span class="label" id="l-server"></span><input class="input" id="server" type="url" placeholder="http://localhost:3000" /><span class="hint" id="h-server"></span></label>
+        <div class="row"><button class="btn primary" id="connect"></button><button class="btn ghost" id="open" hidden></button></div>
         <div id="status" role="status"></div>
+        <details>
+          <summary class="small muted" id="manual"></summary>
+          <div style="display: grid; gap: 12px; margin-top: 12px">
+            <label class="field"><span class="label" id="l-key"></span><input class="input" id="key" type="password" placeholder="nrv_…" autocomplete="off" spellcheck="false" /><span class="hint" id="h-key"></span></label>
+            <div><button class="btn outline sm" id="save"></button></div>
+          </div>
+        </details>
       </section>
 
       <section class="card">

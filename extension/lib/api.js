@@ -1,9 +1,21 @@
 // Talks to your own Naruvi. The address and API key stay in this browser (storage.local).
 export const ext = globalThis.browser ?? globalThis.chrome
 
+/** The address of the Naruvi this copy was downloaded from (naruvi.json, added by Naruvi's download), if any. */
+export async function bundledServer() {
+  try {
+    const response = await fetch(ext.runtime.getURL("naruvi.json"))
+    const { server } = await response.json()
+    return typeof server === "string" && /^https?:\/\//.test(server) ? server.replace(/\/+$/, "") : ""
+  } catch {
+    return ""
+  }
+}
+
 export async function settings() {
-  const { server = "http://localhost:3000", key = "", badge = false } = await ext.storage.local.get(["server", "key", "badge"])
-  return { server: server.replace(/\/+$/, ""), key, badge }
+  const stored = await ext.storage.local.get(["server", "key", "badge"])
+  const server = stored.server || (await bundledServer()) || "http://localhost:3000"
+  return { server: server.replace(/\/+$/, ""), key: stored.key ?? "", badge: stored.badge ?? false }
 }
 
 export class NaruviError extends Error {

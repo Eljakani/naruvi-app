@@ -16,16 +16,30 @@ English and French, light and dark, following your browser.
 
 Pages are read only when you ask (click, shortcut or right-click), except the optional "already saved" check, which sends the page address. Naruvi receives the link, the visible text and a slimmed copy of the page: scripts (other than JSON-LD), styles, form fields and their values are removed, and cookies are never read. Everything goes to your own Naruvi only.
 
+## Get it
+
+- **From your Naruvi:** **Integrations → API & browser extension → Download the extension**. That copy includes a `naruvi.json` with your Naruvi's address (no key or other secret).
+- **From GitHub:** `naruvi-extension-X.Y.Z.zip` is attached to every [release](https://github.com/Eljakani/naruvi-app/releases/latest).
+- **From a checkout:** this `extension` folder.
+
 ## Install (Chrome, Edge, Brave, Arc)
 
-1. Open `chrome://extensions` and turn on **Developer mode**.
-2. Click **Load unpacked** and pick this `extension` folder.
-3. The settings page opens from the gear icon: enter your Naruvi address (default `http://localhost:3000`) and an API key from **Integrations → API & browser extension**.
+1. Unzip, open `chrome://extensions` and turn on **Developer mode**.
+2. Click **Load unpacked** and pick the `naruvi-extension` folder (or this `extension` folder).
 
 ## Install (Firefox 128+)
 
-1. Open `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** and pick `manifest.json`.
-2. Open the add-on's preferences and enter the address and API key.
+Open `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** and pick the zip (or `manifest.json`). Firefox removes temporary add-ons when it restarts.
+
+## Connect
+
+On first install the settings page opens by itself. Enter or check your Naruvi address and click **Connect**:
+
+1. The extension asks once for permission to reach that address (localhost is allowed already).
+2. It opens `<your Naruvi>/integrations/extension`. Sign in if asked, then click **Connect**.
+3. Naruvi creates a key named "Browser extension" and puts it only in that tab's page. The extension, which opened the tab and is allowed on that address, reads it from there. It then checks it with `GET /api/v1/me`, stores it in `storage.local` and closes the tab.
+
+The key never appears in a URL. Another website can't read it, because it can't read a Naruvi tab. Revoke it anytime under **Integrations → API & browser extension**. You can also paste a key yourself under *Use an API key instead*.
 
 ## API used
 

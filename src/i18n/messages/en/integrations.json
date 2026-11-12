@@ -188,6 +188,7 @@
    "turnOnTest": "Turn on and test",
    "cancel": "Cancel"
   },
+  "extensionConnect": {"title": "Connect the browser extension", "body": "The Naruvi extension in this browser asked to connect to your Naruvi.", "can": "It will be able to read job postings you send it, save jobs, leads and contacts, and show what needs doing today. It gets its own key, which you can revoke anytime under Integrations → API & browser extension.", "notYou": "Didn't click Connect in the extension yourself? Cancel.", "connect": "Connect", "cancel": "Cancel", "keyName": "Browser extension", "doneTitle": "Extension connected", "doneBody": "The extension picks this up on its own and closes this tab. You can also close it yourself.", "revokeHint": "Its key is listed under Integrations → API & browser extension."},
   "api": {
    "never": "never",
    "title": "API & browser extension",
@@ -209,10 +210,12 @@
    "name": "Key name",
    "create": "Create key",
    "ext": {
-    "title": "Set up the browser extension",
-    "body": "One click sends the posting you’re looking at (including LinkedIn and other pages behind a login) to Job leads, then opens it here to check and save.",
-    "step1": "In Chrome, Edge or Brave open <code>chrome://extensions</code>, turn on Developer mode, then Load unpacked and pick the <code>extension</code> folder of Naruvi. Firefox: see extension/README.md.",
-    "step2": "Create a key below and paste it, with <code>{origin}</code>, in the extension’s options."
+     "title": "Set up the browser extension",
+     "body": "One click sends the posting you’re looking at (including LinkedIn and other pages behind a login) to Naruvi.",
+     "download": "Download the extension",
+     "step1": "Unzip it. In Chrome, Edge or Brave open <code>chrome://extensions</code>, turn on Developer mode, click Load unpacked and pick the <code>naruvi-extension</code> folder.",
+     "step2": "Its settings open by themselves, already set to <code>{origin}</code>. Click Connect, then approve here. No key to copy.",
+     "firefox": "Firefox: open <code>about:debugging</code> → This Firefox → Load Temporary Add-on and pick the zip. Firefox removes it when it restarts."
    },
    "mcp": {
     "title": "Connect an AI assistant (MCP) or your scripts",

@@ -125,6 +125,10 @@ function installMenus() {
   })
 }
 ext.runtime.onInstalled.addListener(installMenus)
+// First install: open the settings page, where one click connects the extension.
+ext.runtime.onInstalled.addListener(async ({ reason }) => {
+  if (reason === "install" && !(await settings()).key) ext.runtime.openOptionsPage()
+})
 ext.runtime.onStartup?.addListener(installMenus)
 
 ext.contextMenus.onClicked.addListener(async (info, tab) => {

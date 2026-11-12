@@ -188,6 +188,7 @@
    "turnOnTest": "Activer et tester",
    "cancel": "Annuler"
   },
+  "extensionConnect": {"title": "Connecter l’extension de navigateur", "body": "L’extension Naruvi de ce navigateur demande à se connecter à votre Naruvi.", "can": "Elle pourra lire les annonces que vous lui envoyez, enregistrer des offres, des pistes et des contacts, et afficher ce qui est à faire aujourd’hui. Elle reçoit sa propre clé, révocable à tout moment dans Intégrations → API et extension.", "notYou": "Vous n’avez pas cliqué sur Connecter dans l’extension ? Annulez.", "connect": "Connecter", "cancel": "Annuler", "keyName": "Extension de navigateur", "doneTitle": "Extension connectée", "doneBody": "L’extension récupère la connexion d’elle-même et ferme cet onglet. Vous pouvez aussi le fermer.", "revokeHint": "Sa clé figure dans Intégrations → API et extension."},
   "api": {
    "never": "jamais",
    "title": "API et extension de navigateur",
@@ -209,10 +210,12 @@
    "name": "Nom de la clé",
    "create": "Créer une clé",
    "ext": {
-    "title": "Installer l’extension de navigateur",
-    "body": "Un clic envoie l’annonce que vous consultez (y compris LinkedIn et les autres pages derrière une connexion) vers vos pistes, puis l’ouvre ici pour la vérifier et l’enregistrer.",
-    "step1": "Dans Chrome, Edge ou Brave, ouvrez <code>chrome://extensions</code>, activez le mode développeur, puis « Charger l’extension non empaquetée » et choisissez le dossier <code>extension</code> de Naruvi. Firefox : voir extension/README.md.",
-    "step2": "Créez une clé ci-dessous et collez-la, avec <code>{origin}</code>, dans les options de l’extension."
+     "title": "Installer l’extension de navigateur",
+     "body": "Un clic envoie l’annonce que vous consultez (y compris LinkedIn et les autres pages derrière une connexion) vers Naruvi.",
+     "download": "Télécharger l’extension",
+     "step1": "Décompressez-la. Dans Chrome, Edge ou Brave, ouvrez <code>chrome://extensions</code>, activez le mode développeur, cliquez sur « Charger l’extension non empaquetée » et choisissez le dossier <code>naruvi-extension</code>.",
+     "step2": "Ses réglages s’ouvrent d’eux-mêmes, déjà réglés sur <code>{origin}</code>. Cliquez sur Connecter, puis validez ici. Aucune clé à copier.",
+     "firefox": "Firefox : ouvrez <code>about:debugging</code> → Ce Firefox → Charger un module temporaire et choisissez le zip. Firefox le retire au redémarrage."
    },
    "mcp": {
     "title": "Connecter un assistant IA (MCP) ou vos scripts",

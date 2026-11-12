@@ -5,6 +5,13 @@ Update an installation from a terminal with `naruvi update`.
 
 ## Unreleased
 
+## 0.4.0 — 2026-11-12
+
+### Added
+- The browser extension can be downloaded from your Naruvi (Integrations → API & browser extension), already set to your address, and is attached to every GitHub release.
+- One-click connection: the extension's **Connect** button opens Naruvi, you approve, and it picks up its own key. No key to copy. Its settings open by themselves after installing.
+- The release workflow now publishes the GitHub release itself, once the signed image is ready.
+
 ## 0.3.0 — 2026-11-12
 
 ### Changed
