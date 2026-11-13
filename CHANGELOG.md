@@ -5,6 +5,9 @@ Update an installation from a terminal with `naruvi update`.
 
 ## Unreleased
 
+### Added
+- Hosted installs offer to open ports 80 and 443 when the server's firewall (ufw or firewalld) is on. The installer asks for sudo right after you choose Hosted instead of midway; `--yes --firewall` does the same without questions.
+
 ## 0.4.1 — 2026-11-12
 
 ### Fixed
