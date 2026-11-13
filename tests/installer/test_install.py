@@ -14,9 +14,10 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class InstallerTest(unittest.TestCase):
-    def run_install(self, mode, preview=False, install_docker=None, release=None, verified=True, pull_error=None):
+    def run_install(self, mode, preview=False, install_docker=None, release=None, verified=True, pull_error=None, firewall=None):
         """install_docker: None = Docker present; 'y'/'n' = Docker missing, answer to the offer.
-        release: a published release tag (the image path); None = no release, so main is built."""
+        release: a published release tag (the image path); None = no release, so main is built.
+        firewall: None = no host firewall; 'y'/'n' = ufw is on, answer to the offer to open ports."""
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
             binaries = base / 'bin'
@@ -35,7 +36,14 @@ class InstallerTest(unittest.TestCase):
                         '  *clone*) for last; do :; done; mkdir -p "$last"; cp -R "$TEST_REPO/deploy" "$last/deploy";;\n'
                         'esac\n'),
                 'curl': '#!/bin/sh\nprintf "%s" "$TEST_STATUS"\n',
+                # Never read or touch the real machine's firewall.
+                'systemctl': '#!/bin/sh\nexit 3\n',
+                'sudo': '#!/bin/sh\nwhile case "$1" in -*) true;; *) false;; esac; do shift; done\n[ $# -eq 0 ] || exec "$@"\n',
+                'ufw': '#!/bin/sh\necho "$*" >> "$MOCK_BIN/ufw.log"\n',
             }
+            ufw_conf = base / 'ufw.conf'
+            if firewall:
+                ufw_conf.write_text('ENABLED=yes\n')
             docker_mock = mocks['docker']
             if install_docker:
                 del mocks['docker']
@@ -44,7 +52,6 @@ class InstallerTest(unittest.TestCase):
                                  '  while [ "$1" != -o ]; do shift; done\n'
                                  '  printf \'printf "%%s" "$DOCKER_MOCK" > "$MOCK_BIN/docker"; chmod 700 "$MOCK_BIN/docker"\\n\' > "$2"; exit 0;;\n'
                                  'esac\nprintf "%s" "$TEST_STATUS"\n')
-                mocks['sudo'] = '#!/bin/sh\nwhile case "$1" in -*) true;; *) false;; esac; do shift; done\n[ $# -eq 0 ] || exec "$@"\n'
                 mocks['uname'] = '#!/bin/sh\necho Linux\n'
                 # Hide any real docker: PATH holds only the mocks plus links to every other tool.
                 for directory in os.environ['PATH'].split(os.pathsep):
@@ -63,7 +70,7 @@ class InstallerTest(unittest.TestCase):
             (home / '.local' / 'bin').mkdir(parents=True)  # so the PATH-link prompt always appears
             path = str(binaries) if install_docker else f'{binaries}:{os.environ["PATH"]}'
             env = dict(os.environ, PATH=path, HOME=str(home), MOCK_BIN=str(binaries), DOCKER_MOCK=docker_mock,
-                       NARUVI_INSTALL_DIR=str(root), TEST_REPO=str(REPO),
+                       NARUVI_INSTALL_DIR=str(root), TEST_REPO=str(REPO), NARUVI_UFW_CONF=str(ufw_conf),
                        TEST_STATUS='200', NO_COLOR='1', TEST_RELEASE=release or '', TEST_VERIFIED='1' if verified else '0',
                        TEST_PULL_ERROR=pull_error or '')
             master, slave = pty.openpty()
@@ -75,6 +82,8 @@ class InstallerTest(unittest.TestCase):
             os.close(slave)
             prompts = [('Install Docker now?', install_docker)] if install_docker else []
             prompts += [('Choose 1-3', mode)]
+            if firewall:
+                prompts += [('Open ports 80 and 443 in ufw?', firewall)]
             if mode in ('2', '3'):
                 prompts += [('Domain, without', 'careers.example.com')]
             if mode in ('1', '3'):
@@ -152,6 +161,12 @@ class InstallerTest(unittest.TestCase):
                 else:
                     self.assertIn('NARUVI_IMAGE=naruvi-app:source', config)
                     self.assertIn('Build image', output)
+                opened = (binaries / 'ufw.log').read_text() if (binaries / 'ufw.log').exists() else ''
+                if firewall == 'y':
+                    self.assertEqual(opened, 'allow 80/tcp\nallow 443/tcp\n')
+                    self.assertIn('Open firewall', output)
+                else:
+                    self.assertEqual(opened, '')
                 if mode == '2':
                     self.assertIn('NARUVI_DOMAIN=careers.example.com', config)
                     self.assertIn('COMPOSE_FILE=compose.yaml:hosted.yaml' + ('' if release else ':build.yaml'), config)
@@ -195,6 +210,12 @@ class InstallerTest(unittest.TestCase):
 
     def test_server(self):
         self.run_install('2')
+
+    def test_server_opens_firewall(self):
+        self.run_install('2', firewall='y')
+
+    def test_server_leaves_firewall_when_declined(self):
+        self.run_install('2', firewall='n')
 
     def test_proxy(self):
         self.run_install('3')

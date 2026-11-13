@@ -22,18 +22,21 @@ Usage: bash install.sh [options]
                               published, signed one (a branch is always built)
   --yes                       no questions; requires --mode (and --domain when needed)
   --install-docker            with --yes: install Docker when it is missing (Linux, needs root or sudo)
+  --firewall                  with --yes: open ports 80 and 443 in this server's firewall for
+                              hosted mode (ufw or firewalld, needs root or sudo)
   --preview                   walk through the screens without installing anything
   --help                      show this help
 
 Environment: NARUVI_INSTALL_DIR, NARUVI_REF, NARUVI_BUILD=1, NARUVI_SOURCE_DIR (local checkout), NO_COLOR.
 Requires Docker with Compose v2, Git and OpenSSL. When Docker is missing, the installer offers to
-set it up (Linux: Docker's official script; macOS: Docker Desktop with Homebrew). Otherwise it
-installs nothing outside the chosen directory except an optional `naruvi` command link in ~/.local/bin.
+set it up (Linux: Docker's official script; macOS: Docker Desktop with Homebrew). In hosted mode,
+when ufw or firewalld is on, it offers to open ports 80 and 443. Otherwise it installs nothing
+outside the chosen directory except an optional `naruvi` command link in ~/.local/bin.
 EOF
 }
 
 # ---------- options ----------
-preview=false assume_yes=false install_docker=false mode= domain= port= bind= root=${NARUVI_INSTALL_DIR:-} ref=${NARUVI_REF:-}
+preview=false assume_yes=false install_docker=false want_firewall=false mode= domain= port= bind= root=${NARUVI_INSTALL_DIR:-} ref=${NARUVI_REF:-}
 build=false; [[ ${NARUVI_BUILD:-} != 1 ]] || build=true
 repo_url=https://github.com/Eljakani/naruvi-app.git
 need() { [[ $# -ge 2 && -n $2 ]] || { echo "Missing value for $1" >&2; exit 2; }; }
@@ -42,6 +45,7 @@ while [[ $# -gt 0 ]]; do
     --preview) preview=true;;
     --yes|-y) assume_yes=true;;
     --install-docker) install_docker=true;;
+    --firewall) want_firewall=true;;
     --mode) need "$@"; mode=$2; shift;;
     --domain) need "$@"; domain=$2; shift;;
     --port) need "$@"; port=$2; shift;;
@@ -282,6 +286,35 @@ setup_docker() {
 }
 docker_relogin=false
 
+# ---------- firewall (hosted): offered, never silent ----------
+# Root is asked for as soon as Hosted is chosen, so the password prompt comes before the questions;
+# the ports are opened once the install is confirmed. A firewall that is off is left alone.
+firewall= open_firewall=false
+plan_firewall() {
+  [[ $(uname -s) == Linux ]] || return 0
+  if grep -qs '^ENABLED=yes' "${NARUVI_UFW_CONF:-/etc/ufw/ufw.conf}"; then firewall=ufw
+  elif systemctl is-active --quiet firewalld 2>/dev/null; then firewall=firewalld
+  else return 0; fi
+  if [[ $interactive == true ]]; then
+    note "This server's firewall ($firewall) is on. Naruvi needs TCP 80 and 443 open; changing it needs root."
+    confirm "Open ports 80 and 443 in $firewall?" y || { check warn 'Firewall' "$firewall left as is · open TCP 80 and 443 yourself"; return 0; }
+  elif [[ $want_firewall == false ]]; then
+    check warn 'Firewall' "$firewall is on · pass --firewall, or open TCP 80 and 443 yourself"; return 0
+  fi
+  if get_root; then open_firewall=true; check ok 'Firewall' "$firewall · ports 80 and 443 open when the install starts"
+  else check warn 'Firewall' "no root or sudo · open TCP 80 and 443 in $firewall yourself"; fi
+}
+apply_firewall() { # never fatal: the install is still good, and the closing notes say what to check
+  local status=0
+  case $firewall in
+    ufw) { as_root ufw allow 80/tcp && as_root ufw allow 443/tcp; } >> "$log" 2>&1 || status=$?;;
+    firewalld) { as_root firewall-cmd --add-service=http --add-service=https &&
+                 as_root firewall-cmd --permanent --add-service=http --add-service=https; } >> "$log" 2>&1 || status=$?;;
+  esac
+  if [[ $status == 0 ]]; then check ok 'Open firewall' "TCP 80 and 443 in $firewall"
+  else check warn 'Open firewall' "$firewall refused · open TCP 80 and 443 yourself (details in install.log)"; fi
+}
+
 # ======================================================================
 banner
 [[ $preview == false ]] || note 'Preview: nothing is downloaded, written or started.'
@@ -362,6 +395,7 @@ case $mode in
   proxy) mode_label='Behind your proxy';;
 esac
 check ok 'Mode' "$mode_label"
+[[ $mode != hosted || $preview == true ]] || plan_firewall
 
 # ---------- 3. details ----------
 step 3 'Details'
@@ -419,7 +453,8 @@ kv 'Mode' "$mode_label"
 kv 'Address' "$url"
 case $mode in
   local) kv 'Reachable' 'only from this computer';;
-  hosted) kv 'HTTPS' 'automatic certificates, renewal, HTTP → HTTPS';;
+  hosted) kv 'HTTPS' 'automatic certificates, renewal, HTTP → HTTPS'
+          [[ $open_firewall == false ]] || kv 'Firewall' "open TCP 80 and 443 in $firewall";;
   proxy) kv 'App listens' "$bind:$port"; kv 'Your proxy' "forward $domain → http://$( [[ $bind == 0.0.0.0 ]] && echo '<this-host>' || echo 127.0.0.1 ):$port";;
 esac
 kv 'Directory' "$root"
@@ -442,6 +477,7 @@ if [[ $preview == true ]]; then
 fi
 mkdir -p "$root"; chmod 700 "$root"
 log=$root/install.log; : > "$log"; chmod 600 "$log"
+[[ $open_firewall == false ]] || apply_firewall
 if [[ -n ${NARUVI_SOURCE_DIR:-} ]]; then
   [[ -f $NARUVI_SOURCE_DIR/Dockerfile && -f $NARUVI_SOURCE_DIR/deploy/compose.yaml ]] || fail 'NARUVI_SOURCE_DIR must point to a Naruvi checkout.'
   mkdir "$root/source"
