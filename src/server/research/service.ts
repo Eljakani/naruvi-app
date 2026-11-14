@@ -1,11 +1,11 @@
 import "server-only"
-import { eq } from "drizzle-orm"
+import { and, eq, ne } from "drizzle-orm"
 import { safeFetchText } from "@/server/assets/safe-fetch"
 import { db } from "@/server/db/client"
 import { companies, jobs } from "@/server/db/schema"
 import { registrableDomain } from "@/server/jobs/vendor/company-resolver"
 import { startRun } from "@/server/runs/tracer"
-import { buildBrief, type CompanyResearch } from "./brief"
+import { buildBrief, researchForPosting, type CompanyResearch } from "./brief"
 import { extractCompanyPage, type PageFacts } from "./extract"
 import { robotsAllows } from "./robots"
 import { ANGLES_PROMPT_VERSION, companyAngles } from "./ai-angles"
@@ -104,7 +104,20 @@ export async function readCompanySite(website: string): Promise<{ pages: PageFac
 export async function researchForJob(jobId: string, options: { force?: boolean; language?: string } = {}): Promise<CompanyResearch | null> {
   const job = await db.query.jobs.findFirst({ where: eq(jobs.id, jobId), with: { company: true } })
   if (!job?.company) return null
-  return researchCompany(job.company, options, job)
+  return researchForPosting(await researchCompany(job.company, options, job), job.id, await otherPostingUrls(job))
+}
+
+/** Links of the company's other saved postings: what the brief drew from them doesn't apply to this job. */
+async function otherPostingUrls(job: { id: string; companyId: string | null }) {
+  if (!job.companyId) return []
+  const rows = await db.select({ sourceUrl: jobs.sourceUrl, canonicalUrl: jobs.canonicalUrl }).from(jobs).where(and(eq(jobs.companyId, job.companyId), ne(jobs.id, job.id)))
+  return rows.flatMap((row) => [row.sourceUrl, row.canonicalUrl]).filter((url): url is string => Boolean(url))
+}
+
+/** A job's cached company research, without what came from another posting of the same company. */
+export async function jobResearch(job: { id: string; companyId: string | null; company?: { research: unknown } | null }): Promise<CompanyResearch | null> {
+  const research = (job.company?.research ?? null) as CompanyResearch | null
+  return research ? researchForPosting(research, job.id, await otherPostingUrls(job)) : null
 }
 
 /** Company research needs only the company's own website, never a job or application. */
@@ -113,7 +126,7 @@ export async function researchForCompany(companyId: string, options: { force?: b
   return company ? researchCompany(company, options) : null
 }
 
-async function researchCompany(company: typeof companies.$inferSelect, options: { force?: boolean; language?: string }, job?: Pick<typeof jobs.$inferSelect, "rawText" | "language" | "sourceUrl">): Promise<CompanyResearch> {
+async function researchCompany(company: typeof companies.$inferSelect, options: { force?: boolean; language?: string }, job?: Pick<typeof jobs.$inferSelect, "id" | "rawText" | "language" | "sourceUrl">): Promise<CompanyResearch> {
   if (!job && !company.website) throw new Error("Add the company’s website to start research.")
   const language = options.language ?? job?.language ?? "en"
   const fresh = company.researchedAt && Date.now() - company.researchedAt.getTime() < CACHE_DAYS * 86_400_000
@@ -142,6 +155,7 @@ async function researchCompany(company: typeof companies.$inferSelect, options: 
     // A failed refresh must not replace existing research with an empty brief.
     if (!job && !pages.length) throw new Error(notes[0] || "Couldn’t read the company’s website. Check the website address or try again later.")
     const brief = buildBrief({ company: company.name, website: company.website ?? "", pages, jobText: job?.rawText ?? "", language, notes })
+    if (job) brief.postingJobId = job.id
     if (aiConfigured && pages.length) {
       try {
         const result = await run.step("AI company overview", () => summarizeCompany({ company: company.name, language, pages }, completionForRun(run, "company overview", SUMMARY_PROMPT_VERSION)), (value) => value.summary ? `${value.summary.sources.length} cited source(s)` : "sources don’t say what the company does")

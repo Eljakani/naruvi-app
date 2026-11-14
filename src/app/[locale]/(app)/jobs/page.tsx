@@ -179,6 +179,8 @@ async function JobList({ searchParams }: { searchParams: Search }) {
                       ) : null}
                       {details.length ? <span>{details.join(" · ")}</span> : job.remote ? <span>{job.remote}</span> : null}
                       <GoalFitBadge fit={fit} />
+                      {/* Phones hide the right-hand column: keep the status, the most useful part of the row. */}
+                      {job.applicationId ? <Badge className="sm:hidden" variant={closed ? "outline" : job.status === "ready" ? "default" : "secondary"}>{job.archivedAt ? t("archived") : tl(`status.${job.status!}`)}</Badge> : null}
                     </div>
                   </div>
                   <div className="hidden items-center gap-2 sm:flex">

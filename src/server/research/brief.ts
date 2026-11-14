@@ -24,9 +24,27 @@ export type CompanyResearch = {
   /** AI-written, source-cited angles; absent when no model is configured. */
   angles?: { text: string; sources: string[] }[]
   anglesModel?: string
+  /** The job whose posting fed the brief (its "about" lines, its angles). Research is kept per company, postings differ. */
+  postingJobId?: string
 }
 
 const POSTING = "job posting"
+
+const sameUrl = (a: string, b: string) => a.replace(/\/$/, "") === b.replace(/\/$/, "")
+
+/**
+ * The brief as it applies to one posting. A company's research is shared by
+ * all its jobs, but part of it may come from another job's posting (that
+ * team, that stack): those lines are left out, so neither the page nor a
+ * cover letter quotes the wrong role. What the company says on its own site stays.
+ */
+export function researchForPosting<T extends CompanyResearch | null>(research: T, jobId: string, otherPostingUrls: string[]): T {
+  if (!research) return research
+  const foreign = Boolean(research.postingJobId) && research.postingJobId !== jobId
+  const fromOther = (source: string) => (foreign && source === POSTING) || otherPostingUrls.some((url) => sameUrl(url, source))
+  const angles = research.angles?.filter((angle) => !angle.sources.some(fromOther))
+  return { ...research, about: research.about.filter((item) => !fromOther(item.source)), mission: research.mission.filter((item) => !fromOther(item.source)), ...(research.angles ? { angles } : {}) }
+}
 
 /** "About {company}" / "À propos" sections of the job posting itself. */
 export function postingAbout(jobText: string, company: string): string[] {

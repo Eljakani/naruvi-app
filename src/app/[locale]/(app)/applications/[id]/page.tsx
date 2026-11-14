@@ -1,9 +1,10 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { scheduleResearch } from "@/server/research/auto"
+import { jobResearch } from "@/server/research/service"
 import { Suspense } from "react"
 import { after, connection } from "next/server"
-import { ArchiveIcon, ArrowLeftIcon, ScanSearchIcon } from "lucide-react"
+import { AlertTriangleIcon, ArchiveIcon, ArrowLeftIcon, ScanSearchIcon } from "lucide-react"
 import { displayFitScore } from "@/server/analysis/match"
 import { SectionTabs } from "@/components/applications/section-tabs"
 import { JobOverview } from "@/components/jobs/job-overview"
@@ -16,8 +17,8 @@ import { ApplicationJourney } from "@/components/applications/application-journe
 import { ApplicationProgress } from "@/components/applications/application-progress"
 import { ApplicationDocuments } from "@/components/applications/application-documents"
 import { db } from "@/server/db/client"
-import { documents } from "@/server/db/schema"
-import { eq } from "drizzle-orm"
+import { documents, entries } from "@/server/db/schema"
+import { and, eq } from "drizzle-orm"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { ArchiveButton, NextStep } from "@/components/tracking/next-step"
 import { StatusControl } from "@/components/tracking/status-control"
@@ -26,8 +27,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { listEvents } from "@/server/tracking/service"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getApplication, isCheckingFit } from "@/server/applications/repository"
-import { FitChecking } from "@/components/applications/fit-checking"
+import { addedWithin, fitCheckState, getApplication } from "@/server/applications/repository"
+import { InsightsPending } from "@/components/applications/fit-checking"
+import { experienceMonths, levelCheck } from "@/lib/experience"
 import { ComposeEmail } from "@/components/mail/compose-email"
 import { MailThread } from "@/components/mail/mail-thread"
 import { ApplicationPeople } from "@/components/contacts/application-people"
@@ -61,10 +63,23 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
   if (mail.some((message) => !message.readAt)) after(() => markRead(id))
   const { job } = application
   const fit = profile ? goalFit(profile.goals, { ...job, insights: job.insights as GoalJob["insights"] }, profile.location) : null
+  const spontaneous = job.board === "spontaneous"
+  // The check runs after the job is saved: its state comes from its run, so a failure is shown instead of vanishing.
+  const fitState = spontaneous ? ({ state: "idle" } as const) : await fitCheckState(job.id)
+  const fitCheck = fitState.state === "running" || fitState.state === "failed" ? fitState : null
+  const checking = fitCheck?.state === "running"
+  // Insights are written right after the save; a job that never got any (no model) stops being waited for.
+  const insightsPending = !spontaneous && !job.insights && addedWithin(job.createdAt, 5 * 60_000)
+  // Skills are one thing, years another: compare the level the job asks for with the experience the profile shows.
+  const insights = job.insights as { seniority?: string; yearsRequired?: number | null } | null
+  const level = application.analysis && profile && insights
+    ? levelCheck(insights, experienceMonths((await db.select({ fields: entries.fields }).from(entries).where(and(eq(entries.profileId, profile.id), eq(entries.kind, "experience"), eq(entries.status, "verified")))).filter((entry) => entry.fields.employment !== "internship" && entry.fields.employment !== "volunteer").map((entry) => (entry.fields.dates ?? {}) as { start?: string; end?: string })))
+    : null
   // Not analyzed yet: open on the posting. Otherwise on the analysis, unless asked.
   const tab = tabParam === "overview" || (!application.analysis && tabParam !== "analysis") ? "overview" : "analysis"
   // No research yet: start it in the background; the card fills in when it lands.
   const researching = Boolean(job.company) && !job.company?.research
+  const research: Research | null = await jobResearch(job)
   if (researching) scheduleResearch(job.id)
   return (
     <div className="grid gap-4">
@@ -85,7 +100,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
           </p>
         </div>
         <div className="flex items-center gap-2 max-sm:w-full">
-          {job.board === "spontaneous" || !application.analysis ? null : <AnalyzeButton jobId={job.id} label={t("checkAgain")} variant="outline" />}
+          {spontaneous || !application.analysis || checking ? null : <AnalyzeButton jobId={job.id} label={t("checkAgain")} variant="outline" />}
           <ArchiveButton id={application.id} archived={Boolean(application.archivedAt)} />
         </div>
       </header>
@@ -106,7 +121,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
       ) : null}
       {/* 3. Where you are: progress and next step beside your documents. */}
       <section aria-label={t("progressAndDocuments")} className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <ApplicationProgress applicationId={application.id} jobId={job.id} status={application.status} language={application.language} spontaneous={job.board === "spontaneous"} sourceUrl={job.sourceUrl} cvDraft={drafts.some((doc) => doc.kind === "cv" && Boolean(doc.current))} nextStep={application.nextStep} nextStepDue={application.nextStepDue} company={job.company?.name ?? ""} title={job.title} />
+        <ApplicationProgress applicationId={application.id} jobId={job.id} status={application.status} language={application.language} spontaneous={job.board === "spontaneous"} sourceUrl={job.sourceUrl} cvDraft={drafts.some((doc) => doc.kind === "cv" && Boolean(doc.current))} nextStep={application.nextStep} nextStepDue={application.nextStepDue} company={job.company?.name ?? ""} title={job.title} fitCheck={application.analysis ? null : fitCheck} insightsPending={insightsPending} />
         <ApplicationDocuments
           applicationId={application.id}
           language={application.language}
@@ -130,19 +145,30 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
         </div>
       ) : null}
       {job.board === "spontaneous" ? null : (
-        <SectionTabs applicationId={application.id} current={tab === "overview" ? "overview" : "analysis"} fit={application.analysis ? displayFitScore(application.analysis) : null} />
+        <SectionTabs applicationId={application.id} current={tab === "overview" ? "overview" : "analysis"} fit={application.analysis ? displayFitScore(application.analysis) : null} checking={checking} />
       )}
+      {/* A re-check that failed: the earlier result below still stands. */}
+      {application.analysis && fitCheck?.state === "failed" ? (
+        <Alert>
+          <AlertTriangleIcon />
+          <AlertTitle>{t("fitFailedTitle")}</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {fitCheck.error || t("fitFailedBody")}
+            <Link href={`/runs/${fitCheck.runId}`} className="font-medium text-foreground underline-offset-4 hover:underline">{t("fitFailedTrace")}</Link>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {insightsPending && !(checking && !application.analysis) ? <InsightsPending applicationId={application.id} /> : null}
       {job.board === "spontaneous" ? null : <GoalFitNote fit={fit} />}
-      {!application.analysis && job.board !== "spontaneous" && isCheckingFit(job.id) ? <FitChecking /> : null}
       {tab === "overview" && job.board !== "spontaneous" ? (
         <JobOverview job={job} />
       ) : !application.analysis && job.board !== "spontaneous" ? (
         <Card className="items-center border-dashed py-10 text-center">
           <CardContent className="grid max-w-md justify-items-center gap-3">
             <span className="grid size-11 place-content-center rounded-full bg-primary/10 text-primary"><ScanSearchIcon className="size-5" /></span>
-            <p className="font-medium">{t("fitFirst")}</p>
-            <p className="text-sm text-muted-foreground">{t("fitFirstBody")}</p>
-            {isCheckingFit(job.id) ? null : <AnalyzeButton jobId={job.id} />}
+            <p className={checking ? "cb-shimmer font-medium" : "font-medium"}>{checking ? t("checkingTitle") : t("fitFirst")}</p>
+            <p className="text-sm text-muted-foreground">{checking ? t("checkingBody") : t("fitFirstBody")}</p>
+            {checking ? null : <AnalyzeButton jobId={job.id} label={fitCheck?.state === "failed" ? t("tryAgain") : undefined} />}
           </CardContent>
         </Card>
       ) : (
@@ -156,7 +182,7 @@ async function ApplicationDetail({ params, searchParams }: { params: Promise<{ i
             <p>{t("spontaneous.how")}</p>
           </CardContent>
         </Card>
-      ) : application.analysis ? <AnalysisView offGoal={fit?.verdict === "blocked"} analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? t("theCompany"), language: application.language, initial: (job.company?.research ?? null) as unknown as Research | null, researching, logoPath: job.company?.logoPath ?? null }} footer={!mail.length && !people.length ? <ApplicationJourney createdAt={application.createdAt} events={events} mail={mail} drafts={drafts} /> : undefined} /> : null
+      ) : application.analysis ? <AnalysisView offGoal={fit?.verdict === "blocked"} level={level} analysis={application.analysis} facts={application.facts} research={{ applicationId: application.id, jobId: job.id, company: job.company?.name ?? t("theCompany"), language: application.language, initial: research, researching, logoPath: job.company?.logoPath ?? null }} footer={!mail.length && !people.length ? <ApplicationJourney createdAt={application.createdAt} events={events} mail={mail} drafts={drafts} /> : undefined} /> : null
       )}
       {/* With a fit check, Journey sits inside it (left column); otherwise it closes the page. */}
       {!mail.length && !people.length && !(application.analysis && tab === "analysis" && job.board !== "spontaneous") ? <ApplicationJourney createdAt={application.createdAt} events={events} mail={mail} drafts={drafts} className="max-w-md" /> : null}

@@ -50,7 +50,7 @@ export function JobTags({ jobId, tags, suggestions }: { jobId: string; tags: str
         </Badge>
       ))}
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger render={<Button variant="ghost" size="xs" className="text-muted-foreground" />}>
+        <PopoverTrigger render={<Button variant="ghost" size="xs" className="tap-target text-muted-foreground" />}>
           <PlusIcon /> {current.length ? t("tag") : t("add")}
         </PopoverTrigger>
         <PopoverContent align="start" className="w-72">

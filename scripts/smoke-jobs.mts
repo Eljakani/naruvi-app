@@ -1,7 +1,8 @@
 /** Live smoke test: npm run jobs:smoke -- <url> [<url>…] — prints the preview, saves nothing. */
 import { config } from "dotenv"
 
-config({ path: ".env.local" })
+config({ path: ".env.local", quiet: true })
+config({ path: ".env", quiet: true })
 const { previewJob } = await import("../src/server/jobs/ingest")
 for (const url of process.argv.slice(2)) {
   const started = Date.now()

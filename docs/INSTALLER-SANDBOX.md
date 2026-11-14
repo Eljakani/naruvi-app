@@ -29,6 +29,8 @@ Answer:
 - Directory: **Enter**, accepting `/demo/naruvi`.
 - Continue: **y**.
 
+Without a terminal, `docker compose -f deploy/sandbox/compose.yaml exec -T sandbox bash /snapshot/install.sh --yes --mode local --port 8088` does the same.
+
 You’ll see Naruvi’s ASCII art, prompts, source setup, image build, migrations and service startup. This mode exercises a real installation with owner setup and login, but does not test public DNS or ACME certificates.
 
 ## 3. Open the app
@@ -42,11 +44,9 @@ docker compose -f deploy/sandbox/compose.yaml exec sandbox bash -lc 'cd /demo/na
 docker compose -f deploy/sandbox/compose.yaml exec sandbox bash -lc 'cd /demo/naruvi && ./naruvi compose logs --tail=100 app'
 ```
 
-If the build fails, inspect the installer output. The installer preserves its configuration, so resume without rerunning it:
+`./naruvi doctor` in the same place checks settings, services, migrations and the address.
 
-```bash
-docker compose -f deploy/sandbox/compose.yaml exec sandbox bash -lc 'cd /demo/naruvi && ./naruvi rebuild'
-```
+If the build fails or you interrupt it, inspect the installer output, then run the installer again: it keeps its configuration and picks up where it stopped.
 
 The setup link is in the nested app logs. Never publish that link or the log output. A real Hosted-mode test should use a disposable VM with a DNS hostname and reachable ports 80/443; this Local-mode sandbox does not certify server deployment readiness.
 
@@ -62,6 +62,12 @@ Delete **only this sandbox’s** volumes, including its test account, nested dat
 
 ```bash
 docker compose -f deploy/sandbox/compose.yaml down -v
+```
+
+To repeat an install without rebuilding the sandbox (the nested build cache is kept), remove only the nested installation:
+
+```bash
+docker compose -f deploy/sandbox/compose.yaml exec sandbox bash -lc 'cd /demo/naruvi && docker compose down -v; rm -rf /demo/naruvi'
 ```
 
 Do not run a global Docker prune. Cleanup is scoped to the `naruvi-installer-sandbox` Compose project.

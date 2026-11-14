@@ -2,14 +2,13 @@
   "setup": {
     "complete": "You’re all set. Let’s go find something good.",
     "welcome": "Hi, I’m Naruvi. Let’s get you set up.",
-    "intro": "A few minutes, once. Everything stays on this computer, and you can change any of it later in Settings.",
+    "intro": "Three steps and you can start applying. Everything stays on this computer, and you can change any of it later in Settings.",
     "dashboard": "Go to your dashboard",
     "security": "Secure storage",
     "securityWhy": "API keys and mailbox passwords are encrypted with a key that only this computer has.",
     "runKey": "Run this once in the Naruvi folder, then restart Naruvi:",
     "model": "Connect an AI model",
     "modelWhy": "Choose a cloud provider, a gateway, or a local model. It’s what I use to check your fit, tailor your CV and draft your letters.",
-    "securityFirst": "Set up secure storage first, so your key can be saved encrypted.",
     "profile": "Your profile",
     "profileWhy": "I only write what your checked facts can back up. Start from what you already have.",
     "import": "Import",
@@ -21,7 +20,6 @@
     "verify": "Then verify the facts it found: only verified facts go into your documents.",
     "look": "Choose a look",
     "lookWhy": "One theme styles your CV and cover letter as a pair. Atlas is used until you pick one.",
-    "theme": "Pick a theme",
     "job": "Add your first job",
     "jobWhy": "Paste a link from any job board or careers page. Naruvi reads it, compares it with your profile and drafts your documents.",
     "addJob": "Add a job",
@@ -33,9 +31,79 @@
     "extension": "Browser extension",
     "extensionHint": "Save jobs and contacts from LinkedIn in one click",
     "done": "Done",
-    "next": "Next",
     "progress": "{done, number} of {total, number} done",
     "facts": "{count, plural, one {# verified fact} other {# verified facts}}",
-    "docker": "With Docker: <code>npm run settings:key -- .env</code>, then restart the containers. Back the key up: without it, saved keys must be entered again."
+    "docker": "With Docker: <code>npm run settings:key -- .env</code>, then restart the containers. Back the key up: without it, saved keys must be entered again.",
+    "skip": "Skip for now",
+    "skipHint": "Nothing here is mandatory. Skip any step and come back from Settings whenever you like.",
+    "lookChosen": "Look chosen",
+    "decision": "Add a decision model",
+    "decisionConnected": "Decision model connected",
+    "decisionHint": "Sharper requirement filtering, fit matching and claim checks",
+    "back": "Back",
+    "continue": "Continue",
+    "later": "Do this later",
+    "modelShort": "For analysis and writing",
+    "profileShort": "The facts I can cite",
+    "jobShort": "Paste a link"
+  },
+  "setupDecision": {
+    "title": "Recommended: add a decision model",
+    "optional": "Optional",
+    "connected": "Connected",
+    "intro": "A decision model answers narrow yes-or-no and which-one questions quickly and consistently. I keep using your AI model for writing, and without a decision model everything still works: your AI model or built-in rules make these calls instead.",
+    "gains": {
+      "requirements": {
+        "title": "Requirement filtering:",
+        "text": "keeps the real requirements of a posting and drops the boilerplate."
+      },
+      "matching": {
+        "title": "Fit matching:",
+        "text": "links each requirement to the facts in your profile that back it up."
+      },
+      "enrichment": {
+        "title": "Job enrichment:",
+        "text": "fills in seniority, contract type and remote policy on imported jobs."
+      },
+      "claims": {
+        "title": "Claim verification:",
+        "text": "checks that every claim in a draft is supported by a verified fact."
+      }
+    },
+    "source": "Where to get the model",
+    "sources": {
+      "openrouter": "OpenRouter",
+      "typesafe": "TypeSafe directly"
+    },
+    "how": {
+      "openrouter": "Jev, TypeSafe’s decision model, is available with any OpenRouter API key. No waitlist and no separate TypeSafe account.",
+      "typesafe": "Use a key from your own TypeSafe account."
+    },
+    "cost": {
+      "openrouter": "It is paid per use, not free: you pay a small amount per input token and nothing for the answers. OpenRouter gives new accounts a small allowance to try it.",
+      "typesafe": "Usage is billed to your TypeSafe account at TypeSafe’s prices."
+    },
+    "price": "See the current price",
+    "reuseHint": "Your AI model already uses OpenRouter. The same key works for Jev.",
+    "reuse": "Use my OpenRouter key",
+    "key": "API key",
+    "keyPlaceholder": "Paste your API key",
+    "keyHint": "I ask the model one test question, then save the key encrypted. If the test fails, nothing is saved.",
+    "getKey": {
+      "openrouter": "Create an OpenRouter key",
+      "typesafe": "Create a TypeSafe key"
+    },
+    "connect": "Test and save",
+    "success": "The decision model answered and the key is saved. It is used from your next fit check on.",
+    "notNow": "Not now",
+    "later": "You can add it any time in <link>Integrations</link>.",
+    "failed": {
+      "encryption": "Set up secure storage first (see the top of this page), so the key can be saved encrypted.",
+      "noKey": "Paste an API key first.",
+      "key": "The provider rejected this key. Copy it again from your account, check that it is complete, and retry. Nothing was saved.",
+      "credit": "The key works, but the account has no credit left. Add credit at the provider, then retry. Nothing was saved.",
+      "unreachable": "I couldn’t reach the provider. Check the internet connection of this computer and retry. Nothing was saved.",
+      "other": "The test didn’t pass, so nothing was saved. Try again in a moment."
+    }
   }
 }

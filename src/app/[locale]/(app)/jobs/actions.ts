@@ -36,13 +36,13 @@ export async function previewJobAction(raw: { url?: string; text?: string }): Pr
   }
 }
 
-export async function saveJobAction(draft: JobDraft): Promise<ActionResult<{ id: string; applicationId: string | null }>> {
+export async function saveJobAction(draft: JobDraft): Promise<ActionResult<{ id: string; applicationId: string | null; /** The fit check started on its own. */ checking: boolean }>> {
   try {
-    const { id, applicationId } = await saveAndTrackJob(draft)
+    const { id, applicationId, checking } = await saveAndTrackJob(draft)
     revalidatePath("/jobs")
     revalidatePath("/applications")
     revalidatePath("/")
-    return { ok: true, data: { id, applicationId } }
+    return { ok: true, data: { id, applicationId, checking } }
   } catch (error) {
     if (error instanceof z.ZodError) return { ok: false, error: error.issues.map((issue) => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; ") }
     return { ok: false, error: error instanceof Error ? error.message : String(error) }

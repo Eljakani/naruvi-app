@@ -9,6 +9,7 @@
   "noLanguageModelConfigured": "Aucun modèle de langage configuré. Ajoutez-en un dans Intégrations.",
   "invalidJob": "Offre invalide.",
   "couldntAnalyzeThisPosting": "Impossible d’analyser cette offre. Consultez les exécutions pour plus de détails.",
+  "fitCheckFailed": "La vérification ne s’est pas terminée. Réessayez ; le détail est dans le travail de Naruvi.",
   "invalidTags": "Étiquettes invalides.",
   "invalidLead": "Piste invalide.",
   "createYourProfileFirst": "Créez d’abord votre profil, puis suivez des offres.",

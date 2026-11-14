@@ -30,6 +30,19 @@ export function JobInsights({ jobId, insights }: { jobId: string; insights: Insi
       ] as const).filter(([, value]) => value !== "unspecified")
     : []
 
+  // Nothing summarized yet: one quiet line with the action, not an empty card.
+  if (!insights) {
+    return (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-dashed px-4 py-2.5 text-sm">
+        <span className="font-medium">{t("title")}</span>
+        <span className="text-muted-foreground">{t("notYet")}</span>
+        <Button size="sm" variant="ghost" className="ms-auto" onClick={refresh} disabled={pending} aria-label={t("refreshLabel")}>
+          {pending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />} {t("summarize")}
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>

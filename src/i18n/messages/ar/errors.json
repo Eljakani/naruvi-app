@@ -9,6 +9,7 @@
   "noLanguageModelConfigured": "لا يوجد نموذج لغوي مُعدّ. أضف واحدًا في التكاملات.",
   "invalidJob": "وظيفة غير صالحة.",
   "couldntAnalyzeThisPosting": "تعذّر تحليل هذا الإعلان. راجع سجل التشغيل للتفاصيل.",
+  "fitCheckFailed": "لم يكتمل التحقق من التوافق. حاول مجددًا؛ التفاصيل في عمل Naruvi.",
   "invalidTags": "وسوم غير صالحة.",
   "invalidLead": "فرصة غير صالحة.",
   "createYourProfileFirst": "أنشئ ملفك الشخصي أولًا، ثم تابع الوظائف.",

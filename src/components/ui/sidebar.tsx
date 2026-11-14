@@ -165,7 +165,10 @@ function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none"
 }) {
   const t = useTranslations("sidebar")
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { state, openMobile, setOpenMobile } = useSidebar()
+  // Read here, not from context: the provider has already switched to the phone value when a
+  // streamed sidebar hydrates, and that mismatch made React throw away the page's HTML.
+  const isMobile = useIsMobile()
 
   const direction = useDirection()
   const side = sideProp ?? ((dir ?? direction) === "rtl" ? "right" : "left")

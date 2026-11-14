@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getApplication } from "@/server/applications/repository"
 import { getLetterWorkspace } from "@/server/documents/service"
 import type { CompanyResearch as Research } from "@/server/research/brief"
+import { jobResearch } from "@/server/research/service"
 import { titled } from "@/i18n/metadata"
 
 export const generateMetadata = titled("letter")
@@ -40,7 +41,7 @@ async function Loader({ params, searchParams }: { params: Promise<{ id: string }
       language={language}
       decision={application.analysis?.coverLetter ?? null}
       jobId={application.job.id}
-      research={(application.job.company?.research ?? null) as unknown as Research | null}
+      research={(await jobResearch(application.job)) as Research | null}
       workspace={workspace}
       startDesign={await startDesign()}
       savedTemplates={templates.map(({ id, name, tokens }) => ({ id, name, tokens }))}

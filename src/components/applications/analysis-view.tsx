@@ -12,6 +12,7 @@ import {
   InfoIcon,
   CircleDashedIcon,
   CircleHelpIcon,
+  SignalIcon,
   XCircleIcon,
 } from "lucide-react"
 import { CompanyResearch } from "@/components/applications/company-research"
@@ -22,6 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import type { LevelCheck } from "@/lib/experience"
 import { displayFitScore, type RequirementMatch } from "@/server/analysis/match"
 import type { StoredAnalysis } from "@/server/applications/repository"
 import { useLocale, useTranslations } from "next-intl"
@@ -210,10 +212,12 @@ function FilterTabs({ value, onChange, options }: { value: Filter; onChange: (va
 
 type Filter = "all" | "attention" | "proven"
 
-export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /** The job misses the person's search goal: the skills verdict says so. */ offGoal?: boolean; /** Shown under the requirements, in the main column (fills the space beside the tall side column). */ footer?: React.ReactNode; analysis: StoredAnalysis; facts: FactRow[]; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null; researching?: boolean; logoPath?: string | null } }) {
+export function AnalysisView({ analysis, facts, research, footer, offGoal, level = null }: { /** The level the job asks for against the experience the profile shows; the score itself only compares skills. */ level?: LevelCheck | null; /** The job misses the person's search goal: the skills verdict says so. */ offGoal?: boolean; /** Shown under the requirements, in the main column (fills the space beside the tall side column). */ footer?: React.ReactNode; analysis: StoredAnalysis; facts: FactRow[]; research: { applicationId: string; jobId: string; company: string; language: string; initial: Research | null; researching?: boolean; logoPath?: string | null } }) {
   const locale = useLocale()
   const t = useTranslations("analysis")
   const counts = analysis.counts
+  // A posting can repeat a line (same heading twice): list each gap once, which also keeps the keys unique.
+  const mustGaps = [...new Set(analysis.mustGaps)]
   const needsWork = counts.partial + counts.gap + counts.judgement
   const [filter, setFilter] = useState<Filter>(needsWork && needsWork < analysis.requirements.length ? "attention" : "all")
   const pick = (next: Filter) => {
@@ -228,7 +232,7 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
   }, [analysis.requirements, filter])
   const score = displayFitScore(analysis)
   const reviewStatus = analysis.requirementFilter?.status
-  const verdict = t(score === null ? "verdict.none" : offGoal ? (score >= 50 ? "verdict.offGoalFit" : "verdict.offGoalStretch") : score >= 75 ? "verdict.strong" : score >= 50 ? "verdict.worth" : "verdict.stretch")
+  const verdict = t(score === null ? "verdict.none" : offGoal ? (score >= 50 ? "verdict.offGoalFit" : "verdict.offGoalStretch") : score >= 75 && level?.status === "reach" ? "verdict.strongLevel" : score >= 75 ? "verdict.strong" : score >= 50 ? "verdict.worth" : "verdict.stretch")
   const method = analysis.modelReview
     ? t("method.review", { reviewed: analysis.modelReview.reviewed, changed: analysis.modelReview.changed })
     : reviewStatus === "empty" ? t("method.skipped")
@@ -262,6 +266,20 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
                 </Popover>
               </div>
               <StatusBar counts={counts} onPick={pick} />
+              {level && level.status !== "ok" ? (
+                <p className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-2 text-xs leading-5 dark:border-amber-900 dark:bg-amber-950/20">
+                  <SignalIcon className="mt-0.5 size-3.5 shrink-0 text-amber-600" aria-hidden />
+                  <span>
+                    <span className="font-medium">{t("level.label")}.</span>{" "}
+                    {t(level.stated || !t.has(`level.seniority.${level.seniority}` as never) || !t(`level.seniority.${level.seniority}` as never) ? "level.stated" : "level.typical", {
+                      asked: level.yearsAsked,
+                      shown: new Intl.NumberFormat(locale, { style: "unit", unit: "year", unitDisplay: "long", maximumFractionDigits: 1 }).format(level.yearsShown),
+                      seniority: t.has(`level.seniority.${level.seniority}` as never) ? t(`level.seniority.${level.seniority}` as never) : "",
+                    })}{" "}
+                    <span className="text-muted-foreground">{t(`level.${level.status}`)}</span>
+                  </span>
+                </p>
+              ) : null}
             </div>
           </CardContent>
         </Card>
@@ -280,21 +298,21 @@ export function AnalysisView({ analysis, facts, research, footer, offGoal }: { /
           </CardContent>
         </Card>
 
-        {analysis.mustGaps.length ? (
+        {mustGaps.length ? (
           <Card className="gap-3 overflow-hidden border-rose-200/70 bg-gradient-to-b from-rose-50/70 to-transparent dark:border-rose-900/60 dark:from-rose-950/30">
             <CardHeader className="flex flex-row items-end gap-3">
               <Otter pose="careful" height={64} className="-mb-1 -ms-1 shrink-0" />
               <div className="grid min-w-0 gap-0.5">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   {t("dontClaim")}
-                  <span className="rounded-full bg-rose-100 px-1.5 text-[11px] font-medium text-rose-700 tabular-nums dark:bg-rose-950 dark:text-rose-300">{analysis.mustGaps.length}</span>
+                  <span className="rounded-full bg-rose-100 px-1.5 text-[11px] font-medium text-rose-700 tabular-nums dark:bg-rose-950 dark:text-rose-300">{mustGaps.length}</span>
                 </CardTitle>
                 <CardDescription className="text-xs">{t("dontClaimBody")}</CardDescription>
               </div>
             </CardHeader>
             <CardContent>
               <ul className="grid gap-1.5">
-                {analysis.mustGaps.map((gap) => (
+                {mustGaps.map((gap) => (
                   <li key={gap} className="flex items-start gap-2 rounded-md bg-background/80 px-2.5 py-2 text-sm leading-5 ring-1 ring-rose-200/60 dark:ring-rose-900/50">
                     <XCircleIcon className="mt-0.5 size-3.5 shrink-0 text-rose-500" /> <span className="line-clamp-3">{gap}</span>
                   </li>

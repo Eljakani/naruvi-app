@@ -12,7 +12,7 @@ export type Requirement = { id: string; text: string; kind: RequirementKind; sec
 const NICE = /nice to have|bonus|\bplus\b|preferred|desirable|ideally|un plus|appréci|souhait|optionnel|would be great/i
 const MUST = /require|qualification|looking for|what you bring|you (?:have|bring)|must|profil|expertise|compétences|skills|experience|about you|who you are|your background|ce que nous recherchons|vous (?:avez|êtes)|critical competencies|meet you if|ideal candidate|you are|you'll need|what we're looking for|nous recherchons|candidat idéal/i
 const RESPONSIBILITY = /you(?:'ll| will)|responsibilit|what you.?ll do|day[- ]to[- ]day|missions?|livrables|key tasks|the role|your role|in this role|tasks|vos missions|vous (?:serez|allez)|at .+ you will/i
-const SKIP = /benefit|offer|perks|avantages|salary|rémunération|diversity|inclusion|equal|about (?:us|the company)|à propos|who we are|process|interview|how to apply|location|our tech|why join|culture|life at/i
+const SKIP = /benefit|offer|perks|avantages|salary|rémunération|diversity|inclusion|equal|about (?:us|the company)|à propos|who we are|process|interview|how to apply|location|our tech|tech(?:nical)? stack|stack technique|notre stack|additional info|informations? complémentaires|why join|culture|life at/i
 
 function classify(heading: string): RequirementKind | null {
   if (!heading) return null
@@ -29,7 +29,7 @@ function years(text: string): number | null {
   return match ? Number(match[1]) : null
 }
 
-export type ExclusionCategory = "recruitment_process" | "benefits" | "company_information" | "application_instructions" | "other"
+export type ExclusionCategory = "recruitment_process" | "benefits" | "company_information" | "application_instructions" | "job_conditions" | "other"
 export type ExcludedRequirement = { requirement: Requirement; category: ExclusionCategory; reason: string; source: "rules" | "model" }
 export type RequirementExtraction = { candidates: Requirement[]; requirements: Requirement[]; excluded: ExcludedRequirement[] }
 
@@ -59,7 +59,20 @@ export function isEmployerPerk(text: string): boolean {
   return PERK.test(text) && !CANDIDATE_TERMS.test(text)
 }
 
+/**
+ * When, where or under what papers the job happens: start date, availability,
+ * work permit, relocation. A condition of the offer the person either accepts
+ * or not (their search goals check it); no fact proves or disproves it, so it
+ * must not count as a missing skill. Items that also name a skill are left alone.
+ */
+const CONDITION = /\b(?:start(?:ing)? date|date de (?:début|démarrage|prise de poste)|available (?:from|to start|immediately|as of)|availability|disponib(?:le|ilité)s?\b|(?:work|working) (?:authori[sz]ation|permit)|right to work|eligible to work|visa sponsorship|autorisation de travail|titre de séjour|permis de travail|willing(?:ness)? to (?:relocate|travel)|open to relocat|relocation|based in|located in|bas[ée]e?s? à|mobilité géographique|convention de stage|rythme d['’]alternance)\b/i
+
+export function isJobCondition(text: string): boolean {
+  return CONDITION.test(text) && keywordsIn(text).length === 0 && years(text) === null
+}
+
 const EXCLUDED_REASONS: Record<ExclusionCategory, string> = {
+  job_conditions: "A condition of the job (start date, availability, permit, place), not a skill to prove.",
   recruitment_process: "Describes the hiring or interview process, not a candidate requirement.",
   benefits: "Describes compensation or benefits offered by the employer.",
   company_information: "Describes the company rather than a candidate qualification or duty.",
@@ -116,13 +129,23 @@ export function extractRequirementCandidates(rawText: string): RequirementExtrac
       continue
     }
     if (block.type !== "list") continue
-    const listExclusion = sectionExclusion ?? (practices ? "company_information" : null)
+    const fromLead: ExclusionCategory | null = practices ? "company_information" : null
     practices = false
     for (const item of block.items) {
+      // "Notre stack technique comprend :" inside a list labels the items after it: a sub-heading, not a requirement.
+      if (LIST_LABEL.test(item)) {
+        const label = item.replace(/\s*:\s*$/, "")
+        heading = label
+        kind = classify(label) ?? kind
+        if (excludedSection(label)) sectionExclusion = excludedSection(label)
+        lead = item
+        continue
+      }
+      const listExclusion = sectionExclusion ?? fromLead
       const itemKind: RequirementKind = kind !== "responsibility" && /\b(a plus|un plus|bonus|nice to have|preferred|idéalement|appréci)/i.test(item) ? "nice" : kind ?? "must"
       const requirement: Requirement = { id: `r${candidates.length + 1}`, text: item, kind: itemKind, section: heading, keywords: keywordsIn(item), terms: termsIn(item), years: years(item), ...(lead ? { lead } : {}) }
       candidates.push(requirement)
-      const category = isRecruitmentStep(item) ? "recruitment_process" : isEmployerPerk(item) ? "benefits" : listExclusion
+      const category = isRecruitmentStep(item) ? "recruitment_process" : isEmployerPerk(item) ? "benefits" : isJobCondition(item) ? "job_conditions" : listExclusion
       if (category) excluded.push({ requirement, category, source: "rules", reason: EXCLUDED_REASONS[category] })
       else if (kind) preferred.push(requirement)
       else fallback.push(requirement)
@@ -133,6 +156,9 @@ export function extractRequirementCandidates(rawText: string): RequirementExtrac
   if (preferred.length) for (const requirement of fallback) excluded.push({ requirement, category: "other", source: "rules", reason: EXCLUDED_REASONS.other })
   return { candidates, requirements, excluded }
 }
+
+/** A short list line ending in a colon, with no sentence before it: it introduces the items that follow. */
+const LIST_LABEL = /^[^.!?:]{2,80}:\s*$/
 
 /** Salary, contract and place details: an offer sentence that also happens to mention experience. */
 const OFFER_NOISE = /\d\s*[kK]?\s*[€$£]|[€$£]\s*\d|\b(?:salaire|rémunération|salary|compensation|gehalt|salario|CDI|CDD|full[- ]time|part[- ]time|télétravail|remote)\b/i

@@ -194,7 +194,8 @@ export function parseJobDocument({ html = '', url = '', text = '' } = {}) {
   const location = ld?.location || linkedin.location || meta.location || ''
   const salary = ld?.salary || linkedin.salary || extractSalary(description) || ''
   const remote = ld?.remote || linkedin.remote || extractRemote(`${location} ${description}`)
-  const employmentType = ld?.employmentType || linkedin.employmentType || extractEmploymentType(description)
+  // The title says what the job is ("… Intern"); the text may mention another contract in passing ("a full-time start date").
+  const employmentType = ld?.employmentType || linkedin.employmentType || extractEmploymentType(role) || extractEmploymentType(description)
   const postedAt = ld?.postedAt || linkedin.postedAt || ''
   const language = ld?.language || detectLanguage(`${titleSource} ${description}`)
   const descriptionText = cleanJobText(description)
@@ -493,7 +494,15 @@ function parseTitleParts(raw) {
   if (at) return { role: cleanTitle(at[1]), company: cleanCompany(at[2]) }
   const hiring = title.match(/^(.+?)\s+(?:is\s+)?hiring\s+(?:an?|un|une)?\s*(.+)$/i)
   if (hiring) return { role: cleanTitle(hiring[2]), company: cleanCompany(hiring[1]) }
-  const dash = title.match(/^(.+?)\s*[-–|]\s*(.+)$/)
+  // "Role - Team | Company Careers": the pipe separates the site from the title; a dash before it belongs to the role.
+  const piped = title.split(/\s*\|\s*/).filter(Boolean)
+  if (piped.length >= 2) {
+    const first = cleanTitle(piped[0])
+    const last = cleanTitle(piped[piped.length - 1])
+    const roleFirst = ROLE_WORDS.test(first) || !ROLE_WORDS.test(last)
+    return { role: roleFirst ? first : last, company: cleanCompany(roleFirst ? last : first) }
+  }
+  const dash = title.match(/^(.+?)\s*[-–]\s*(.+)$/)
   if (dash) {
     const left = cleanTitle(dash[1])
     const right = cleanTitle(dash[2])

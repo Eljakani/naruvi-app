@@ -4,7 +4,7 @@ import { OtterEmpty } from "@/components/naruvi/otter"
 import { WebsiteDialog } from "@/components/companies/company-dialogs"
 import { PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
-import { useRef, useState, useTransition } from "react"
+import { useRef, useState, useTransition, type ReactNode } from "react"
 import { ChevronRightIcon, EllipsisIcon, FileUpIcon, UserPlusIcon, Loader2Icon, MailIcon, MailSearchIcon, PencilIcon, PlusIcon, SendIcon, TrashIcon } from "lucide-react"
 import { toast } from "sonner"
 import { deleteContactAction, findEmailAction, importContactsAction, saveContactAction, startSpontaneousAction } from "@/app/[locale]/(app)/contacts/actions"
@@ -51,7 +51,7 @@ function LinkedinIcon(props: { className?: string }) {
 }
 
 /** People to write to: recruiters, HR, managers, referrals. */
-export function ContactsView({ contacts, finder }: { contacts: ContactListItem[]; finder: boolean }) {
+export function ContactsView({ contacts, finder, search }: { contacts: ContactListItem[]; finder: boolean; search?: ReactNode }) {
   const t = useTranslations("contacts")
   const [editing, setEditing] = useState<Editable | null>(null)
   const [importing, setImporting] = useState(false)
@@ -73,8 +73,10 @@ export function ContactsView({ contacts, finder }: { contacts: ContactListItem[]
 
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button variant="outline" onClick={() => setImporting(true)}>
+      {/* Same toolbar as the other lists: search first, actions at the end. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {search}
+        <Button variant="outline" className="ms-auto" onClick={() => setImporting(true)}>
           <FileUpIcon /> {t("import")}
         </Button>
         <Button onClick={() => setEditing(BLANK)}>

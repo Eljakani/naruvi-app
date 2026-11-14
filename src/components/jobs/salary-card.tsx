@@ -109,7 +109,7 @@ export function SalaryCard({ context }: { context: SalaryContext }) {
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           <span>{t("checkOn")}</span>
           {[...context.links, ...(market ? [{ label: "Adzuna", url: market.url }] : [])].map((link) => (
-            <a key={link.label} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground">
+            <a key={link.label} href={link.url} target="_blank" rel="noreferrer" className="tap-target inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground">
               {link.label} <ExternalLinkIcon className="size-3" />
             </a>
           ))}

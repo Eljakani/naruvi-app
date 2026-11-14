@@ -9,6 +9,7 @@
     "noLanguageModelConfigured": "No language model configured. Add one in Integrations.",
     "invalidJob": "Invalid job.",
     "couldntAnalyzeThisPosting": "Couldn’t analyze this posting. See Runs for details.",
+    "fitCheckFailed": "The fit check didn’t finish. Try again; Naruvi’s work has the details.",
     "invalidTags": "Invalid tags.",
     "invalidLead": "Invalid lead.",
     "createYourProfileFirst": "Create your profile first, then track jobs.",

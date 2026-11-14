@@ -17,7 +17,7 @@ import { parseJobDocument, parseJobUrl } from "./vendor/job-parser"
 import { startRun } from "@/server/runs/tracer"
 import { completionForRun } from "@/server/llm/client"
 import { getLlmOverview } from "@/server/settings/llm"
-import { extractJobFields, JOB_FIELDS_PROMPT_VERSION } from "./ai-extract"
+import { extractJobFields, JOB_FIELDS_PROMPT_VERSION, postingHeader } from "./ai-extract"
 import { guessCompanySite, linkedInTopcard } from "./company-hints"
 import { decideContractAndRemote } from "./enrich"
 import { decisionClient } from "@/server/settings/decisions"
@@ -148,7 +148,7 @@ export async function previewJob(input: { url?: string; text?: string; html?: st
     // found verbatim in the posting are discarded, so the model cannot invent them.
     const needsAi = !url || job.confidence < 0.9 || !job.role || !job.company || !job.location
     const ai = needsAi && description.length >= 200 && (await getLlmOverview().catch(() => null))?.configured
-      ? await run.step("AI read key fields", () => extractJobFields(description, completionForRun(run, "job fields", JOB_FIELDS_PROMPT_VERSION)), (value) => `${Object.keys(value.fields).length - 1} grounded field(s) · ${value.model}`).catch(() => null)
+      ? await run.step("AI read key fields", () => extractJobFields(description, completionForRun(run, "job fields", JOB_FIELDS_PROMPT_VERSION), postingHeader(page?.html ?? "", description)), (value) => `${Object.keys(value.fields).length - 1} grounded field(s) · ${value.model}`).catch(() => null)
       : null
     if (ai) {
       const fill = (key: "role" | "company" | "location", hint: string) => {

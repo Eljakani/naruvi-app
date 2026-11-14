@@ -38,7 +38,7 @@ Other options: `--dir PATH` (default `~/.local/share/naruvi`), `--ref TAG` (defa
 
 **Local.** Nothing leaves your machine. You still sign in: other programs on the computer can reach the port. Don't forward the port to the internet; switch to Hosted instead.
 
-**Hosted.** Before installing, point the domain's A record (and AAAA, if the server has IPv6; a stale AAAA blocks certificates) at the server, and open inbound TCP 80 and 443 in your provider's firewall, if it has one. When the server's own firewall (ufw or firewalld) is on, the installer offers to open the two ports there; it asks for sudo right after you choose Hosted, and opens them once you confirm the install. Non-interactive installs opt in with `--yes --firewall`. A firewall that is off stays off. The installer checks DNS and warns if the ports are busy. Caddy issues and renews certificates and redirects HTTP to HTTPS. The app and database publish no host ports.
+**Hosted.** Before installing, point the domain's A record (and AAAA, if the server has IPv6; a stale AAAA blocks certificates) at the server, and open inbound TCP 80 and 443 in your provider's firewall, if it has one. When the server's own firewall (ufw or firewalld) is on, the installer offers to open the two ports there; it asks for sudo right after you choose Hosted, and opens them once you confirm the install. Non-interactive installs opt in with `--yes --firewall`. A firewall that is off stays off. The installer checks DNS, and stops before changing anything when port 80 or 443 is already taken (stop that web server, or use *Behind your proxy*). If DNS does not point at the server yet, the install still finishes: Naruvi keeps asking for the certificate and the address starts working once the record is right. Caddy issues and renews certificates and redirects HTTP to HTTPS. The app and database publish no host ports.
 
 **Behind your proxy.** Your proxy must terminate HTTPS for the domain you enter and forward to the app port. `NARUVI_URL` is set to `https://<domain>`, so sign-in only works through that address. Choose *On this host* when the proxy runs directly on the server. Choose *In Docker or on another host* to listen on all interfaces; Docker-published ports bypass host firewalls such as ufw, so restrict the port with your provider's firewall or Docker's `DOCKER-USER` chain. Naruvi does not trust forwarded client IP headers in this mode, so sign-in rate limits apply to all clients together, which is stricter rather than weaker.
 
@@ -57,7 +57,8 @@ The installer puts a `naruvi` command in the installation directory and offers t
 | `naruvi status` | Services, health and address |
 | `naruvi open` | Open Naruvi in the browser |
 | `naruvi logs [app\|worker\|db\|gateway]` | Follow logs |
-| `naruvi start` / `stop` / `restart` | Control the services |
+| `naruvi start` / `stop` / `restart` | Control the services; `start` applies database migrations first and confirms them |
+| `naruvi doctor` | Check settings, services, migrations, the address and DNS, with the fix for each problem |
 | `naruvi setup-link` | New private owner setup link (before an owner exists) |
 | `naruvi reset-password` | New owner password; signs out every session |
 | `naruvi backup` | Database, uploaded files and `.env` into `backups/<timestamp>` |
@@ -99,7 +100,23 @@ Base images are pinned by digest and npm packages by `package-lock.json`, so a r
 
 Installations from before signed releases get the new `naruvi` command from their own `source` folder once: `cp source/deploy/naruvi naruvi` after a `git -C source pull`, then `naruvi update`. Until a release key is in `trusted-signers`, updates need `--allow-unsigned`.
 
-Running the installer again on an existing installation changes nothing and points to `naruvi`. It also refuses a non-empty directory, so secrets are never regenerated for an existing database. One installer-managed stack runs per Docker engine (project `naruvi`).
+Running the installer again on a finished installation changes nothing: it says whether Naruvi is running and points to `naruvi`. An installation that was interrupted or failed (a closed terminal, a build error) is picked up where it stopped, with the same settings and secrets, when you run the installer again with the same directory. It refuses any other non-empty directory, and it stops when a database volume from an earlier installation (`naruvi_db-data`) is still on the Docker engine, so secrets are never regenerated for an existing database. One installer-managed stack runs per Docker engine (project `naruvi`).
+
+## When something is wrong
+
+Start with `naruvi doctor`. It checks each layer and prints the next step.
+
+| What you see | What to do |
+| --- | --- |
+| Docker missing, stopped, or `permission denied` | The installer offers to install or start it on Linux. Otherwise start Docker Desktop or `sudo systemctl start docker`; for permissions, `sudo usermod -aG docker $USER` and log in again. |
+| `Docker Compose v2 plugin missing` | Install the `docker-compose-plugin` package. The old `docker-compose` v1 command is not enough. |
+| `Port N is already in use` | Local and proxy: choose another port. Hosted: stop the web server on 80/443, or install with `--mode proxy` behind it. |
+| The install stopped half-way | Run the installer again with the same directory. |
+| `A Naruvi database from an earlier installation` | Put that installation's folder (or its `.env`) back and run its `naruvi start`. Only to start over: `docker volume rm naruvi_db-data naruvi_assets`, which deletes that data. |
+| `Setting problem in .env` | `SETTINGS_ENCRYPTION_KEY` (64 hex characters) and `POSTGRES_PASSWORD` must be the original values: copy them back from `backups/<timestamp>/env`. `NARUVI_URL` must be the exact address you open, such as `https://careers.example.com`, with no trailing slash. The database address is built from `POSTGRES_PASSWORD`; a `DATABASE_URL` line in `.env` is not used. |
+| `Database migrations failed` | The app is not started on an out-of-date database. The message includes the database's own error; after an update, `naruvi restore backups/<timestamp>` returns to the backup made before it. |
+| Hosted: the address does not answer | The app is running; the path to it is not. Point the A record at the server (remove a stale AAAA), open TCP 80 and 443 in the server's firewall and in your provider's, then `naruvi logs gateway`. The certificate follows by itself. |
+| Setup link expired, lost, or replaced by a restart | `naruvi setup-link` prints a new one while no owner exists. Afterwards it says so; use `naruvi reset-password` instead. |
 
 ## Owner setup and login
 
@@ -126,7 +143,7 @@ It asks twice for a hidden 16–128 character password and never accepts one as 
 
 ## Installer tests
 
-`bash -n install.sh deploy/naruvi` and `python3 tests/installer/test_install.py` exercise every mode in a pseudo-terminal with mocked Docker, Git and curl, plus file permissions, reruns and non-interactive use. They don't deploy real containers or request certificates.
+`bash -n install.sh deploy/naruvi` and `python3 tests/installer/test_install.py` exercise every mode in a pseudo-terminal with mocked Docker, Git and curl, plus file permissions, reruns, resuming an interrupted install, a leftover database volume, unapplied migrations, broken `.env` values and non-interactive use. They don't deploy real containers or request certificates.
 
 ## Browser authentication flow
 

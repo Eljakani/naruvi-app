@@ -1,8 +1,11 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeftIcon, CheckIcon, PaletteIcon } from "lucide-react"
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, PaletteIcon, SparklesIcon } from "lucide-react"
+import { AnimatePresence, motion } from "motion/react"
+import { languageModelReadyAction } from "@/app/[locale]/(app)/applications/[id]/cv/actions"
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/reui/alert"
 import { ApplicationNav } from "@/components/applications/application-nav"
 import { LanguageMenu, RegenerateButton } from "@/components/documents/document-shell"
 import { PdfThumb } from "@/components/templates/pdf-thumb"
@@ -50,6 +53,13 @@ export function DocumentStart({
   const stepText = useAiStepText()
   const [error, submit] = useActionState(async (_previous: string, data: FormData) => (await action(data)) ?? "", "")
   const base = `/applications/${applicationId}`
+  // null while checking: the button stays as it was, so a connected model never sees a flicker.
+  const [modelReady, setModelReady] = useState<boolean | null>(null)
+  useEffect(() => {
+    let live = true
+    languageModelReadyAction().then((ready) => { if (live) setModelReady(ready) }, () => {})
+    return () => { live = false }
+  }, [])
   return (
     <div className="-mx-4 -mt-4 flex h-[calc(100svh-3.5rem)] flex-col md:-mx-6 md:-mt-6">
       <div className="flex flex-wrap items-center gap-3 border-b bg-background px-4 py-2.5 md:px-6">
@@ -85,8 +95,26 @@ export function DocumentStart({
             <form action={submit} className="grid gap-2">
               <input type="hidden" name="applicationId" value={applicationId} />
               <input type="hidden" name="language" value={language} />
+              <AnimatePresence initial={false}>
+                {modelReady === false ? (
+                  <motion.div key="no-model" className="overflow-hidden" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
+                    <Alert variant="warning" role="status" className="mb-1">
+                      <SparklesIcon aria-hidden />
+                      <AlertTitle className="line-clamp-none">{t("noModelTitle")}</AlertTitle>
+                      <AlertDescription>{t("noModelText")}</AlertDescription>
+                      <AlertAction>
+                        <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/integrations#language-model" />}>
+                          {t("noModelAction")} <ArrowRightIcon className="rtl:rotate-180" />
+                        </Button>
+                      </AlertAction>
+                    </Alert>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
               {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-              <RegenerateButton label={label} steps={steps} variant="default" size="default" icon={icon} />
+              <fieldset disabled={modelReady === false} className="contents">
+                <RegenerateButton label={label} steps={steps} variant="default" size="default" icon={icon} />
+              </fieldset>
               <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <CheckIcon className="size-3.5" /> {kind === "letter" ? t("letterNote") : t("cvNote")}
               </p>
