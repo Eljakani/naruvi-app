@@ -6,6 +6,9 @@ Update an installation from a terminal with `naruvi update`.
 ## Unreleased
 
 ### Fixed
+- Fit check: questions in a posting are no longer counted as requirements. One that titles a section ("What do you bring?", "What will you do?", "What you'll get in return?") now sorts the lines under it into requirements, duties or benefits; before, the question could be kept and the real requirements dropped.
+- Fit check: accommodation and equal-opportunity notes ("Do you have specific needs or require adjustments during the recruitment process?") are never listed as missing from your profile.
+- Fit check: in a profile section written as prose, "You enjoy…" / "Vous savez…" sentences are picked up as requirements.
 - `curl … | bash` no longer stops silently partway through (after installing Docker, or right after "Reach the address"): the installer is read whole before it runs, so commands that read their input can't swallow the rest of it.
 - When the HTTPS certificate can't be issued, the installer and `naruvi doctor` show Let's Encrypt's own reason. A timeout while the server answers on port 80 itself is reported as a firewall in front of the server (provider, university or lab network), with what to open, or a tunnel when you can't.
 

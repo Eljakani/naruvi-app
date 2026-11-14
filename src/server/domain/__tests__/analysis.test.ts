@@ -174,3 +174,31 @@ test("a list line ending in a colon labels the items after it, it is not a requi
   const text = "Profil recherché\n- 3 ans d'expérience en DevOps\n- Maîtrise de Kubernetes\n- Notre Stack Technique Comprend:\n- CI/CD: GitLab, ArgoCD\n- Informations Complémentaires:\n- Organisation du travail pouvant inclure des jours de remote"
   assert.deepEqual(extractRequirements(text).map((item) => item.text), ["3 ans d'expérience en DevOps", "Maîtrise de Kubernetes"])
 })
+
+test("questions are never requirements: they title what follows or talk to the reader", () => {
+  const flat = "Your profile\nWhat do you bring?\nProven experience in DevSecOps, with a strong understanding of CI/CD environments.\nYou enjoy working closely with developers and can translate security concepts into practical solutions.\nProfessional proficiency in English and fluency in Dutch and/or French.\nDo you have specific needs or require adjustments during the recruitment process or once you are hired?\nLet us know, we are happy to help."
+  const kept = extractRequirements(flat).map((item) => item.text)
+  assert.ok(kept.some((text) => text.startsWith("Proven experience in DevSecOps")))
+  assert.ok(kept.some((text) => text.startsWith("You enjoy working closely")))
+  assert.ok(kept.some((text) => text.startsWith("Professional proficiency in English")))
+  assert.ok(!kept.some((text) => text.includes("?")), kept.join(" | "))
+  assert.ok(!kept.some((text) => /specific needs|Let us know/.test(text)))
+
+  // A question before a bullet list is the list's title: the bullets are the requirements, not the question.
+  const bullets = "What do you bring?\n- Proven experience in DevSecOps and CI/CD security automation.\n- Professional proficiency in English.\n- Do you have specific needs or require adjustments during the recruitment process?\n\nWhy join us?\n- A hybrid way of working\n- Are you ready for a new challenge?"
+  assert.deepEqual(extractRequirements(bullets).map((item) => item.text), ["Proven experience in DevSecOps and CI/CD security automation.", "Professional proficiency in English."])
+
+  // A question that says nothing about the section does not end it.
+  const aside = "Requirements\n- 3 years of experience with Kubernetes\n- Sounds like you?\n- Strong knowledge of Terraform"
+  assert.deepEqual(extractRequirements(aside).map((item) => item.text), ["3 years of experience with Kubernetes", "Strong knowledge of Terraform"])
+})
+
+test("accommodation and equal-opportunity notes are not requirements, real experience with them is", () => {
+  const text = "Requirements\n- We are an equal opportunity employer and welcome all applicants\n- Reasonable accommodations for candidates are available on request\n- Experience designing workplace accommodations programs with Python tooling"
+  assert.deepEqual(extractRequirements(text).map((item) => item.text), ["Experience designing workplace accommodations programs with Python tooling"])
+})
+
+test("sections titled with questions: duties, profile and benefits each land where they belong", () => {
+  const text = "What will you do?\n- Design and maintain automated security controls within CI/CD pipelines\n\nWhat do you bring?\n- Strong knowledge of AWS and Kubernetes\n\nWhat you’ll get in return?\n- Competitive compensation: attractive salary with a bonus\n- You play a key role in a company operating critical services"
+  assert.deepEqual(extractRequirements(text).map((item) => `${item.kind}: ${item.text}`), ["responsibility: Design and maintain automated security controls within CI/CD pipelines", "must: Strong knowledge of AWS and Kubernetes"])
+})
