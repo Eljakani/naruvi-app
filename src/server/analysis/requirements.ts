@@ -9,10 +9,10 @@ import { keywordsIn, termsIn } from "./keywords"
 export type RequirementKind = "must" | "nice" | "responsibility"
 export type Requirement = { id: string; text: string; kind: RequirementKind; section: string; keywords: string[]; terms?: string[]; years: number | null; /** The sentence just before a list ("Cela se traduit par exemple par :"), as context. */ lead?: string }
 
-const NICE = /nice to have|bonus|\bplus\b|preferred|desirable|ideally|un plus|appréci|souhait|optionnel|would be great/i
-const MUST = /require|qualification|looking for|what (?:do |will |can |should )?you (?:bring|need|have)|who are you|is this you|what (?:do |are )?we (?:expect|look(?:ing)? for|need)|qui êtes-vous|que recherchons-nous|you (?:have|bring)|must|profil|expertise|compétences|skills|experience|about you|who you are|your background|ce que nous recherchons|vous (?:avez|êtes)|critical competencies|meet you if|ideal candidate|you are|you'll need|what we're looking for|nous recherchons|candidat idéal/i
-const RESPONSIBILITY = /you(?:['’]ll| will)|what (?:will|do|would) you (?:do|be doing)|responsibilit|what you.?ll do|day[- ]to[- ]day|missions?|livrables|key tasks|the role|your role|in this role|tasks|vos missions|vous (?:serez|allez)|at .+ you will/i
-const SKIP = /benefit|offer|in return|you(?:['’]ll| will) (?:get|receive|enjoy)|what (?:do|will|can) you (?:get|expect)|what(?:['’]s| is) in it for|ce que vous y gagnez|perks|avantages|salary|rémunération|diversity|inclusion|equal|about (?:us|the company)|à propos|who we are|process|interview|how to apply|location|our tech|tech(?:nical)? stack|stack technique|notre stack|additional info|informations? complémentaires|why join|culture|life at/i
+const NICE = /nice to have|bonus|\bplus\b|preferred|desirable|ideally|un plus|appréci|souhait|optionnel|would be great|von vorteil|wünschenswert|idealerweise|nice-to-have|deseable|valorable|se valorar|gradit|preferibil|costituisce un plus|pluspunt|een pré|diferencial|desejável/i
+const MUST = /require|qualification|looking for|what (?:do |will |can |should )?you (?:bring|need|have)|who are you|is this you|what (?:do |are )?we (?:expect|look(?:ing)? for|need)|qui êtes-vous|que recherchons-nous|you (?:have|bring)|must|profil|expertise|compétences|skills|experience|about you|who you are|your background|ce que nous recherchons|vous (?:avez|êtes)|critical competencies|meet you if|ideal candidate|you are|you'll need|what we're looking for|nous recherchons|candidat idéal|anforderung|ihr profil|dein profil|bringst du mit|bringen sie mit|voraussetzung|qualifikation|kenntnisse|requisit|perfil|buscamos|lo que buscamos|competenze|cerchiamo|profilo|vereist|wat (?:wij vragen|breng je mee|vragen wij)|profiel|o que procuramos|procuramos/i
+const RESPONSIBILITY = /you(?:['’]ll| will)|what (?:will|do|would) you (?:do|be doing)|responsibilit|what you.?ll do|day[- ]to[- ]day|missions?|livrables|key tasks|the role|your role|in this role|tasks|vos missions|vous (?:serez|allez)|at .+ you will|aufgaben|tätigkeit|responsabilidad|funciones|tus tareas|qué harás|mansioni|responsabilità|cosa farai|(?:jouw|je) taken|werkzaamheden|wat ga je doen|atividades|o que (?:você )?(?:vai|irá) fazer/i
+const SKIP = /benefit|offer|in return|you(?:['’]ll| will) (?:get|receive|enjoy)|what (?:do|will|can) you (?:get|expect)|what(?:['’]s| is) in it for|ce que vous y gagnez|perks|avantages|salary|rémunération|diversity|inclusion|equal|about (?:us|the company)|à propos|who we are|process|interview|how to apply|location|our tech|tech(?:nical)? stack|stack technique|notre stack|additional info|informations? complémentaires|why join|culture|life at|wir bieten|was wir bieten|über uns|beneficio|ofrecemos|sobre nosotros|offriamo|chi siamo|wij bieden|over ons|oferecemos|benefícios|sobre nós/i
 
 function classify(heading: string): RequirementKind | null {
   if (!heading) return null
@@ -25,11 +25,11 @@ function classify(heading: string): RequirementKind | null {
 
 function years(text: string): number | null {
   // "3-5+ years" → 3 (the minimum is the requirement), "5+ years" → 5.
-  const match = text.match(/(\d{1,2})\s*\+?\s*(?:(?:-|–|to|à)\s*\d{1,2}\s*\+?\s*)?(?:years?|yrs|ans|années)/i)
+  const match = text.match(/(\d{1,2})\s*\+?\s*(?:(?:-|–|to|à)\s*\d{1,2}\s*\+?\s*)?(?:years?|yrs|ans|années|jahre?n?|años|anni|anos|jaar)/i)
   return match ? Number(match[1]) : null
 }
 
-export type ExclusionCategory = "recruitment_process" | "benefits" | "company_information" | "application_instructions" | "job_conditions" | "other"
+export type ExclusionCategory = "recruitment_process" | "benefits" | "company_information" | "application_instructions" | "job_conditions" | "vague" | "other"
 export type ExcludedRequirement = { requirement: Requirement; category: ExclusionCategory; reason: string; source: "rules" | "model" }
 export type RequirementExtraction = { candidates: Requirement[]; requirements: Requirement[]; excluded: ExcludedRequirement[] }
 
@@ -37,6 +37,7 @@ function excludedSection(heading: string): ExclusionCategory | null {
   if (/(?:recruitment|hiring|interview) (?:process|steps|stages|experience)|how (?:we|to) (?:hire|apply)|(?:processus|process|étapes?|déroulement).*(?:recrutement|entretien|candidature)|^(?:interviews?|entretiens?)$/i.test(heading)) return "recruitment_process"
   if (/in return|what (?:you(?:['’]ll| will)|do you|will you|can you) (?:get|receive|expect)|ce que vous y gagnez/i.test(heading)) return "benefits"
   if (/^(?:benefits?|perks|avantages|salary|rémunération|what we offer|ce que nous (?:offrons|proposons)|ce qu['’]on (?:vous )?(?:offre|propose)|nos avantages|les \+|les plus|pourquoi (?:nous )?rejoindre|why (?:join|work)|what['’]s in it for you|life at|la vie (?:chez|à|au)|vie d['’]équipe|team life|on vous offre|we offer)/i.test(heading)) return "benefits"
+  if (/^(?:(?:was )?wir bieten|(?:qué |lo que )?ofrecemos|beneficios|(?:cosa )?offriamo|(?:wat )?wij bieden|(?:o que )?oferecemos|benefícios)/i.test(heading)) return "benefits"
   if (/^(?:about (?:us|the company)|à propos|who we are|our company|qui sommes-nous)/i.test(heading)) return "company_information"
   if (/^(?:how to apply|apply now|comment postuler|pour postuler|modalités de candidature|interested\b|intéressée?s?\b|ready to (?:apply|join)|convinced\b|want to join|envie de (?:nous rejoindre|postuler))/i.test(heading)) return "application_instructions"
   if (isHiringNote(heading)) return "recruitment_process"
@@ -85,10 +86,30 @@ export function isHiringNote(text: string): boolean {
   return HIRING_NOTE.test(text) && keywordsIn(text).length === 0 && years(text) === null && !/exp[ée]rience|knowledge|connaissance|ma[iî]tris|proficien/i.test(text)
 }
 
+/**
+ * Words that describe a mood or a personality, not something a CV can show
+ * ("Passionate and curious", "Team player", "Good vibes only", "Eager to learn").
+ * A line made only of these (and small words) is too vague to check.
+ */
+const TRAIT_WORDS = new Set(("passion passionate passionné passionnée passionnés motivated motivation motivé motivée motivés curious curiosity curieux curieuse dynamic dynamique enthusiastic enthusiasm enthousiaste energetic energy énergie positive positif positive attitude mindset état d'esprit rockstar rockstars ninja ninjas guru awesome amazing great cool fun funny smile smiling sourire souriant souriante humour humor sense sens good bonne bon vibes vibe hungry driven ambitious ambition ambitieux ambitieuse team player players spirit esprit équipe love eager keen genuine friendly nice happy humble open-minded ouvert ouverte can-do go-getter self-starter proactive proactif proactive yourself toi-même learn learning apprendre envie heart cœur coeur smart grit hustle hard-working hardworking hard worker worker excited exciting passioné bienveillant bienveillante sympa motiviert neugierig teamfähig teamplayer leidenschaft motivado motivada apasionado apasionada curioso curiosa motivato motivata appassionato appassionata gemotiveerd enthousiast nieuwsgierig").split(" "))
+const FILLER_WORDS = new Set("a an the and or & of for to with be is are you your who what do have has being who's one d de du des et ou un une le la les l être avoir avec pour qui à en un ein eine und mit y con el la un una e il lo di per en een het van met zijn only always very really truly real vrai vraie vrais vraies true bit lot little".split(" "))
+const FILLER_LINE = /^(?:etc\.?|and (?:much |so )?more|and so on|you name it|more to come|et (?:bien )?(?:plus|d['’]autres)(?: encore)?|y más|und vieles mehr|e molto altro|en meer|\.{3}|…)[.!…]*$/i
+
+/** A line too vague for any evidence to prove or disprove: filler, or personality words only. */
+export function isVagueLine(text: string): boolean {
+  const clean = text.trim().replace(/[!.…]+$/, "")
+  if (FILLER_LINE.test(clean) || !/\p{L}/u.test(clean)) return true
+  if (keywordsIn(text).length || years(text) !== null) return false
+  const words = clean.toLowerCase().split(/[^\p{L}'’-]+/u).map((word) => word.replace(/^[-'’]+|[-'’]+$/g, "")).filter(Boolean)
+  if (!words.length || words.length > 8) return false
+  const traits = words.filter((word) => TRAIT_WORDS.has(word))
+  return traits.length > 0 && words.every((word) => TRAIT_WORDS.has(word) || FILLER_WORDS.has(word))
+}
+
 /** A question is never a requirement: it titles what follows ("What do you bring?") or talks to the reader ("Ready to apply?"). */
 const isQuestion = (text: string) => /\?\s*["”»)]?\s*$/.test(text)
 /** A person described in the second person ("You enjoy working with developers"), the way profile sections are written. */
-const CANDIDATE_VOICE = /^(?:you(?:['’]re)?|vous|tu)\b(?!\s+(?:will|['’]ll|get|receive|benefit|bénéficie|aurez|serez|allez))/i
+const CANDIDATE_VOICE = /^(?:you(?:['’]re)?|vous|tu|du|sie|usted|lei|você|je|jij)\b(?!\s+(?:will|['’]ll|get|receive|benefit|bénéficie|aurez|serez|allez))/i
 
 const EXCLUDED_REASONS: Record<ExclusionCategory, string> = {
   job_conditions: "A condition of the job (start date, availability, permit, place), not a skill to prove.",
@@ -96,6 +117,7 @@ const EXCLUDED_REASONS: Record<ExclusionCategory, string> = {
   benefits: "Describes compensation or benefits offered by the employer.",
   company_information: "Describes the company rather than a candidate qualification or duty.",
   application_instructions: "Explains how to apply rather than what the candidate needs to demonstrate.",
+  vague: "Too vague to check: a personality trait or filler, not a skill, experience or duty.",
   other: "Outside a recognized requirements or responsibilities section.",
 }
 
@@ -110,7 +132,7 @@ const INTRODUCES_PRACTICES = /(?:se traduit (?:notamment |concrètement )?par(?:
  * ("Côté compétences, vous maîtrisez GitLab et AWS.", "You have 5+ years of
  * experience with Go"). Lists are not the only place postings put requirements.
  */
-const REQUIREMENT_SENTENCE = /\b(?:vous ma[iî]trisez|vous (?:avez|possédez|disposez d['’]) (?:une |un |de l['’]|des |d['’])?(?:bonne |solide |excellente |réelle |première )?(?:connaissance|expérience|maîtrise|expertise|pratique)|(?:maîtrise|connaissance (?:avancée |approfondie )?) (?:de|d['’]|du|des)|\d+\s*\+?\s*(?:ans|années) d['’]expérience|you (?:have|bring|know|are fluent|master)\b|(?:hands-on |strong |solid |proven )?experience (?:with|in|using|of)|\d+\s*\+?\s*years? of (?:professional |relevant )?experience|proficien(?:t|cy) (?:in|with)|knowledge of|(?:is |are )?(?:required|a must)|must have|sie (?:haben|verfügen über|beherrschen)|(?:erfahrung|kenntnisse) (?:mit|in|im)|experiencia (?:en|con)|años de experiencia|conocimientos? de)/i
+const REQUIREMENT_SENTENCE = /\b(?:vous ma[iî]trisez|vous (?:avez|possédez|disposez d['’]) (?:une |un |de l['’]|des |d['’])?(?:bonne |solide |excellente |réelle |première )?(?:connaissance|expérience|maîtrise|expertise|pratique)|(?:maîtrise|connaissance (?:avancée |approfondie )?) (?:de|d['’]|du|des)|\d+\s*\+?\s*(?:ans|années) d['’]expérience|you (?:have|bring|know|are fluent|master)\b|(?:hands-on |strong |solid |proven )?experience (?:with|in|using|of)|\d+\s*\+?\s*years? of (?:professional |relevant )?experience|proficien(?:t|cy) (?:in|with)|knowledge of|(?:is |are )?(?:required|a must)|must have|sie (?:haben|verfügen über|beherrschen)|(?:erfahrung|kenntnisse) (?:mit|in|im)|experiencia (?:en|con)|años de experiencia|conocimientos? de|du (?:hast|bringst|kennst|beherrschst)|esperienza (?:in|con|di|nel|nella)|conoscenz[ae] (?:di|del|della|dei)|anni di esperienza|experiência (?:em|com)|conhecimentos? (?:de|em)|anos de experiência|ervaring (?:met|in|als)|kennis van|jaar (?:werk)?ervaring)/i
 
 const sentences = (text: string) => text.split(/(?<=[.!?])\s+(?=\p{Lu})/u).map((sentence) => sentence.trim()).filter(Boolean)
 
@@ -148,15 +170,26 @@ export function extractRequirementCandidates(rawText: string): RequirementExtrac
         enter(block.text)
         continue
       }
+      // A short title line left as a paragraph ("Requirements" with only bare lines after it) still starts a section.
+      const title = block.text.replace(/:$/, "")
+      if (title.split(/\s+/).length <= 5 && !/[.!;,]$/.test(title) && keywordsIn(title).length === 0 && years(title) === null && (classify(title) || excludedSection(title))) {
+        enter(title)
+        continue
+      }
       practices = INTRODUCES_PRACTICES.test(block.text)
       lead = (sentences(block.text).at(-1) ?? "").slice(0, 200)
       if (sectionExclusion) continue
+      const single = sentences(block.text).length === 1
       for (const sentence of sentences(block.text)) {
         if (isQuestion(sentence) || isHiringNote(sentence) || sentence.length > 400) continue
         // In a profile section, "You enjoy…" describes the candidate even without the usual wording.
         const profileVoice = (kind === "must" || kind === "nice") && sentence.length >= 30 && CANDIDATE_VOICE.test(sentence) && !isEmployerPerk(sentence) && !isJobCondition(sentence)
-        if (!REQUIREMENT_SENTENCE.test(sentence) && !profileVoice) continue
-        const requirement: Requirement = { id: `r${candidates.length + 1}`, text: sentence, kind: NICE.test(sentence) || kind === "nice" ? "nice" : "must", section: heading, keywords: keywordsIn(sentence), terms: termsIn(sentence), years: years(sentence) }
+        // A short line on its own in a requirements or duties section ("Python", "Fluent English") is an item written without a bullet.
+        const shortItem = kind !== null && single && sentence.length <= 160 && !/:$/.test(sentence) && !isEmployerPerk(sentence) && !isJobCondition(sentence) && !isVagueLine(sentence)
+        if (!REQUIREMENT_SENTENCE.test(sentence) && !profileVoice && !shortItem) continue
+        if (isVagueLine(sentence)) continue
+        const sentenceKind: RequirementKind = kind === "responsibility" && !REQUIREMENT_SENTENCE.test(sentence) ? "responsibility" : NICE.test(sentence) || kind === "nice" ? "nice" : "must"
+        const requirement: Requirement = { id: `r${candidates.length + 1}`, text: sentence, kind: sentenceKind, section: heading, keywords: keywordsIn(sentence), terms: termsIn(sentence), years: years(sentence) }
         candidates.push(requirement)
         preferred.push(requirement)
       }
@@ -181,10 +214,10 @@ export function extractRequirementCandidates(rawText: string): RequirementExtrac
         continue
       }
       const listExclusion = sectionExclusion ?? fromLead
-      const itemKind: RequirementKind = kind !== "responsibility" && /\b(a plus|un plus|bonus|nice to have|preferred|idéalement|appréci)/i.test(item) ? "nice" : kind ?? "must"
+      const itemKind: RequirementKind = kind !== "responsibility" && /\b(a plus|un plus|bonus|nice to have|preferred|idéalement|appréci|von vorteil|wünschenswert|idealerweise|deseable|valorable|se valorar|gradit|un plus|pluspunt|desejável)/i.test(item) ? "nice" : kind ?? "must"
       const requirement: Requirement = { id: `r${candidates.length + 1}`, text: item, kind: itemKind, section: heading, keywords: keywordsIn(item), terms: termsIn(item), years: years(item), ...(lead ? { lead } : {}) }
       candidates.push(requirement)
-      const category = isRecruitmentStep(item) || isHiringNote(item) ? "recruitment_process" : isEmployerPerk(item) ? "benefits" : isJobCondition(item) ? "job_conditions" : listExclusion
+      const category = isRecruitmentStep(item) || isHiringNote(item) ? "recruitment_process" : isEmployerPerk(item) ? "benefits" : isJobCondition(item) ? "job_conditions" : isVagueLine(item) ? "vague" : listExclusion
       if (category) excluded.push({ requirement, category, source: "rules", reason: EXCLUDED_REASONS[category] })
       else if (kind) preferred.push(requirement)
       else fallback.push(requirement)
