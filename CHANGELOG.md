@@ -3,7 +3,33 @@
 Each release is a signed Git tag `vX.Y.Z` with a GitHub release of the same name.
 Update an installation from a terminal with `naruvi update`.
 
-## Unreleased
+## 0.5.0 — 2026-11-14
+
+### Added
+- Pages that run an AI step say so before you click when no language model is connected, with a link to connect one.
+- The fit check compares the level a job asks for with the experience your profile shows, not only the skills.
+- A fit check that is running or failed stays visible on the application page, with a way to retry and to open its trace.
+- The setup guide checks the decision model's key with one question before saving it; an OpenRouter key saved for the language model can be reused.
+- `naruvi doctor` checks settings, services, database migrations, the address and DNS, and says what to fix.
+- An installation that was interrupted or failed is picked up where it stopped when you run the installer again, with the same secrets.
+
+### Changed
+- Applications board: on phones the stages stack and empty ones are hidden; on desktop empty stages take a narrow lane, so the board no longer scrolls sideways.
+- Integrations that are off fold to one line with a **Set up** button.
+- Lists share one toolbar layout: search first, actions at the end (Applications, Contacts).
+- Without search goals, job rows only flag a clear location mismatch; an unsure check becomes a hint to set goals.
+- The application page drops empty boxes ("At a glance" before a summary, "not run" on the fit tab); document hints wrap instead of being cut.
+- On phones, job rows keep their status, and small controls (tags, goal links, salary links, the bell) get a finger-sized tap area.
+
+### Fixed
+- Pages no longer re-render from scratch at phone width (a hydration mismatch in the sidebar).
+- Requirement extraction no longer counts list lines such as "Notre stack technique comprend :" or "Informations complémentaires :" as requirements, nor the lines under them.
+- Job-alert digests and newsletters that name a company you applied to are no longer matched to that application.
+- Reinstalling after deleting the installation folder no longer generates new secrets for the old database (which then refused to start): the installer stops and says how to keep or delete that data.
+- Hosted installs stop before changing anything when port 80 or 443 is taken, instead of failing later with a Docker error.
+- `naruvi start`, `update`, `restore` and the installer confirm that every database migration is applied before reporting success. A failed migration now shows the database's own error; before, it failed without a reason.
+- A missing or malformed `SETTINGS_ENCRYPTION_KEY`, `POSTGRES_PASSWORD` or `NARUVI_URL` in `.env` is explained with the fix. `naruvi setup-link` says when Naruvi is stopped or an owner already exists.
+- The installer tells "the app is down" apart from "the address is not reachable yet" (DNS, firewall), and names what uses a busy port when the system can tell.
 
 ## 0.4.2 — 2026-11-13
 
