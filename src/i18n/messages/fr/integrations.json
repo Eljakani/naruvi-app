@@ -2,6 +2,7 @@
  "integrations": {
   "title": "Intégrations",
   "description": "Connectez Naruvi à des modèles d’IA, à votre messagerie, à votre agenda et à d’autres outils.",
+  "fold": {"off": "Désactivé", "setUp": "Configurer", "setUpLabel": "Configurer {name}"},
   "nav": {
    "llm": "Modèle de langage",
    "decision": "Modèle de décision",

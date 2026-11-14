@@ -27,6 +27,54 @@ set_setting() { # key value: replace or add one line of .env, keeping it private
   chmod 600 "$tmp"; mv "$tmp" .env
 }
 
+# Settings Naruvi can't start without. Every message says how to put it right.
+check_env() {
+  local bad=0 key file files
+  problem() { printf '  %sSetting problem%s in %s/.env: %s\n' "$red" "$reset" "$root" "$1" >&2; shift; local line; for line in "$@"; do printf '    %s\n' "$line" >&2; done; bad=1; }
+  key=$(setting SETTINGS_ENCRYPTION_KEY)
+  if [[ -z $key ]]; then
+    problem 'SETTINGS_ENCRYPTION_KEY is missing.' \
+      'It decrypts your saved API keys and passwords. Copy the line back from a backup (backups/<timestamp>/env).' \
+      'Lost for good? Add a new one (openssl rand -hex 32), then enter your API keys again in Settings.'
+  elif [[ ! $key =~ ^[0-9a-fA-F]{64}$ ]]; then
+    problem 'SETTINGS_ENCRYPTION_KEY must be 64 hex characters (32 random bytes).' \
+      'Copy the original line back from a backup (backups/<timestamp>/env); a changed key cannot decrypt saved credentials.'
+  fi
+  [[ -n $(setting POSTGRES_PASSWORD) ]] || problem 'POSTGRES_PASSWORD is missing.' \
+    'The database was created with it. Copy the line back from a backup (backups/<timestamp>/env).'
+  if [[ ! $url =~ ^https?://[^/[:space:]]+$ ]]; then
+    problem "NARUVI_URL is \"$url\"; it must be the exact address you open in the browser, without a trailing slash." \
+      'Examples: NARUVI_URL=http://localhost:3000 or NARUVI_URL=https://careers.example.com. Sign-in only works through that address.' \
+      'Then run: naruvi start'
+  fi
+  case $mode in
+    local|proxy|'') ;;
+    hosted) [[ -n $(setting NARUVI_DOMAIN) ]] || problem 'NARUVI_DOMAIN is missing.' "Add NARUVI_DOMAIN=${url#*://} (the hostname of NARUVI_URL), then run: naruvi start";;
+    *) problem "NARUVI_MODE is \"$mode\"; it must be local, hosted or proxy.";;
+  esac
+  files=$(setting COMPOSE_FILE)
+  if [[ -z $files || -z $(setting NARUVI_IMAGE) ]]; then
+    # Installations from before published images build straight from compose.yaml and have neither.
+    grep -qs '^ *build:' compose.yaml || problem 'COMPOSE_FILE or NARUVI_IMAGE is missing: the installation did not finish.' \
+      'Run the installer again with the same directory; it picks up where it stopped.'
+  fi
+  for file in ${files//:/ }; do
+    [[ -f $file ]] || problem "COMPOSE_FILE names $file, which is not in $root." "Copy it back: cp source/deploy/$file $file"
+  done
+  [[ $bad == 0 ]] || exit 1
+}
+
+need_docker() {
+  command -v docker >/dev/null || { say "${red}Docker is not installed${reset} (or not on PATH). See https://docs.docker.com/get-started/get-docker/"; exit 1; }
+  docker info >/dev/null 2>&1 && return 0
+  say "${red}Docker is not running, or this user may not use it.${reset}"
+  say "Start it (Linux: sudo systemctl start docker · macOS and Windows: open Docker Desktop), then try again."
+  say "Permission denied? Add yourself to the docker group (sudo usermod -aG docker \$USER) and log in again."
+  exit 1
+}
+running() { [[ -n $(compose ps -q --status running "$1" 2>/dev/null) ]]; }
+need_app() { running app || { say "${red}Naruvi is not running.${reset} Start it with: naruvi start   (if it does not stay up: naruvi doctor)"; exit 1; }; }
+
 # Published images are built by this repository's release workflow and signed
 # keylessly with its identity. One is used only if that signature was made for
 # the release tag, at the commit the signed tag points to.
@@ -87,6 +135,109 @@ healthy() { # the app answers from inside its container, whatever the mode
     sleep 3
   done
   return 1
+}
+
+# Migrations shipped in the running image against those recorded in the database. Prints "applied/shipped".
+migrations() {
+  local shipped applied
+  shipped=$(compose exec -T app node -e "console.log(require('./src/server/db/migrations/meta/_journal.json').entries.length)" 2>/dev/null | tr -d '[:space:]')
+  applied=$(compose exec -T db psql -U naruvi -d naruvi -Atc 'SELECT count(*) FROM drizzle.__drizzle_migrations' 2>/dev/null | tr -d '[:space:]')
+  printf '%s/%s\n' "${applied:-0}" "${shipped:-?}"
+  # An image whose migration list can't be read is not treated as a failure: migrate itself already succeeded.
+  [[ ! $shipped =~ ^[0-9]+$ || ${applied:-0} -ge $shipped ]]
+}
+
+# Why the stack is not up, from the containers themselves, with the next step for each known cause.
+diagnose() {
+  local text errors
+  text=$(compose logs --no-color --tail=40 migrate app 2>&1 || true)
+  # drizzle-kit exits 1 without saying why; the database's own log has the reason.
+  errors=$(compose logs --no-color --tail=60 db 2>/dev/null | grep -E 'ERROR|FATAL' | tail -n 3 | sed 's/^[^|]*| *//' || true)
+  if grep -q 'password authentication failed' <<< "$text$errors"; then
+    say "${red}The database rejects POSTGRES_PASSWORD from .env.${reset} Its volume was created with another password."
+    say "Put the original line back (from backups/<timestamp>/env or the earlier installation's .env), then: naruvi start"
+  elif grep -q 'SETTINGS_ENCRYPTION_KEY' <<< "$text"; then
+    say "${red}The app rejects SETTINGS_ENCRYPTION_KEY.${reset} It must be the original 64 hex characters (backups/<timestamp>/env)."
+  elif [[ -n $(compose ps -aq migrate 2>/dev/null) && $(docker inspect --format '{{.State.ExitCode}}' "$(compose ps -aq migrate | head -n1)" 2>/dev/null) != 0 ]]; then
+    say "${red}Database migrations failed${reset}, so the app was not started. Your data is untouched."
+    [[ -z $errors ]] || { say "The database reported:"; sed 's/^/      /' <<< "$errors"; }
+    say "After an update: naruvi restore backups/<timestamp> puts back the backup made before it. More: naruvi logs db"
+  elif grep -qiE 'address already in use|port is already allocated' <<< "$text$(cat "${1:-/dev/null}" 2>/dev/null)"; then
+    say "${red}A port Naruvi needs is taken by another program.${reset} Free it, or change NARUVI_PORT (and the port in NARUVI_URL) in .env, then: naruvi start"
+  else
+    say "Look at the logs for the reason: naruvi logs app   ·   naruvi doctor checks everything."
+  fi
+}
+
+# Start (or update) every service. Migrations run first, as a dependency of the app and worker, and are
+# confirmed afterwards; a start that fails says why.
+up() {
+  local output status=0 count
+  output=$(mktemp "$root/.up.XXXXXX")
+  compose up -d "$@" > "$output" 2>&1 || status=$?
+  if [[ $status == 0 ]] && healthy; then
+    if ! count=$(migrations); then
+      # Should not happen (the app waits for migrate), but an out-of-date schema fails silently later.
+      compose run --rm -T migrate >> "$output" 2>&1 && count=$(migrations) \
+        || { rm -f "$output"; say "${red}Database migrations are not applied${reset} ($count). See: naruvi logs migrate"; return 1; }
+      compose restart app worker >/dev/null 2>&1 || true
+    fi
+    rm -f "$output" "$root/.installing"
+    return 0
+  fi
+  tail -n 12 "$output" | sed 's/^/    /' >&2
+  diagnose "$output" >&2
+  rm -f "$output"
+  return 1
+}
+
+# Everything a broken or unreachable installation is usually missing, each with its next step.
+doctor() {
+  local failed=0 count code addresses owner port
+  row() { printf '  %s%-2s%s %-22s %s\n' "$( [[ $1 == ok ]] && echo "$green" || echo "$red")" "$( [[ $1 == ok ]] && echo ok || echo '!!')" "$reset" "$2" "$3"; [[ $1 == ok ]] || failed=1; }
+  hint() { printf '     %s%s%s\n' "$dim" "$1" "$reset"; }
+  printf '\n  %sNaruvi doctor%s  %s  %s(%s)%s\n\n' "$bold" "$reset" "$url" "$dim" "$mode" "$reset"
+  row ok 'Settings' "$root/.env"
+  row ok 'Docker' "$(docker version --format '{{.Server.Version}}' 2>/dev/null)"
+  if running db; then row ok 'Database' 'running'; else row bad 'Database' 'not running'; hint 'naruvi start'; fi
+  if running app; then
+    row ok 'App' 'running'
+    if count=$(migrations); then row ok 'Migrations' "$count applied"
+    else row bad 'Migrations' "$count applied"; hint 'naruvi start applies them; the reason for a failure is in: naruvi logs migrate'; fi
+    if compose exec -T app node -e "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.status<500?0:1),()=>process.exit(1))" 2>/dev/null; then row ok 'App answers' 'inside its container'
+    else row bad 'App answers' 'no answer inside its container'; hint 'naruvi logs app'; fi
+  else
+    row bad 'App' 'not running'; diagnose | sed 's/^  /   /'
+  fi
+  if running worker; then row ok 'Worker' 'running'; else row bad 'Worker' 'not running'; hint 'naruvi logs worker'; fi
+  if [[ $mode == hosted ]]; then
+    if running gateway; then row ok 'HTTPS gateway' 'running'; else row bad 'HTTPS gateway' 'not running'; hint 'naruvi logs gateway  (are ports 80 and 443 free on this server?)'; fi
+    addresses=$(getent ahosts "$(setting NARUVI_DOMAIN)" 2>/dev/null | awk '{print $1}' | sort -u | tr '\n' ' ' || true)
+    if [[ -n ${addresses// /} ]]; then row ok 'DNS' "$(setting NARUVI_DOMAIN) → ${addresses% }"; hint 'It must be the public address of this server.'
+    elif command -v getent >/dev/null; then row bad 'DNS' "$(setting NARUVI_DOMAIN) does not resolve"; hint 'Add an A record (and AAAA only if the server has IPv6) pointing at this server. Certificates follow within minutes.'; fi
+  fi
+  if command -v curl >/dev/null && running app; then
+    port=$(setting NARUVI_PORT)
+    code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 8 "$url/login" 2>/dev/null || true)
+    if [[ $code =~ ^[23] ]]; then row ok 'Address' "$url answers"
+    elif [[ $mode == proxy ]]; then
+      row bad 'Address' "$url does not answer from here (${code:-000})"
+      hint "Your proxy must serve https://${url#*://} and forward to http://$(setting NARUVI_BIND):$port"
+    elif [[ $mode == hosted ]]; then
+      row bad 'Address' "$url does not answer from here (${code:-000})"
+      hint 'Check that DNS points at this server and that TCP 80 and 443 are open: in this server'"'"'s firewall'
+      hint '(sudo ufw allow 80,443/tcp) and in your provider'"'"'s firewall or security group. Then: naruvi logs gateway'
+    else
+      row bad 'Address' "$url does not answer (${code:-000})"; hint "Is another program using port $port? Change NARUVI_PORT and NARUVI_URL in .env together, then: naruvi start"
+    fi
+  fi
+  if running db; then
+    owner=$(compose exec -T db psql -U naruvi -d naruvi -Atc 'SELECT count(*) FROM naruvi_owner' 2>/dev/null | tr -d '[:space:]' || true)
+    if [[ $owner == 1 ]]; then row ok 'Owner account' 'created'; hint 'Forgot the password? naruvi reset-password'
+    else printf '  %s--%s %-22s %s\n' "$dim" "$reset" 'Owner account' 'not created yet'; hint 'Get a fresh private link (valid 1 hour): naruvi setup-link'; fi
+  fi
+  echo
+  return $failed
 }
 
 # Release tags are signed vX.Y.Z tags, checked against ./trusted-signers (copied once at install).
@@ -164,7 +315,7 @@ update() {
     set_setting NARUVI_IMAGE "$new_image"
   fi
   say "Migrating and restarting"
-  if compose up -d >/dev/null 2>&1 && healthy; then
+  if up >/dev/null 2>&1; then
     cmp -s source/deploy/naruvi "$root/naruvi" || { cp source/deploy/naruvi "$root/naruvi.new" && chmod 700 "$root/naruvi.new" && mv "$root/naruvi.new" "$root/naruvi"; }
     for file in compose.yaml "$mode.yaml"; do
       cmp -s "source/deploy/$file" "$file" || say "${dim}Note: source/deploy/$file changed. Review it before copying over $file.${reset}"
@@ -180,7 +331,7 @@ update() {
   git -C source checkout --quiet --detach "$previous"; readable
   [[ -z $previous_image ]] || set_setting NARUVI_IMAGE "$previous_image"
   for image in $images; do docker image tag "$image-previous" "$image" 2>/dev/null || true; done
-  compose up -d >/dev/null 2>&1 && healthy \
+  up >/dev/null 2>&1 \
     && say "${green}Rolled back.${reset} Naruvi $current is running with the database from before the update." \
     || say "${red}Rollback did not come up either.${reset} Your backup is in $dir. Run: naruvi logs app"
   exit 1
@@ -209,17 +360,21 @@ use_images() {
   set_setting COMPOSE_FILE "$compose_files"
   set_setting NARUVI_IMAGE "$image"
   say "Restarting on the published image"
-  if compose up -d >/dev/null 2>&1 && healthy; then
+  if up >/dev/null 2>&1; then
     say "${green}Done.${reset} Naruvi $version now runs $image. Updates download it instead of building."
     say "${dim}Your previous compose.yaml and .env are kept as compose.yaml.before-images and .env.before-images.${reset}"
     return 0
   fi
   say "${red}It did not start on the published image.${reset} Putting the previous setup back."
   mv compose.yaml.before-images compose.yaml; mv .env.before-images .env
-  compose up -d >/dev/null 2>&1 && healthy && say "Back on the source build. See: naruvi logs app" || say "${red}Still not up.${reset} Run: naruvi logs app"
+  up >/dev/null 2>&1 && say "Back on the source build. See: naruvi logs app" || say "${red}Still not up.${reset} Run: naruvi logs app"
   exit 1
 }
 
+case ${1:-help} in
+  help|--help|-h|uninstall|compose|release-image) ;;
+  *) need_docker; check_env;;
+esac
 case ${1:-help} in
   status)
     printf '\n  %sNaruvi%s  %s  %s(%s)%s\n\n' "$bold" "$reset" "$url" "$dim" "$mode" "$reset"
@@ -228,13 +383,25 @@ case ${1:-help} in
   open)
     if command -v xdg-open >/dev/null; then xdg-open "$url"; elif command -v open >/dev/null; then open "$url"; else say "$url"; fi;;
   logs) shift; compose logs -f --tail=200 "$@";;
-  start) compose up -d; say "Running at $url";;
+  start)
+    say "Starting Naruvi (database migrations run first)"
+    up || exit 1
+    say "${green}Running${reset} at $url";;
+  doctor) doctor;;
+  wait-ready) up;; # used by the installer: started, migrated and answering, or the reason why not
   stop) compose stop;;
   restart) compose restart app worker;;
   setup-link)
-    value=$(link) || exit $?
+    need_app
+    status=0; value=$(link 2>/dev/null) || status=$?
+    if [[ $status == 2 ]]; then
+      say "This workspace already has an owner, so no new setup link is issued."
+      say "Sign in at $url, or set a new password with: naruvi reset-password"; exit 2
+    elif [[ $status != 0 || -z $value ]]; then
+      say "${red}Could not create a setup link.${reset} The app may still be starting; check with: naruvi doctor"; exit 1
+    fi
     printf '\n  Create your owner account (one-time, expires in 1 hour):\n\n  %s%s%s\n\n  %sKeep it private. Earlier setup links no longer work.%s\n\n' "$bold" "$value" "$reset" "$dim" "$reset";;
-  reset-password) compose exec app npm run --silent auth:reset-password;;
+  reset-password) need_app; compose exec app npm run --silent auth:reset-password;;
   backup) backup;;
   update) shift; update "$@";;
   use-images) use_images;;
@@ -246,14 +413,18 @@ case ${1:-help} in
     compose stop app worker
     restore_db "$2"
     [[ ! -f $2/assets.tar.gz ]] || gunzip -c "$2/assets.tar.gz" | compose run --rm -T --no-deps --entrypoint tar app -C /app/data -xf -
-    compose up -d
+    # An older backup lacks newer tables: migrations run again before the app starts.
+    up || exit 1
     say "${green}Restored.${reset} $url";;
   version)
     printf '  Naruvi %s%s%s %s\n' "$bold" "$(installed_version)" "$reset" "$dim$(git -C source rev-parse --short HEAD 2>/dev/null)$reset"
     update --check;;
   rebuild)
-    building || { say "This installation runs the published image; there is nothing to build. Restarting."; compose up -d; exit 0; }
-    compose up -d --build;;
+    building || { say "This installation runs the published image; there is nothing to build. Restarting."; up; exit $?; }
+    say "Building from ./source, then migrating and restarting"
+    compose build || exit 1
+    up || exit 1
+    say "${green}Running${reset} at $url";;
   uninstall)
     say "This stops and removes Naruvi's containers. Your data volumes and $root are kept."
     say "To also delete all data, run: docker compose down -v   (from $root, after a backup)"
@@ -272,6 +443,7 @@ case ${1:-help} in
   ${bold}open${reset}              open Naruvi in your browser
   ${bold}logs${reset} [service]    follow logs (app, worker, db, gateway)
   ${bold}start | stop | restart${reset}
+  ${bold}doctor${reset}            check settings, services, migrations, address and DNS; says what to fix
   ${bold}setup-link${reset}        new private link to create the owner account
   ${bold}reset-password${reset}    set a new owner password (signs out every session)
   ${bold}backup${reset}            database, uploaded files and keys into ./backups

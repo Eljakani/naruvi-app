@@ -127,3 +127,25 @@ test("a known recruiter's display name needs both role and application context",
   assert.equal(matchMessage(message, [candidate])?.applicationId, "brisk")
   assert.equal(matchMessage({ ...message, subject: "Dinner tomorrow?" }, [candidate]), null)
 })
+
+test("job-alert digests and newsletters never match by what they mention", () => {
+  const digest = msg({
+    fromAddress: "jobalerts-noreply@linkedin.com", fromName: "LinkedIn Job Alerts", subject: "Acme is hiring: Software Engineer",
+    text: "Your job alert\nStaff Product Security Engineer\nDashlane\nParis\nView job: https://www.linkedin.com/comm/jobs/view/4489582011/?trk=x\nSoftware Engineer\nAcme\nView job: https://www.linkedin.com/comm/jobs/view/4474181400/",
+  })
+  assert.equal(matchMessage(digest, apps), null)
+  // A sponsor advertising your exact role inside a newsletter is still a newsletter.
+  const newsletter = msg({ fromAddress: "weekly@substack.com", fromName: "Systems Weekly", subject: "How code review scales", text: "Sponsor: Dashlane is hiring a Staff Product Security Engineer. Thanks for applying your curiosity each week." })
+  assert.equal(matchMessage(newsletter, apps), null)
+  const listed = msg({ fromAddress: "news@dashlane.com", subject: "Dashlane product update", text: "What's new at Dashlane this month.", bulk: true })
+  assert.equal(matchMessage(listed, apps), null, "marketing from the company itself")
+  const manyLinks = msg({ fromAddress: "someone@example.org", subject: "Roles at Dashlane", text: "https://www.linkedin.com/jobs/view/1000001/ https://www.linkedin.com/jobs/view/1000002/ https://www.linkedin.com/jobs/view/1000003/ Dashlane" })
+  assert.equal(matchMessage(manyLinks, apps), null, "three postings in one email is a digest")
+})
+
+test("a confirmation sent through a list, and a reply in a thread, still match", () => {
+  const ack = msg({ fromAddress: "no-reply@dashlane.com", subject: "Thank you for your application to Dashlane", text: "We received your application for Staff Product Security Engineer.", bulk: true })
+  assert.equal(matchMessage(ack, apps)?.applicationId, "dash-staff")
+  const threaded = msg({ fromAddress: "weekly@substack.com", inReplyTo: "<sent-1@naruvi>", bulk: true })
+  assert.equal(matchMessage(threaded, apps)?.applicationId, "dash-staff")
+})

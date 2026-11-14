@@ -53,7 +53,7 @@
   "cvNote": "N’utilise que vos faits vérifiés. Vous pouvez tout modifier ensuite.",
   "lookLike": "Il ressemblera à ceci ({name}). Le contenu est adapté à ce poste.",
   "change": "Changer"
- },
+ ,"noModelTitle":"Connectez d’abord un modèle d’IA","noModelText":"La rédaction a besoin d’un modèle de langage. Cela prend une minute dans les intégrations, puis revenez ici.","noModelAction":"Connecter un modèle"},
  "pdfPreview": {
   "page": "Page {current} sur {total}",
   "budget": "limite {count}",

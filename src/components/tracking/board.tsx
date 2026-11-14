@@ -69,13 +69,14 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
     })
 
   return (
-    <div className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-6 md:px-6">
-      <div className="grid auto-cols-[minmax(15rem,1fr)] grid-flow-col gap-3">
+    // Phones stack the stages and skip the empty ones; desktops give empty stages a narrow lane.
+    <div className="pb-2 md:-mx-6 md:overflow-x-auto md:px-6">
+      <div className="flex flex-col gap-3 md:flex-row">
         {COLUMNS.map((column) => {
           const cards = optimistic.filter((item) => columnOf(item.status) === column.id)
           if (column.id === "closed" && closedHref && !dragging) {
             return (
-              <Link key={column.id} href={closedHref} className="flex min-h-64 flex-col items-center justify-center gap-1 rounded-xl border border-dashed p-3 text-center text-sm text-muted-foreground hover:bg-muted/40">
+              <Link key={column.id} href={closedHref} className="flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed p-3 text-center text-sm text-muted-foreground hover:bg-muted/40 md:min-h-64 md:w-36 md:shrink-0">
                 <ArchiveIcon className="size-4" />
                 <span className="font-medium text-foreground">{tl(`column.${column.id}`)}</span>
                 <span className="text-xs">{cards.length ? t("count", { count: cards.length }) : t("none")}</span>
@@ -99,7 +100,7 @@ export function Board({ items, closedHref }: { items: BoardItem[]; closedHref?: 
                 const item = optimistic.find((entry) => entry.id === id)
                 if (item) move(id, statusForColumn(item.status, column.id))
               }}
-              className={cn("flex min-h-64 flex-col gap-2 rounded-xl bg-muted/50 p-2 transition-colors", over === column.id && "bg-muted")}
+              className={cn("flex flex-col gap-2 rounded-xl bg-muted/50 p-2 transition-colors md:min-h-64", cards.length || dragging ? "md:min-w-60 md:flex-1" : "max-md:hidden md:w-36 md:shrink-0", over === column.id && "bg-muted")}
             >
               <header className="flex items-center justify-between px-1.5 py-1">
                 <h2 className="text-sm font-medium">{tl(`column.${column.id}`)}</h2>

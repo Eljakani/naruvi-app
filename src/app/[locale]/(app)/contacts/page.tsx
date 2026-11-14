@@ -30,9 +30,6 @@ async function Contacts({ searchParams }: { searchParams: Promise<Record<string,
   const t = await getTranslations("contacts")
   const [rows, finder] = await Promise.all([listContacts(typeof q === "string" ? q.slice(0, 200) : undefined), emailFinderStatus()])
   return (
-    <div className="grid gap-3">
-      <SearchBox placeholder={t("search")} />
-      <ContactsView contacts={rows} finder={finder.configured} />
-    </div>
+    <ContactsView contacts={rows} finder={finder.configured} search={<SearchBox placeholder={t("search")} />} />
   )
 }

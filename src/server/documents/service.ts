@@ -1,4 +1,5 @@
 import "server-only"
+import { jobResearch } from "@/server/research/service"
 import type { DesignTokens } from "@/lib/design"
 import { advanceAutomatically } from "@/server/tracking/service"
 import { decisionClient } from "@/server/settings/decisions"
@@ -228,6 +229,8 @@ export async function generateLetter(applicationId: string, language?: string, a
 async function draftLetter(run: Awaited<ReturnType<typeof startRun>>, application: NonNullable<Awaited<ReturnType<typeof getApplication>>>, content: LetterDocument, instruction = "") {
   const profile = await getProfile()
   const availability = profile ? availabilityFor(profile.goals, { ...application.job, insights: application.job.insights as GoalJob["insights"] }) : null
+  // Only what applies to this posting: the company's research may quote another of its jobs.
+  const research = await jobResearch(application.job)
   return run.step("AI draft personal letter", () => enrichLetter(content, {
     availability: availability ?? undefined,
     title: application.job.title,
@@ -235,7 +238,7 @@ async function draftLetter(run: Awaited<ReturnType<typeof startRun>>, applicatio
     description: application.job.rawText,
     contract: (application.job.insights as { contract?: string } | null)?.contract,
     programme: (application.job.insights as { programme?: { duration: string; start: string; rhythm: string } } | null)?.programme,
-  }, researchSources(application.job.company?.research), completionForRun(run, "cover-letter drafting", LETTER_PROMPT_VERSION), instruction),
+  }, researchSources(research), completionForRun(run, "cover-letter drafting", LETTER_PROMPT_VERSION), instruction),
   (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} changes`)
 }
 

@@ -189,6 +189,17 @@ const STATUS_CRITERIA = {
   judgement: "A soft skill or trait facts cannot prove (communication, curiosity, team spirit).",
 }
 
+const MET_CONFIDENCE = 0.7
+const MET_SUPPORT = 0.6
+
+/** The rule note explained the rule status; once the status changes it would contradict what is shown. */
+function decidedNote(status: RequirementMatch["status"], match: RequirementMatch) {
+  if (status === "met") return ""
+  if (status === "gap") return "Nothing in your verified facts backs this. Don't claim it."
+  if (status === "partial") return match.missing.length ? `No fact mentions ${match.missing.join(", ")}.` : "Related facts, but they don't fully cover this."
+  return "Not something facts can prove. Decide yourself whether it fits."
+}
+
 /**
  * Per requirement: a status choice and a choice of the single best supporting
  * fact over the whole catalog (or none). Facts with ≥ 0.15 probability are
@@ -227,11 +238,14 @@ export async function decideMatches(
       : []
     let next = status.choice as RequirementMatch["status"]
     if ((next === "met" || next === "partial") && !cited.length) next = match.status === "met" ? "met" : "gap"
+    // The model leans towards "met": raising a rule result to proven takes a confident answer and facts that carry it.
+    const support = fact?.type === "choice" ? 1 - (fact.probabilities.none ?? 0) : 0
+    if (next === "met" && match.status !== "met" && (status.confidence < MET_CONFIDENCE || support < MET_SUPPORT)) next = "partial"
     if (match.status === "met" && next === "gap") next = "partial"
     const factIds = cited.length ? cited : next === "gap" ? [] : match.factIds
     if (next === match.status && factIds.join() === match.factIds.join()) return match
     changed += 1
-    return { ...match, status: next, factIds, source: "model" as const, note: match.note }
+    return { ...match, status: next, factIds, source: "model" as const, note: next === match.status ? match.note : decidedNote(next, match) }
   })
   return { matches: next, reviewed, changed, model: result.model }
 }

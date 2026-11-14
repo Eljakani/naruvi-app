@@ -2,6 +2,7 @@
  "integrations": {
   "title": "Integrations",
   "description": "Connect Naruvi to AI models, your mailbox, calendar and other tools.",
+  "fold": {"off": "Off", "setUp": "Set up", "setUpLabel": "Set up {name}"},
   "nav": {
    "llm": "Language model",
    "decision": "Decision model",

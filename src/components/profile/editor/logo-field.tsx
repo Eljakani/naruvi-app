@@ -13,7 +13,7 @@ import { useTranslations } from "next-intl"
 
 type Stored = { path: string; width: number | null; height: number | null; warning: string | null }
 
-export function LogoField({ value, name, onChange }: { value: string | null; name: string; onChange: (path: string | null) => void }) {
+export function LogoField({ value, name, onChange, hint }: { value: string | null; name: string; onChange: (path: string | null) => void; /** Where the logo shows, when that isn't a CV entry. */ hint?: string }) {
   const t = useTranslations("logoField")
   const input = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
@@ -68,7 +68,7 @@ export function LogoField({ value, name, onChange }: { value: string | null; nam
           ) : null}
         </div>
         <div className="grid flex-1 gap-2">
-          <p className="text-sm text-muted-foreground">{value ? t("shown") : t("drop")}</p>
+          <p className="text-sm text-muted-foreground">{value ? hint ?? t("shown") : t("drop")}</p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => input.current?.click()} disabled={pending}>
               <ImageUpIcon /> {value ? t("replace") : t("upload")}

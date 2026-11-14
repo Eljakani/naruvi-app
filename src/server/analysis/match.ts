@@ -165,6 +165,26 @@ function matchKeywords(requirement: Requirement, facts: Indexed[]): RequirementM
 
 const ACADEMIC = new Set(["education", "certification"])
 
+const ATTITUDE = /^(?:bonus\s*:\s*)?(?:you(?:['’]re| are)\s+(?:excited|eager|passionate|motivated|curious|driven|enthusiastic|keen)\b|you\s+(?:care|want|love|enjoy|thrive|believe|like|value|share)\b|(?:a |an |strong |genuine |real )?(?:passion|enthusiasm|curiosity|appetite|eagerness|desire|willingness)\b|vous\s+(?:aimez|souhaitez|avez envie|partagez|êtes\s+(?:passionn|motiv|curieu|enthousias))|(?:une? |forte? )?(?:passion|envie|goût|appétence|curiosité)\b)/i
+const AMBITION = /\b(?:grow with (?:the|our) (?:company|team)|have an impact|make an impact|évoluer avec (?:l['’]entreprise|nous))\b/i
+const PROVABLE = /\b(?:experience|expérience|years?|ans|années|proficien|ma[iî]tris|degree|dipl[ôo]m|certif|track record|demonstrated|proven)\b/i
+
+/**
+ * A wish or an attitude ("You care about simple designs", "You're excited
+ * about…", "grow with the company"): something only the person can say, which
+ * no fact proves or disproves. Sentences that also ask for experience are not.
+ */
+export function isAttitude(text: string): boolean {
+  const value = text.trim()
+  return (ATTITUDE.test(value) || AMBITION.test(value)) && !PROVABLE.test(value)
+}
+
+/** Attitudes are the person's call: out of the score, with the related facts kept as talking material. */
+export function settleAttitude(match: RequirementMatch): RequirementMatch {
+  if (!isAttitude(match.text) || match.status === "judgement") return match
+  return { ...match, status: "judgement", note: "A motivation, not a skill: facts can't prove it. Speak to it in your letter or interview." }
+}
+
 const WEIGHT: Record<Requirement["kind"], number> = { must: 1, responsibility: 0.6, nice: 0.4 }
 const VALUE: Record<Exclude<MatchStatus, "judgement">, number> = { met: 1, partial: 0.5, gap: 0 }
 

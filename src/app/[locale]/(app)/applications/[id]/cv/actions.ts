@@ -96,3 +96,8 @@ export async function reviseCvAction(applicationId: string, draft: unknown, requ
     return { ok: false as const, error: error instanceof Error ? error.message : "The revision failed." }
   }
 }
+
+/** Whether a language model is connected, so the CV and letter start screens can say so before the first click. */
+export async function languageModelReadyAction() {
+  return Boolean((await getLlmOverview().catch(() => null))?.configured)
+}

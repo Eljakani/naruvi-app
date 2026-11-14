@@ -1,3 +1,4 @@
+import { SetupFold } from "@/components/settings/setup-fold"
 import { Suspense } from "react"
 import { headers } from "next/headers"
 import { connection } from "next/server"
@@ -68,30 +69,35 @@ async function Integrations() {
     { id: "api", label: t("nav.api"), icon: <PuzzleIcon />, status: keys.length > 0 },
     { id: "export", label: t("nav.export"), icon: <SheetIcon />, status: null },
   ]
+  // Off integrations fold to one line; on ones (and those with no on/off state) stay open.
+  const fold = (id: string, card: React.ReactNode) => {
+    const item = items.find((entry) => entry.id === id)!
+    return <SetupFold key={id} id={id} label={item.label} icon={item.icon} off={item.status === false}>{card}</SetupFold>
+  }
   return (
     <SectionLayout nav={<SectionNav label={t("title")} items={items} />}>
       <OAuthResult />
       <SettingsSection id="ai" title={t("sections.ai.title")} description={t("sections.ai.description")}>
-        <div id="language-model" className="scroll-mt-6"><ModelSettings initial={llm} /></div>
-        <div id="decision-model" className="scroll-mt-6"><DecisionSettings initial={decisions} /></div>
-        <div id="dictation" className="scroll-mt-6"><DictationSettings speech={speech} /></div>
+        {fold("language-model", <ModelSettings initial={llm} />)}
+        {fold("decision-model", <DecisionSettings initial={decisions} />)}
+        {fold("dictation", <DictationSettings speech={speech} />)}
       </SettingsSection>
       <SettingsSection id="stay-in-touch" title={t("sections.mail.title")} description={t("sections.mail.description")}>
-        <div id="email" className="scroll-mt-6"><MailSettings overview={mail} reply={reply} oauth={oauth} origin={origin} /></div>
-        <div id="calendar" className="scroll-mt-6"><CalendarSettings token={token} events={upcoming} origin={origin} /></div>
-        <div id="notifications" className="scroll-mt-6"><NotificationSettings overview={notifications} /></div>
+        {fold("email", <MailSettings overview={mail} reply={reply} oauth={oauth} origin={origin} />)}
+        {fold("calendar", <CalendarSettings token={token} events={upcoming} origin={origin} />)}
+        {fold("notifications", <NotificationSettings overview={notifications} />)}
       </SettingsSection>
       <SettingsSection id="people-tools" title={t("sections.people.title")} description={t("sections.people.description")}>
-        <div id="email-finder" className="scroll-mt-6"><EmailFinderSettings configured={finder.configured} /></div>
+        {fold("email-finder", <EmailFinderSettings configured={finder.configured} />)}
       </SettingsSection>
       <SettingsSection id="research-data" title={t("sections.research.title")} description={t("sections.research.description")}>
-        <div id="company-facts" className="scroll-mt-6"><CompanyFactsSettings enabled={factsOn} /></div>
-        <div id="salary-data" className="scroll-mt-6"><SalaryDataSettings configured={salary.configured} appId={salary.appId} /></div>
+        {fold("company-facts", <CompanyFactsSettings enabled={factsOn} />)}
+        {fold("salary-data", <SalaryDataSettings configured={salary.configured} appId={salary.appId} />)}
       </SettingsSection>
       <SettingsSection id="connect" title={t("sections.connect.title")} description={t("sections.connect.description")}>
-        <div id="job-discovery" className="scroll-mt-6"><ApifySettings status={apify} /></div>
-        <div id="api" className="scroll-mt-6"><ApiSettings keys={keys} origin={origin} folder={process.cwd()} /></div>
-        <div id="export" className="scroll-mt-6"><ExportSettings /></div>
+        {fold("job-discovery", <ApifySettings status={apify} />)}
+        {fold("api", <ApiSettings keys={keys} origin={origin} folder={process.cwd()} />)}
+        {fold("export", <ExportSettings />)}
       </SettingsSection>
     </SectionLayout>
   )

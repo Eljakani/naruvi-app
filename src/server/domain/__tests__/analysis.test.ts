@@ -169,3 +169,8 @@ test("a French fact meets an English requirement through its translation", () =>
   assert.equal(matchRequirement(requirement, indexFacts([french])).status, "met")
   assert.notEqual(matchRequirement(requirement, indexFacts([plain])).status, "met")
 })
+
+test("a list line ending in a colon labels the items after it, it is not a requirement", () => {
+  const text = "Profil recherché\n- 3 ans d'expérience en DevOps\n- Maîtrise de Kubernetes\n- Notre Stack Technique Comprend:\n- CI/CD: GitLab, ArgoCD\n- Informations Complémentaires:\n- Organisation du travail pouvant inclure des jours de remote"
+  assert.deepEqual(extractRequirements(text).map((item) => item.text), ["3 ans d'expérience en DevOps", "Maîtrise de Kubernetes"])
+})

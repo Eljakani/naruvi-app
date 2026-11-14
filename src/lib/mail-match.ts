@@ -5,9 +5,10 @@
  * Anything that does not match is ignored and never stored.
  */
 import { titleWords } from "./similar"
+import { ALERT_SENDERS, canonicalJobUrl } from "./job-alerts"
 import { ruleKind } from "./mail-classify"
 
-export type MatchMessage = { fromAddress: string; fromName: string; subject: string; text: string; inReplyTo?: string | null; references?: string[]; toAddresses?: string[] }
+export type MatchMessage = { fromAddress: string; fromName: string; subject: string; text: string; inReplyTo?: string | null; references?: string[]; toAddresses?: string[]; /** Sent to a list (List-Id, List-Unsubscribe or Precedence: bulk headers). */ bulk?: boolean }
 export type MatchCandidate = { applicationId: string; company: string; website: string | null; title: string; sentMessageIds: string[]; active: boolean; updatedAt: number; contactEmails?: string[]; contactNames?: string[] }
 export type Match = { applicationId: string; reason: string; confidence: number }
 
@@ -96,6 +97,35 @@ function nearCompany(text: string, company: string): boolean {
   return words.some((_, index) => nearName(words.slice(index, index + count).join(""), name))
 }
 
+const NEWSLETTER_HOSTS = ["substack.com", "beehiiv.com", "mailchimp.com", "mailchimpapp.net", "convertkit.com", "kit.com", "ghost.io", "medium.com", "buttondown.email", "buttondown.com", "sendfox.com", "revue.email", "mailerlite.com", "sendinblue.com", "brevo.com", "hubspotemail.net", "campaign-archive.com"]
+const ALERT_MAILBOX = /^(?:job-?alerts?|jobs?-?(?:alerts?|digest|recommendations?|listings?)|alerts?|newsletters?|digest|marketing)(?:[-+._]|$)/i
+const ALERT_SUBJECT = /\bjob alerts?\b|alertes? emploi|\bis hiring\b|\brecrute\b|may be a fit|new jobs?\b|jobs? (?:for|matching|you may)|nouvelles? offres?|offres? (?:pour|qui) vous|stellenangebote|jobs? recommend/i
+const APPLICATION_SUBJECT = /\bapplication\b|\bapplied\b|candidature|postul|bewerbung|solicitud|candidatura|\binterview\b|entretien|\boffer\b/i
+
+/**
+ * Mail written to many people at once: a job-alert digest, a newsletter, a
+ * marketing send. It can name a company you applied to, even your exact role
+ * (an alert lists it, a sponsor advertises it), without being about your
+ * application: it is never matched by its content. A confirmation an ATS sends
+ * through a list ("Thank you for applying") still says so up front, and stays.
+ */
+export function isBroadcast(message: MatchMessage): boolean {
+  const [mailbox = "", host = ""] = message.fromAddress.trim().toLowerCase().split("@")
+  const domain = baseDomain(host)
+  if (NEWSLETTER_HOSTS.includes(domain)) return true
+  const aboutApplication = APPLICATION_SUBJECT.test(message.subject) || ["acknowledgement", "rejection", "offer"].includes(ruleKind(message.subject, message.text.slice(0, 1200)))
+  if (aboutApplication) return false
+  if (message.bulk || ALERT_MAILBOX.test(mailbox)) return true
+  if (ALERT_SUBJECT.test(message.subject) && ALERT_SENDERS.some((sender) => domain === baseDomain(sender))) return true
+  // Several different postings in one email: a digest, whoever sends it.
+  const postings = new Set<string>()
+  for (const link of message.text.slice(0, 60_000).matchAll(/https?:\/\/[^\s<>()"']+/g)) {
+    const job = canonicalJobUrl(link[0])
+    if (job && postings.add(job.url).size >= 3) return true
+  }
+  return false
+}
+
 export function matchMessage(message: MatchMessage, candidates: MatchCandidate[]): Match | null {
   const tags = new Set((message.toAddresses ?? []).map(tagIn).filter(Boolean))
   if (tags.size) {
@@ -107,6 +137,8 @@ export function matchMessage(message: MatchMessage, candidates: MatchCandidate[]
   const replied = candidates.filter((candidate) => candidate.sentMessageIds.some((id) => threadIds.has(id)))
   if (replied.length === 1) return { applicationId: replied[0].applicationId, reason: "Reply in this application’s email thread", confidence: 1 }
   if (replied.length > 1) return null
+  // Past this point the match rests on what the email says: a digest or newsletter says many things.
+  if (isBroadcast(message)) return null
 
   const from = domainOf(message.fromAddress)
   const head = `${message.fromName} ${message.subject}`

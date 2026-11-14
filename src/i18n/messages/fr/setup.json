@@ -2,14 +2,13 @@
   "setup": {
     "complete": "Tout est prêt. Partons à la recherche d’une belle opportunité.",
     "welcome": "Bonjour, je suis Naruvi. Configurons votre espace.",
-    "intro": "Cette configuration ne prend que quelques minutes. Tout reste sur cet ordinateur et vous pourrez modifier vos choix dans les paramètres.",
+    "intro": "Trois étapes et vous pouvez commencer à postuler. Tout reste sur cet ordinateur et vous pourrez modifier vos choix dans les paramètres.",
     "dashboard": "Accéder au tableau de bord",
     "security": "Stockage sécurisé",
     "securityWhy": "Les clés API et les mots de passe de messagerie sont chiffrés avec une clé propre à cet ordinateur.",
     "runKey": "Exécutez cette commande une fois dans le dossier Naruvi, puis redémarrez Naruvi.",
     "model": "Connecter un modèle d’IA",
     "modelWhy": "Choisissez un fournisseur cloud, une passerelle ou un modèle local. Je m’en sers pour évaluer votre profil, adapter votre CV et rédiger vos lettres.",
-    "securityFirst": "Configurez d’abord le stockage sécurisé pour chiffrer votre clé.",
     "profile": "Votre profil",
     "profileWhy": "Je m’appuie sur vos informations vérifiées pour rédiger vos documents. Commencez par ce que vous avez déjà.",
     "import": "Importer",
@@ -21,7 +20,6 @@
     "verify": "Vérifiez ensuite les informations relevées. Seules les informations vérifiées figurent dans vos documents.",
     "look": "Choisir une présentation",
     "lookWhy": "Un même thème donne un style cohérent à votre CV et à votre lettre de motivation. Atlas est utilisé par défaut.",
-    "theme": "Choisir un thème",
     "job": "Ajouter votre première offre",
     "jobWhy": "Collez un lien depuis un site d’emploi ou une page carrières. Naruvi lit l’offre, la compare à votre profil et prépare vos documents.",
     "addJob": "Ajouter une offre",
@@ -33,9 +31,79 @@
     "extension": "Extension de navigateur",
     "extensionHint": "Enregistrez les offres et contacts LinkedIn en un clic",
     "done": "Terminé",
-    "next": "À suivre",
     "progress": "{done, number} sur {total, number} terminées",
     "facts": "{count, plural, one {# information vérifiée} other {# informations vérifiées}}",
-    "docker": "Avec Docker, exécutez <code>npm run settings:key -- .env</code> puis redémarrez les conteneurs. Sauvegardez la clé pour éviter de ressaisir vos clés enregistrées."
+    "docker": "Avec Docker, exécutez <code>npm run settings:key -- .env</code> puis redémarrez les conteneurs. Sauvegardez la clé pour éviter de ressaisir vos clés enregistrées.",
+    "skip": "Passer pour l’instant",
+    "skipHint": "Rien n’est obligatoire ici. Passez une étape et revenez-y quand vous voulez depuis les paramètres.",
+    "lookChosen": "Présentation choisie",
+    "decision": "Ajouter un modèle de décision",
+    "decisionConnected": "Modèle de décision connecté",
+    "decisionHint": "Tri des exigences, correspondance avec le profil et vérification des affirmations plus fiables",
+    "back": "Retour",
+    "continue": "Continuer",
+    "later": "Plus tard",
+    "modelShort": "Pour analyser et rédiger",
+    "profileShort": "Les informations que je cite",
+    "jobShort": "Collez un lien"
+  },
+  "setupDecision": {
+    "title": "Recommandé : ajouter un modèle de décision",
+    "optional": "Facultatif",
+    "connected": "Connecté",
+    "intro": "Un modèle de décision répond vite et de façon constante à des questions précises, du type oui ou non, ou lequel choisir. Je continue d’utiliser votre modèle d’IA pour rédiger, et tout fonctionne aussi sans modèle de décision : votre modèle d’IA ou des règles intégrées tranchent à sa place.",
+    "gains": {
+      "requirements": {
+        "title": "Tri des exigences :",
+        "text": "garde les vraies exigences d’une offre et écarte le texte générique."
+      },
+      "matching": {
+        "title": "Correspondance avec le profil :",
+        "text": "relie chaque exigence aux informations de votre profil qui la justifient."
+      },
+      "enrichment": {
+        "title": "Enrichissement des offres :",
+        "text": "complète le niveau, le type de contrat et le télétravail des offres importées."
+      },
+      "claims": {
+        "title": "Vérification des affirmations :",
+        "text": "contrôle que chaque affirmation d’un brouillon s’appuie sur une information vérifiée."
+      }
+    },
+    "source": "Où obtenir le modèle",
+    "sources": {
+      "openrouter": "OpenRouter",
+      "typesafe": "TypeSafe directement"
+    },
+    "how": {
+      "openrouter": "Jev, le modèle de décision de TypeSafe, est accessible avec n’importe quelle clé API OpenRouter. Sans liste d’attente ni compte TypeSafe séparé.",
+      "typesafe": "Utilisez une clé de votre propre compte TypeSafe."
+    },
+    "cost": {
+      "openrouter": "Il est payant à l’usage, pas gratuit : vous payez un petit montant par jeton envoyé et rien pour les réponses. OpenRouter offre aux nouveaux comptes un petit crédit d’essai.",
+      "typesafe": "L’usage est facturé sur votre compte TypeSafe, aux tarifs de TypeSafe."
+    },
+    "price": "Voir le tarif actuel",
+    "reuseHint": "Votre modèle d’IA passe déjà par OpenRouter. La même clé fonctionne pour Jev.",
+    "reuse": "Utiliser ma clé OpenRouter",
+    "key": "Clé API",
+    "keyPlaceholder": "Collez votre clé API",
+    "keyHint": "Je pose une question test au modèle, puis j’enregistre la clé chiffrée. Si le test échoue, rien n’est enregistré.",
+    "getKey": {
+      "openrouter": "Créer une clé OpenRouter",
+      "typesafe": "Créer une clé TypeSafe"
+    },
+    "connect": "Tester et enregistrer",
+    "success": "Le modèle de décision a répondu et la clé est enregistrée. Il sera utilisé dès votre prochaine analyse d’offre.",
+    "notNow": "Pas maintenant",
+    "later": "Vous pourrez l’ajouter à tout moment dans les <link>intégrations</link>.",
+    "failed": {
+      "encryption": "Configurez d’abord le stockage sécurisé (voir en haut de cette page) pour que la clé soit enregistrée chiffrée.",
+      "noKey": "Collez d’abord une clé API.",
+      "key": "Le fournisseur a refusé cette clé. Copiez-la de nouveau depuis votre compte, vérifiez qu’elle est complète, puis réessayez. Rien n’a été enregistré.",
+      "credit": "La clé fonctionne, mais le compte n’a plus de crédit. Ajoutez du crédit chez le fournisseur, puis réessayez. Rien n’a été enregistré.",
+      "unreachable": "Je n’ai pas pu joindre le fournisseur. Vérifiez la connexion internet de cet ordinateur, puis réessayez. Rien n’a été enregistré.",
+      "other": "Le test n’a pas abouti, donc rien n’a été enregistré. Réessayez dans un instant."
+    }
   }
 }

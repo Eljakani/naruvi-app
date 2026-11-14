@@ -25,6 +25,11 @@ export function AddJobDialog({ trigger, defaultOpen = false, initialUrl = "", in
       onClose?.()
     }
   }
+  // Saved: the application page is opening. Close without swapping back to the empty form on the way out.
+  const saved = () => {
+    setOpen(false)
+    setTimeout(() => setResult(null), 300)
+  }
   const host = initialUrl ? new URL(initialUrl).hostname.replace(/^www\./, "") : ""
   return (
     <Dialog open={open} onOpenChange={change}>
@@ -35,7 +40,7 @@ export function AddJobDialog({ trigger, defaultOpen = false, initialUrl = "", in
           <DialogDescription>{result ? tn("reviewDescription") : initialText && host ? tn(discovered ? "fromDiscovery" : "fromBrowser", { host }) : t("description")}</DialogDescription>
         </DialogHeader>
         {result ? (
-          <JobReview initial={result} onBack={() => setResult(null)} onSaved={() => change(false)} />
+          <JobReview initial={result} onBack={() => setResult(null)} onSaved={saved} />
         ) : (
           <div className="p-4">
             <JobReader

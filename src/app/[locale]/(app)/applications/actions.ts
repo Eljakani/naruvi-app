@@ -4,20 +4,52 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { z } from "zod"
 import { headers } from "next/headers"
-import { analyzeJob } from "@/server/applications/repository"
+import { eq } from "drizzle-orm"
+import { analyzeJob, applicationForJob, fitCheckState, type FitPhase } from "@/server/applications/repository"
+import { db } from "@/server/db/client"
+import { applications } from "@/server/db/schema"
 import { scheduleResearch } from "@/server/research/auto"
 import { archiveMany, moveApplication, setArchived, setNextStep } from "@/server/tracking/service"
 import { serverError } from "@/i18n/server-errors"
 
-/** Form action: analyze a job against the profile, then open the application. */
+/** Form action (board cards): analyze a job, then open the application. A failed check is shown there, not as an error page. */
 export async function analyzeJobAction(formData: FormData) {
   const jobId = z.string().uuid().parse(formData.get("jobId"))
-  const application = await analyzeJob(jobId)
-  scheduleResearch(jobId)
-  revalidatePath("/applications")
-  revalidatePath(`/jobs/${jobId}`)
-  revalidatePath("/")
-  redirect(`/applications/${application.id}`)
+  const result = await checkFitAction(jobId)
+  redirect(result.applicationId ? `/applications/${result.applicationId}` : `/jobs/${jobId}`)
+}
+
+/**
+ * Check the fit of a job against the profile (creates the application if
+ * needed). Never throws: `error` is a sentence for the person, empty when the
+ * run trace is the only useful detail.
+ */
+export async function checkFitAction(jobId: string): Promise<{ ok: boolean; applicationId: string | null; error?: string }> {
+  if (!z.string().uuid().safeParse(jobId).success) return { ok: false, applicationId: null, error: await serverError("invalidJob") }
+  const existing = await applicationForJob(jobId)
+  // A check already under way (the automatic one, another tab): let it finish instead of running twice.
+  if (existing && (await fitCheckState(jobId)).state === "running") return { ok: true, applicationId: existing.id }
+  try {
+    const application = await analyzeJob(jobId)
+    scheduleResearch(jobId)
+    return { ok: true, applicationId: application.id }
+  } catch {
+    const state = await fitCheckState(jobId).catch(() => null)
+    return { ok: false, applicationId: existing?.id ?? null, error: state?.state === "failed" && state.error ? state.error : await serverError("fitCheckFailed") }
+  } finally {
+    revalidatePath("/applications")
+    revalidatePath(`/jobs/${jobId}`)
+    revalidatePath("/")
+  }
+}
+
+/** What the application page is still waiting for: polled while a fit check or the job's insights are pending. */
+export async function applicationSyncAction(applicationId: string): Promise<{ fit: "idle" | "running" | "failed" | "done"; phase: FitPhase | null; insights: boolean } | null> {
+  if (!z.string().uuid().safeParse(applicationId).success) return null
+  const application = await db.query.applications.findFirst({ columns: { jobId: true }, where: eq(applications.id, applicationId), with: { job: { columns: { insights: true } } } })
+  if (!application) return null
+  const state = await fitCheckState(application.jobId)
+  return { fit: state.state, phase: state.state === "running" ? state.phase : null, insights: Boolean(application.job.insights) }
 }
 
 const statusSchema = z.enum(["draft", "parsed", "analyzed", "generated", "ready", "submitted", "interviewing", "offer", "rejected", "withdrawn"])

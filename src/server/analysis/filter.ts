@@ -2,14 +2,14 @@ import { z } from "zod"
 import type { CompletionInput } from "@/server/llm/transport"
 import { choice, decideInChunks, type Decide } from "@/server/decisions/jev"
 import { SettingsError } from "@/server/settings/errors"
-import { isEmployerPerk, isRecruitmentStep, type ExcludedRequirement, type Requirement, type RequirementExtraction } from "./requirements"
+import { isEmployerPerk, isJobCondition, isRecruitmentStep, type ExcludedRequirement, type Requirement, type RequirementExtraction } from "./requirements"
 
-export const FILTER_PROMPT_VERSION = "requirement-filter-v2"
+export const FILTER_PROMPT_VERSION = "requirement-filter-v3"
 const BATCH_SIZE = 24
 const MAX_REVIEW = 120
 const reply = z.object({ classifications: z.array(z.object({
   id: z.string().max(30),
-  category: z.enum(["must", "nice", "responsibility", "recruitment_process", "benefits", "company_information", "application_instructions", "other"]),
+  category: z.enum(["must", "nice", "responsibility", "recruitment_process", "benefits", "company_information", "application_instructions", "job_conditions", "other"]),
   reason: z.string().trim().min(1).max(240),
 })).max(BATCH_SIZE) })
 
@@ -30,7 +30,8 @@ Exclude steps the APPLICANT goes through: recruiter/HR calls, interview stages, 
 IMPORTANT: "Échange RH: On discute de vos motivations..." is recruitment_process, NOT Human Resources expertise. "Échange opérationnel: Je propose votre candidature au référent (Commercial, SDM, coordinateur...)..." is recruitment_process, NOT sales/SDM experience. These people conduct recruitment; their job titles are not candidate requirements.
 Do not exclude actual HR, recruitment, sales, interviewing or service-delivery duties merely because they contain these words. "Conduct recruitment interviews" can be a genuine HR-role responsibility; "experience in sales/HR" can be a real qualification.
 Classify mandatory qualifications as must, explicitly optional qualifications as nice, and real on-the-job duties as responsibility. Keep genuine gaps: you have no candidate profile and must not guess whether the applicant meets an item.
-Allowed category values, exactly: must, nice, responsibility, recruitment_process, benefits, company_information, application_instructions, other.
+Conditions of the job are job_conditions, never must or nice: the start date, availability, work authorization or visa, where the person must be based or relocate ("Targeting a 2027 full-time start date"). A candidate accepts them or not; no experience proves them.
+Allowed category values, exactly: must, nice, responsibility, recruitment_process, benefits, company_information, application_instructions, job_conditions, other.
 Classify ONLY the items array, not additional lines from postingContext. Return exactly one classification per supplied item ID.
 Use only the supplied item IDs. Do not invent, rewrite, merge or split requirements. Provide one short classification reason for each item. When ambiguous, keep the item as its original requirement kind. Reply {"classifications":[{"id":"r1","category":"must","reason":"Candidate qualification."}]}.`
 
@@ -43,6 +44,7 @@ const CATEGORY_CRITERIA = {
   benefits: "What the employer offers or how the team lives: salary, perks, leave, equipment, remote allowance, afterworks, team events and surprises, meals, insurance. Never something the candidate must have",
   company_information: "Background about the company, its product, team or culture",
   application_instructions: "How or when to apply, documents to send, deadlines",
+  job_conditions: "A condition of the job, not a skill: start date, availability, work authorization or visa, where to be based or relocate",
   other: "Anything else that is not about the candidate or the role's duties",
 }
 
@@ -55,7 +57,7 @@ async function filterWithDecisions(extraction: RequirementExtraction, jobText: s
 }
 
 /** The item itself is a perk or a hiring step (not just its section): no model answer turns it into a requirement. */
-const itemLevelExclusion = (requirement: Requirement) => isEmployerPerk(requirement.text) || isRecruitmentStep(requirement.text)
+const itemLevelExclusion = (requirement: Requirement) => isEmployerPerk(requirement.text) || isRecruitmentStep(requirement.text) || isJobCondition(requirement.text)
 
 export async function filterRequirements(extraction: RequirementExtraction, jobText: string, complete?: Complete, decide?: Decide): Promise<{ requirements: Requirement[]; summary: RequirementFilterSummary }> {
   const kept = new Map(extraction.requirements.map((requirement) => [requirement.id, requirement]))

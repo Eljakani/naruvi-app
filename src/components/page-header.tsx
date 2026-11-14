@@ -5,7 +5,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex max-w-full flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   )
 }

@@ -29,6 +29,10 @@ class InstallerTest(unittest.TestCase):
                            '  *Server.Arch*) [ -z "$TEST_RELEASE" ] || echo amd64;;\n'
                            '  "image inspect"*) echo "ghcr.io/eljakani/naruvi-app@sha256:$(printf %064d 7)";;\n'
                            '  *cosign*verify*) [ "$TEST_VERIFIED" = 1 ] || exit 1;;\n'
+                           '  *_journal.json*) echo 30;;\n'
+                           '  *__drizzle_migrations*) echo "${TEST_MIGRATED:-30}";;\n'
+                           '  "volume inspect"*) [ -n "$TEST_OLD_VOLUME" ] || exit 1;;\n'
+                           '  "compose up"*) echo "$*" >> "$MOCK_BIN/up.log";;\n'
                            'esac\n'),
                 'git': ('#!/bin/sh\ncase "$*" in\n'
                         '  *ls-remote*) [ -z "$TEST_RELEASE" ] || printf \'%040d\\trefs/tags/%s\\n\' 0 "$TEST_RELEASE";;\n'
@@ -230,6 +234,125 @@ class InstallerTest(unittest.TestCase):
                                     capture_output=True, text=True, env=dict(os.environ, NO_COLOR='1'), timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('already installed', result.stdout)
+
+    def unattended(self, base, *arguments, **settings):
+        """Run `install.sh --yes` (or the installed `naruvi`, when the first argument is 'naruvi') against mocks."""
+        binaries = base / 'bin'
+        if not binaries.exists():
+            binaries.mkdir()
+            mocks = {
+                'docker': ('#!/bin/sh\ncase "$*" in\n'
+                           '  "volume inspect"*) [ -n "$TEST_OLD_VOLUME" ] || exit 1;;\n'
+                           '  "compose build"*) [ -z "$TEST_BUILD_FAILS" ] || { echo "build broke" >&2; exit 1; };;\n'
+                           '  *_journal.json*) echo 30;;\n'
+                           '  *__drizzle_migrations*) echo "${TEST_MIGRATED:-30}";;\n'
+                           '  *"ps -q --status running"*) [ -z "$TEST_RUNNING" ] || echo abc;;\n'
+                           '  *setup-link.mts*) [ -z "$TEST_OWNER" ] || exit 2; echo "http://localhost:3456/auth/setup?token=$(printf %064d 0)";;\n'
+                           'esac\n'),
+                'git': '#!/bin/sh\ncase "$*" in *clone*) for last; do :; done; mkdir -p "$last"; cp -R "$TEST_REPO/deploy" "$last/deploy";; esac\n',
+                'curl': '#!/bin/sh\nprintf 200\n',
+                'sleep': '#!/bin/sh\nexit 0\n',
+            }
+            for name, content in mocks.items():
+                (binaries / name).write_text(content)
+                (binaries / name).chmod(0o700)
+            (base / 'home').mkdir()
+        root = base / 'installation'
+        env = dict(os.environ, PATH=f'{binaries}:{os.environ["PATH"]}', HOME=str(base / 'home'), TEST_REPO=str(REPO),
+                   NO_COLOR='1', NARUVI_REF='main', **settings)
+        if arguments[0] == 'naruvi':
+            command = [str(root / 'naruvi'), *arguments[1:]]
+        else:
+            command = ['bash', str(REPO / 'install.sh'), '--yes', '--dir', str(root), *arguments]
+        return subprocess.run(command, capture_output=True, text=True, env=env, timeout=60)
+
+    def secrets(self, base):
+        lines = (base / 'installation' / '.env').read_text().splitlines()
+        return [line for line in lines if line.startswith(('POSTGRES_PASSWORD=', 'SETTINGS_ENCRYPTION_KEY='))]
+
+    def test_interrupted_install_resumes_with_the_same_secrets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            first = self.unattended(base, '--mode', 'local', '--port', '3456', TEST_BUILD_FAILS='1')
+            self.assertEqual(first.returncode, 1, first.stdout)
+            self.assertIn('run the installer again', first.stdout)
+            self.assertTrue((base / 'installation' / '.installing').exists())
+            before = self.secrets(base)
+            self.assertEqual(len(before), 2)
+            second = self.unattended(base, '--mode', 'local', '--port', '3456')
+            self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
+            self.assertIn('Picking up the unfinished installation', second.stdout)
+            self.assertIn('Naruvi is ready', second.stdout)
+            self.assertIn('/auth/setup?token=', second.stdout)
+            self.assertEqual(self.secrets(base), before)
+            self.assertFalse((base / 'installation' / '.installing').exists())
+            self.assertEqual((base / 'installation' / '.env').read_text().count('NARUVI_IMAGE='), 1)
+            third = self.unattended(base, '--mode', 'local', '--port', '3456')
+            self.assertIn('already installed', third.stdout)
+            self.assertEqual(self.secrets(base), before)
+
+    def test_install_stopped_before_secrets_starts_clean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            root = base / 'installation'
+            (root / 'source').mkdir(parents=True)
+            (root / '.installing').write_text('main\n')
+            result = self.unattended(base, '--mode', 'local', '--port', '3456')
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn('Picking up', result.stdout)
+            self.assertIn('Naruvi is ready', result.stdout)
+
+    def test_leftover_database_volume_stops_before_new_secrets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            result = self.unattended(base, '--mode', 'local', '--port', '3456', TEST_OLD_VOLUME='1')
+            self.assertEqual(result.returncode, 1)
+            self.assertIn('volume naruvi_db-data', result.stdout)
+            self.assertIn('docker volume rm', result.stdout)
+            self.assertFalse((base / 'installation').exists())
+
+    def test_unapplied_migrations_fail_the_install(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            result = self.unattended(base, '--mode', 'local', '--port', '3456', TEST_MIGRATED='29')
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn('migrations are not applied', result.stdout)
+            self.assertNotIn('Naruvi is ready', result.stdout)
+
+    def test_manager_explains_broken_settings_and_setup_link(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            self.assertEqual(self.unattended(base, '--mode', 'local', '--port', '3456').returncode, 0)
+            env = base / 'installation' / '.env'
+            good = env.read_text()
+
+            stopped = self.unattended(base, 'naruvi', 'setup-link')
+            self.assertEqual(stopped.returncode, 1)
+            self.assertIn('naruvi start', stopped.stdout)
+            fresh = self.unattended(base, 'naruvi', 'setup-link', TEST_RUNNING='1')
+            self.assertEqual(fresh.returncode, 0, fresh.stdout + fresh.stderr)
+            self.assertIn('/auth/setup?token=', fresh.stdout)
+            taken = self.unattended(base, 'naruvi', 'setup-link', TEST_RUNNING='1', TEST_OWNER='1')
+            self.assertEqual(taken.returncode, 2)
+            self.assertIn('already has an owner', taken.stdout)
+            self.assertIn('naruvi reset-password', taken.stdout)
+
+            env.write_text('\n'.join(line for line in good.splitlines() if not line.startswith('SETTINGS_ENCRYPTION_KEY=')) + '\n')
+            missing = self.unattended(base, 'naruvi', 'start')
+            self.assertEqual(missing.returncode, 1)
+            self.assertIn('SETTINGS_ENCRYPTION_KEY is missing', missing.stderr)
+            self.assertIn('backups/<timestamp>/env', missing.stderr)
+
+            env.write_text(good.replace('NARUVI_URL=http://localhost:3456', 'NARUVI_URL=localhost:3456/'))
+            address = self.unattended(base, 'naruvi', 'status')
+            self.assertEqual(address.returncode, 1)
+            self.assertIn('NARUVI_URL', address.stderr)
+
+            env.write_text(good)
+            behind = self.unattended(base, 'naruvi', 'start', TEST_MIGRATED='29')
+            self.assertEqual(behind.returncode, 1)
+            self.assertIn('migrations are not applied', behind.stdout)
+            self.assertEqual(self.unattended(base, 'naruvi', 'start').returncode, 0)
 
     def test_non_interactive_requires_mode(self):
         result = subprocess.run(['bash', str(REPO / 'install.sh'), '--yes'], capture_output=True, text=True, timeout=10)

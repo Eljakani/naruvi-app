@@ -48,7 +48,7 @@ export function JobReview({ initial, onBack, onSaved }: { initial: ReadResult; o
     startSaving(async () => {
       const result = await saveJobAction(draft)
       if (!result.ok) return void toast.error(t("notSaved"), { description: result.error })
-      toast.success(t("saved"), { description: t("savedBody") })
+      toast.success(t("saved"), { description: t(result.data.checking ? "savedChecking" : "savedBody") })
       onSaved()
       router.push(result.data.applicationId ? `/applications/${result.data.applicationId}` : `/jobs/${result.data.id}`)
     })
@@ -79,7 +79,15 @@ export function JobReview({ initial, onBack, onSaved }: { initial: ReadResult; o
 
   // The missing-website warning goes once you add one.
   const warnings = draft.warnings.filter((warning) => !(draft.companyWebsite.trim() && /^Company website not found/.test(warning)))
-  const confidence = Math.round(draft.parseConfidence * 100)
+  // What still deserves a look, by name: more useful than a confidence figure nobody can act on.
+  const toCheck = [
+    !draft.title.trim() ? t("missing.title") : "",
+    !draft.company.trim() ? t("missing.company") : "",
+    !draft.location.trim() ? t("missing.location") : "",
+    !draft.companyWebsite.trim() ? t("missing.website") : "",
+    draft.rawText.trim().length < 400 ? t("missing.short") : "",
+  ].filter(Boolean)
+  const blocked = !draft.title.trim() || !draft.company.trim()
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:overflow-hidden">
@@ -142,7 +150,7 @@ export function JobReview({ initial, onBack, onSaved }: { initial: ReadResult; o
             </div>
             <div className="grid content-start gap-1.5">
               <FieldLabel label={t("fields.logo")} />
-              <LogoField value={draft.logoPath} name={draft.company} onChange={(logoPath) => patch({ logoPath, logoSource: logoPath ? (logoPath === draft.logoPath ? draft.logoSource : "manual") : "" })} />
+              <LogoField value={draft.logoPath} name={draft.company} hint={t("logoHint")} onChange={(logoPath) => patch({ logoPath, logoSource: logoPath ? (logoPath === draft.logoPath ? draft.logoSource : "manual") : "" })} />
               {logoLookup === "looking" ? (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground animate-in fade-in-0"><Loader2Icon className="size-3 animate-spin" /> {t("logoLooking")}</p>
               ) : logoLookup === "none" && !draft.logoPath ? (
@@ -212,11 +220,22 @@ export function JobReview({ initial, onBack, onSaved }: { initial: ReadResult; o
           <ArrowLeftIcon data-icon="inline-start" /> {t("startOver")}
         </Button>
         <div className="flex-1" />
-        <Badge variant={confidence >= 85 ? "secondary" : "outline"} className={cn("gap-1", confidence < 85 && "border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400")}>
-          {confidence >= 85 ? <CheckCircle2Icon className="size-3 text-emerald-600" /> : <AlertTriangleIcon className="size-3" />} {t("confidence", { confidence })}
-        </Badge>
-        <Button onClick={save} disabled={saving}>
-          {saving ? t("saving") : t("save")}
+        {toCheck.length ? (
+          <Tooltip>
+            <TooltipTrigger render={<Badge variant="outline" className="cursor-help gap-1 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400" />}>
+              <AlertTriangleIcon className="size-3" /> {t("toCheck", { count: toCheck.length })}
+            </TooltipTrigger>
+            <TooltipContent className="max-w-64">
+              <ul className="grid gap-0.5">{toCheck.map((item) => <li key={item}>{item}</li>)}</ul>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Badge variant="secondary" className="gap-1">
+            <CheckCircle2Icon className="size-3 text-emerald-600" /> {t("allFound")}
+          </Badge>
+        )}
+        <Button onClick={save} disabled={saving || blocked}>
+          {saving ? <Loader2Icon className="animate-spin" data-icon="inline-start" /> : null} {saving ? t("saving") : t("save")}
         </Button>
       </footer>
     </div>

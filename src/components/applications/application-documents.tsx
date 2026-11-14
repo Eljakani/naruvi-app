@@ -62,7 +62,7 @@ export function ApplicationDocuments({ applicationId, language, coverDecision, c
             <span className="flex flex-wrap items-center gap-2 font-medium">
               {item.title} {item.badge}
             </span>
-            <span className="truncate text-xs text-muted-foreground" title={item.hint}>{item.hint}</span>
+            <span className="line-clamp-2 text-xs text-muted-foreground" title={item.hint}>{item.hint}</span>
           </span>
           <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground rtl:group-hover:-translate-x-0.5" />
         </Link>

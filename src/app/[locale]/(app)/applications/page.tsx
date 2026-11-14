@@ -37,14 +37,7 @@ export default function ApplicationsPage({ searchParams }: PageProps<"/[locale]/
       <PageHeader
         title={t("title")}
         description={t("description")}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Suspense fallback={null}>
-              <ViewSwitch searchParams={searchParams} />
-            </Suspense>
-            <AddJobDialog trigger={<Button><PlusIcon /> {t("addJob")}</Button>} />
-          </div>
-        }
+        actions={<AddJobDialog trigger={<Button><PlusIcon /> {t("addJob")}</Button>} />}
       />
       <Suspense fallback={<Skeleton className="h-80 rounded-xl" />}>
         <List searchParams={searchParams} />
@@ -72,7 +65,7 @@ async function ViewSwitch({ searchParams }: { searchParams: Search }) {
     return text ? `/applications?${text}` : "/applications"
   }
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex max-w-full flex-wrap gap-2">
       <div className="flex gap-1 rounded-lg bg-muted p-0.5" role="group" aria-label={t("which")}>
         {(["active", "closed", "archived"] as const).map((item) => (
           <Button key={item} size="sm" variant={show === item ? "secondary" : "ghost"} className={cn(show === item && "bg-background shadow-xs")} nativeButton={false} render={<Link href={link({ show: item })} />}>
@@ -120,6 +113,7 @@ async function List({ searchParams }: { searchParams: Search }) {
         {q ? <span className="text-sm text-muted-foreground tabular-nums">{t("matches", { count: applications.length })}</span> : null}
         {view === "list" ? <UrlSelect name="sort" label={t("sort")} options={(Object.keys(APPLICATION_SORTS) as ApplicationSort[]).map((value) => ({ value, label: t(`sorts.${value}`) }))} className="w-44" /> : null}
       </div>
+      <ViewSwitch searchParams={searchParams} />
     </div>
   )
   if (!all.length && show === "active" && !q) {

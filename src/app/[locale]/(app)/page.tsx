@@ -1,3 +1,4 @@
+import { setupChoices } from "@/server/queries/setup"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
@@ -78,8 +79,8 @@ function relative(date: Date, locale: string) {
 async function DashboardData() {
   const data = await getDashboard()
   const [t, tl, locale] = await Promise.all([getTranslations("dashboard"), getTranslations("labels"), getLocale()])
-  // A brand-new install starts with the setup guide.
-  if (!data.hasProfile && data.jobs === 0) redirect("/setup")
+  // A brand-new install starts with the setup guide, until the owner chooses to skip it.
+  if (!data.hasProfile && data.jobs === 0 && !(await setupChoices()).skipped) redirect("/setup")
   const sum = (keys: readonly string[]) => keys.reduce((total, key) => total + (data.statusCounts[key] ?? 0), 0)
   const pipeline = PIPELINE.map((stage) => ({ ...stage, count: sum(stage.statuses) }))
   const active = pipeline.reduce((total, stage) => total + stage.count, 0)

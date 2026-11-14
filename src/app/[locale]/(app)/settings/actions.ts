@@ -77,6 +77,7 @@ export async function saveLlmSettingsAction(input: unknown): Promise<{ ok: true;
     revalidatePath("/settings")
     revalidatePath("/integrations")
     revalidatePath("/")
+    revalidatePath("/setup")
     return { ok: true, overview }
   } catch (error) {
     return { ok: false, message: error instanceof SettingsError ? error.message : "Could not save model settings. Try again." }

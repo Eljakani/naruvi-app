@@ -123,7 +123,8 @@ async function runSync(options: SyncOptions): Promise<SyncResult> {
           const download = await client.download(String(item.uid), undefined, { uid: true, maxBytes: MAX_SOURCE_BYTES })
           const parsed = await simpleParser(download.content)
           const references = Array.isArray(parsed.references) ? parsed.references : parsed.references ? [parsed.references] : []
-          const message = { ...head, text: (parsed.text || visiblePageText((typeof parsed.html === "string" ? parsed.html : "").slice(0, MAX_SOURCE_BYTES))).slice(0, MAX_TEXT), references }
+          const bulk = parsed.headers.has("list-id") || parsed.headers.has("list-unsubscribe") || /bulk|list|junk/i.test(String(parsed.headers.get("precedence") ?? ""))
+          const message = { ...head, text: (parsed.text || visiblePageText((typeof parsed.html === "string" ? parsed.html : "").slice(0, MAX_SOURCE_BYTES))).slice(0, MAX_TEXT), references, bulk }
           const match = matchMessage(message, apps)
           if (!match) {
             if (isAlertSender(head.fromAddress)) leads += await collectLeads(typeof parsed.html === "string" ? parsed.html : "", parsed.text ?? "", `${head.fromName || head.fromAddress}: ${head.subject}`, envelope.date ?? new Date())
@@ -216,7 +217,8 @@ async function syncResend(account: NonNullable<Awaited<ReturnType<typeof getMail
         subject: message.subject ?? "",
         text, inReplyTo, references,
       }
-      const match = matchMessage(normalized, apps)
+      const bulk = Boolean(headers["list-id"] || headers["list-unsubscribe"]) || /bulk|list|junk/i.test(headers.precedence ?? "")
+      const match = matchMessage({ ...normalized, bulk }, apps)
       if (!match) continue
       const inserted = await db.insert(mailMessages).values({
         ...normalized, accountId: account.id, applicationId: match.applicationId,

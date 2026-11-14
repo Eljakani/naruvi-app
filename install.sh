@@ -88,7 +88,7 @@ cleanup() {
   [[ $interactive == false ]] || stty "$tty_settings" <&3 2>/dev/null || true
 }
 trap cleanup EXIT
-trap 'out "\n\n  Stopped. Nothing was deleted; run the installer again or see install.log.\n\n"; exit 130' INT TERM
+trap 'out "\n\n  Stopped. Nothing was deleted. Run the installer again to pick up where it stopped.\n\n"; exit 130' INT TERM
 
 fail() {
   out '\n  %s%s Can'"'"'t continue%s\n' "$red" "$bad" "$reset"
@@ -108,6 +108,7 @@ check() { # status label detail
   out '  %s%s%s %-30s %s%s%s\n' "$color" "$mark" "$reset" "$2" "$dim" "${3:-}" "$reset"
 }
 kv() { out '  %s%-14s%s %s\n' "$dim" "$1" "$reset" "$2"; }
+command_row() { out '  %-*s %s%s%s\n' $((${#cli}+12)) "$1" "$dim" "$2" "$reset"; }
 note() { out '  %s%s%s\n' "$dim" "$1" "$reset"; }
 banner() {
   local cols=80
@@ -202,7 +203,7 @@ run() { # title command...
   if [[ $status != 0 ]]; then
     check bad "$title" "failed after $((SECONDS-started))s"
     out '\n%s' "$dim"; tail -n 15 "$log" | sed 's/^/    /' >&3; out '%s' "$reset"
-    fail "Full log: $log" "${run_hint:-"Your settings are kept. Fix the issue, then run: $root/naruvi start"}"
+    fail "Full log: $log" "${run_hint:-"Your settings are kept. Fix the issue, then run the installer again: it picks up where it stopped."}"
   fi
   check ok "$title" "$((SECONDS-started))s"
 }
@@ -219,6 +220,16 @@ valid_domain() {
   [[ ! $1 =~ \.(local|localhost|internal|test|invalid|lan|home)$ ]] || return 1
   IFS=. read -r -a labels <<< "$1"
   for label in "${labels[@]}"; do [[ $label =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]] || return 1; done
+}
+port_owner() { # what listens on a port, when the system can tell
+  local who=
+  if command -v ss >/dev/null; then who=$(ss -Hltnp "sport = :$1" 2>/dev/null | sed -n 's/.*users:(("\([^"]*\)".*/\1/p' | head -n1); fi
+  [[ -n $who ]] || who=$(docker ps --filter "publish=$1" --format 'Docker container {{.Names}}' 2>/dev/null | head -n1)
+  printf '%s' "${who:-another program}"
+}
+local_addresses() {
+  if command -v ip >/dev/null; then ip -o addr show scope global 2>/dev/null | awk '{sub(/\/.*/, "", $4); print $4}'
+  elif command -v ifconfig >/dev/null; then ifconfig 2>/dev/null | awk '/inet6? / {print $2}'; fi
 }
 valid_port() { [[ $1 =~ ^[0-9]{1,5}$ ]] && [[ $((10#$1)) -ge 1024 && $((10#$1)) -le 65535 ]]; }
 
@@ -320,10 +331,36 @@ banner
 [[ $preview == false ]] || note 'Preview: nothing is downloaded, written or started.'
 root=${root:-"$HOME/.local/share/naruvi"}
 
-# Re-running against an existing installation is a no-op that points to the manager.
-if [[ $preview == false && -f $root/.env && -x $root/naruvi ]]; then
+# An installation that was interrupted leaves `.installing` behind (the version, then whether the
+# published image is used). With its secrets already written it is resumed with the same settings,
+# so a database that may already exist keeps its password. Before that point nothing was started,
+# and the installer's own files are cleared for a clean start.
+resume=false
+saved() { sed -n "s/^$1=//p" "$root/.env" | tail -n1; }
+if [[ $preview == false && -f $root/.installing ]]; then
+  if [[ -f $root/.env && -x $root/naruvi && -n $(saved SETTINGS_ENCRYPTION_KEY) && -n $(saved NARUVI_MODE) ]]; then
+    resume=true
+    mode=$(saved NARUVI_MODE) url=$(saved NARUVI_URL) domain=$(saved NARUVI_DOMAIN) port=$(saved NARUVI_PORT) bind=$(saved NARUVI_BIND)
+    ref=$(sed -n 1p "$root/.installing")
+    out '\n  %s%s Picking up the unfinished installation%s in %s\n' "$yellow" "$warn" "$reset" "$root"
+    note 'Same settings and secrets as before. Nothing is asked again.'
+  else
+    rm -rf "$root/source" "$root/.env" "$root/naruvi" "$root/trusted-signers" "$root/install.log" "$root/Caddyfile" \
+           "$root/compose.yaml" "$root/build.yaml" "$root/local.yaml" "$root/hosted.yaml" "$root/proxy.yaml" \
+           "$root/.image" "$root/.image-error" "$root/.installing"
+  fi
+fi
+
+# Re-running against a finished installation changes nothing: it says how it is doing and points to the manager.
+if [[ $preview == false && $resume == false && -f $root/.env && -x $root/naruvi ]]; then
   out '\n  %s%s Naruvi is already installed%s in %s\n\n' "$green" "$ok" "$reset" "$root"
+  if ! docker info >/dev/null 2>&1; then check warn 'Docker' "not running · start it, then: $root/naruvi start"
+  elif [[ -n $(cd "$root" && docker compose ps -q --status running app 2>/dev/null) ]]; then check ok 'Running' "$(saved NARUVI_URL)"
+  else check warn 'Not running' "start it with: $root/naruvi start"; fi
+  out '\n'
   kv 'Status' "$root/naruvi status"
+  kv 'Check' "$root/naruvi doctor"
+  kv 'Owner link' "$root/naruvi setup-link"
   kv 'Update' "$root/naruvi update"
   kv 'All commands' "$root/naruvi help"
   out '\n'
@@ -357,12 +394,36 @@ else
   elif [[ $mem_gb -ge 2 ]]; then check ok 'Memory' "${mem_gb} GB"
   else check warn 'Memory' "${mem_gb} GB · building from source needs about 2 GB"; fi
   if [[ $problems != 0 ]]; then
-    fail 'Install the missing pieces, then run this again.' \
-         'Docker: https://docs.docker.com/get-started/get-docker/' \
+    hints=()
+    command -v docker >/dev/null || hints+=('Docker: https://docs.docker.com/get-started/get-docker/')
+    if command -v docker >/dev/null && ! docker info >/dev/null 2>&1; then
+      hints+=('Docker engine: start it (Linux: sudo systemctl start docker · macOS, Windows: open Docker Desktop).'
+              'Permission denied? sudo usermod -aG docker $USER, then log out and back in.')
+    fi
+    if command -v docker >/dev/null && ! docker compose version >/dev/null 2>&1; then
+      hints+=('Docker Compose v2: install the docker-compose-plugin package, https://docs.docker.com/compose/install/linux/'
+              '(the old docker-compose v1 command is not enough).')
+    fi
+    for tool in git openssl; do
+      command -v "$tool" >/dev/null || hints+=("$tool: install it with your package manager (apt install $tool · dnf install $tool · brew install $tool).")
+    done
+    fail 'Install or start the missing pieces, then run this again.' "${hints[@]}" \
          'Windows: run the installer inside WSL2 with Docker Desktop integration.'
   fi
-  if [[ -n $(docker ps -aq --filter label=com.docker.compose.project=naruvi 2>/dev/null) ]]; then
-    fail 'A Naruvi stack (project "naruvi") already runs on this Docker engine.' 'Manage it with its `naruvi` command, or remove it first.'
+  if [[ $resume == false ]]; then
+    if [[ -n $(docker ps -aq --filter label=com.docker.compose.project=naruvi 2>/dev/null) ]]; then
+      fail 'Containers of a Compose project named "naruvi" already exist on this Docker engine.' \
+           'See them: docker ps -a --filter label=com.docker.compose.project=naruvi' \
+           'An installed Naruvi: manage it with its `naruvi` command (or pass its folder with --dir).' \
+           'A development checkout: stop it from that checkout (docker compose --profile full down keeps its data),' \
+           'or install on another machine. One stack named "naruvi" runs per Docker engine.'
+    fi
+    # A database left by an earlier installation has that installation's password; new secrets can't open it.
+    if docker volume inspect naruvi_db-data >/dev/null 2>&1; then
+      fail 'A Naruvi database from an earlier installation is still on this Docker engine (volume naruvi_db-data).' \
+           "To keep that data: put the earlier installation folder (or at least its .env) back, then run its \`naruvi start\`." \
+           'To start over and DELETE that data for good: docker volume rm naruvi_db-data naruvi_assets'
+    fi
   fi
 fi
 
@@ -399,6 +460,8 @@ check ok 'Mode' "$mode_label"
 
 # ---------- 3. details ----------
 step 3 'Details'
+if [[ $resume == true ]]; then note 'Kept from the unfinished installation.'
+else
 if [[ $mode != local ]]; then
   if [[ -z $domain ]]; then
     note 'Point a DNS A (and AAAA, if you use IPv6) record at this server first.'
@@ -410,8 +473,15 @@ if [[ $mode != local ]]; then
   url="https://$domain"
   if [[ $preview == false ]]; then
     addresses=$(resolve "$domain" || true)
-    if [[ -z ${addresses// /} ]]; then check warn 'DNS' "$domain does not resolve yet"
-    else check ok 'DNS' "$domain → ${addresses% }"; fi
+    if [[ -z ${addresses// /} ]]; then
+      check warn 'DNS' "$domain does not resolve yet"
+      [[ $mode != hosted ]] || note '    The HTTPS certificate arrives once the A record points here; Naruvi keeps retrying.'
+    else
+      check ok 'DNS' "$domain → ${addresses% }"
+      mine=$(local_addresses | tr '\n' ' ')
+      here=false; for address in $addresses; do [[ " $mine " != *" $address "* ]] || here=true; done
+      [[ $mode != hosted || -z ${mine// /} || $here == true ]] || note '    None of these is an address of this machine. Fine behind NAT or a floating IP; otherwise fix the DNS record.'
+    fi
   fi
 fi
 if [[ $mode != hosted ]]; then
@@ -422,7 +492,9 @@ if [[ $mode != hosted ]]; then
   fi
   valid_port "$port" || fail 'Choose a port from 1024 to 65535.'
   port=$((10#$port))
-  if [[ $preview == false ]] && port_busy "$port"; then fail "Port $port is already in use. Choose another with --port."; fi
+  if [[ $preview == false ]] && port_busy "$port"; then
+    fail "Port $port is already in use by $(port_owner "$port")." 'Run the installer again and choose another port (or pass --port N).'
+  fi
   [[ $mode == proxy ]] || url="http://localhost:$port"
 fi
 if [[ $mode == proxy ]]; then
@@ -439,13 +511,19 @@ if [[ $mode == proxy ]]; then
   [[ $bind == 127.0.0.1 ]] || check warn 'App port' "open on $bind:$port · restrict it to your proxy"
 fi
 if [[ $mode == hosted && $preview == false ]]; then
-  for p in 80 443; do ! port_busy "$p" || check warn "Port $p" 'already in use on this machine'; done
+  for p in 80 443; do
+    ! port_busy "$p" || fail "Port $p is already in use by $(port_owner "$p")." \
+      'Hosted mode needs ports 80 and 443 for HTTPS. Stop that program (for example: sudo systemctl disable --now nginx apache2),' \
+      'or keep it and install with --mode proxy so it forwards your domain to Naruvi.'
+  done
 fi
 if [[ $interactive == true ]]; then
   ask 'Install into' "$root"; root=$ANSWER
 fi
 [[ $root == /* ]] || fail 'Use an absolute path for the installation directory.'
-[[ $preview == true || ! -e $root || -z $(ls -A "$root" 2>/dev/null) ]] || fail "$root already has files in it." 'Choose an empty directory. Existing settings and data are never overwritten.'
+[[ $preview == true || ! -f $root/.installing ]] || fail "An unfinished installation is in $root." "Pick it up with: bash install.sh --dir $root"
+[[ $preview == true || ! -e $root || -z $(ls -A "$root" 2>/dev/null) ]] || fail "$root already has files in it." 'Choose an empty directory (--dir PATH). Existing settings and data are never overwritten.'
+fi
 
 # ---------- 4. review ----------
 step 4 'Review'
@@ -465,19 +543,23 @@ kv 'Access' 'one owner account, created from a private link'
 out '\n'; note 'Secrets are generated on this machine and never leave it.'
 if [[ $use_image == true ]]; then note 'Downloading the image takes a minute or two.'
 else note 'Building the image takes 5 to 30 minutes, depending on this machine.'; fi
-confirm 'Install now?' y || { out '\n  Nothing changed.\n\n'; exit 0; }
+[[ $resume == true ]] || confirm 'Install now?' y || { out '\n  Nothing changed.\n\n'; exit 0; }
 
 # ---------- 5. install ----------
 step 5 'Install'
 if [[ $preview == true ]]; then
   image_step='Build image'; [[ $use_image == false ]] || image_step='Download and verify image'
-  for t in 'Download source' 'Generate secrets' "$image_step" 'Validate configuration' 'Start database, app and worker' 'Wait for Naruvi'; do check ok "$t" 'preview'; done
+  for t in 'Download source' 'Generate secrets' "$image_step" 'Validate configuration' 'Start and migrate database' 'Reach the address'; do check ok "$t" 'preview'; done
   out '\n  %s%s Preview complete%s · a real install ends with your private setup link.\n\n' "$green" "$ok" "$reset"
   exit 0
 fi
 mkdir -p "$root"; chmod 700 "$root"
-log=$root/install.log; : > "$log"; chmod 600 "$log"
+log=$root/install.log; [[ $resume == true ]] || : > "$log"; chmod 600 "$log"
+overlay=$mode.yaml
+[[ $resume == true ]] || printf '%s\n' "$ref" > "$root/.installing"
 [[ $open_firewall == false ]] || apply_firewall
+if [[ $resume == true ]]; then check ok 'Source and secrets' 'kept'
+else
 if [[ -n ${NARUVI_SOURCE_DIR:-} ]]; then
   [[ -f $NARUVI_SOURCE_DIR/Dockerfile && -f $NARUVI_SOURCE_DIR/deploy/compose.yaml ]] || fail 'NARUVI_SOURCE_DIR must point to a Naruvi checkout.'
   mkdir "$root/source"
@@ -488,7 +570,6 @@ fi
 chmod -R go+rX "$root/source" # public code; the image runs as `node` and must read it despite umask 077
 cp "$root/source/deploy/compose.yaml" "$root/compose.yaml"
 cp "$root/source/deploy/build.yaml" "$root/build.yaml"
-overlay=$mode.yaml
 cp "$root/source/deploy/$overlay" "$root/$overlay"
 [[ $mode != hosted ]] || cp "$root/source/deploy/Caddyfile" "$root/Caddyfile"
 {
@@ -502,12 +583,14 @@ cp "$root/source/deploy/$overlay" "$root/$overlay"
     proxy) printf 'NARUVI_PORT=%s\nNARUVI_BIND=%s\n' "$port" "$bind";;
     local) printf 'NARUVI_PORT=%s\n' "$port";;
   esac
-} > "$root/.env"
-chmod 600 "$root/.env"
-check ok 'Generate secrets' '.env, private to you'
+} > "$root/.env.new"
+chmod 600 "$root/.env.new"
 cp "$root/source/deploy/naruvi" "$root/naruvi"; chmod 700 "$root/naruvi"
 # Keys that may sign release tags. Copied once; `naruvi update` never replaces it.
 cp "$root/source/deploy/trusted-signers" "$root/trusted-signers"; chmod 600 "$root/trusted-signers"
+mv "$root/.env.new" "$root/.env" # last: from here on a re-run resumes with these secrets
+check ok 'Generate secrets' '.env, private to you'
+fi
 cd "$root"
 # Signed release image, pinned by digest. When there is none for this machine (2) or it can't be
 # downloaded (3), the image is built here instead, saying why. A failed signature check stops.
@@ -519,6 +602,7 @@ fetch_image() {
   return $status
 }
 image=
+[[ -z $(saved NARUVI_IMAGE) ]] || use_image=false # resumed after the image was chosen
 if [[ $use_image == true ]]; then
   run_hint="The image did not pass signature verification, so it was not used. Try again later, or build it here: bash install.sh --build"
   run 'Download and verify image' fetch_image
@@ -529,15 +613,21 @@ if [[ $use_image == true ]]; then
     3) image=; check warn 'Published image' "couldn't download it; building instead"; [[ -z $reason ]] || note "    Docker: $reason";;
   esac
 fi
-if [[ -n $image ]]; then
+if [[ -n $(saved NARUVI_IMAGE) ]]; then :
+elif [[ -n $image ]]; then
   printf 'COMPOSE_FILE=compose.yaml:%s\nNARUVI_IMAGE=%s\n' "$overlay" "$image" >> "$root/.env"
 else
   printf 'COMPOSE_FILE=compose.yaml:%s:build.yaml\nNARUVI_IMAGE=naruvi-app:source\n' "$overlay" >> "$root/.env"
 fi
 run 'Validate configuration' docker compose config --quiet
 [[ $mode != hosted ]] || run 'Validate HTTPS gateway' docker compose run --rm --no-deps gateway caddy validate --config /etc/caddy/Caddyfile
-[[ -n $image ]] || run 'Build image' docker compose build
-run 'Start database, app and worker' docker compose up -d
+[[ $(saved NARUVI_IMAGE) != naruvi-app:source ]] || run 'Build image' docker compose build
+# Starts the database, applies migrations, then starts the app and worker; confirms the app answers
+# inside its container and that every migration is recorded, or says why not.
+run_hint="Fix the issue above, then run the installer again (it picks up where it stopped) or: $root/naruvi start"
+run 'Start and migrate database' "$root/naruvi" wait-ready
+run_hint=
+rm -f "$root/.installing"
 probe_url=$url/login
 [[ $mode != proxy ]] || probe_url="http://127.0.0.1:$port/login"
 ready=false
@@ -545,21 +635,23 @@ if command -v curl >/dev/null; then
   started=$SECONDS
   [[ $mode != hosted ]] || note 'Requesting the HTTPS certificate; this can take a minute.'
   if fancy; then out '\033[?25l'; fi
-  for attempt in $(seq 1 60); do
+  for attempt in $(seq 1 "$( [[ $mode == hosted ]] && echo 40 || echo 20 )"); do
     code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 "$probe_url" || true)
     if [[ $code =~ ^[23] ]]; then ready=true; break; fi
-    if fancy; then out '\r\033[2K  %s…%s Wait for Naruvi %s%ss%s' "$copper" "$reset" "$dim" "$((SECONDS-started))" "$reset"; fi
+    if fancy; then out '\r\033[2K  %s…%s Reach %s %s%ss%s' "$copper" "$reset" "$probe_url" "$dim" "$((SECONDS-started))" "$reset"; fi
     sleep 3
   done
   if fancy; then out '\r\033[2K\033[?25h'; fi
-  if [[ $ready == true ]]; then check ok 'Wait for Naruvi' "$((SECONDS-started))s"; else check warn 'Wait for Naruvi' 'no answer yet'; fi
+  if [[ $ready == true ]]; then check ok 'Reach the address' "${probe_url%/login} answers"; else check warn 'Reach the address' "no answer from ${probe_url%/login} yet"; fi
+else
+  ready=true; check warn 'Reach the address' 'not tested (curl is not installed)'
 fi
 setup_link=$(docker compose exec -T app node --import tsx scripts/setup-link.mts --raw 2>/dev/null | grep -Eo 'https?://[^[:space:]]+/auth/setup\?token=[a-f0-9]{64}' | tail -n1 || true)
 [[ -n $setup_link ]] || setup_link=$(docker compose logs --no-color app 2>/dev/null | grep -Eo 'https?://[^[:space:]]+/auth/setup\?token=[a-f0-9]{64}' | tail -n1 || true)
 
 # Offer a `naruvi` command on PATH without touching shell profiles.
 linked=
-if [[ -d $HOME/.local/bin && ! -e $HOME/.local/bin/naruvi ]] && confirm "Add the \`naruvi\` command to ~/.local/bin?" y; then
+if [[ -d $HOME/.local/bin && ! -e $HOME/.local/bin/naruvi && ! -L $HOME/.local/bin/naruvi ]] && confirm "Add the \`naruvi\` command to ~/.local/bin?" y; then
   ln -s "$root/naruvi" "$HOME/.local/bin/naruvi" && linked=yes
 fi
 cli="$root/naruvi"; [[ -z $linked ]] || cli=naruvi
@@ -568,13 +660,16 @@ cli="$root/naruvi"; [[ -z $linked ]] || cli=naruvi
 out '\n'; rule
 if [[ $ready == true ]]; then out '\n  %s%s Naruvi is ready%s\n\n' "$green" "$ok" "$reset"
 else
-  out '\n  %s%s Naruvi started, but did not answer yet%s\n' "$yellow" "$warn" "$reset"
+  out '\n  %s%s Naruvi is running, but %s does not answer yet%s\n' "$yellow" "$warn" "${probe_url%/login}" "$reset"
   case $mode in
-    hosted) note 'Check DNS, and that ports 80 and 443 reach this server. Then run:';;
-    proxy) note "Point your proxy at port $port. Then run:";;
-    *) note 'Give it a moment, then run:';;
+    hosted) note "The app itself is up. $url works once all of this is true:"
+            note "  $bullet the DNS A record of $domain points at this server (AAAA only if it has IPv6)"
+            note "  $bullet TCP 80 and 443 are open in this server's firewall and in your provider's firewall"
+            note 'The certificate then arrives by itself within a few minutes. To check again:';;
+    proxy) note "The app itself is up, but nothing answers on $bind:$port. To check:";;
+    *) note 'The app itself is up. To check again:';;
   esac
-  out '    %s logs app\n\n' "$cli"
+  out '    %s doctor\n\n' "$cli"
 fi
 kv 'Open' "$url"
 kv 'Installed in' "$root"
@@ -588,14 +683,17 @@ if [[ -n $setup_link ]]; then
   fi
 else
   note "Get your private link with:  $cli setup-link"
+  note '(If an owner account already exists, just sign in.)'
 fi
+note "Link expired or lost? $cli setup-link makes a new one, as long as no owner exists."
 out '\n  %s2. Then Naruvi walks you through your profile and AI model.%s\n' "$bold" "$reset"
 out '\n  %sManage%s\n' "$bold" "$reset"
-kv "$cli status" 'what is running'
-kv "$cli logs" 'follow the logs'
-kv "$cli backup" 'database, files and keys'
-kv "$cli update" 'get the latest version'
-kv "$cli help" 'everything else'
+command_row "$cli status" 'what is running'
+command_row "$cli doctor" 'check everything, and what to fix'
+command_row "$cli logs" 'follow the logs'
+command_row "$cli backup" 'database, files and keys'
+command_row "$cli update" 'get the latest version'
+command_row "$cli help" 'everything else'
 if [[ $docker_relogin == true ]]; then
   out '\n'; note 'You were just added to the docker group: log out and back in before using these commands.'
 fi

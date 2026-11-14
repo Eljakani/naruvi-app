@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { choice, noul, score } from "./jev"
+import { choice, jevClient, noul, OPENROUTER_JEV_URL, score } from "./jev"
 import { cloudflareDecisionClient, openaiDecisionClient } from "./providers"
 
 test("Cloudflare uses the Workers AI envelope and splits batches at 64 questions", async () => {
@@ -72,4 +72,24 @@ test("OpenAI treats a refusal as a failed decision", async () => {
     answers: [{ name: "check", type: "refusal" }],
   }))
   await assert.rejects(decide("Some text", { check: noul("Is this a job listing?") }), /declined/)
+})
+
+test("Jev through OpenRouter: same request shape at OpenRouter's System One URL, and a 402 says what to do", async () => {
+  let called = ""
+  const decide = jevClient({ apiKey: "test-token", model: "jev-latest" }, {
+    url: OPENROUTER_JEV_URL,
+    fetcher: (async (url: string, init: RequestInit) => {
+      called = url
+      assert.equal(new Headers(init.headers).get("authorization"), "Bearer test-token")
+      assert.deepEqual(Object.keys(JSON.parse(String(init.body))), ["model", "state", "questions"])
+      // OpenRouter adds id, provider and usage.cost to TypeSafe's response.
+      return Response.json({ id: "gen-1", provider: "TypeSafe", model: "typesafe/jev-1.14", answers: { q: { type: "noul", noul: 0.8 } }, usage: { input_tokens: 12, output_tokens: 0, cost: 0 } })
+    }) as typeof fetch,
+  })
+  const result = await decide("Backend developer", { q: noul("Is this a developer role?") })
+  assert.equal(called, "https://openrouter.ai/api/v1/systemone")
+  assert.equal(result.model, "typesafe/jev-1.14")
+
+  const broke = jevClient({ apiKey: "test-token", model: "jev-latest" }, { url: OPENROUTER_JEV_URL, retries: 0, fetcher: (async () => new Response("{}", { status: 402 })) as unknown as typeof fetch })
+  await assert.rejects(broke("s", { q: noul("x") }), /Add credit/)
 })

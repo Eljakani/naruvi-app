@@ -1,6 +1,8 @@
 import Link from "next/link"
-import { ArrowRightIcon, CalendarClockIcon, CheckIcon, ExternalLinkIcon, FileTextIcon, HourglassIcon, MessagesSquareIcon, PartyPopperIcon, ScanSearchIcon, SendIcon, ArchiveIcon, type LucideIcon } from "lucide-react"
+import { AlertTriangleIcon, ArrowRightIcon, CalendarClockIcon, CheckIcon, ExternalLinkIcon, FileTextIcon, HourglassIcon, MessagesSquareIcon, PartyPopperIcon, ScanSearchIcon, SendIcon, ArchiveIcon, type LucideIcon } from "lucide-react"
 import { AnalyzeButton } from "@/components/applications/analyze-button"
+import { FitChecking } from "@/components/applications/fit-checking"
+import type { FitCheckState } from "@/server/applications/repository"
 import { MoveStatusButton } from "@/components/tracking/status-control"
 import { Button } from "@/components/ui/button"
 import type { Status } from "@/lib/stages"
@@ -15,7 +17,11 @@ const STEP_OF: Record<Status, number> = { draft: 0, parsed: 0, analyzed: 1, gene
  * Where this application is, as six steps, and the one thing to do next.
  * Shown under the title so the next action is never hidden in a tab.
  */
-export function ApplicationProgress({ applicationId, jobId, status: saved, language, spontaneous, sourceUrl, cvDraft = false, nextStep = "", nextStepDue = null, company = "", title = "" }: {
+export function ApplicationProgress({ applicationId, jobId, status: saved, language, spontaneous, sourceUrl, cvDraft = false, nextStep = "", nextStepDue = null, company = "", title = "", fitCheck = null, insightsPending = false }: {
+  /** The fit check running or failed in the background: it replaces the "check my fit" prompt. */
+  fitCheck?: Extract<FitCheckState, { state: "running" | "failed" }> | null
+  /** The job's insights are still being written: the live status also waits for them. */
+  insightsPending?: boolean
   /** For the status toast when a step is ticked off from here. */
   company?: string
   title?: string
@@ -32,6 +38,7 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
   nextStepDue?: Date | null
 }) {
   const t = useTranslations("application.progress")
+  const ta = useTranslations("application")
   const locale = useLocale()
   const status: Status = saved === "analyzed" && cvDraft ? "generated" : saved
   const current = STEP_OF[status]
@@ -45,7 +52,11 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
     : status === "draft" || status === "parsed"
       ? spontaneous
         ? { title: t("next.write.title"), body: t("next.write.body"), action: <Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> {t("openCv")}</Button> }
-        : { title: t("next.check.title"), body: t("next.check.body"), action: <AnalyzeButton jobId={jobId} /> }
+        : fitCheck?.state === "running"
+          ? { title: ta("checkingTitle"), body: ta("checkingBody"), action: <FitChecking applicationId={applicationId} phase={fitCheck.phase} insightsPending={insightsPending} />, live: true }
+          : fitCheck?.state === "failed"
+            ? { title: ta("fitFailedTitle"), body: fitCheck.error || ta("fitFailedBody"), action: <><AnalyzeButton jobId={jobId} label={ta("tryAgain")} /><Button variant="ghost" nativeButton={false} render={<Link href={`/runs/${fitCheck.runId}`} />}>{ta("fitFailedTrace")}</Button></>, failed: true }
+            : { title: t("next.check.title"), body: t("next.check.body"), action: <AnalyzeButton jobId={jobId} /> }
       : status === "analyzed"
         ? { title: t("next.make.title"), body: t("next.make.body"), action: <Button nativeButton={false} render={<Link href={cv} />}><FileTextIcon /> {t("createCv")}</Button> }
         : status === "generated"
@@ -69,7 +80,9 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
           : null
 
   const panel = next
-    ? { ...next, icon: status === "draft" || status === "parsed" ? ScanSearchIcon : status === "ready" ? SendIcon : FileTextIcon, tone: undefined, kicker: t("kicker.next") }
+    ? "failed" in next
+      ? { ...next, icon: AlertTriangleIcon, tone: "warn" as const, kicker: null }
+      : { ...next, icon: status === "draft" || status === "parsed" ? ScanSearchIcon : status === "ready" ? SendIcon : FileTextIcon, tone: undefined, kicker: "live" in next ? t("kicker.now") : t("kicker.next") }
     : later
       ? { ...later, kicker: closed ? null : own && later === own ? t("kicker.own") : t("kicker.now") }
       : null
@@ -113,7 +126,7 @@ export function ApplicationProgress({ applicationId, jobId, status: saved, langu
         </ol>
       </div>
       {panel ? (
-        <div key={status} className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 p-3 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-300">
+        <div key={`${status}:${fitCheck?.state ?? ""}`} className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 p-3 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-300">
           <span className={cn("grid size-9 shrink-0 place-content-center rounded-lg", panel.tone === "warn" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : panel.tone === "good" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : closed ? "bg-muted text-muted-foreground" : "bg-brand/10 text-brand")}>
             <panel.icon className="size-4.5" />
           </span>

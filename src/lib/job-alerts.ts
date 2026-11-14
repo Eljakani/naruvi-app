@@ -6,17 +6,25 @@ export const ALERT_SENDERS = ["linkedin.com", "indeed.com", "indeedemail.com", "
 
 export type JobLead = { url: string; title: string; board: string }
 
-const decode = (text: string) =>
-  text
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/\s+/g, " ")
-    .trim()
+const NAMED: Record<string, string> = { nbsp: " ", amp: "&", apos: "'", quot: '"', lt: "<", gt: ">", middot: "·", bull: "•", ndash: "–", mdash: "—", hellip: "…", rsquo: "’", lsquo: "‘", ldquo: "“", rdquo: "”", laquo: "«", raquo: "»", euro: "€", eacute: "é", egrave: "è", ecirc: "ê", agrave: "à", acirc: "â", ccedil: "ç", ocirc: "ô", ugrave: "ù", icirc: "î", Eacute: "É" }
+
+/** HTML entities as the characters they stand for; unknown names are left as written. */
+export function decodeEntities(text: string) {
+  return text
+    .replace(/&#x([0-9a-f]{1,6});/gi, (match, hex) => codePoint(Number.parseInt(hex, 16), match))
+    .replace(/&#(\d{1,7});/g, (match, code) => codePoint(Number(code), match))
+    .replace(/&([a-z]+);/gi, (match, name) => NAMED[name] ?? NAMED[name.toLowerCase()] ?? match)
+}
+
+function codePoint(code: number, fallback: string) {
+  try {
+    return String.fromCodePoint(code)
+  } catch {
+    return fallback
+  }
+}
+
+const decode = (text: string) => decodeEntities(text.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim()
 
 /** A posting URL in canonical form, or null when the link isn't a single job. */
 export function canonicalJobUrl(raw: string): { url: string; board: string } | null {

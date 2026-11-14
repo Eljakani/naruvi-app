@@ -17,6 +17,7 @@ import { useTranslations } from "next-intl"
 
 const providerLogos = {
   typesafe: "typesafe.png",
+  openrouter: "openrouter-color.svg",
   cloudflare: "cloudflare-color.svg",
   openai: "openai.svg",
 } satisfies Record<DecisionProvider, string>

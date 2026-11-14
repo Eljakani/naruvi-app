@@ -1,7 +1,8 @@
 import "server-only"
 import { eq, or } from "drizzle-orm"
 import { canonicalJobUrl } from "@/lib/job-alerts"
-import { trackJob } from "@/server/applications/repository"
+import { after } from "next/server"
+import { fitCheckState, trackJob } from "@/server/applications/repository"
 import { readAsset } from "@/server/assets/store"
 import { db } from "@/server/db/client"
 import { applications, companies, contacts, jobs } from "@/server/db/schema"
@@ -19,14 +20,24 @@ export async function logoDataUrl(path: string | null | undefined, maxBytes = 16
   return `data:${asset.mime};base64,${asset.buffer.toString("base64")}`
 }
 
-/** Save a reviewed draft and start tracking it, exactly as the Add-a-job dialog does. */
+/**
+ * Save a reviewed draft and start tracking it, exactly as the Add-a-job dialog
+ * does. Returns as soon as the job is stored: the insights, the fit check and
+ * the company research all run after the response, side by side.
+ */
 export async function saveAndTrackJob(draft: JobDraft) {
   const job = await saveJob(draft)
   await markLeadImported(job.id, [draft.sourceUrl, draft.canonicalUrl])
-  await refreshJobInsights(job.id)
   const applicationId = await trackJob(job.id)
+  const checking = applicationId ? (await fitCheckState(job.id).catch(() => null))?.state === "running" : false
+  const enrich = () => refreshJobInsights(job.id).then(() => undefined, () => undefined)
+  try {
+    after(enrich)
+  } catch {
+    void enrich()
+  }
   scheduleResearch(job.id)
-  return { id: job.id, applicationId }
+  return { id: job.id, applicationId, checking }
 }
 
 /** What Naruvi already knows about a page: a saved job at that link, or a contact for that LinkedIn profile. */

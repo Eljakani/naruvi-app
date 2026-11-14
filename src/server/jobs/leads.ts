@@ -1,10 +1,13 @@
 import "server-only"
 import { and, desc, eq, inArray } from "drizzle-orm"
+import { decodeEntities } from "@/lib/job-alerts"
 import { db } from "@/server/db/client"
 import { jobLeads, jobs } from "@/server/db/schema"
 
 export async function newLeads(limit = 30) {
-  return db.select().from(jobLeads).where(eq(jobLeads.state, "new")).orderBy(desc(jobLeads.foundAt)).limit(limit)
+  const rows = await db.select().from(jobLeads).where(eq(jobLeads.state, "new")).orderBy(desc(jobLeads.foundAt)).limit(limit)
+  // Leads saved before titles were fully decoded still carry "&middot;" and the like.
+  return rows.map((row) => ({ ...row, title: decodeEntities(row.title) }))
 }
 
 export async function dismissLead(id: string) {

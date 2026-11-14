@@ -19,8 +19,20 @@ export function GoalFitNote({ fit }: { fit: GoalFit | null }) {
     return (
       <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
         <CompassIcon className="size-4" /> {t("intro")}
-        <Link href="/profile" className="font-medium text-foreground underline-offset-4 hover:underline">{t("set")}</Link>
+        <Link href="/profile" className="tap-target font-medium text-foreground underline-offset-4 hover:underline">{t("set")}</Link>
       </p>
+    )
+  }
+  if (fit.implicit && fit.verdict === "check") {
+    // Only the profile location to go on: an unsure guess is a hint to set goals, not a warning.
+    return (
+      <div className="grid gap-1 text-sm text-muted-foreground">
+        <p className="flex flex-wrap items-center gap-1.5">
+          <CompassIcon className="size-4" /> {t("intro")}
+          <Link href="/profile" className="tap-target font-medium text-foreground underline-offset-4 hover:underline">{t("set")}</Link>
+        </p>
+        {fit.checks.filter((item) => item.status !== "ok").map((item) => <p key={item.kind} className="ps-5.5 text-xs">{goalCheckText(item, t, locale)}</p>)}
+      </div>
     )
   }
   const look = LOOK[fit.verdict]
@@ -30,7 +42,7 @@ export function GoalFitNote({ fit }: { fit: GoalFit | null }) {
     <section aria-label={t("label")} className={cn("grid gap-1.5 rounded-lg border px-3.5 py-2.5", look.frame)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm font-medium"><look.icon className={cn("size-4", look.className)} /> {title}</p>
-        <Link href="/profile" className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">{fit.implicit ? t("set") : t("edit")}</Link>
+        <Link href="/profile" className="tap-target text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">{fit.implicit ? t("set") : t("edit")}</Link>
       </div>
       <ul className="grid gap-1 text-sm">
         {shown.map((item) => {
@@ -47,7 +59,8 @@ export function GoalFitNote({ fit }: { fit: GoalFit | null }) {
 export function GoalFitBadge({ fit }: { fit: GoalFit | null }) {
   const t = useTranslations("goals")
   const locale = useLocale()
-  if (!fit || (fit.implicit && fit.verdict === "ok")) return null
+  // Without search goals, only a clear mismatch is worth a mark on every row.
+  if (!fit || (fit.implicit && fit.verdict !== "blocked")) return null
   const look = LOOK[fit.verdict]
   const label = fit.implicit ? t("badge.location") : fit.verdict === "ok" ? t("badge.fits") : fit.verdict === "blocked" ? t("badge.off") : t("badge.check")
   const why = (fit.verdict === "ok" ? fit.checks : fit.checks.filter((item) => item.status !== "ok")).map((item) => goalCheckText(item, t, locale)).join("\n")

@@ -80,7 +80,7 @@ export function NotificationBell() {
   return (
     <Popover open={open} onOpenChange={openChange}>
       <PopoverTrigger render={
-        <Button size="icon-sm" variant="ghost" className="relative" aria-label={unread ? t("labelUnread", { count: unread }) : t("title")} />
+        <Button size="icon-sm" variant="ghost" className="tap-target relative" aria-label={unread ? t("labelUnread", { count: unread }) : t("title")} />
       }>
         <BellIcon className={cn(unread && "naruvi-bell-ring")} />
         {unread ? (
