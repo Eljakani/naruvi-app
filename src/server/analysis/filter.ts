@@ -2,9 +2,9 @@ import { z } from "zod"
 import type { CompletionInput } from "@/server/llm/transport"
 import { choice, decideInChunks, type Decide } from "@/server/decisions/jev"
 import { SettingsError } from "@/server/settings/errors"
-import { isEmployerPerk, isJobCondition, isRecruitmentStep, type ExcludedRequirement, type Requirement, type RequirementExtraction } from "./requirements"
+import { isEmployerPerk, isHiringNote, isJobCondition, isRecruitmentStep, type ExcludedRequirement, type Requirement, type RequirementExtraction } from "./requirements"
 
-export const FILTER_PROMPT_VERSION = "requirement-filter-v3"
+export const FILTER_PROMPT_VERSION = "requirement-filter-v4"
 const BATCH_SIZE = 24
 const MAX_REVIEW = 120
 const reply = z.object({ classifications: z.array(z.object({
@@ -30,6 +30,7 @@ Exclude steps the APPLICANT goes through: recruiter/HR calls, interview stages, 
 IMPORTANT: "Échange RH: On discute de vos motivations..." is recruitment_process, NOT Human Resources expertise. "Échange opérationnel: Je propose votre candidature au référent (Commercial, SDM, coordinateur...)..." is recruitment_process, NOT sales/SDM experience. These people conduct recruitment; their job titles are not candidate requirements.
 Do not exclude actual HR, recruitment, sales, interviewing or service-delivery duties merely because they contain these words. "Conduct recruitment interviews" can be a genuine HR-role responsibility; "experience in sales/HR" can be a real qualification.
 Classify mandatory qualifications as must, explicitly optional qualifications as nice, and real on-the-job duties as responsibility. Keep genuine gaps: you have no candidate profile and must not guess whether the applicant meets an item.
+A question addressed to the reader is never must, nice or responsibility: section titles written as questions ("What do you bring?", "Who are you?") are other; "Do you have specific needs or require adjustments during the recruitment process or once you are hired?" and equal-opportunity or accommodation statements are recruitment_process.
 Conditions of the job are job_conditions, never must or nice: the start date, availability, work authorization or visa, where the person must be based or relocate ("Targeting a 2027 full-time start date"). A candidate accepts them or not; no experience proves them.
 Allowed category values, exactly: must, nice, responsibility, recruitment_process, benefits, company_information, application_instructions, job_conditions, other.
 Classify ONLY the items array, not additional lines from postingContext. Return exactly one classification per supplied item ID.
@@ -40,12 +41,12 @@ const CATEGORY_CRITERIA = {
   must: "A required qualification of the candidate (skill, experience, degree, language, certification)",
   nice: "An optional qualification: a plus, bonus, preferred",
   responsibility: "An actual duty of the advertised role on the job",
-  recruitment_process: "A step the APPLICANT goes through: HR or recruiter call, interview stages, discussing motivation, technical test, meeting the hiring manager. Job titles of the people running it are not requirements.",
+  recruitment_process: "A step the APPLICANT goes through: HR or recruiter call, interview stages, discussing motivation, technical test, meeting the hiring manager, accommodations offered to applicants, equal-opportunity statements. Job titles of the people running it are not requirements.",
   benefits: "What the employer offers or how the team lives: salary, perks, leave, equipment, remote allowance, afterworks, team events and surprises, meals, insurance. Never something the candidate must have",
   company_information: "Background about the company, its product, team or culture",
   application_instructions: "How or when to apply, documents to send, deadlines",
   job_conditions: "A condition of the job, not a skill: start date, availability, work authorization or visa, where to be based or relocate",
-  other: "Anything else that is not about the candidate or the role's duties",
+  other: "Anything else that is not about the candidate or the role's duties, including a section title or a question addressed to the reader",
 }
 
 /** Decision-model path (Jev): one calibrated choice per item; low-confidence exclusions keep the item. */
@@ -57,7 +58,7 @@ async function filterWithDecisions(extraction: RequirementExtraction, jobText: s
 }
 
 /** The item itself is a perk or a hiring step (not just its section): no model answer turns it into a requirement. */
-const itemLevelExclusion = (requirement: Requirement) => isEmployerPerk(requirement.text) || isRecruitmentStep(requirement.text) || isJobCondition(requirement.text)
+const itemLevelExclusion = (requirement: Requirement) => isEmployerPerk(requirement.text) || isRecruitmentStep(requirement.text) || isJobCondition(requirement.text) || isHiringNote(requirement.text)
 
 export async function filterRequirements(extraction: RequirementExtraction, jobText: string, complete?: Complete, decide?: Decide): Promise<{ requirements: Requirement[]; summary: RequirementFilterSummary }> {
   const kept = new Map(extraction.requirements.map((requirement) => [requirement.id, requirement]))
