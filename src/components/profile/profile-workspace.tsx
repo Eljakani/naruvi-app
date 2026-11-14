@@ -41,6 +41,7 @@ const SECTIONS = [
   { kind: "skill" },
   { kind: "language" },
   { kind: "achievement" },
+  { kind: "event" },
   { kind: "other" },
 ] as const
 
@@ -260,7 +261,7 @@ export function ProfileWorkspace({ profile, entries }: { profile: Profile | null
         <div className="grid gap-8">
           {SECTIONS.map((section) => {
             const items = visible.filter((entry) => (section.kind === "other" ? !SECTIONS.some((s) => s.kind !== "other" && s.kind === entry.kind) : entry.kind === section.kind))
-            if (!items.length && (section.kind === "achievement" || section.kind === "other")) return null
+            if (!items.length && (section.kind === "achievement" || section.kind === "event" || section.kind === "other")) return null
             return (
               <section key={section.kind} className="grid gap-2" aria-labelledby={`section-${section.kind}`}>
                 <div className="flex items-center justify-between gap-2">

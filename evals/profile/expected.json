@@ -1,0 +1,174 @@
+{
+  "en-classic.pdf": {
+    "language": "en",
+    "identity": { "fullName": "Maya Okafor", "headline": "Senior Backend Engineer", "email": "maya.okafor@example.com", "phone": "+44 7700 900123", "location": "Leeds", "links": ["linkedin.com/in/maya-okafor-dev", "github.com/mayaokafor"] },
+    "entries": [
+      { "kind": "experience", "name": "Senior Backend Engineer", "org": "Monzo", "start": "2021-03", "end": "present", "location": "London", "bullets": 3 },
+      { "kind": "experience", "name": "Backend Engineer", "org": "Deliveroo", "start": "2018-06", "end": "2021-02", "location": "London", "bullets": 2 },
+      { "kind": "experience", "name": "Software Engineering Intern", "org": "Arm", "start": "2017-07", "end": "2017-09", "location": "Cambridge", "bullets": 1 },
+      { "kind": "education", "name": "BSc Computer Science", "org": "University of Leeds", "start": "2014", "end": "2018" },
+      { "kind": "certification", "name": "AWS Certified Solutions Architect", "org": "Amazon Web Services", "start": "2022-05", "credentialId": "AWS-ASA-48213" },
+      { "kind": "certification", "name": "Certified Kubernetes Administrator", "org": "Linux Foundation", "start": "2023" },
+      { "kind": "skill", "name": "Languages", "skills": ["Go", "Python", "SQL"] },
+      { "kind": "skill", "name": "Infrastructure", "skills": ["Kubernetes", "Terraform", "AWS"] },
+      { "kind": "skill", "name": "Data", "skills": ["PostgreSQL", "Kafka", "Redis"] },
+      { "kind": "project", "name": "ledgerlite", "start": "2022", "url": "github.com/mayaokafor/ledgerlite", "bullets": 1 },
+      { "kind": "language", "name": "English", "level": "native" },
+      { "kind": "language", "name": "French", "level": "B2" },
+      { "kind": "language", "name": "Yoruba", "level": "B1" }
+    ]
+  },
+  "fr-two-column.pdf": {
+    "language": "fr",
+    "identity": { "fullName": "Julien Marchetti", "headline": "Chef de projet digital", "email": "julien.marchetti@example.fr", "phone": "06 12 34 56 78", "location": "Lyon", "links": ["linkedin.com/in/julien-marchetti-pm"] },
+    "entries": [
+      { "kind": "experience", "name": "Chef de projet digital", "org": "Decathlon", "start": "2022-03", "end": "present", "location": "Lille", "bullets": 2 },
+      { "kind": "experience", "name": "Chargé de projet web", "org": "Capgemini", "start": "2019-09", "end": "2022-02", "location": "Lyon", "bullets": 2 },
+      { "kind": "experience", "name": "Assistant chef de projet", "org": "Orange", "start": "2019-01", "end": "2019-06", "location": "Paris", "bullets": 1, "employment": "internship" },
+      { "kind": "education", "name": "Master Management de projets numériques", "org": "emlyon business school", "start": "2017", "end": "2019" },
+      { "kind": "education", "name": "Licence Information-Communication", "org": "Université Lumière Lyon 2", "start": "2014", "end": "2017" },
+      { "kind": "certification", "name": "Professional Scrum Master I", "org": "Scrum.org", "start": "2021" },
+      { "kind": "certification", "name": "Google Analytics Individual Qualification", "org": "Google", "start": "2020" },
+      { "kind": "skill", "name": "Gestion de projet", "skills": ["Agile", "Scrum", "Jira", "Kanban"] },
+      { "kind": "skill", "name": "Outils", "skills": ["Figma", "Google Analytics", "HubSpot"] },
+      { "kind": "language", "name": "Français", "level": "native" },
+      { "kind": "language", "name": "Anglais", "level": "C1", "test": "TOEIC" },
+      { "kind": "language", "name": "Italien", "level": "A2" },
+      { "kind": "other", "name": "Trail" }
+    ]
+  },
+  "es-unusual.docx": {
+    "language": "es",
+    "identity": { "fullName": "Lucía Fernández Ortega", "headline": "Diseñadora UX", "email": "lucia.fernandez@example.es", "phone": "+34 600 123 456", "location": "Valencia", "links": ["luciafernandez.example.es"] },
+    "entries": [
+      { "kind": "experience", "name": "Diseñadora UX sénior", "org": "Cabify", "start": "2020-01", "end": "present", "location": "Madrid", "bullets": 2 },
+      { "kind": "experience", "name": "Diseñadora de interacción", "org": "Glovo", "start": "2016-09", "end": "2019-12", "location": "Barcelona", "bullets": 1 },
+      { "kind": "education", "name": "Grado en Diseño Industrial", "org": "Universitat Politècnica de València", "start": "2012", "end": "2016" },
+      { "kind": "skill", "name": "Investigación", "skills": ["entrevistas", "pruebas de usabilidad", "encuestas"] },
+      { "kind": "skill", "name": "Herramientas", "skills": ["Figma", "Maze", "Miro"] },
+      { "kind": "language", "name": "Español", "level": "native" },
+      { "kind": "language", "name": "Inglés", "level": "C1", "test": "Cambridge" },
+      { "kind": "language", "name": "Catalán", "level": "B2" },
+      { "kind": "event", "name": "Diseñar para la accesibilidad", "org": "UX Spain", "start": "2023-05", "location": "Santander" },
+      { "kind": "event", "name": "Sistemas de diseño que sobreviven", "org": "Codemotion Madrid", "start": "2022-11" }
+    ]
+  },
+  "en-sidebar-right.pdf": {
+    "language": "en",
+    "identity": { "fullName": "Tomasz Wieczorek", "headline": "Data Scientist", "email": "tomasz.wieczorek@example.org", "phone": "+49 151 2345 6789", "location": "Berlin", "links": ["github.com/twieczorek-data"] },
+    "entries": [
+      { "kind": "skill", "name": "Machine learning", "skills": ["forecasting", "gradient boosting", "causal inference"] },
+      { "kind": "skill", "name": "Engineering", "skills": ["Python", "SQL", "Spark", "Airflow", "dbt"] },
+      { "kind": "education", "name": "MSc Data Science", "org": "Technische Universität Berlin", "start": "2017-10", "end": "2019-09" },
+      { "kind": "education", "name": "BSc Mathematics", "org": "University of Warsaw", "start": "2014", "end": "2017" },
+      { "kind": "experience", "name": "Senior Data Scientist", "org": "Zalando", "start": "2021-01", "end": "present", "location": "Berlin", "bullets": 2 },
+      { "kind": "experience", "name": "Data Scientist", "org": "N26", "start": "2019-10", "end": "2020-12", "location": "Berlin", "bullets": 1 },
+      { "kind": "event", "name": "Forecasting returns at scale", "org": "PyData Berlin", "start": "2023" },
+      { "kind": "event", "name": "Feature stores in practice", "org": "Berlin Buzzwords", "start": "2022-06" },
+      { "kind": "event", "name": "NeurIPS 2022", "start": "2022", "location": "New Orleans" },
+      { "kind": "language", "name": "Polish", "level": "native" },
+      { "kind": "language", "name": "German", "level": "C1", "test": "Goethe" },
+      { "kind": "language", "name": "English", "level": "C2" },
+      { "kind": "certification", "name": "Google Cloud Professional Data Engineer", "start": "2022", "url": "credential.net/0f3c1a7e-invented" },
+      { "kind": "certification", "name": "Deep Learning Specialization", "org": "DeepLearning.AI", "start": "2020" },
+      { "kind": "project", "name": "returnscast", "url": "github.com/twieczorek-data/returnscast" }
+    ]
+  },
+  "de-table.docx": {
+    "language": "de",
+    "identity": { "fullName": "Jonas Reinhardt", "email": "jonas.reinhardt@example.de", "phone": "+49 89 1234 5678", "location": "München" },
+    "entries": [
+      { "kind": "experience", "name": "Entwicklungsingenieur", "org": "Siemens", "start": "2021-04", "end": "present", "location": "München", "bullets": 2 },
+      { "kind": "experience", "name": "Konstrukteur", "org": "Bosch", "start": "2017-10", "end": "2021-03", "location": "Stuttgart", "bullets": 2 },
+      { "kind": "education", "name": "M.Sc. Maschinenbau", "org": "RWTH Aachen", "start": "2015-10", "end": "2017-09" },
+      { "kind": "education", "name": "B.Sc. Maschinenbau", "org": "Technische Universität München", "start": "2012-10", "end": "2015-09" },
+      { "kind": "certification", "name": "Six Sigma Green Belt", "org": "TÜV SÜD", "start": "2020" },
+      { "kind": "skill", "name": "CAD", "skills": ["CATIA V5", "SolidWorks", "Siemens NX"] },
+      { "kind": "skill", "name": "Programmierung", "skills": ["MATLAB", "Python"] },
+      { "kind": "language", "name": "Deutsch", "level": "native" },
+      { "kind": "language", "name": "Englisch", "level": "C1" },
+      { "kind": "language", "name": "Spanisch", "level": "A2" }
+    ]
+  },
+  "fr-student.pdf": {
+    "language": "fr",
+    "identity": { "fullName": "Inès Belkacem", "headline": "Étudiante en droit des affaires", "email": "ines.belkacem@example.fr", "phone": "07 55 55 01 23", "location": "Bordeaux" },
+    "entries": [
+      { "kind": "education", "name": "Master 1 Droit des affaires", "org": "Université de Bordeaux", "start": "2024-09", "end": "present" },
+      { "kind": "education", "name": "Licence de Droit", "org": "Université de Bordeaux", "start": "2021", "end": "2024" },
+      { "kind": "education", "name": "Baccalauréat général", "org": "Lycée Montaigne", "start": "2021" },
+      { "kind": "experience", "name": "Stagiaire en droit des sociétés", "org": "Fidal", "start": "2024", "location": "Bordeaux", "bullets": 2, "employment": "internship" },
+      { "kind": "experience", "name": "Assistante juridique", "org": "Fidal", "start": "2023-10", "end": "2024-05", "location": "Bordeaux", "bullets": 1, "employment": "part_time" },
+      { "kind": "experience", "name": "Vendeuse", "org": "Fnac", "start": "2022-07", "end": "2022-08", "location": "Bordeaux", "bullets": 1 },
+      { "kind": "other", "name": "Bénévole", "org": "Clinique du droit", "start": "2023", "end": "present" },
+      { "kind": "other", "name": "Trésorière", "org": "association des étudiants en droit", "start": "2022", "end": "2023" }
+    ]
+  },
+  "ar-simple.docx": {
+    "language": "ar",
+    "identity": { "fullName": "سلمى العمراني", "headline": "مهندسة برمجيات", "email": "salma.elamrani@example.ma", "phone": "+212 600 112233", "location": "الدار البيضاء" },
+    "entries": [
+      { "kind": "experience", "name": "مهندسة برمجيات", "org": "OCP Group", "start": "2021-01", "end": "present", "location": "الدار البيضاء", "bullets": 2 },
+      { "kind": "experience", "name": "مطورة ويب", "org": "Inwi", "start": "2018", "end": "2020", "location": "الرباط", "bullets": 1 },
+      { "kind": "education", "name": "دبلوم مهندس دولة", "org": "ENSIAS", "start": "2013", "end": "2018" },
+      { "kind": "skill", "name": "", "skills": ["Java", "Spring Boot", "React", "PostgreSQL", "Kubernetes"] },
+      { "kind": "language", "name": "العربية", "level": "native" },
+      { "kind": "language", "name": "الفرنسية", "level": "C1" },
+      { "kind": "language", "name": "الإنجليزية", "level": "B2" }
+    ]
+  },
+  "en-shuffled.pdf": {
+    "language": "en",
+    "identity": { "fullName": "Noah Bergström", "headline": "Product Designer", "email": "noah.bergstrom@example.se", "phone": "+46 70 123 45 67", "location": "Gothenburg", "links": ["noahbergstrom.example.se"] },
+    "entries": [
+      { "kind": "experience", "name": "Lead Product Designer", "org": "Klarna", "start": "2021-08", "end": "present", "location": "Stockholm", "bullets": 2 },
+      { "kind": "experience", "name": "Product Designer", "org": "Volvo Cars", "start": "2018-01", "end": "2021-07", "location": "Gothenburg", "bullets": 2 },
+      { "kind": "experience", "name": "Junior UX Designer", "org": "IKEA", "start": "2016-06", "end": "2017-12", "location": "Älmhult", "bullets": 1 },
+      { "kind": "education", "name": "MSc Interaction Design", "org": "Chalmers University of Technology", "start": "2014", "end": "2016" },
+      { "kind": "education", "name": "BA Graphic Design", "org": "University of Gothenburg", "start": "2011", "end": "2014" },
+      { "kind": "skill", "name": "Design", "skills": ["Figma", "Sketch", "prototyping"] },
+      { "kind": "skill", "name": "Research", "skills": ["user interviews", "usability testing"] },
+      { "kind": "skill", "name": "Front-end", "skills": ["HTML", "CSS"] },
+      { "kind": "language", "name": "Swedish", "level": "native" },
+      { "kind": "language", "name": "English", "level": "C1" },
+      { "kind": "language", "name": "Spanish", "level": "A2" },
+      { "kind": "certification", "name": "Google UX Design Certificate", "org": "Coursera", "start": "2019" },
+      { "kind": "certification", "name": "Certified Usability Analyst", "org": "Human Factors International", "start": "2021" },
+      { "kind": "event", "name": "Designing checkout for trust", "org": "Config", "start": "2023", "location": "San Francisco" }
+    ]
+  },
+  "en-interleaved.pdf": {
+    "language": "en",
+    "identity": { "fullName": "Noah Bergström", "headline": "Product Designer", "email": "noah.bergstrom@example.se", "phone": "+46 70 123 45 67", "location": "Gothenburg", "links": ["noahbergstrom.example.se"] },
+    "entries": [
+      { "kind": "experience", "name": "Lead Product Designer", "org": "Klarna", "start": "2021-08", "end": "present", "location": "Stockholm", "bullets": 2 },
+      { "kind": "experience", "name": "Product Designer", "org": "Volvo Cars", "start": "2018-01", "end": "2021-07", "location": "Gothenburg", "bullets": 2 },
+      { "kind": "experience", "name": "Junior UX Designer", "org": "IKEA", "start": "2016-06", "end": "2017-12", "location": "Älmhult", "bullets": 1 },
+      { "kind": "education", "name": "MSc Interaction Design", "org": "Chalmers University of Technology", "start": "2014", "end": "2016" },
+      { "kind": "education", "name": "BA Graphic Design", "org": "University of Gothenburg", "start": "2011", "end": "2014" },
+      { "kind": "skill", "name": "Design", "skills": ["Figma", "Sketch", "prototyping"] },
+      { "kind": "skill", "name": "Research", "skills": ["user interviews", "usability testing"] },
+      { "kind": "skill", "name": "Front-end", "skills": ["HTML", "CSS"] },
+      { "kind": "language", "name": "Swedish", "level": "native" },
+      { "kind": "language", "name": "English", "level": "C1" },
+      { "kind": "language", "name": "Spanish", "level": "A2" },
+      { "kind": "certification", "name": "Google UX Design Certificate", "org": "Coursera", "start": "2019" },
+      { "kind": "certification", "name": "Certified Usability Analyst", "org": "Human Factors International", "start": "2021" },
+      { "kind": "event", "name": "Designing checkout for trust", "org": "Config", "start": "2023", "location": "San Francisco" }
+    ]
+  },
+  "ar-simple.pdf": {
+    "language": "ar",
+    "identity": { "fullName": "سلمى العمراني", "headline": "مهندسة برمجيات", "email": "salma.elamrani@example.ma", "phone": "+212 600 112233", "location": "الدار البيضاء" },
+    "entries": [
+      { "kind": "experience", "name": "مهندسة برمجيات", "org": "OCP Group", "start": "2021-01", "end": "present", "location": "الدار البيضاء", "bullets": 2 },
+      { "kind": "experience", "name": "مطورة ويب", "org": "Inwi", "start": "2018", "end": "2020", "location": "الرباط", "bullets": 1 },
+      { "kind": "education", "name": "دبلوم مهندس دولة", "org": "ENSIAS", "start": "2013", "end": "2018" },
+      { "kind": "skill", "name": "", "skills": ["Java", "Spring Boot", "React", "PostgreSQL", "Kubernetes"] },
+      { "kind": "language", "name": "العربية", "level": "native" },
+      { "kind": "language", "name": "الفرنسية", "level": "C1" },
+      { "kind": "language", "name": "الإنجليزية", "level": "B2" }
+    ]
+  },
+  "scan-only.pdf": { "error": "scan" }
+}

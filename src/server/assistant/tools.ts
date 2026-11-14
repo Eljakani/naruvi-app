@@ -14,7 +14,7 @@ import { dismissLead, markLeadImported, newLeads } from "@/server/jobs/leads"
 import { searchJobs } from "@/server/jobs/search"
 import { registrableDomain } from "@/server/jobs/vendor/company-resolver"
 import { changeEntryStatus, changeFact, createEntryFromFields, editProfileDetails, entriesForMatching, getEntry, removeEntry, removeSkills, saveGoals, saveImportedProfile, setEntryGuards, getProfile, listEntries, mergeIntoEntry, updateEntryFields } from "@/server/profile/repository"
-import { entryName, fieldGuide } from "@/lib/entry-fields"
+import { ENTRY_KINDS, entryName, fieldGuide } from "@/lib/entry-fields"
 import { profileDetailEdit, profileDetailFields } from "@/server/profile/schemas"
 import { getDashboard } from "@/server/queries/dashboard"
 import { extractPage, visiblePageText } from "@/server/research/extract"
@@ -289,7 +289,7 @@ export const assistantTools = {
   create_profile_entry: tool({
     description: `Propose adding a NEW profile entry (a job, internship, education, project, certification, skill group, language, achievement…) when no existing entry matches. Search with find_profile_entries first; if one matches, use edit_profile_entry or add_profile_fact instead. Each kind has its own fields; use only these:\n${fieldGuide()}\nPer-language fields go in text with the CV language (en or fr); shared fields (company, dates…) go in fields. facts: atomic statements the user supplied (from their message, a screenshot or a document), one claim each, never invented. Requires user approval.`,
     inputSchema: z.object({
-      kind: z.enum(["experience", "education", "project", "skill", "certification", "language", "achievement", "other"]),
+      kind: z.enum(ENTRY_KINDS),
       label: z.string().trim().min(1).max(160).describe("What is being added, e.g. \"Cloud & Infrastructure Intern at Acme\", for the approval card."),
       language: z.enum(["en", "fr"]).default("en"),
       text: z.record(z.string(), z.string().max(200)).default({}),

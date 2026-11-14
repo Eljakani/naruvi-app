@@ -1,4 +1,5 @@
 import type { EntryFields } from "@/lib/entry-fields"
+import type { EntryEnrichment } from "@/lib/enrichment"
 
 /** lang → field → { text Naruvi wrote, source it translated } */
 export type EntryTranslations = Record<string, Record<string, { text: string; source: string }>>
@@ -47,6 +48,7 @@ export const entryKind = pgEnum("entry_kind", [
   "certification",
   "language",
   "achievement",
+  "event",
   "other",
 ])
 export const entryStatus = pgEnum("entry_status", ["verified", "needs_review", "archived"])
@@ -142,6 +144,8 @@ export const entries = pgTable(
     doNotClaim: text().array().notNull().default(sql`'{}'::text[]`),
     /** Logo shown next to the entry (path inside the asset store, e.g. logos/<sha>.png). */
     logoPath: text(),
+    /** Public facts about the entry's organisation, certification or event, looked up online and accepted by the person (src/lib/enrichment.ts). */
+    enrichment: jsonb().$type<EntryEnrichment>(),
     /** NDA-sensitive: generation must stay high-level. */
     confidential: boolean().notNull().default(false),
     sortOrder: integer().notNull().default(0),

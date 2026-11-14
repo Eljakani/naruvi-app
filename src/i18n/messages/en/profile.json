@@ -8,6 +8,7 @@
       "certification": "Certifications",
       "language": "Languages",
       "achievement": "Achievements",
+      "event": "Events & talks",
       "other": "Other"
     },
     "kindSingular": {
@@ -18,6 +19,7 @@
       "certification": "Certification",
       "language": "Language",
       "achievement": "Achievement",
+      "event": "Event or talk",
       "other": "Other"
     },
     "status": {
@@ -86,6 +88,10 @@
       "achievement": {
         "title": "Achievements",
         "empty": "Awards, competitions, publications."
+      },
+      "event": {
+        "title": "Events & talks",
+        "empty": "Talks, conferences, meetups, hackathons."
       },
       "other": {
         "title": "Other",
@@ -211,7 +217,7 @@
     "title": "Start from your CV",
     "description": "Give me your CV, your LinkedIn export or a few notes. I’ll sort it into jobs, studies, projects and skills, and split achievements into facts. I never add anything you didn’t write, and nothing is saved until you confirm it.",
     "drop": "Drop your CV here or click to choose",
-    "formats": "PDF, LinkedIn export (.zip) or text, up to 8 MB",
+    "formats": "PDF, Word (.docx), LinkedIn export (.zip) or text, up to 8 MB",
     "orPaste": "or paste text",
     "pastePlaceholder": "Paste your CV, your LinkedIn “About” and “Experience”, or just write about your jobs…",
     "timing": "Usually 15–40 seconds. I’ll show you everything before saving.",
@@ -233,6 +239,14 @@
     "recheck": "it will need a quick re-check",
     "more": "+{count} more",
     "dropped": "{count, plural, one {# item left out: its numbers weren’t in your CV.} other {# items left out: their numbers weren’t in your CV.}}",
+    "rulesReader": "No language model is connected, so I read this CV by its layout alone. Check each entry: they are saved as “needs review”. Connect a model in Integrations for a more careful reading.",
+    "notePagesWithoutText": "{count, plural, one {# page has no text (a scan or a picture) and wasn’t read.} other {# pages have no text (scans or pictures) and weren’t read.}}",
+    "notePagesNotRead": "This file has {count} pages; only the first 15 were read.",
+    "failedParts": "{count, plural, one {One part of the CV couldn’t be read. It starts at:} other {# parts of the CV couldn’t be read. They start at:}}",
+    "unreadTitle": "{count, plural, one {# line of your CV isn’t in any entry} other {# lines of your CV aren’t in any entry}}",
+    "unreadHint": "Check that nothing important is missing. You can add it to an entry after saving.",
+    "summaryLabel": "Summary",
+    "linksLabel": "{count, plural, one {# link} other {# links}}",
     "applyHint": "Saving confirms these entries are accurate. You can still edit any of them later.",
     "unnamed": "Name not found in the CV: saved for review so you can complete it."
   },
@@ -290,5 +304,51 @@
     "archive": "Archive",
     "markVerified": "Yes, mark verified",
     "addFacts": "Add facts"
+  },
+  "enrichment": {
+    "button": "Look up organisations, certifications, events and skills online",
+    "hint": "Only their names are sent, to Wikidata, Wikipedia and the French business registry. Nothing is added until you keep it.",
+    "loading": "Looking them up…",
+    "none": "Nothing clear was found online. Your entries stay as they are.",
+    "failed": "{count, plural, one {# lookup got no answer. Try again in a minute.} other {# lookups got no answer. Try again in a minute.}}",
+    "disabled": "Online company facts are turned off in Integrations.",
+    "found": "{count, plural, one {Public information found for # entry. Untick anything you don’t want.} other {Public information found for # entries. Untick anything you don’t want.}}",
+    "title": "From the web",
+    "about": "About {name}",
+    "keep": "Keep these facts and the logo",
+    "knownAs": "Use the name “{name}”",
+    "fill": "Fill in {field}: {value}",
+    "rename": "Use the usual spelling",
+    "groups": "Sort this list into groups",
+    "notYours": "Public information about the organisation, certification or event, not about you.",
+    "remove": "Remove",
+    "removed": "Removed",
+    "lookUp": "Look up online",
+    "kept": "Saved with its source",
+    "filled": "Filled in from the source: {fields}",
+    "renamed": "Renamed from what your CV said",
+    "website": "Website",
+    "sources": "Sources",
+    "facts": {
+      "industry": "Sector",
+      "employees": "Employees",
+      "size": "Size",
+      "founded": "Founded",
+      "headquarters": "Headquarters",
+      "parent": "Parent",
+      "issuer": "Issued by",
+      "organizer": "Organised by",
+      "place": "Place",
+      "date": "Date",
+      "country": "Country"
+    },
+    "categories": {
+      "language": "Languages",
+      "framework": "Frameworks & libraries",
+      "database": "Data",
+      "platform": "Platforms",
+      "tool": "Tools",
+      "other": "Other"
+    }
   }
 }

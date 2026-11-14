@@ -8,6 +8,7 @@
       "certification": "Certifications",
       "language": "Langues",
       "achievement": "Réalisations",
+      "event": "Événements et conférences",
       "other": "Autre"
     },
     "kindSingular": {
@@ -18,6 +19,7 @@
       "certification": "Certification",
       "language": "Langue",
       "achievement": "Réalisation",
+      "event": "Événement ou conférence",
       "other": "Autre"
     },
     "status": {
@@ -86,6 +88,10 @@
       "achievement": {
         "title": "Réalisations",
         "empty": "Prix, concours, publications."
+      },
+      "event": {
+        "title": "Événements et conférences",
+        "empty": "Conférences, interventions, meetups, hackathons."
       },
       "other": {
         "title": "Autre",
@@ -211,7 +217,7 @@
     "title": "Partir de votre CV",
     "description": "Donnez-moi votre CV, votre export LinkedIn ou quelques notes. Je les classe en emplois, études, projets et compétences, et je découpe vos réalisations en faits. Je n’ajoute jamais rien que vous n’ayez écrit, et rien n’est enregistré avant que vous l’ayez confirmé.",
     "drop": "Déposez votre CV ici ou cliquez pour choisir",
-    "formats": "PDF, export LinkedIn (.zip) ou texte, 8 Mo maximum",
+    "formats": "PDF, Word (.docx), export LinkedIn (.zip) ou texte, 8 Mo maximum",
     "orPaste": "ou collez du texte",
     "pastePlaceholder": "Collez votre CV, vos sections LinkedIn « Infos » et « Expérience », ou décrivez simplement vos emplois…",
     "timing": "En général 15 à 40 secondes. Je vous montre tout avant d’enregistrer.",
@@ -233,6 +239,14 @@
     "recheck": "il faudra le revoir rapidement",
     "more": "+{count} de plus",
     "dropped": "{count, plural, one {# élément écarté : ses chiffres n’étaient pas dans votre CV.} other {# éléments écartés : leurs chiffres n’étaient pas dans votre CV.}}",
+    "rulesReader": "Aucun modèle de langage n’est connecté : j’ai lu ce CV d’après sa seule mise en page. Vérifiez chaque entrée : elles sont enregistrées « à revoir ». Connectez un modèle dans Intégrations pour une lecture plus fine.",
+    "notePagesWithoutText": "{count, plural, one {# page ne contient aucun texte (scan ou image) et n’a pas été lue.} other {# pages ne contiennent aucun texte (scans ou images) et n’ont pas été lues.}}",
+    "notePagesNotRead": "Ce fichier compte {count} pages ; seules les 15 premières ont été lues.",
+    "failedParts": "{count, plural, one {Une partie du CV n’a pas pu être lue. Elle commence par :} other {# parties du CV n’ont pas pu être lues. Elles commencent par :}}",
+    "unreadTitle": "{count, plural, one {# ligne de votre CV ne figure dans aucune entrée} other {# lignes de votre CV ne figurent dans aucune entrée}}",
+    "unreadHint": "Vérifiez qu’il ne manque rien d’important. Vous pourrez l’ajouter à une entrée après l’enregistrement.",
+    "summaryLabel": "Résumé",
+    "linksLabel": "{count, plural, one {# lien} other {# liens}}",
     "applyHint": "Enregistrer confirme que ces éléments sont exacts. Vous pourrez toujours les modifier.",
     "unnamed": "Nom introuvable dans le CV : enregistré à revoir pour que vous le complétiez."
   },
@@ -290,5 +304,51 @@
     "archive": "Archiver",
     "markVerified": "Oui, marquer comme vérifié",
     "addFacts": "Ajouter des faits"
+  },
+  "enrichment": {
+    "button": "Rechercher en ligne les organisations, certifications, événements et compétences",
+    "hint": "Seuls leurs noms sont envoyés, à Wikidata, à Wikipédia et à l’Annuaire des entreprises. Rien n’est ajouté tant que vous ne le conservez pas.",
+    "loading": "Recherche en cours…",
+    "none": "Rien de sûr n’a été trouvé en ligne. Vos entrées restent telles quelles.",
+    "failed": "{count, plural, one {# recherche est restée sans réponse. Réessayez dans une minute.} other {# recherches sont restées sans réponse. Réessayez dans une minute.}}",
+    "disabled": "Les informations publiques sur les entreprises sont désactivées dans Intégrations.",
+    "found": "{count, plural, one {Informations publiques trouvées pour # entrée. Décochez ce que vous ne voulez pas.} other {Informations publiques trouvées pour # entrées. Décochez ce que vous ne voulez pas.}}",
+    "title": "Trouvé en ligne",
+    "about": "À propos de {name}",
+    "keep": "Conserver ces informations et le logo",
+    "knownAs": "Utiliser le nom « {name} »",
+    "fill": "Renseigner {field} : {value}",
+    "rename": "Utiliser l’orthographe usuelle",
+    "groups": "Classer cette liste par groupes",
+    "notYours": "Informations publiques sur l’organisation, la certification ou l’événement, pas sur vous.",
+    "remove": "Retirer",
+    "removed": "Retiré",
+    "lookUp": "Rechercher en ligne",
+    "kept": "Enregistré avec sa source",
+    "filled": "Renseigné d’après la source : {fields}",
+    "renamed": "Renommé par rapport à votre CV",
+    "website": "Site web",
+    "sources": "Sources",
+    "facts": {
+      "industry": "Secteur",
+      "employees": "Effectif",
+      "size": "Taille",
+      "founded": "Création",
+      "headquarters": "Siège",
+      "parent": "Maison mère",
+      "issuer": "Délivré par",
+      "organizer": "Organisé par",
+      "place": "Lieu",
+      "date": "Date",
+      "country": "Pays"
+    },
+    "categories": {
+      "language": "Langages",
+      "framework": "Frameworks et bibliothèques",
+      "database": "Données",
+      "platform": "Plateformes",
+      "tool": "Outils",
+      "other": "Autres"
+    }
   }
 }

@@ -6,6 +6,7 @@ export const KIND_LABELS = {
   certification: "Certifications",
   language: "Languages",
   achievement: "Achievements",
+  event: "Events & talks",
   other: "Other",
 } as const
 
@@ -17,6 +18,7 @@ export const KIND_SINGULAR: Record<string, string> = {
   certification: "Certification",
   language: "Languages",
   achievement: "Achievement",
+  event: "Event or talk",
   other: "Other",
 }
 

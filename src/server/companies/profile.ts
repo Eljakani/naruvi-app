@@ -37,17 +37,37 @@ export async function setCompanyFactsEnabled(enabled: boolean) {
   await db.insert(settings).values({ key: SETTING_KEY, value: { enabled } }).onConflictDoUpdate({ target: settings.key, set: { value: { enabled }, updatedAt: new Date() } })
 }
 
-async function getJson(url: string): Promise<unknown> {
-  const response = await fetch(url, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(TIMEOUT), cache: "no-store" })
-  if (!response.ok) throw new Error(`${new URL(url).hostname} answered ${response.status}`)
-  return response.json()
+/** Wikidata answers 429 to bursts: its requests go out one at a time, a beat apart, and a refusal is retried once. */
+let wikidataGate: Promise<void> = Promise.resolve()
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+function wikidataTurn(): Promise<void> {
+  const turn = wikidataGate
+  wikidataGate = turn.then(() => pause(250))
+  return turn
 }
 
-const normalize = (name: string) =>
+export async function getJson(url: string): Promise<unknown> {
+  const wikidata = new URL(url).hostname === "www.wikidata.org"
+  for (let attempt = 0; ; attempt += 1) {
+    if (wikidata) await wikidataTurn()
+    const response = await fetch(url, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(TIMEOUT), cache: "no-store" })
+    // A short wait is worth it; a long one is not: the caller falls back or goes without.
+    const wait = Number(response.headers.get("retry-after")) * 1000 || 1500 * (attempt + 1)
+    if (response.status === 429 && attempt < 2 && wait <= 4000) {
+      await pause(wait)
+      continue
+    }
+    if (!response.ok) throw new Error(`${new URL(url).hostname} answered ${response.status}`)
+    return response.json()
+  }
+}
+
+export const normalize = (name: string) =>
   name
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    .replace(/^the\s+/, "")
     .replace(/\b(inc|ltd|llc|gmbh|sa|sas|sasu|sarl|plc|corp|corporation|company|co|group|groupe|ag|bv|nv|se)\b\.?/g, "")
     .replace(/[^a-z0-9]+/g, "")
 
@@ -61,20 +81,34 @@ const bareHost = (url: string) => {
 
 /* ---------------------------------- Wikidata ---------------------------------- */
 
+export type Entity = { id: string; labels?: Record<string, { value: string }>; descriptions?: Record<string, { value: string }>; aliases?: Record<string, { value: string }[]>; claims?: Record<string, Claim[]>; sitelinks?: Record<string, { title: string }> }
 type Claim = { mainsnak?: { datavalue?: { value?: unknown } } }
-type Entity = { id: string; labels?: Record<string, { value: string }>; descriptions?: Record<string, { value: string }>; claims?: Record<string, Claim[]>; sitelinks?: Record<string, { title: string }> }
+export const values = (entity: Entity, property: string) => (entity.claims?.[property] ?? []).map((claim) => claim.mainsnak?.datavalue?.value).filter((value) => value !== undefined)
+export const label = (entity: Entity | undefined) => entity?.labels?.en?.value ?? entity?.labels?.fr?.value ?? Object.values(entity?.labels ?? {})[0]?.value
 
-const values = (entity: Entity, property: string) => (entity.claims?.[property] ?? []).map((claim) => claim.mainsnak?.datavalue?.value).filter((value) => value !== undefined)
-const label = (entity: Entity | undefined) => entity?.labels?.en?.value ?? entity?.labels?.fr?.value ?? Object.values(entity?.labels ?? {})[0]?.value
-
-async function entities(ids: string[]): Promise<Record<string, Entity>> {
+export async function entities(ids: string[]): Promise<Record<string, Entity>> {
   if (!ids.length) return {}
-  const url = `https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=labels|descriptions|claims|sitelinks&languages=en|fr&sitefilter=enwiki|frwiki&ids=${ids.slice(0, 50).join("|")}`
-  const data = (await getJson(url)) as { entities?: Record<string, Entity> }
-  return data.entities ?? {}
+  const wanted = ids.slice(0, 50)
+  const url = `https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=labels|descriptions|aliases|claims|sitelinks&languages=en|fr&sitefilter=enwiki|frwiki&ids=${wanted.join("|")}`
+  try {
+    const data = (await getJson(url)) as { entities?: Record<string, Entity> }
+    return data.entities ?? {}
+  } catch {
+    // The API refuses bursts; each item's own data page is served from cache and is not limited the same way.
+    const pages = await Promise.allSettled(wanted.slice(0, 12).map(async (id) => {
+      const response = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${id}.json`, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(TIMEOUT), cache: "no-store" })
+      if (!response.ok) throw new Error(`wikidata.org answered ${response.status}`)
+      const data = (await response.json()) as { entities?: Record<string, Entity> }
+      // A redirected item comes back under its new id.
+      return [id, data.entities?.[id] ?? Object.values(data.entities ?? {})[0]] as const
+    }))
+    const found = pages.flatMap((page) => (page.status === "fulfilled" && page.value[1] ? [page.value] : []))
+    if (!found.length) throw new Error("www.wikidata.org is not answering")
+    return Object.fromEntries(found)
+  }
 }
 
-async function fromWikidata(name: string, website: string | null): Promise<Omit<CompanyProfile, "fetchedAt" | "sources"> & { url: string } | null> {
+async function fromWikidata(name: string, website: string | null): Promise<Omit<CompanyProfile, "fetchedAt" | "sources"> & { url: string; name: string; website: string | null } | null> {
   const search = (await getJson(`https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&type=item&limit=7&language=en&search=${encodeURIComponent(name)}`)) as { search?: { id: string }[] }
   const candidates = await entities((search.search ?? []).map((item) => item.id))
   const host = website ? bareHost(website) : null
@@ -90,7 +124,8 @@ async function fromWikidata(name: string, website: string | null): Promise<Omit<
   }
   if (!entity && !host) {
     // No website to check against: accept only an exact name with company-like facts.
-    entity = Object.values(candidates).find((candidate) => normalize(label(candidate) ?? "") === normalize(name) && (values(candidate, "P1128").length || values(candidate, "P452").length || values(candidate, "P856").length))
+    const called = (candidate: Entity) => [label(candidate) ?? "", ...Object.values(candidate.aliases ?? {}).flatMap((list) => list.map((item) => item.value))].some((item) => normalize(item) === normalize(name))
+    entity = Object.values(candidates).find((candidate) => called(candidate) && (values(candidate, "P1128").length || values(candidate, "P452").length || values(candidate, "P856").length))
     if (entity) match = "name"
   }
   if (!entity) return null
@@ -124,7 +159,8 @@ async function fromWikidata(name: string, website: string | null): Promise<Omit<
   if (wiki) links.push({ label: "Wikipedia", url: `https://${entity.sitelinks?.enwiki ? "en" : "fr"}.wikipedia.org/wiki/${encodeURIComponent(wiki.replace(/ /g, "_"))}` })
 
   const description = entity.descriptions?.en?.value ?? entity.descriptions?.fr?.value ?? null
-  return { description, facts, links, match, url: `https://www.wikidata.org/wiki/${entity.id}` }
+  const site = values(entity, "P856").map(String).find((url) => /^https?:\/\//.test(url)) ?? null
+  return { description, facts, links, match, url: `https://www.wikidata.org/wiki/${entity.id}`, name: label(entity) ?? name, website: site }
 }
 
 /**
@@ -176,10 +212,18 @@ const titleCase = (value: string) => value.toLowerCase().replace(/(^|[\s-])\p{L}
 
 /* ---------------------------------- public ---------------------------------- */
 
-/** Fetch, merge and store. Never throws: a source that fails is just left out. */
-export async function refreshCompanyProfile(companyId: string): Promise<CompanyProfile | null> {
-  const [company] = await db.select({ name: companies.name, website: companies.website }).from(companies).where(eq(companies.id, companyId))
-  if (!company) return null
+/**
+ * Public facts about an organisation by its name (and website when known),
+ * without touching the database. `name` and `website` are the organisation's
+ * own as the source gives them. Null when both sources are down or neither
+ * has a clear match.
+ */
+export async function lookupOrganization(name: string, website: string | null = null): Promise<(CompanyProfile & { name: string; website: string | null }) | null> {
+  const found = await gatherProfile({ name, website })
+  return found && found.profile.match ? { ...found.profile, name: found.name, website: found.website } : null
+}
+
+async function gatherProfile(company: { name: string; website: string | null }): Promise<{ profile: CompanyProfile; name: string; website: string | null } | null> {
   const [wiki, registry] = await Promise.allSettled([fromWikidata(company.name, company.website), fromRegistry(company.name)])
   const w = wiki.status === "fulfilled" ? wiki.value : null
   const r = registry.status === "fulfilled" ? registry.value : null
@@ -201,8 +245,17 @@ export async function refreshCompanyProfile(companyId: string): Promise<CompanyP
   }
   // Both sources down: don't store an empty profile, so the next visit tries again.
   if (wiki.status === "rejected" && registry.status === "rejected") return null
-  await db.update(companies).set({ profile, profiledAt: new Date() }).where(eq(companies.id, companyId))
-  return profile
+  return { profile, name: w?.name ?? company.name, website: w?.website ?? company.website }
+}
+
+/** Fetch, merge and store. Never throws: a source that fails is just left out. */
+export async function refreshCompanyProfile(companyId: string): Promise<CompanyProfile | null> {
+  const [company] = await db.select({ name: companies.name, website: companies.website }).from(companies).where(eq(companies.id, companyId))
+  if (!company) return null
+  const found = await gatherProfile(company)
+  if (!found) return null
+  await db.update(companies).set({ profile: found.profile, profiledAt: new Date() }).where(eq(companies.id, companyId))
+  return found.profile
 }
 
 const STALE_MS = 1000 * 60 * 60 * 24 * 60

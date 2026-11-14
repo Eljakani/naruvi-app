@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import type { ProfileEntry } from "@/server/profile/repository"
 import { useLocale, useTranslations } from "next-intl"
 
-const LOGO_KINDS = ["experience", "education", "project", "certification", "achievement"]
+const LOGO_KINDS = ["experience", "education", "project", "certification", "achievement", "event"]
 
 /** One line per entry: what it is, where, when, and whether it's ready. */
 export function EntryCard({ entry, attention }: { entry: ProfileEntry; attention: boolean }) {

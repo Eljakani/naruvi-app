@@ -20,7 +20,7 @@ const STATE_KEY = "profile.repair"
 const RUN_EVERY_MS = 30 * 60_000
 const RETRY_AFTER_MS = 7 * 24 * 3_600_000
 const PER_RUN = 5
-const LOGO_KINDS = new Set(["experience", "education", "project", "certification", "achievement"])
+const LOGO_KINDS = new Set(["experience", "education", "project", "certification", "achievement", "event"])
 
 const state = z.object({
   lastRunAt: z.number().default(0),
