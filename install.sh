@@ -666,10 +666,26 @@ if [[ $ready == true ]]; then out '\n  %s%s Naruvi is ready%s\n\n' "$green" "$ok
 else
   out '\n  %s%s Naruvi is running, but %s does not answer yet%s\n' "$yellow" "$warn" "${probe_url%/login}" "$reset"
   case $mode in
-    hosted) note "The app itself is up. $url works once all of this is true:"
-            note "  $bullet the DNS A record of $domain points at this server (AAAA only if it has IPv6)"
-            note "  $bullet TCP 80 and 443 are open in this server's firewall and in your provider's firewall"
-            note 'The certificate then arrives by itself within a few minutes. To check again:';;
+    hosted)
+      # Let's Encrypt says why it could not issue the certificate; a timeout while this machine answers
+      # on port 80 itself means a firewall in front of it, which nothing on this server can open.
+      detail=$(docker compose logs --no-color --tail=400 gateway 2>/dev/null </dev/null | grep -F '"challenge failed"' | tail -n1 | sed -n 's/.*"detail":"\([^"]*\)".*/\1/p' | cut -c1-240 || true)
+      here=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 -H "Host: $domain" http://127.0.0.1/ 2>/dev/null </dev/null || true)
+      if [[ $detail =~ Timeout\ during\ connect|Connection\ refused|connection\ reset && $here =~ ^[23] ]]; then
+        note "The app is up and this server answers on port 80, but Let's Encrypt can't reach it from the internet:"
+        note "  $detail"
+        note "Something in front of this server drops TCP 80 and 443: your provider's firewall or security group,"
+        note 'or the network it is on (university, lab and some home networks block incoming web traffic).'
+        note 'Open both ports there; the certificate follows within minutes. If you cannot, reinstall in'
+        note '"Behind your proxy" mode and publish Naruvi through a tunnel (Cloudflare Tunnel, Tailscale Funnel).'
+        note 'To check again:'
+      else
+        note "The app itself is up. $url works once all of this is true:"
+        note "  $bullet the DNS A record of $domain points at this server (AAAA only if it has IPv6)"
+        note "  $bullet TCP 80 and 443 are open in this server's firewall and in your provider's firewall"
+        [[ -z $detail ]] || note "Let's Encrypt: $detail"
+        note 'The certificate then arrives by itself within a few minutes. To check again:'
+      fi;;
     proxy) note "The app itself is up, but nothing answers on $bind:$port. To check:";;
     *) note 'The app itself is up. To check again:';;
   esac

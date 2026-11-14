@@ -19,6 +19,10 @@ if command -v sg >/dev/null && ! id -nG | tr ' ' '\n' | grep -qx docker \
   docker() { sg docker -c "$(printf '%q ' docker "$@")"; }
 fi
 compose() { docker compose "$@"; }
+# Let's Encrypt's own reason for the last failed certificate attempt ("Timeout during connect", "DNS problem: …").
+cert_problem() { compose logs --no-color --tail=400 gateway 2>/dev/null | grep -F '"challenge failed"' | tail -n1 | sed -n 's/.*"detail":"\([^"]*\)".*/\1/p' | cut -c1-240 || true; }
+# The gateway answers on port 80 of this machine itself: anything that blocks the address is outside it.
+answers_locally() { [[ $(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 -H "Host: $1" http://127.0.0.1/ 2>/dev/null || true) =~ ^[23] ]]; }
 link() { compose exec -T app node --import tsx scripts/setup-link.mts --raw; }
 set_setting() { # key value: replace or add one line of .env, keeping it private
   local tmp; tmp=$(mktemp "$root/.env.XXXXXX")
@@ -224,9 +228,20 @@ doctor() {
       row bad 'Address' "$url does not answer from here (${code:-000})"
       hint "Your proxy must serve https://${url#*://} and forward to http://$(setting NARUVI_BIND):$port"
     elif [[ $mode == hosted ]]; then
-      row bad 'Address' "$url does not answer from here (${code:-000})"
-      hint 'Check that DNS points at this server and that TCP 80 and 443 are open: in this server'"'"'s firewall'
-      hint '(sudo ufw allow 80,443/tcp) and in your provider'"'"'s firewall or security group. Then: naruvi logs gateway'
+      detail=$(cert_problem)
+      if [[ $detail =~ Timeout\ during\ connect|Connection\ refused|connection\ reset ]] && answers_locally "$(setting NARUVI_DOMAIN)"; then
+        row bad 'Address' "$url can't be reached from the internet"
+        hint "Let's Encrypt: $detail"
+        hint 'This server answers on port 80 itself, so something in front of it drops the connections: your provider'"'"'s'
+        hint 'firewall or security group, or the network it is on (university, lab and some home networks block incoming web traffic).'
+        hint 'Open TCP 80 and 443 there; the certificate follows within minutes. If you can'"'"'t, install in "Behind your proxy" mode'
+        hint 'and publish it through a tunnel (Cloudflare Tunnel, Tailscale Funnel).'
+      else
+        row bad 'Address' "$url does not answer from here (${code:-000})"
+        [[ -z $detail ]] || hint "Let's Encrypt: $detail"
+        hint 'Check that DNS points at this server and that TCP 80 and 443 are open: in this server'"'"'s firewall'
+        hint '(sudo ufw allow 80,443/tcp) and in your provider'"'"'s firewall or security group. Then: naruvi logs gateway'
+      fi
     else
       row bad 'Address' "$url does not answer (${code:-000})"; hint "Is another program using port $port? Change NARUVI_PORT and NARUVI_URL in .env together, then: naruvi start"
     fi

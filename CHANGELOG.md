@@ -7,6 +7,7 @@ Update an installation from a terminal with `naruvi update`.
 
 ### Fixed
 - `curl … | bash` no longer stops silently partway through (after installing Docker, or right after "Reach the address"): the installer is read whole before it runs, so commands that read their input can't swallow the rest of it.
+- When the HTTPS certificate can't be issued, the installer and `naruvi doctor` show Let's Encrypt's own reason. A timeout while the server answers on port 80 itself is reported as a firewall in front of the server (provider, university or lab network), with what to open, or a tunnel when you can't.
 
 ## 0.5.0 — 2026-11-14
 
