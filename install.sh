@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # Naruvi installer: one owner, your machine or your server. Bash 3.2+ (macOS, Linux, WSL2).
+# Run as `curl … | bash`, bash reads this script from the same pipe that commands it starts inherit
+# as stdin. One that reads stdin (Docker's install script, `docker compose exec`) swallows the rest
+# of the script and the installer stops without a word. The braces make bash read all of it first.
+{
 set -euo pipefail
 umask 077
 
@@ -698,3 +702,5 @@ if [[ $docker_relogin == true ]]; then
   out '\n'; note 'You were just added to the docker group: log out and back in before using these commands.'
 fi
 out '\n'; rule; out '\n'
+exit 0
+}

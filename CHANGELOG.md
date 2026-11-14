@@ -3,6 +3,11 @@
 Each release is a signed Git tag `vX.Y.Z` with a GitHub release of the same name.
 Update an installation from a terminal with `naruvi update`.
 
+## Unreleased
+
+### Fixed
+- `curl … | bash` no longer stops silently partway through (after installing Docker, or right after "Reach the address"): the installer is read whole before it runs, so commands that read their input can't swallow the rest of it.
+
 ## 0.5.0 — 2026-11-14
 
 ### Added
