@@ -2,7 +2,7 @@ import { z } from "zod"
 import type { CompletionInput } from "@/server/llm/transport"
 import { choice, decideInChunks, type Decide } from "@/server/decisions/jev"
 import { SettingsError } from "@/server/settings/errors"
-import { isEmployerPerk, isHiringNote, isJobCondition, isRecruitmentStep, type ExcludedRequirement, type Requirement, type RequirementExtraction } from "./requirements"
+import { isEmployerPerk, isHiringNote, isJobCondition, isRecruitmentStep, isVagueLine, type ExcludedRequirement, type Requirement, type RequirementExtraction } from "./requirements"
 
 export const FILTER_PROMPT_VERSION = "requirement-filter-v4"
 const BATCH_SIZE = 24
@@ -58,7 +58,7 @@ async function filterWithDecisions(extraction: RequirementExtraction, jobText: s
 }
 
 /** The item itself is a perk or a hiring step (not just its section): no model answer turns it into a requirement. */
-const itemLevelExclusion = (requirement: Requirement) => isEmployerPerk(requirement.text) || isRecruitmentStep(requirement.text) || isJobCondition(requirement.text) || isHiringNote(requirement.text)
+const itemLevelExclusion = (requirement: Requirement) => isEmployerPerk(requirement.text) || isRecruitmentStep(requirement.text) || isJobCondition(requirement.text) || isHiringNote(requirement.text) || isVagueLine(requirement.text)
 
 export async function filterRequirements(extraction: RequirementExtraction, jobText: string, complete?: Complete, decide?: Decide): Promise<{ requirements: Requirement[]; summary: RequirementFilterSummary }> {
   const kept = new Map(extraction.requirements.map((requirement) => [requirement.id, requirement]))

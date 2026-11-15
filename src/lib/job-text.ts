@@ -85,12 +85,37 @@ export function normalizeText(raw: string): string {
     .trim()
 }
 
-function stripMarkdownHeading(line: string) {
-  return line.replace(/^\[([^\]]{3,100})\]$/, "$1").replace(/^#{1,6}\s+/, "").replace(/^\*\*(.+)\*\*:?$/, "$1").replace(/^__(.+)__:?$/, "$1")
+/**
+ * Emoji and pictographs that decorate a line ("🎯 Your profile", "✨ Nice to have ✨").
+ * They carry no meaning for structure, so headings and items are judged without them.
+ */
+const DECORATION = /^[\p{Extended_Pictographic}\p{Emoji_Modifier}\u{FE0F}\u{20E3}★☆✦✧◆◇❖➜→⇒\s]+|[\p{Extended_Pictographic}\p{Emoji_Modifier}\u{FE0F}\u{20E3}★☆✦✧◆◇❖\s]+$/gu
+export function undecorate(line: string): string {
+  return line.replace(DECORATION, "").trim()
+}
+/** The emoji a line starts with, if any ("✅ Python" → "✅"). Keycap digits ("1️⃣") are not emoji bullets here. */
+function leadingEmoji(line: string | undefined): string {
+  return line?.match(/^(\p{Extended_Pictographic}[\p{Emoji_Modifier}\u{FE0F}]*)\s+\S/u)?.[1] ?? ""
 }
 
-function isHeading(line: string, next: string | undefined): boolean {
-  if (!line || BULLET.test(line)) return false
+/** Words that leave a line unfinished: a hard-wrapped sentence, not a list item. */
+const DANGLING = /(?:[,;]|\b(?:and|or|with|the|of|to|for|in|a|an|de|du|des|et|ou|la|le|les|en|un|une|avec|pour|und|oder|mit|y|con|e|o|di|en|met|van)\b)$/i
+/** A short line that reads as a list item written without a bullet ("Python", "3+ years of Go"). */
+function itemLike(line: string | undefined): boolean {
+  if (!line || BULLET.test(line) || /^(?:#{1,6}\s|\*\*|__)/.test(line)) return false
+  const bare = undecorate(line)
+  return bare.length >= 2 && bare.length <= 100 && /^[\p{Lu}0-9]/u.test(bare) && !/:$/.test(bare) && !DANGLING.test(bare) && !SECTION_BOUNDARY.test(bare) && !QUALIFICATIONS.test(bare)
+}
+
+function stripMarkdownHeading(line: string) {
+  return undecorate(line).replace(/^\[([^\]]{3,100})\]$/, "$1").replace(/^#{1,6}\s+/, "").replace(/^\*\*(.+)\*\*:?$/, "$1").replace(/^__(.+)__:?$/, "$1")
+}
+
+function isHeading(raw: string, next: string | undefined, bareRun = false): boolean {
+  if (!raw || BULLET.test(raw)) return false
+  // "🎯 Your profile" and "Your profile 🚀" are headings like "Your profile".
+  const line = undecorate(raw).replace(/^(\*\*|__)\s*(.*?)\s*(\*\*|__)(:?)$/, "$1$2$3$4")
+  if (!line) return false
   if (/^#{1,6}\s+\S/.test(line)) return true
   // "[2 - Construire sur une confiance mutuelle]": a bracketed subsection title.
   if (/^\[[^\]]{3,100}\]$/.test(line)) return true
@@ -103,7 +128,8 @@ function isHeading(line: string, next: string | undefined): boolean {
   if (/:$/.test(line) && words <= 10 && !/,/.test(line)) return true
   // A short title-like line without sentence punctuation; a heading with no
   // content after it is demoted to a paragraph in a final pass.
-  return words <= 7 && !SENTENCE_END.test(line) && /^[A-ZÀ-Ý0-9]/.test(line) && next !== undefined && !/^[a-zà-ÿ(]/.test(next)
+  // Inside a run of bare short lines ("Python" / "Docker" / "AWS", blank lines between), a line is an item, not a title.
+  return !bareRun && words <= 7 && !SENTENCE_END.test(line) && /^[A-ZÀ-Ý0-9]/.test(line) && next !== undefined && !/^[a-zà-ÿ(]/.test(next)
 }
 
 function slug(text: string, used: Set<string>) {
@@ -123,11 +149,23 @@ function slug(text: string, used: Set<string>) {
 
 export function parseJobText(raw: string): Block[] {
   const lines = normalizeText(raw).split("\n")
+  // Emoji used as bullets ("✅ Python" / "✅ Docker"): the same emoji starting neighbouring lines.
+  const neighbour = (from: number, step: number) => {
+    for (let j = from + step; j >= 0 && j < lines.length; j += step) if (lines[j]) return lines[j]
+    return undefined
+  }
+  const emojiBullets = lines.map((line, index) => {
+    const emoji = leadingEmoji(line)
+    return emoji !== "" && (leadingEmoji(neighbour(index, -1)) === emoji || leadingEmoji(neighbour(index, 1)) === emoji)
+  })
+  for (let i = 0; i < lines.length; i += 1) if (emojiBullets[i]) lines[i] = `- ${undecorate(lines[i])}`
   const blocks: Block[] = []
   const used = new Set<string>()
   let paragraph: string[] = []
   let list: { ordered: boolean; items: string[] } | null = null
   let inQualifications = false
+  /** Short lines under a heading, one item per line with no bullets: a list. A blank line ends it. */
+  let implicitList = false
 
   const flushParagraph = () => {
     if (paragraph.length) blocks.push({ type: "paragraph", text: paragraph.join(" ") })
@@ -145,6 +183,10 @@ export function parseJobText(raw: string): Block[] {
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]
     if (!line) {
+      if (implicitList) {
+        implicitList = false
+        flushList()
+      }
       // Blank lines end paragraphs but not lists: many sources put a blank
       // line between every bullet.
       // A sentence cut in two by a blank line ("…un appel" / "téléphonique d’un…") stays one paragraph.
@@ -169,6 +211,21 @@ export function parseJobText(raw: string): Block[] {
       list.items[list.items.length - 1] += ` ${line}`
       continue
     }
+    if (implicitList) {
+      if (itemLike(line)) {
+        list ??= { ordered: false, items: [] }
+        list.items.push(undecorate(line))
+        continue
+      }
+      implicitList = false
+      flushList()
+    }
+    // Right after a heading, two or more short item-like lines in a row are a list without bullets.
+    if (!inQualifications && blocks.at(-1)?.type === "heading" && !paragraph.length && !list && itemLike(line) && itemLike(lines[i + 1])) {
+      implicitList = true
+      list = { ordered: false, items: [undecorate(line)] }
+      continue
+    }
     const text = stripMarkdownHeading(line).replace(/:$/, "").trim()
     const qualificationHeading = QUALIFICATIONS.test(text)
     // Some job boards flatten qualification lists to one unmarked item per line.
@@ -178,7 +235,10 @@ export function parseJobText(raw: string): Block[] {
       flushList()
     }
     const next = lines[i + 1] || nextNonEmpty(i + 1)
-    if (qualificationHeading || SECTION_BOUNDARY.test(text) || (!inQualifications && isHeading(line, next)) || (inQualifications && /^(?:#{1,6}\s|\*\*|__)/.test(line) && isHeading(line, next))) {
+    const lastBlock = blocks.at(-1)
+    const bareLine = (text: string | undefined) => !!text && itemLike(text) && undecorate(text).length <= 60 && !SENTENCE_END.test(text)
+    const bareRun = !paragraph.length && bareLine(line) && bareLine(next) && !!lastBlock && (lastBlock.type === "heading" || (lastBlock.type === "paragraph" && bareLine(lastBlock.text)))
+    if (qualificationHeading || SECTION_BOUNDARY.test(text) || (!inQualifications && isHeading(line, next, bareRun)) || (inQualifications && /^(?:#{1,6}\s|\*\*|__)/.test(line) && isHeading(line, next))) {
       flushParagraph()
       flushList()
       blocks.push({ type: "heading", text, id: slug(text, used) })
