@@ -9,6 +9,7 @@ import { entries, facts, phrasings, profiles } from "@/server/db/schema"
 import { supportFor, verifySupport } from "@/server/domain/grounding"
 import { searchGoals } from "@/lib/search-goals"
 import { cleanText, entryName, entryView, hasHeading, KIND_FIELDS, looseFields, type EntryFields, type EntryText } from "@/lib/entry-fields"
+import type { EntryEnrichment } from "@/lib/enrichment"
 import { matchLogo } from "./logo-match"
 import { queueTranslation } from "./auto-translate"
 import { parseIdentity, parsePool } from "./pool-parser"
@@ -134,6 +135,7 @@ async function writeEntry(input: EntryInput, entryId?: string, imported = false)
       doNotClaim: data.doNotClaim,
       confidential: data.confidential,
       logoPath: data.logoPath,
+      enrichment: data.enrichment,
     }
     const [entry] = entryId
       ? await tx.update(entries).set(values).where(eq(entries.id, entryId)).returning()
@@ -379,7 +381,7 @@ export async function importProfileFolder(folder: string): Promise<ImportSummary
   return summary
 }
 
-const LOGO_KINDS = ["experience", "education", "project", "certification", "achievement"] as const
+const LOGO_KINDS = ["experience", "education", "project", "certification", "achievement", "event"] as const
 
 /**
  * Give entries without a logo the best match from <folder>/../assets/*_logos.
@@ -445,8 +447,8 @@ export async function getReviewQueue(): Promise<ReviewItem[]> {
 /** Saves imported entries as "needs review" and fills only empty identity fields. Skips entries already in the profile. */
 export async function saveImportedProfile(input: {
   language: string
-  identity: { fullName: string; headline: string; email: string; phone: string; location: string; links: { label: string; url: string }[] }
-  entries: { kind: EntryInput["kind"]; text: Record<string, string>; fields: EntryFields; facts: string[]; skills: string[]; bullets: { text: string; facts: number[] }[] }[]
+  identity: { fullName: string; headline: string; summary?: string; email: string; phone: string; location: string; links: { label: string; url: string }[] }
+  entries: { kind: EntryInput["kind"]; text: Record<string, string>; fields: EntryFields; facts: string[]; skills: string[]; bullets: { text: string; facts: number[] }[]; enrichment?: EntryEnrichment | null; logoPath?: string | null }[]
 }, { dedupe = true, status = "needs_review" }: { dedupe?: boolean; status?: "verified" | "needs_review" } = {}) {
   const profile = await requireProfile()
   const existing = await db.select({ kind: entries.kind, display: entries.display, fields: entries.fields }).from(entries).where(eq(entries.profileId, profile.id))
@@ -467,7 +469,7 @@ export async function saveImportedProfile(input: {
     const unnamed = !hasHeading(shaped, input.language)
     try {
       await saveEntry({
-        ...shaped, status: unnamed ? "needs_review" : status,
+        ...shaped, status: unnamed ? "needs_review" : status, logoPath: item.logoPath ?? null, enrichment: item.enrichment ?? null,
         skills: item.skills, facts: item.facts.map((statement) => ({ statement })),
         phrasings: item.bullets.filter((bullet) => bullet.facts.length).map((bullet) => ({ group: "Imported", role: "bullet" as const, language: input.language, text: bullet.text, factRefs: bullet.facts })),
       }, undefined, { imported: true })
@@ -488,6 +490,8 @@ export async function saveImportedProfile(input: {
   if (empty(profile.location) && id.location.trim()) patch.location = id.location.trim()
   const headlines = (profile.headlines ?? {}) as Record<string, string>
   if (id.headline.trim() && empty(headlines[input.language])) patch.headlines = { ...headlines, [input.language]: id.headline.trim() }
+  const summaries = (profile.summaries ?? {}) as Record<string, string>
+  if (id.summary?.trim() && empty(summaries[input.language])) patch.summaries = { ...summaries, [input.language]: id.summary.trim().slice(0, 1200) }
   const links = (profile.links ?? []) as { label: string; url: string }[]
   const normalized = id.links.map((link) => ({ label: link.label.trim() || "Link", url: /^https?:\/\//i.test(link.url.trim()) ? link.url.trim() : /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(link.url.trim()) ? `https://${link.url.trim()}` : "" }))
   const newLinks = normalized.filter((link) => link.url && URL.canParse(link.url) && !links.some((known) => known.url === link.url))

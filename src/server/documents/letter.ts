@@ -10,6 +10,8 @@
  *    quality gate refuses "ready" until every placeholder is replaced.
  */
 import { entryView } from "@/lib/entry-fields"
+import { inLanguage } from "@/lib/text-language"
+import { foreignLetterLines, languageCheck } from "./language"
 import { z } from "zod"
 import { aiAssistance, aiReviewCheck } from "./ai-metadata"
 import { templateIds } from "./model"
@@ -214,11 +216,11 @@ export function composeLetter(
   for (const requirement of ranked) {
     for (const entry of verified) {
       const phrasing = entry.phrasings.find(
-        (ph) => ph.role === "bullet" && ph.language === language && ph.grounding.grounded && !used.has(ph.id) && ph.factIds.some((id) => requirement.factIds.includes(id)),
+        (ph) => ph.role === "bullet" && ph.language === language && ph.grounding.grounded && inLanguage(ph.text, language) && !used.has(ph.id) && ph.factIds.some((id) => requirement.factIds.includes(id)),
       )
       if (!phrasing) continue
       used.add(phrasing.id)
-      const view = entryView(entry, language)
+      const view = entryView(entry, language, { strict: true })
       highlights.push({ id: phrasing.id, text: clean(phrasing.text), organization: (entry.kind === "project" ? view.heading : view.subheading) || view.heading, factIds: phrasing.factIds, included: highlights.length < (options.maxHighlights ?? 3) })
       break
     }
@@ -232,7 +234,7 @@ export function composeLetter(
     language,
     template: "classic",
     accent: "#2563eb",
-    header: { name: profile.fullName, headline: profile.headlines[language] ?? "", photoPath: profile.photoPath ?? null, email: profile.email, phone: profile.phone, location: profile.location, links: profile.links },
+    header: { name: profile.fullName, headline: inLanguage(profile.headlines[language] ?? "", language) ? profile.headlines[language] ?? "" : "", photoPath: profile.photoPath ?? null, email: profile.email, phone: profile.phone, location: profile.location, links: profile.links },
     recipient: { company: job.company, location: job.location ?? "" },
     date: p.date(options.today ?? new Date()),
     subject: FORMAT[language]?.subject(job.title, job.contract) ?? p.subject(job.title),
@@ -296,6 +298,7 @@ export function checkLetter(doc: LetterDocument, pages: number | null) {
   if (pages === null) add("pages", "warn", "One page", "Not rendered yet.")
   else add("pages", pages <= 1 ? "pass" : "fail", "One page", pages <= 1 ? "Fits on one page." : `${pages} pages — shorten it to one.`)
   add("contact", doc.header.email || doc.header.phone ? "pass" : "fail", "Contact details", doc.header.email || doc.header.phone ? "Present." : "Add an email or phone to your profile.")
+  checks.push(languageCheck(foreignLetterLines(doc), doc.language))
   const errors = checks.filter((c) => c.status === "fail").length
   const warnings = checks.filter((c) => c.status === "warn").length
   const score = Math.max(0, 100 - errors * 20 - warnings * 6)

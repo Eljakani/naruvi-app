@@ -56,3 +56,16 @@ test("must-have evidence left out is flagged", () => {
   assert.equal(status(report, "coverage"), "warn")
   assert.match(report.checks.find((c) => c.id === "coverage")!.detail, /Epic EHR/)
 })
+
+test("a line in another language than the document's fails the language check", () => {
+  assert.equal(status(checkQuality(doc(), 1), "language"), "pass")
+  const base = doc()
+  base.sections[0].items[0].bullets.push({ id: "b2", text: "Contribution à des tâches d'automatisation et de reporting en Python.", source: "fact", phrasingId: null, factIds: ["f1"], included: true })
+  const report = checkQuality(base, 1)
+  assert.equal(status(report, "language"), "fail")
+  assert.equal(report.ready, false)
+  assert.match(report.checks.find((c) => c.id === "language")!.detail, /1 line\(s\) read as French in this English document/)
+  // A line the user left out is not printed, so it is not flagged.
+  base.sections[0].items[0].bullets[1].included = false
+  assert.equal(status(checkQuality(base, 1), "language"), "pass")
+})

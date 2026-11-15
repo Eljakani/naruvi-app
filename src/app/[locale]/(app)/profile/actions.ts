@@ -1,6 +1,6 @@
 "use server"
 
-import { looseFields, type EntryFields } from "@/lib/entry-fields"
+import { ENTRY_KINDS, looseFields, type EntryFields } from "@/lib/entry-fields"
 import { revalidatePath } from "next/cache"
 import { after } from "next/server"
 import { refreshRoleGroups } from "@/server/contacts/role-groups"
@@ -16,7 +16,10 @@ import { startRun } from "@/server/runs/tracer"
 import { getLlmOverview } from "@/server/settings/llm"
 import { describeEntry, importProfileText, IMPORT_PROMPT_VERSION, suggestEntryExtras, translateEntry } from "@/server/profile/ai-import"
 import { linkedinImport } from "@/lib/linkedin-export"
-import { pdfText } from "@/server/profile/pdf-text"
+import { readCvFile, type CvFileNote, type CvFileProblem } from "@/lib/cv-file"
+import { readCvWithRules } from "@/lib/cv-rules"
+import { enrichEntries } from "@/server/profile/enrich"
+import { enrichmentInput, logoPathInput } from "@/server/profile/schemas"
 import { entriesForMatching, mergeIntoEntry, saveImportedProfile } from "@/server/profile/repository"
 import { matchEntry } from "@/server/profile/import-match"
 import { decisionClient } from "@/server/settings/decisions"
@@ -156,22 +159,17 @@ async function withModel<T>(workflow: string, task: string, version: string, fn:
   }
 }
 
-async function readLinkedinExport(bytes: Uint8Array, csvName: string | null) {
-  const { unzipSync, strFromU8 } = await import("fflate")
-  let files: Record<string, string> = {}
-  try {
-    files = csvName ? { [csvName]: strFromU8(bytes) } : Object.fromEntries(Object.entries(unzipSync(bytes, { filter: (file) => /\.csv$/i.test(file.name) && file.originalSize < 5_000_000 })).map(([name, data]) => [name, strFromU8(data)]))
-  } catch {
-    return { ok: false as const, message: await serverError("couldntOpenThatZip") }
-  }
+async function readLinkedinExport(files: Record<string, string>) {
   const result = linkedinImport(files)
   if (!result.found) return { ok: false as const, message: await serverError("noLinkedinProfileData") }
   const existing = await entriesForMatching()
   const entries = result.entries.map((entry) => ({ ...entry, match: matchEntry(entry, existing) }))
-  return { ok: true as const, data: { language: result.language, identity: result.identity, entries, model: "LinkedIn export (read directly, no AI)" } }
+  return { ok: true as const, data: { language: result.language, identity: { ...result.identity, summary: "" }, entries, model: "LinkedIn export (read directly, no AI)", unread: [] as string[], failedParts: [] as string[], reader: "export" as const, notes: [] as CvFileNote[] } }
 }
 
-/** Reads a CV (PDF upload or pasted text) or a LinkedIn data export into proposed entries. Saves nothing. */
+const FILE_PROBLEMS: Record<CvFileProblem, Parameters<typeof serverError>[0]> = { scan: "cvScan", encrypted: "cvEncrypted", legacyWord: "cvLegacyWord", image: "cvImage", unsupported: "cvUnsupported", empty: "couldntReadTextFrom", damaged: "cvDamaged" }
+
+/** Reads a CV (PDF, Word, OpenDocument, text or pasted text) or a LinkedIn data export into proposed entries. Saves nothing. */
 export async function readCvAction(formData: FormData) {
   try {
     return await readCv(formData)
@@ -185,39 +183,82 @@ async function readCv(formData: FormData) {
   const file = formData.get("file")
   const pasted = String(formData.get("text") ?? "").trim()
   let text = pasted
+  let links: { text: string; url: string }[] = []
+  let notes: CvFileNote[] = []
   if (file instanceof File && file.size) {
     if (file.size > 8 * 1024 * 1024) return { ok: false as const, message: await serverError("fileOver8") }
-    const bytes = new Uint8Array(await file.arrayBuffer())
+    const read = await readCvFile(new Uint8Array(await file.arrayBuffer()), file.name)
+    // Each unreadable file says why: a scan, a locked PDF and an old .doc need different fixes.
+    if (!read.ok) return { ok: false as const, message: await serverError(FILE_PROBLEMS[read.problem]) }
     // LinkedIn's data export (ZIP of CSVs, or one CSV): structured, so read exactly, without AI.
-    const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b
-    if (isZip || /\.csv$/i.test(file.name)) return readLinkedinExport(bytes, isZip ? null : file.name)
-    if (String.fromCharCode(...bytes.slice(0, 5)) === "%PDF-") text = await pdfText(bytes).catch(() => "")
-    else text = new TextDecoder().decode(bytes)
-    if (text.trim().length < 80) return { ok: false as const, message: await serverError("couldntReadTextFrom") }
+    if (read.kind === "linkedin") return readLinkedinExport(read.files)
+    text = read.text
+    links = read.links
+    notes = read.notes
   }
   if (text.length < 80) return { ok: false as const, message: await serverError("pasteYourCvOr") }
   const existing = await entriesForMatching()
+  // Without a model the CV is still read, by rules: less sure of itself, so its entries arrive for review.
+  if (!(await getLlmOverview().catch(() => null))?.configured) {
+    const result = readCvWithRules(text, links)
+    return { ok: true as const, data: { ...result, entries: result.entries.map((entry) => ({ ...entry, match: matchEntry(entry, existing) })), model: "", failedParts: [] as string[], reader: "rules" as const, notes } }
+  }
   return withModel("profile.import", "profile import", IMPORT_PROMPT_VERSION, async (complete, run) => {
-    const result = await run.step("structure CV", () => importProfileText(text, complete), (value) => `${value.entries.length} entries · ${value.entries.reduce((sum, item) => sum + item.facts.length, 0)} facts · ${value.entries.reduce((sum, item) => sum + item.dropped, 0)} unsupported items dropped`)
+    const result = await run.step("structure CV", () => importProfileText(text, complete, { links }), (value) => `${value.entries.length} entries · ${value.entries.reduce((sum, item) => sum + item.facts.length, 0)} facts · ${value.entries.reduce((sum, item) => sum + item.dropped, 0)} unsupported items dropped · ${value.unread.length} lines unread`)
     const entries = result.entries.map((entry) => ({ ...entry, match: matchEntry(entry, existing) }))
     await run.step("match existing entries", async () => entries.filter((entry) => entry.match).length, (value) => `${value} of ${entries.length} already in your profile`)
-    return { ...result, entries }
+    return { ...result, entries, notes }
   })
 }
 
+const lookupEntry = z.object({ kind: z.enum(ENTRY_KINDS), text: z.record(z.string().max(40), z.string().max(200)), fields: z.record(z.string().max(40), z.unknown()), skills: z.array(z.string().max(60)).max(80) })
+
+/**
+ * Looks up the organisations, certifications, events and skills of imported
+ * entries in open sources. Only their names leave the app. Saves nothing: the
+ * suggestions go back to the review screen, where each can be turned off.
+ */
+export async function enrichImportAction(input: unknown) {
+  const parsed = z.array(lookupEntry).max(120).safeParse(input)
+  if (!parsed.success) return { ok: false as const, message: await serverError("invalidInput") }
+  try {
+    return { ok: true as const, data: await enrichEntries(parsed.data) }
+  } catch (error) {
+    console.error("[naruvi] enrich import:", error)
+    return { ok: false as const, message: await serverError("lookupFailed") }
+  }
+}
+
+/** The same lookup for the entry being edited. Saves nothing: what is kept goes in with the entry's next save. */
+export async function enrichDraftAction(input: unknown) {
+  const parsed = lookupEntry.safeParse(input)
+  if (!parsed.success) return { ok: false as const, message: await serverError("invalidInput") }
+  try {
+    const result = await enrichEntries([parsed.data])
+    return { ok: true as const, data: { enabled: result.enabled, failed: result.failed, suggestion: result.suggestions[0] } }
+  } catch {
+    return { ok: false as const, message: await serverError("lookupFailed") }
+  }
+}
+
 const importedEntry = z.object({
-  kind: z.enum(["experience", "education", "project", "skill", "certification", "language", "achievement", "other"]),
+  kind: z.enum(ENTRY_KINDS),
   text: z.record(z.string().max(40), z.string().max(200)),
   fields: z.record(z.string().max(40), z.unknown()),
   facts: z.array(z.string().trim().min(3).max(600)).max(40),
   skills: z.array(z.string().max(60)).max(80),
   bullets: z.array(z.object({ text: z.string().min(3).max(600), facts: z.array(z.number().int().nonnegative()) })).max(30),
+  /** Accepted on the review screen: public facts about the organisation, certification or event, and its logo. */
+  enrichment: enrichmentInput.nullable().optional(),
+  logoPath: logoPathInput.nullable().optional(),
 })
 const importPayload = z.object({
   language: z.string().regex(/^[a-z]{2}$/),
   merges: z.array(z.object({ entryId: z.string().uuid(), facts: z.array(z.string().trim().min(3).max(600)).max(40), skills: z.array(z.string().max(60)).max(80), text: z.record(z.string().max(40), z.string().max(200)), fields: z.record(z.string().max(40), z.unknown()) })).max(80).default([]),
-  identity: z.object({ fullName: z.string().max(120), headline: z.string().max(160), email: z.string().max(200), phone: z.string().max(40), location: z.string().max(120), links: z.array(z.object({ label: z.string().max(40), url: z.string().max(500) })).max(10) }),
-  entries: z.array(importedEntry).max(80),
+  /** "rules": read without a model, so the entries are saved for review instead of verified. */
+  reader: z.enum(["model", "rules", "export"]).default("model"),
+  identity: z.object({ fullName: z.string().max(120), headline: z.string().max(160), summary: z.string().max(1200).default(""), email: z.string().max(200), phone: z.string().max(40), location: z.string().max(120), links: z.array(z.object({ label: z.string().max(40), url: z.string().max(500) })).max(10) }),
+  entries: z.array(importedEntry).max(120),
 }).transform((data) => ({ ...data, entries: data.entries.map((entry) => ({ ...entry, fields: looseFields(entry.kind, entry.fields) })) }))
 
 /**
@@ -231,7 +272,7 @@ export async function saveImportAction(input: unknown) {
     return { ok: false as const, message: await serverError("someImportedEntriesAre") }
   }
   try {
-    const result = await saveImportedProfile(parsed.data, { dedupe: false, status: "verified" })
+    const result = await saveImportedProfile(parsed.data, { dedupe: false, status: parsed.data.reader === "rules" ? "needs_review" : "verified" })
     let merged = 0
     let factsAdded = 0
     let reverify = 0

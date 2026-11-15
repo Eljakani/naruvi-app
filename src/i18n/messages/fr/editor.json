@@ -275,6 +275,34 @@
           "placeholder": "Sur 120 équipes"
         }
       },
+      "event": {
+        "title": {
+          "label": "Titre",
+          "placeholder": "Passer la recherche à l’échelle"
+        },
+        "event": {
+          "label": "Événement",
+          "placeholder": "Devoxx France 2024"
+        },
+        "role": {
+          "label": "Votre rôle"
+        },
+        "organizer": {
+          "label": "Organisateur",
+          "placeholder": "Association Devoxx"
+        },
+        "location": {
+          "label": "Lieu",
+          "placeholder": "Paris"
+        },
+        "date": {
+          "label": "Date"
+        },
+        "url": {
+          "label": "Lien",
+          "placeholder": "https://…"
+        }
+      },
       "other": {
         "title": {
           "label": "Titre"

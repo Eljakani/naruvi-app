@@ -6,6 +6,12 @@ Update an installation from a terminal with `naruvi update`.
 ## Unreleased
 
 ### Added
+- CV import reads Word (.docx) and OpenDocument (.odt) files, including tables, text boxes, headers and the addresses behind linked words. Before, a Word file was mistaken for a LinkedIn export and refused.
+- Talks, conferences, meetups and hackathons have their own kind of profile entry (**Events & talks**), with the event, your part in it, the organiser, the place and the date.
+- After a CV is read you can look up its organisations, certifications, events and skills online (Wikidata, Wikipedia and the organisation's own site for its logo). Only their names are sent. What is found is shown apart from what your CV says, with its source, and each item can be turned off before saving or removed later from the entry. It describes the organisation, certification or event, never you; your own wording is kept unless you choose the suggested name.
+- Without a language model, a CV is still read, by its layout and section titles; those entries are saved as "needs review".
+- The review screen lists the lines of your CV that ended up in no entry, so a missed job or diploma is visible.
+- `npm run profile:eval` scores the import against a set of invented CVs (PDF and Word, one and two columns, English, French, Spanish, German and Arabic).
 - Before a CV is written you can choose its length (auto, 1 or 2 pages), how much detail it gives, and what it should stress. What you ask for is followed only where your verified facts support it.
 - Each tailored CV shows how it positions you for the job: the angle it takes, the selling points it leads with, the must-haves your profile can't prove, and which of the job's keywords it shows or leaves out. None of this is printed.
 - **Suggest designs for this job** in the Look tab proposes three designs chosen for the role, each rendered with your CV, fitted to its page count and checked before you see it. Without a language model they are chosen by rule.
@@ -14,12 +20,23 @@ Update an installation from a terminal with `naruvi update`.
 - New design options: contact beside the name, a line under the header, dates in a left rail, employer or job title first, date pills, skill pills or columns, and which sections go in the side column. Six new built-in designs: Chrono, Summit, Mosaic, Quartz, Beacon and Folio.
 
 ### Changed
+- CV import no longer completes what the CV doesn't say: a link is kept only when the file has it (the address behind "LinkedIn" is read from the file instead of being guessed from your name), a language level only when the CV states one, and a month only when the CV names it ("été 2024" stays 2024). A job is marked full-time, remote or similar only when the CV says so, and an imported language is matched to an existing one by its name, not its level.
+- PDF text is rebuilt from the position of each line: two-column CVs are read column by column, right-to-left pages in the right order, and repeated page headers and footers are dropped.
+- Dates are read in Spanish, German, Italian, Portuguese, Dutch and Arabic as well as English and French, including "seit 04/2021", "depuis septembre 2022" and "2017-10 → 2019-09". Language levels are read from the CV's wording ("courant", "verhandlungssicher", "Muttersprache", "TOEIC 945").
+- A long CV is read section by section; a part the model fails on is reported instead of failing the whole import.
+- The summary paragraph of a CV fills your profile summary instead of becoming an entry.
+- A file that can't be read says why: a scan, a password-protected PDF, an old .doc, a picture, a damaged file.
 - The dashboard is simpler: the pipeline shows how many applications are ready to send, and the stat tiles are gone.
 - The assistant panel and its approval cards are fully translated (French, Arabic) instead of showing English labels.
 
 ### Fixed
+- A CV or cover letter is written in one language only. Before, an entry with no approved bullets printed its facts as they were typed, so facts typed in French appeared in French inside an English CV. Facts are now printed in the document's language (their translation), entries are translated before a CV is generated, and titles, skill group names and spoken languages are never borrowed from another language. What has no text in the document's language is left out and listed under Checks, and a new check, "One language throughout", fails when any line reads as another language.
 - Fit check: questions in a posting are no longer counted as requirements. One that titles a section ("What do you bring?", "What will you do?", "What you'll get in return?") now sorts the lines under it into requirements, duties or benefits; before, the question could be kept and the real requirements dropped.
 - Fit check: accommodation and equal-opportunity notes ("Do you have specific needs or require adjustments during the recruitment process?") are never listed as missing from your profile.
+- Fit check: headings decorated with emoji ("🎯 Your profile", "Nice to have ✨") are read as headings, and the same emoji starting each line ("✅ Python") reads as a bullet.
+- Fit check: short requirement lines written without bullets, one per line or with blank lines between, are kept as requirements.
+- Fit check: German, Spanish, Italian, Portuguese and Dutch postings have their profile, duties, nice-to-have and benefits sections recognized.
+- Fit check: vague lines inside a requirements list ("Passionate and curious", "Team player", "etc.") are set aside as too vague to check, and the AI filter can't bring them back.
 - Fit check: in a profile section written as prose, "You enjoy…" / "Vous savez…" sentences are picked up as requirements.
 - `curl … | bash` no longer stops silently partway through (after installing Docker, or right after "Reach the address"): the installer is read whole before it runs, so commands that read their input can't swallow the rest of it.
 - When the HTTPS certificate can't be issued, the installer and `naruvi doctor` show Let's Encrypt's own reason. A timeout while the server answers on port 80 itself is reported as a firewall in front of the server (provider, university or lab network), with what to open, or a tunnel when you can't.

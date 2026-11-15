@@ -10,6 +10,8 @@ import { db } from "@/server/db/client"
 import { documents, revisions, type QualitySummary } from "@/server/db/schema"
 import { getApplication } from "@/server/applications/repository"
 import { getProfile, listEntries } from "@/server/profile/repository"
+import { needsTranslation, translateSoon } from "@/server/profile/auto-translate"
+import { keepCvLanguage } from "./language"
 import { availabilityFor, type GoalJob } from "@/lib/search-goals"
 import { getDocumentDefaults } from "@/server/settings/service"
 import { startRun } from "@/server/runs/tracer"
@@ -172,7 +174,16 @@ export async function generateCv(applicationId: string, language?: string, brief
   const brief = cvBrief.parse(briefInput ?? previous?.brief ?? {})
   const run = await startRun("cv.generate", { applicationId, language: lang, brief }, applicationId)
   try {
-    const entries = await run.step("load profile", () => listEntries(), (value) => `${value.length} entries`)
+    let entries = await run.step("load profile", () => listEntries(), (value) => `${value.length} entries`)
+    // An entry saved moments ago, or while no model was connected, may not be in this language yet: translate it before it is used.
+    if ((await getLlmOverview().catch(() => null))?.configured) {
+      const translated = await run.step("translate profile entries", async () => {
+        let changed = 0
+        for (const entry of entries.filter((entry) => entry.status === "verified")) if (await needsTranslation(entry.id)) changed += (await translateSoon(entry.id)).changed
+        return changed
+      }, (value) => (value ? `${value} field(s) and line(s) translated` : "nothing to translate")).catch(() => 0)
+      if (translated) entries = await listEntries()
+    }
     let content = await run.step(
       "compose (grounded)",
       async () =>
@@ -240,6 +251,8 @@ export async function generateCv(applicationId: string, language?: string, brief
       const fitted = await run.step("fit layout to the page target", () => fitCvLayout(content, Number(brief.pages)), (value) => (value ? "layout tightened" : "already fits")).catch(() => null)
       if (fitted) content = fitted
     }
+    // Last net: no line in another language than the document's leaves this function.
+    content = keepCvLanguage(content).doc
     const { revision, quality } = await run.step("render & quality gate", () => addRevision(document.id, content, "generate", application.analysis?.requirements ?? [], run.id), (value) => `${value.revision.pages} page(s) · score ${value.quality.score}${value.quality.ready ? " · ready" : ""}`)
     await advanceAutomatically(application.id, quality.ready ? "ready" : "generated")
     await run.finish("succeeded", { documentId: document.id, revisionId: revision.id, score: quality.score })

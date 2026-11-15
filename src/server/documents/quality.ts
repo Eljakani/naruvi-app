@@ -29,6 +29,7 @@ export function repeatedOpening(bullets: { text: string }[]) {
   const [word, count] = [...counts].sort((a, b) => b[1] - a[1])[0] ?? ["", 0]
   return count >= 3 && count / bullets.length >= 0.25 ? { word, count } : null
 }
+import { foreignCvLines, languageCheck } from "./language"
 
 export type Check = { id: string; status: "pass" | "warn" | "fail"; label: string; detail: string }
 export type QualityReport = QualitySummary & { ready: boolean; checks: Check[] }
@@ -68,6 +69,9 @@ export function checkQuality(doc: CvDocument, pages: number | null, requirements
   }
 
   add("translations", doc.missingTranslations.length ? "warn" : "pass", "Everything has wording in this language", doc.missingTranslations.length ? `Left out (no ${doc.language.toUpperCase()} bullets yet): ${doc.missingTranslations.map((m) => m.title).join(", ")}.` : "Complete.")
+
+  // A line in another language than the document's: the composer never lets one in, so this is a regression or an edit.
+  checks.push(languageCheck(foreignCvLines(doc), doc.language))
 
   const long = bullets.filter((bullet) => bullet.text.length > 240)
   add("length", long.length ? "warn" : "pass", "Scannable bullets", long.length ? `${long.length} bullet(s) over 240 characters — shorten them in your profile.` : "All bullets are concise.")

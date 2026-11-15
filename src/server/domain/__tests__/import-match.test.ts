@@ -25,3 +25,9 @@ test("sameFact tolerates punctuation and small rewording only", () => {
   assert.equal(sameFact("Trained 6 new nurses.", "trained 6 new nurses"), true)
   assert.equal(sameFact("Trained 6 new nurses", "Hired 6 new nurses for the ward"), false)
 })
+
+test("match: a language is matched by its name, never by a shared level", () => {
+  const languages: ExistingEntry[] = [{ id: "l1", kind: "language", status: "verified", display: { en: { language: "Spanish" } }, fields: { level: "native" }, facts: [], skills: [] }]
+  assert.equal(matchEntry({ kind: "language", text: { language: "English" }, fields: { level: "native" }, facts: [], skills: [] }, languages), null)
+  assert.equal(matchEntry({ kind: "language", text: { language: "Spanish" }, fields: { level: "C1" }, facts: [], skills: [] }, languages)?.entryId, "l1")
+})

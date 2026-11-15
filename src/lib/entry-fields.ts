@@ -9,7 +9,7 @@
 import { z } from "zod"
 import { formatDateRange, parseDateRange, type DateRange, type MonthYear } from "@/lib/date-range"
 
-export const ENTRY_KINDS = ["experience", "education", "project", "skill", "certification", "language", "achievement", "other"] as const
+export const ENTRY_KINDS = ["experience", "education", "project", "skill", "certification", "language", "achievement", "event", "other"] as const
 export type EntryKind = (typeof ENTRY_KINDS)[number]
 export type CvLang = "en" | "fr"
 
@@ -20,6 +20,7 @@ export const OPTIONS = {
   workMode: ["onsite", "hybrid", "remote"],
   projectContext: ["personal", "academic", "professional", "open_source", "hackathon"],
   languageLevel: ["native", "C2", "C1", "B2", "B1", "A2", "A1"],
+  eventRole: ["speaker", "panelist", "organizer", "attendee", "volunteer_staff"],
 } as const
 export type OptionSet = keyof typeof OPTIONS
 
@@ -40,6 +41,11 @@ const OPTION_LABELS: Record<string, Record<"en" | "fr" | "ar", string>> = {
   professional: { en: "Professional project", fr: "Projet professionnel", ar: "مشروع مهني" },
   open_source: { en: "Open source", fr: "Open source", ar: "مفتوح المصدر" },
   hackathon: { en: "Hackathon", fr: "Hackathon", ar: "هاكاثون" },
+  speaker: { en: "Speaker", fr: "Intervenant", ar: "متحدث" },
+  panelist: { en: "Panelist", fr: "Panéliste", ar: "مشارك في حلقة نقاش" },
+  organizer: { en: "Organizer", fr: "Organisateur", ar: "منظم" },
+  attendee: { en: "Attendee", fr: "Participant", ar: "حاضر" },
+  volunteer_staff: { en: "Volunteer", fr: "Bénévole", ar: "متطوع" },
   native: { en: "Native", fr: "Langue maternelle", ar: "اللغة الأم" },
 }
 export function optionLabel(value: string, lang: string): string {
@@ -109,6 +115,16 @@ export const KIND_FIELDS: Record<EntryKind, FieldSpec[]> = {
     f("issuer", "text"),
     f("date", "month"),
     f("context", "text", { translated: true }),
+  ],
+  // A talk, conference, meetup, hackathon or workshop: `title` is the talk (or the event when there is no talk), `event` the event's own name.
+  event: [
+    f("title", "text", { translated: true, required: true }),
+    f("event", "text"),
+    f("role", "select", { options: "eventRole" }),
+    f("organizer", "text"),
+    f("location", "text", { translated: true }),
+    f("date", "month"),
+    f("url", "url"),
   ],
   other: [
     f("title", "text", { translated: true, required: true }),
@@ -219,17 +235,22 @@ export type EntryView = {
   link: string
 }
 
-const pick = (entry: EntryLike, lang: string) => {
+const pick = (entry: EntryLike, lang: string, strict: boolean) => {
   const display = entry.display as Record<string, Record<string, string | undefined>>
-  const ordered = [display[lang], display.en, display.fr, ...Object.values(display)].filter(Boolean)
+  const ordered = (strict ? [display[lang]] : [display[lang], display.en, display.fr, ...Object.values(display)]).filter(Boolean)
   return (key: string) => ordered.map((values) => values?.[key]).find((value) => value?.trim())?.trim() ?? ""
 }
 const cvLang = (lang: string): CvLang => (lang === "fr" ? "fr" : "en")
 const range = (value: unknown, lang: string) => formatDateRange(toRange(value as DatesValue | undefined), cvLang(lang))
 const month = (value: unknown, lang: string) => (typeof value === "string" ? formatDateRange({ start: toMonthYear(value), end: null }, cvLang(lang)) : "")
 
-export function entryView(entry: EntryLike, lang: string): EntryView {
-  const text = pick(entry, lang)
+/**
+ * `strict` is for documents (CV, letter): text comes from `lang` only, and is
+ * empty when the entry has none. Screens leave it off and show whatever
+ * language exists rather than a blank card.
+ */
+export function entryView(entry: EntryLike, lang: string, { strict = false }: { strict?: boolean } = {}): EntryView {
+  const text = pick(entry, lang, strict)
   const fields = (entry.fields ?? {}) as Record<string, unknown>
   const s = (key: string) => (typeof fields[key] === "string" ? (fields[key] as string) : "")
   const opt = (key: string) => (s(key) ? optionLabel(s(key), lang) : "")
@@ -254,6 +275,8 @@ export function entryView(entry: EntryLike, lang: string): EntryView {
     }
     case "achievement":
       return { heading: text("title"), subheading: s("issuer"), dates: month(fields.date, lang), location: "", details: join(text("context")), link: "" }
+    case "event":
+      return { heading: text("title"), subheading: s("event") === text("title") ? s("organizer") : s("event"), dates: month(fields.date, lang), location: text("location"), details: join(opt("role"), s("event") === text("title") ? "" : s("organizer")), link: s("url") }
     default:
       return { heading: text("title"), subheading: text("subtitle"), dates: range(fields.dates, lang), location: "", details: [], link: s("url") }
   }

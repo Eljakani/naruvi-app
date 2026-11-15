@@ -21,6 +21,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\" \"evals/**/*.test.ts\"",
     "profile:import": "tsx --conditions=react-server scripts/import-profile.mts",
+    "profile:eval": "tsx --conditions=react-server scripts/eval-cv-import.mts",
     "jobs:smoke": "tsx --conditions=react-server scripts/smoke-jobs.mts",
     "jobs:capture": "tsx scripts/capture-job-fixture.mts",
     "browser:install": "playwright install chromium",

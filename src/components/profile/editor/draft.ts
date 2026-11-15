@@ -3,6 +3,7 @@ import type { EntryInput } from "@/server/profile/schemas"
 import { entryKinds, entryStatuses } from "@/server/profile/schemas"
 import type { EntryFields } from "@/lib/entry-fields"
 import type { EntryTranslations } from "@/server/db/schema"
+import type { EntryEnrichment } from "@/lib/enrichment"
 
 export type Lang = "en" | "fr"
 export const LANGS: Lang[] = ["en", "fr"]
@@ -25,6 +26,8 @@ export type Draft = {
   doNotClaim: string[]
   confidential: boolean
   logoPath: string | null
+  /** Public facts kept from an online lookup (about the organisation, certification or event). */
+  enrichment: EntryEnrichment | null
   facts: DraftFact[]
   bullets: DraftBullet[]
 }
@@ -45,6 +48,7 @@ export function toDraft(entry: ProfileEntry | null): Draft {
       doNotClaim: [],
       confidential: false,
       logoPath: null,
+      enrichment: null,
       facts: [],
       bullets: [],
     }
@@ -61,6 +65,7 @@ export function toDraft(entry: ProfileEntry | null): Draft {
     doNotClaim: entry.doNotClaim,
     confidential: entry.confidential,
     logoPath: entry.logoPath,
+    enrichment: entry.enrichment ?? null,
     facts: entry.facts.map((fact) => ({ key: fact.id, statement: fact.statement })),
     bullets: entry.phrasings.map((phrasing) => ({
       key: phrasing.id,
@@ -94,6 +99,7 @@ export function toInput(draft: Draft): EntryInput {
     doNotClaim: draft.doNotClaim,
     confidential: draft.confidential,
     logoPath: draft.logoPath,
+    enrichment: draft.enrichment,
     facts: facts.map((fact) => ({ statement: fact.statement.trim() })),
     phrasings: draft.bullets
       .filter((bullet) => bullet.text.trim())
