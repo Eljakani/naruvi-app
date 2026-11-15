@@ -4,8 +4,14 @@
  * It never writes new claims: bullets are the user's approved phrasings (or,
  * as a fallback, verified facts) in the target language. It only *selects and
  * orders* them for a job, using the fit analysis.
+ *
+ * One language per document: text is taken from the document's language only.
+ * An entry, group or line that has none (or whose text is plainly in another
+ * language) is left out and listed in `missingTranslations`; nothing is ever
+ * borrowed from another language.
  */
 import { entryName, entryView, sortKey, type EntryFields } from "@/lib/entry-fields"
+import { inLanguage } from "@/lib/text-language"
 import { keywordsIn } from "@/server/analysis/keywords"
 import { sectionTitle, type CvBullet, type CvDocument, type CvItem, type CvSection } from "./model"
 
@@ -19,7 +25,8 @@ export type ComposeEntry = {
   skills: string[]
   logoPath: string | null
   sortOrder: number
-  facts: { id: string; statement: string }[]
+  /** `translations[lang]` is the statement in that language, made from `source` (src/server/profile/auto-translate.ts). */
+  facts: { id: string; statement: string; translations?: Record<string, { text: string; source: string }> | null }[]
   phrasings: { id: string; group: string; role: "bullet" | "label"; language: string; text: string; factIds: string[]; grounding: { grounded: boolean } }[]
 }
 
@@ -44,6 +51,8 @@ export type ComposeProfile = {
 export type ComposeOptions = { language: string; maxExperience?: number; maxProjects?: number; bulletsTop?: number; bulletsOther?: number }
 
 const clean = (text: string) => text.replace(/\*\*(.+?)\*\*/g, "$1").trim()
+/** Profile text filed under a language, unless it is plainly written in another. */
+const own = (text: string | undefined, language: string) => (text && inLanguage(text, language) ? text : "")
 
 /** Relevance of a bullet to the job: evidence for a requirement, then shared skills. */
 function relevance(bullet: { text: string; factIds: string[] }, analysis: ComposeAnalysis | null) {
@@ -55,17 +64,33 @@ function relevance(bullet: { text: string; factIds: string[] }, analysis: Compos
   return evidence * 3 + keyScore
 }
 
+/**
+ * A fact's statement in `language`, or null when there is none to print.
+ * A fact is stored in whatever language it was written in, which may not be
+ * the profile's: its translation is used when it is current, the statement
+ * itself only for the profile language, and neither if it reads as another
+ * language (a translation the model could not make keeps the original words).
+ */
+export function factIn(fact: ComposeEntry["facts"][number], language: string, defaultLanguage: string): string | null {
+  const translated = fact.translations?.[language]
+  const text = translated && translated.source === fact.statement && translated.text.trim() ? translated.text : language === defaultLanguage ? fact.statement : ""
+  return text.trim() && inLanguage(text, language) ? text : null
+}
+
 function bulletsFor(entry: ComposeEntry, language: string, defaultLanguage: string, analysis: ComposeAnalysis | null, limit: number): CvBullet[] | null {
-  const phrasings = entry.phrasings.filter((p) => p.role === "bullet" && p.language === language && p.grounding.grounded)
-  let pool: CvBullet[]
+  // A line filed under this language but written in another (a mixed CV imported as one language) is not usable either.
+  const phrasings = entry.phrasings.filter((p) => p.role === "bullet" && p.language === language && p.grounding.grounded && inLanguage(p.text, language))
+  let pool: CvBullet[] = []
   if (phrasings.length) {
     pool = phrasings.map((p) => ({ id: `p:${p.id}`, text: clean(p.text), source: "phrasing", phrasingId: p.id, factIds: p.factIds, included: true }))
-  } else if (language === defaultLanguage && entry.facts.length) {
-    // No approved wording yet: verified facts in the profile's own language.
-    pool = entry.facts.map((f) => ({ id: `f:${f.id}`, text: clean(f.statement), source: "fact", phrasingId: null, factIds: [f.id], included: true }))
   } else {
-    return entry.phrasings.some((p) => p.role === "bullet") || entry.facts.length ? null : []
+    // No approved wording yet: verified facts, in this language.
+    pool = entry.facts.flatMap((f) => {
+      const text = factIn(f, language, defaultLanguage)
+      return text ? [{ id: `f:${f.id}`, text: clean(text), source: "fact" as const, phrasingId: null, factIds: [f.id], included: true }] : []
+    })
   }
+  if (!pool.length) return entry.phrasings.some((p) => p.role === "bullet") || entry.facts.length ? null : []
   const ranked = pool.map((bullet, index) => ({ bullet, index, score: relevance(bullet, analysis) }))
   ranked.sort((a, b) => b.score - a.score || a.index - b.index)
   // Keep the best ones, but over-supply (excluded) so the user can swap them in.
@@ -74,7 +99,7 @@ function bulletsFor(entry: ComposeEntry, language: string, defaultLanguage: stri
 
 /** The CV line of an entry, from its own fields: e.g. a job's position at its company, a project's name and tagline. */
 function itemFor(entry: ComposeEntry, language: string, bullets: CvBullet[]): CvItem {
-  const view = entryView(entry, language)
+  const view = entryView(entry, language, { strict: true })
   // A contract type that isn't the default (internship, freelance…) belongs next to the position.
   const contract = entry.kind === "experience" && entry.fields.employment && entry.fields.employment !== "full_time" ? view.details[0] : ""
   return {
@@ -109,11 +134,13 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
     for (const entry of ordered) {
       const top = (rank.get(entry.id) ?? 999) < 3
       const bullets = bulletsFor(entry, language, profile.defaultLanguage, analysis, top ? bulletsTop : bulletsOther)
-      if (bullets === null) {
+      const item = bullets && itemFor(entry, language, bullets)
+      // No lines, or no name, in this language: left out and reported, never borrowed from another one.
+      if (!item || !item.title) {
         missing.push({ entryId: entry.id, title: entryName(entry, language) })
         continue
       }
-      items.push(itemFor(entry, language, bullets))
+      items.push(item)
     }
     return items.length ? ({ id: sectionKind, kind: sectionKind, title: sectionTitle(sectionKind, language), included: true, items, groups: [] } satisfies CvSection) : null
   }
@@ -136,7 +163,7 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
       kind: "certification",
       title: sectionTitle("certification", language),
       included: true,
-      items: certifications.sort((a, b) => sortKey(b) - sortKey(a)).map((entry) => ({ ...itemFor(entry, language, []), bullets: [] })),
+      items: certifications.sort((a, b) => sortKey(b) - sortKey(a)).map((entry) => itemFor(entry, language, [])),
       groups: [],
     })
   }
@@ -145,17 +172,25 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
   const jobKeys = new Set((analysis?.keywords ?? []).map((k) => k.key))
   const skillGroups = verified
     .filter((entry) => entry.kind === "skill" && entry.skills.length)
-    .map((entry) => {
-      const label = entry.phrasings.find((p) => p.role === "label" && p.language === language)?.text ?? entryView(entry, language).heading
+    .flatMap((entry) => {
+      const label = entry.phrasings.find((p) => p.role === "label" && p.language === language)?.text ?? entryView(entry, language, { strict: true }).heading
+      if (!label.trim()) {
+        missing.push({ entryId: entry.id, title: entryName(entry, language) })
+        return []
+      }
       const values = [...entry.skills].sort((a, b) => Number(keywordsIn(b).some((k) => jobKeys.has(k))) - Number(keywordsIn(a).some((k) => jobKeys.has(k))))
       const score = entry.skills.filter((skill) => keywordsIn(skill).some((k) => jobKeys.has(k))).length
-      return { label: clean(label), values: values.map((v) => v.replace(/\s*\(.*\)$/, "")), score }
+      return [{ label: clean(label), values: values.map((v) => v.replace(/\s*\(.*\)$/, "")), score }]
     })
     .sort((a, b) => b.score - a.score)
   if (skillGroups.length) sections.push({ id: "skills", kind: "skills", title: sectionTitle("skills", language), included: true, items: [], groups: skillGroups.map(({ label, values }) => ({ label, values })) })
 
   // One entry per language: "English (C1)".
-  const spoken = verified.filter((entry) => entry.kind === "language").map((entry) => entryView(entry, language)).filter((view) => view.heading)
+  const spoken = verified.filter((entry) => entry.kind === "language").flatMap((entry) => {
+    const view = entryView(entry, language, { strict: true })
+    if (!view.heading) missing.push({ entryId: entry.id, title: entryName(entry, language) })
+    return view.heading ? [view] : []
+  })
   if (spoken.length) {
     sections.push({ id: "languages", kind: "languages", title: sectionTitle("languages", language), included: true, items: [], groups: [{ label: "", values: spoken.map((view) => (view.subheading ? `${view.heading} (${view.subheading})` : view.heading)) }] })
   }
@@ -168,8 +203,8 @@ export function composeCv(profile: ComposeProfile, entries: ComposeEntry[], anal
     header: {
       name: profile.fullName,
       // No fallback to another language: the quality gate asks for one instead.
-      headline: profile.headlines[language] ?? "",
-      summary: profile.summaries?.[language] ?? "",
+      headline: own(profile.headlines[language], language),
+      summary: own(profile.summaries?.[language], language),
       email: profile.email,
       phone: profile.phone,
       location: profile.location,

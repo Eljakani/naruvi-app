@@ -4,6 +4,7 @@ import { keywordsIn } from "@/server/analysis/keywords"
 import { extractNumbers, type FactLike } from "@/server/domain/grounding"
 import type { CompletionInput, Completion } from "@/server/llm/transport"
 import { SettingsError } from "@/server/settings/errors"
+import { inLanguage } from "@/lib/text-language"
 import type { ComposeAnalysis, ComposeEntry } from "./compose"
 import type { CvDocument, CvBullet } from "./model"
 import { isPlaceholder, type LetterDocument } from "./letter"
@@ -105,7 +106,8 @@ export async function enrichCv(base: CvDocument, entries: ComposeEntry[], analys
         if (!source || source.entryId !== target.entryId || seen.has(proposal.id) || selected.length >= offeredItem.limit) continue
         seen.add(proposal.id)
         const changed = materiallyDifferent(source.bullet.text, proposal.text)
-        const accepted = !changed || supportedWording(proposal.text, [source.bullet.text, ...source.support.map((fact) => fact.statement)])
+        // A fact may be written in another language than the CV: wording copied from it is not accepted.
+        const accepted = !changed || (inLanguage(proposal.text, base.language) && supportedWording(proposal.text, [source.bullet.text, ...source.support.map((fact) => fact.statement)]))
         selected.push({ ...source.bullet, included: true, ...(changed && accepted ? { text: proposal.text, source: "model", originalText: source.bullet.text } : {}) })
       }
       if (!selected.length) continue
@@ -227,9 +229,10 @@ Return {"language":"requested code","opening":"...","motivation":"...","closing"
       }),
     })
     let reply = letterReply.parse(JSON.parse(response.text))
-    if (reply.language !== base.language) return fallback(base, "The model returned the wrong language.", response)
-
     const kinds = ["opening", "motivation", "closing"] as const
+    // What the model says it wrote in, and what it actually wrote in.
+    if (reply.language !== base.language || !kinds.every((kind) => inLanguage(reply[kind], base.language))) return fallback(base, "The model returned the wrong language.", response)
+
     // The author's own availability may appear in the letter, numbers included.
   const authorEvidence = [personalNotes, authorMotivation, Object.values(job.availability ?? {}).join(" ").replace(/-/g, " ")]
     const allowedTopics = [...authorEvidence, job.description, ...companySources.map((source) => source.text)]
@@ -253,7 +256,7 @@ Return {"language":"requested code","opening":"...","motivation":"...","closing"
         user: JSON.stringify({ draft: reply, authorNotes: personalNotes, authorMotivation, instruction }),
       })
       const edited = letterReply.parse(JSON.parse(edit.text))
-      if (edited.language === base.language && kinds.every((kind) => valid(edited[kind]) && supportedWording(edited[kind], [reply[kind]]))) reply = edited
+      if (edited.language === base.language && kinds.every((kind) => inLanguage(edited[kind], base.language) && valid(edited[kind]) && supportedWording(edited[kind], [reply[kind]]))) reply = edited
     } catch {
       // Keep the validated draft if the editorial request fails.
     }
@@ -401,7 +404,7 @@ export async function polishCv(base: CvDocument, job: JobContext, complete: Comp
   const acceptable = (value: string) => {
     const seniority = value.match(SENIORITY)
     const addsLevel = Boolean(seniority) && !SENIORITY.test(base.header.headline) && !evidence.some((line) => line.toLowerCase().includes(seniority![0].toLowerCase()))
-    return Boolean(value) && value !== base.header.headline && !addsLevel && supportedWording(value, sources)
+    return Boolean(value) && value !== base.header.headline && !addsLevel && inLanguage(value, base.language) && supportedWording(value, sources)
   }
   let candidate = proposed
   if (candidate && !acceptable(candidate)) {
@@ -424,7 +427,7 @@ export async function polishCv(base: CvDocument, job: JobContext, complete: Comp
   const summarySources = [base.header.summary, base.header.headline, ...evidence]
   const summaryLevel = proposedSummary.match(SENIORITY)
   const summaryAddsLevel = Boolean(summaryLevel) && !summarySources.some((line) => line.toLowerCase().includes(summaryLevel![0].toLowerCase()))
-  if (proposedSummary && proposedSummary !== base.header.summary && !summaryAddsLevel && supportedWording(proposedSummary, summarySources)) {
+  if (proposedSummary && proposedSummary !== base.header.summary && !summaryAddsLevel && inLanguage(proposedSummary, base.language) && supportedWording(proposedSummary, summarySources)) {
     doc.header.summaryOriginal = base.header.summary
     doc.header.summary = proposedSummary
     summary = true
@@ -479,7 +482,7 @@ Hard rules: never add facts, numbers, tools, employers, seniority or results tha
     if (proposal.included !== undefined && proposal.included !== target.included) { target.included = proposal.included; changed += 1 }
     if (proposal.text && materiallyDifferent(target.text, proposal.text)) {
       const support = [target.originalText ?? target.text, ...target.factIds.map((id) => facts.get(id) ?? "")]
-      if (!supportedWording(proposal.text, support)) { rejected += 1; continue }
+      if (!inLanguage(proposal.text, base.language) || !supportedWording(proposal.text, support)) { rejected += 1; continue }
       target.originalText ??= target.text
       target.text = proposal.text
       target.source = "model"
@@ -491,10 +494,10 @@ Hard rules: never add facts, numbers, tools, employers, seniority or results tha
   if (!bulletId) {
     const sources = [base.header.headline, base.header.summary, base.header.summaryOriginal ?? "", ...evidence]
     if (reply.headline && reply.headline !== base.header.headline) {
-      if (supportedWording(reply.headline, sources)) { doc.header.headline = reply.headline; changed += 1 } else rejected += 1
+      if (inLanguage(reply.headline, base.language) && supportedWording(reply.headline, sources)) { doc.header.headline = reply.headline; changed += 1 } else rejected += 1
     }
     if (reply.summary && reply.summary !== base.header.summary) {
-      if (supportedWording(reply.summary, sources)) { doc.header.summaryOriginal ??= base.header.summary; doc.header.summary = reply.summary; changed += 1 } else rejected += 1
+      if (inLanguage(reply.summary, base.language) && supportedWording(reply.summary, sources)) { doc.header.summaryOriginal ??= base.header.summary; doc.header.summary = reply.summary; changed += 1 } else rejected += 1
     }
   }
   if (changed && doc.aiAssistance) doc.aiAssistance.reviewed = false

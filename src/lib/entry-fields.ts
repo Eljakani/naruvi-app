@@ -219,17 +219,22 @@ export type EntryView = {
   link: string
 }
 
-const pick = (entry: EntryLike, lang: string) => {
+const pick = (entry: EntryLike, lang: string, strict: boolean) => {
   const display = entry.display as Record<string, Record<string, string | undefined>>
-  const ordered = [display[lang], display.en, display.fr, ...Object.values(display)].filter(Boolean)
+  const ordered = (strict ? [display[lang]] : [display[lang], display.en, display.fr, ...Object.values(display)]).filter(Boolean)
   return (key: string) => ordered.map((values) => values?.[key]).find((value) => value?.trim())?.trim() ?? ""
 }
 const cvLang = (lang: string): CvLang => (lang === "fr" ? "fr" : "en")
 const range = (value: unknown, lang: string) => formatDateRange(toRange(value as DatesValue | undefined), cvLang(lang))
 const month = (value: unknown, lang: string) => (typeof value === "string" ? formatDateRange({ start: toMonthYear(value), end: null }, cvLang(lang)) : "")
 
-export function entryView(entry: EntryLike, lang: string): EntryView {
-  const text = pick(entry, lang)
+/**
+ * `strict` is for documents (CV, letter): text comes from `lang` only, and is
+ * empty when the entry has none. Screens leave it off and show whatever
+ * language exists rather than a blank card.
+ */
+export function entryView(entry: EntryLike, lang: string, { strict = false }: { strict?: boolean } = {}): EntryView {
+  const text = pick(entry, lang, strict)
   const fields = (entry.fields ?? {}) as Record<string, unknown>
   const s = (key: string) => (typeof fields[key] === "string" ? (fields[key] as string) : "")
   const opt = (key: string) => (s(key) ? optionLabel(s(key), lang) : "")
