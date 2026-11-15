@@ -28,12 +28,14 @@ import {
   PlusIcon,
   ShapesIcon,
   TrashIcon,
+  PresentationIcon,
   TrophyIcon,
   WrenchIcon,
   XIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { deleteEntryAction, entryTranslationAction, saveEntryAction } from "@/app/[locale]/(app)/profile/actions"
+import { EntryEnrichmentCard } from "@/components/profile/editor/entry-enrichment"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { LogoField } from "@/components/profile/editor/logo-field"
 import { BulletSuggestions } from "@/components/profile/editor/bullet-suggestions"
@@ -78,10 +80,11 @@ const KIND_ICONS = {
   skill: WrenchIcon,
   language: LanguagesIcon,
   achievement: TrophyIcon,
+  event: PresentationIcon,
   other: ShapesIcon,
 } as const
 
-const LOGO_KINDS = new Set<Draft["kind"]>(["experience", "education", "project", "certification", "achievement"])
+const LOGO_KINDS = new Set<Draft["kind"]>(["experience", "education", "project", "certification", "achievement", "event"])
 
 const SECTIONS = ["basics", "display", "facts", "bullets", "skills", "guardrails"] as const
 
@@ -349,6 +352,7 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             <div key={`${draft.kind}-${lang}`} className="cb-fade">
               <KindFields draft={draft} lang={lang} patch={patch} />
             </div>
+            <EntryEnrichmentCard draft={draft} lang={lang} patch={patch} />
             {(() => {
               const other = LANGS.find((code) => code !== lang)!
               return !hasText(lang) && hasText(other) ? (

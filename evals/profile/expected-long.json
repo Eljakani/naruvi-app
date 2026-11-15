@@ -1,0 +1,301 @@
+{
+ "en-long.pdf": {
+  "language": "en",
+  "identity": {
+   "fullName": "Priya Raman",
+   "headline": "Staff Research Engineer",
+   "email": "priya.raman@example.org",
+   "phone": "+44 20 7946 0321",
+   "location": "London",
+   "links": [
+    "github.com/priyaraman-ml"
+   ]
+  },
+  "entries": [
+   {
+    "kind": "experience",
+    "name": "Staff Research Engineer",
+    "org": "DeepMind",
+    "start": "2022-02",
+    "end": "present",
+    "location": "London",
+    "bullets": 4
+   },
+   {
+    "kind": "experience",
+    "name": "Senior Research Engineer",
+    "org": "Spotify",
+    "start": "2019-09",
+    "end": "2022-01",
+    "location": "Stockholm",
+    "bullets": 4
+   },
+   {
+    "kind": "experience",
+    "name": "Research Engineer",
+    "org": "Criteo",
+    "start": "2017-01",
+    "end": "2019-08",
+    "location": "Paris",
+    "bullets": 4
+   },
+   {
+    "kind": "experience",
+    "name": "Machine Learning Engineer",
+    "org": "Booking.com",
+    "start": "2015-03",
+    "end": "2016-12",
+    "location": "Amsterdam",
+    "bullets": 4
+   },
+   {
+    "kind": "experience",
+    "name": "Software Engineer",
+    "org": "SAP",
+    "start": "2013-07",
+    "end": "2015-02",
+    "location": "Walldorf",
+    "bullets": 4
+   },
+   {
+    "kind": "experience",
+    "name": "Visiting Researcher",
+    "org": "Inria",
+    "start": "2013-01",
+    "end": "2013-06",
+    "location": "Grenoble",
+    "bullets": 4
+   },
+   {
+    "kind": "experience",
+    "name": "Teaching Assistant",
+    "org": "EPFL",
+    "start": "2011-09",
+    "end": "2012-12",
+    "location": "Lausanne",
+    "bullets": 4
+   },
+   {
+    "kind": "experience",
+    "name": "Research Intern",
+    "org": "IBM Research",
+    "start": "2011-06",
+    "end": "2011-08",
+    "location": "Zurich",
+    "bullets": 4
+   },
+   {
+    "kind": "experience",
+    "name": "Software Engineering Intern",
+    "org": "Infosys",
+    "start": "2010-05",
+    "end": "2010-07",
+    "location": "Bangalore",
+    "bullets": 4
+   },
+   {
+    "kind": "experience",
+    "name": "Freelance Web Developer",
+    "org": "Self-employed",
+    "start": "2008",
+    "end": "2010",
+    "location": "Chennai",
+    "bullets": 4
+   },
+   {
+    "kind": "education",
+    "name": "PhD Computer Science",
+    "org": "EPFL",
+    "start": "2011",
+    "end": "2015"
+   },
+   {
+    "kind": "education",
+    "name": "MSc Computer Science",
+    "org": "Indian Institute of Technology Madras",
+    "start": "2009",
+    "end": "2011"
+   },
+   {
+    "kind": "education",
+    "name": "BTech Information Technology",
+    "org": "Anna University",
+    "start": "2005",
+    "end": "2009"
+   },
+   {
+    "kind": "certification",
+    "name": "Google Cloud Professional Machine Learning Engineer",
+    "org": "Google Cloud",
+    "start": "2023"
+   },
+   {
+    "kind": "certification",
+    "name": "AWS Certified Machine Learning – Specialty",
+    "org": "Amazon Web Services",
+    "start": "2021"
+   },
+   {
+    "kind": "certification",
+    "name": "TensorFlow Developer Certificate",
+    "org": "Google",
+    "start": "2020"
+   },
+   {
+    "kind": "certification",
+    "name": "Certified Kubernetes Application Developer",
+    "org": "The Linux Foundation",
+    "start": "2019"
+   },
+   {
+    "kind": "certification",
+    "name": "Databricks Certified Data Engineer Associate",
+    "org": "Databricks",
+    "start": "2022"
+   },
+   {
+    "kind": "certification",
+    "name": "Professional Scrum Master I",
+    "org": "Scrum.org",
+    "start": "2018"
+   },
+   {
+    "kind": "event",
+    "name": "Ranking at a billion scale",
+    "org": "NeurIPS",
+    "start": "2023",
+    "location": "New Orleans"
+   },
+   {
+    "kind": "event",
+    "name": "Lessons from podcast recommendations",
+    "org": "RecSys",
+    "start": "2021",
+    "location": "Amsterdam"
+   },
+   {
+    "kind": "event",
+    "name": "Counterfactual evaluation in practice",
+    "org": "KDD",
+    "start": "2019",
+    "location": "Anchorage"
+   },
+   {
+    "kind": "event",
+    "name": "Scaling feature pipelines",
+    "org": "Spark + AI Summit",
+    "start": "2018",
+    "location": "San Francisco"
+   },
+   {
+    "kind": "event",
+    "name": "Bandits for hotel ranking",
+    "org": "ICML",
+    "start": "2016",
+    "location": "New York"
+   },
+   {
+    "kind": "event",
+    "name": "Teaching machine learning to engineers",
+    "org": "EuroPython",
+    "start": "2014",
+    "location": "Berlin"
+   },
+   {
+    "kind": "project",
+    "name": "rankkit",
+    "url": "github.com/priyaraman-ml/rankkit"
+   },
+   {
+    "kind": "project",
+    "name": "podflow",
+    "url": "github.com/priyaraman-ml/podflow"
+   },
+   {
+    "kind": "project",
+    "name": "cfeval",
+    "url": "github.com/priyaraman-ml/cfeval"
+   },
+   {
+    "kind": "project",
+    "name": "tamil-nlp",
+    "url": "github.com/priyaraman-ml/tamil-nlp"
+   },
+   {
+    "kind": "achievement",
+    "name": "Best Paper Award",
+    "org": "RecSys",
+    "start": "2021"
+   },
+   {
+    "kind": "achievement",
+    "name": "Google PhD Fellowship",
+    "org": "Google",
+    "start": "2013"
+   },
+   {
+    "kind": "achievement",
+    "name": "Institute Silver Medal",
+    "org": "IIT Madras",
+    "start": "2011"
+   },
+   {
+    "kind": "skill",
+    "name": "Machine learning",
+    "skills": [
+     "PyTorch",
+     "JAX",
+     "XGBoost",
+     "learning to rank"
+    ]
+   },
+   {
+    "kind": "skill",
+    "name": "Data",
+    "skills": [
+     "Spark",
+     "Beam",
+     "BigQuery",
+     "Airflow"
+    ]
+   },
+   {
+    "kind": "skill",
+    "name": "Languages",
+    "skills": [
+     "Python",
+     "Scala",
+     "C++"
+    ]
+   },
+   {
+    "kind": "skill",
+    "name": "Leadership",
+    "skills": [
+     "mentoring",
+     "technical roadmaps"
+    ]
+   },
+   {
+    "kind": "language",
+    "name": "Tamil",
+    "level": "native"
+   },
+   {
+    "kind": "language",
+    "name": "English",
+    "level": "C2"
+   },
+   {
+    "kind": "language",
+    "name": "French",
+    "level": "B2"
+   },
+   {
+    "kind": "language",
+    "name": "German",
+    "level": "A2"
+   }
+  ]
+ }
+}

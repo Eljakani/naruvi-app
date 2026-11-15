@@ -8,6 +8,22 @@ const lines = z
 export const entryKinds = ENTRY_KINDS
 export const entryStatuses = ["verified", "needs_review", "archived"] as const
 
+/** Public facts accepted from an online lookup (src/lib/enrichment.ts). Sources must be web addresses; nothing here is the person's own. */
+const source = z.object({ name: z.string().trim().min(1).max(60), url: z.url({ protocol: /^https?$/ }).max(500) })
+export const enrichmentInput = z.object({
+  subject: z.enum(["organization", "certification", "event", "skills"]),
+  query: z.string().trim().max(200),
+  name: z.string().trim().max(200),
+  description: z.string().trim().max(400).nullable(),
+  website: z.url({ protocol: /^https?$/ }).max(500).nullable(),
+  facts: z.array(z.object({ label: z.enum(["industry", "employees", "size", "founded", "headquarters", "parent", "issuer", "organizer", "place", "date", "country"]), value: z.string().trim().min(1).max(200) })).max(12),
+  sources: z.array(source).min(1).max(4),
+  filled: z.record(z.string().max(40), z.string().max(200)).default({}),
+  skills: z.array(z.object({ from: z.string().max(60), to: z.string().max(60), source: z.url({ protocol: /^https?$/ }).max(500) })).max(60).optional(),
+  fetchedAt: z.string().max(40),
+})
+export const logoPathInput = z.string().regex(/^logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg|ico)$/)
+
 const entryShape = z.object({
   kind: z.enum(entryKinds),
   status: z.enum(entryStatuses),
@@ -25,6 +41,8 @@ const entryShape = z.object({
     .regex(/^logos\/[a-f0-9]{24}\.(png|jpg|gif|webp|svg|ico)$/)
     .nullable()
     .default(null),
+  /** Public facts kept from an online lookup; null removes them, leaving it out keeps what is stored. */
+  enrichment: enrichmentInput.nullable().optional(),
   facts: z.array(z.object({ id: z.string().uuid().optional(), statement: z.string().trim().min(3).max(600) })).default([]),
   phrasings: z
     .array(

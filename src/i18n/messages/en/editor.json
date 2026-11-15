@@ -275,6 +275,34 @@
           "placeholder": "Out of 120 teams"
         }
       },
+      "event": {
+        "title": {
+          "label": "Title",
+          "placeholder": "Scaling search at 10M users"
+        },
+        "event": {
+          "label": "Event",
+          "placeholder": "PyCon 2024"
+        },
+        "role": {
+          "label": "Your part"
+        },
+        "organizer": {
+          "label": "Organizer",
+          "placeholder": "Python Software Foundation"
+        },
+        "location": {
+          "label": "Place",
+          "placeholder": "Berlin"
+        },
+        "date": {
+          "label": "Date"
+        },
+        "url": {
+          "label": "Link",
+          "placeholder": "https://…"
+        }
+      },
       "other": {
         "title": {
           "label": "Title"

@@ -31,7 +31,8 @@ export function matchEntry(candidate: ImportCandidate, existing: ExistingEntry[]
     const org = Math.max(0, ...views.map((view) => similarity(view.subheading, wanted.subheading)))
     const role = Math.max(0, ...views.map((view) => similarity(view.heading, wanted.heading)))
     const skills = candidate.kind === "skill" ? similarity(entry.skills.join(" "), candidate.skills.join(" ")) : 0
-    const score = Math.max(org >= 0.6 ? 0.5 + org * 0.3 + role * 0.2 : 0, wanted.subheading ? 0 : role * 0.9, wanted.subheading && role >= 0.9 && org >= 0.4 ? role : 0, skills >= 0.5 ? skills : 0)
+    // A language is the same entry only by its name: the level ("Native") is shared by many.
+    const score = candidate.kind === "language" ? (role >= 0.9 ? role : 0) : Math.max(org >= 0.6 ? 0.5 + org * 0.3 + role * 0.2 : 0, wanted.subheading ? 0 : role * 0.9, wanted.subheading && role >= 0.9 && org >= 0.4 ? role : 0, skills >= 0.5 ? skills : 0)
     if (score >= 0.6 && (!best || score > best.score)) best = { entry, score }
   }
   if (!best) return null

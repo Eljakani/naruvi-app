@@ -38,3 +38,35 @@ test("duration and order", () => {
   assert.equal(formatDuration(14, "fr"), "1 an 2 mois")
   assert.equal(rangeError({ start: { year: 2025, month: 0 }, end: { year: 2023, month: 0 } }), "The end is before the start.")
 })
+
+const ym = (text: string) => {
+  const range = parseDateRange(text)
+  if (!range) return null
+  const point = (value: typeof range.start | "present") => (value === "present" ? "present" : value ? `${value.year}${value.month === null ? "" : `-${String(value.month + 1).padStart(2, "0")}`}` : "")
+  return `${point(range.start)}..${point(range.end)}`
+}
+
+test("reads Spanish, German, Italian and Arabic months", () => {
+  assert.equal(ym("enero de 2020 – actualidad"), "2020-01..present")
+  assert.equal(ym("sept. 2016 – dic. 2019"), "2016-09..2019-12")
+  assert.equal(ym("Okt. 2015 bis Dez. 2017"), "2015-10..2017-12")
+  assert.equal(ym("maggio 2019 - oggi"), "2019-05..present")
+  assert.equal(ym("يناير 2021 – حتى الآن"), "2021-01..present")
+  assert.equal(ym("٢٠١٨ – ٢٠٢٠"), "2018..2020")
+})
+
+test("reads an open start, ISO months and a separator that lost its glyph", () => {
+  assert.equal(ym("seit 04/2021"), "2021-04..present")
+  assert.equal(ym("depuis septembre 2022"), "2022-09..present")
+  assert.equal(ym("2017-10 → 2019-09"), "2017-10..2019-09")
+  assert.equal(ym("2017-10 ’ 2019-09"), "2017-10..2019-09")
+  assert.equal(ym("2021-01 → now"), "2021-01..present")
+  assert.equal(ym("octobre 2023 à mai 2024"), "2023-10..2024-05")
+  assert.equal(ym("15/03/2021 - 01/09/2022"), "2021-03..2022-09")
+})
+
+test("a season is a year, a school year is two years, three dates are not a range", () => {
+  assert.equal(ym("été 2024"), "2024..")
+  assert.equal(ym("2019-20"), "2019..2020")
+  assert.equal(ym("2020 - 2021 - 2022"), null)
+})
