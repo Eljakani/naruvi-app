@@ -5,6 +5,22 @@ Update an installation from a terminal with `naruvi update`.
 
 ## Unreleased
 
+### Added
+- CV import reads Word (.docx) and OpenDocument (.odt) files, including tables, text boxes, headers and the addresses behind linked words. Before, a Word file was mistaken for a LinkedIn export and refused.
+- Talks, conferences, meetups and hackathons have their own kind of profile entry (**Events & talks**), with the event, your part in it, the organiser, the place and the date.
+- After a CV is read you can look up its organisations, certifications, events and skills online (Wikidata, Wikipedia, the French business registry and the organisation's own site for its logo). Only their names are sent. What is found is shown apart from what your CV says, with its source, and each item can be turned off before saving or removed later from the entry. It describes the organisation, certification or event, never you; your own wording is kept unless you choose the suggested name.
+- Without a language model, a CV is still read, by its layout and section titles; those entries are saved as "needs review".
+- The review screen lists the lines of your CV that ended up in no entry, so a missed job or diploma is visible.
+- `npm run profile:eval` scores the import against a set of invented CVs (PDF and Word, one and two columns, English, French, Spanish, German and Arabic).
+
+### Changed
+- CV import no longer completes what the CV doesn't say: a link is kept only when the file has it (the address behind "LinkedIn" is read from the file instead of being guessed from your name), a language level only when the CV states one, and a month only when the CV names it ("été 2024" stays 2024).
+- PDF text is rebuilt from the position of each line: two-column CVs are read column by column, right-to-left pages in the right order, and repeated page headers and footers are dropped.
+- Dates are read in Spanish, German, Italian, Portuguese, Dutch and Arabic as well as English and French, including "seit 04/2021", "depuis septembre 2022" and "2017-10 → 2019-09". Language levels are read from the CV's wording ("courant", "verhandlungssicher", "Muttersprache", "TOEIC 945").
+- A long CV is read section by section; a part the model fails on is reported instead of failing the whole import.
+- The summary paragraph of a CV fills your profile summary instead of becoming an entry.
+- A file that can't be read says why: a scan, a password-protected PDF, an old .doc, a picture, a damaged file.
+
 ### Fixed
 - `curl … | bash` no longer stops silently partway through (after installing Docker, or right after "Reach the address"): the installer is read whole before it runs, so commands that read their input can't swallow the rest of it.
 - When the HTTPS certificate can't be issued, the installer and `naruvi doctor` show Let's Encrypt's own reason. A timeout while the server answers on port 80 itself is reported as a firewall in front of the server (provider, university or lab network), with what to open, or a tunnel when you can't.

@@ -24,15 +24,16 @@ const URL = /\b(?:https?:\/\/|www\.)[^\s<>"'()]+|\b(?:[a-z0-9-]+\.)+(?:com|org|n
 /* ------------------------------------------------------------------ language of the text */
 
 const STOPWORDS: Record<string, string[]> = {
-  en: ["the", "and", "with", "for", "of", "to", "in"], fr: ["le", "la", "les", "et", "des", "avec", "pour", "du", "en"], es: ["el", "los", "las", "y", "con", "para", "del", "de"],
-  de: ["der", "die", "und", "mit", "für", "das", "von", "bei"], it: ["il", "gli", "e", "con", "per", "della", "di"], pt: ["o", "os", "e", "com", "para", "do", "da", "em"], nl: ["de", "het", "en", "met", "voor", "van", "een"],
+  en: ["the", "and", "with", "for", "of", "to", "in"], fr: ["le", "la", "les", "et", "des", "avec", "pour", "du", "en"], es: ["el", "los", "las", "con", "para", "del", "una"],
+  de: ["der", "die", "und", "mit", "für", "das", "von", "bei"], it: ["il", "gli", "con", "per", "della", "di", "nel"], pt: ["os", "com", "para", "do", "da", "em", "uma"], nl: ["de", "het", "en", "met", "voor", "van", "een"],
 }
 export function textLanguage(text: string): string {
   const letters = text.match(/\p{L}/gu)?.length ?? 0
   if ((text.match(/[؀-ۿ]/g)?.length ?? 0) > letters * 0.3) return "ar"
-  const tokens = text.toLowerCase().split(/[^\p{L}]+/u)
+  // Addresses are not words: "example.de" says nothing about the language.
+  const tokens = text.toLowerCase().replace(/\S+@\S+|\b\S+\.[a-z]{2,}(?:\/\S*)?/g, " ").split(/[^\p{L}]+/u)
   const scores = Object.entries(STOPWORDS).map(([lang, list]) => [lang, tokens.filter((token) => list.includes(token)).length] as const).sort((a, b) => b[1] - a[1])
-  return scores[0][1] > 2 ? scores[0][0] : "en"
+  return scores[0][1] > 2 || (scores[0][1] > 0 && scores[0][1] > scores[1][1]) ? scores[0][0] : "en"
 }
 
 /* ------------------------------------------------------------------ dates inside a line */
@@ -51,7 +52,9 @@ export function dateIn(line: string): { written: string; before: string; after: 
   const lead = written.match(/^([\p{L}]{3,12}\.?)\s+(?:de\s+|of\s+)?(?=(?:19|20)\d{2})/u)
   if (lead && parseDateRange(`${lead[1]} 2000`)?.start?.month == null && !/^(?:since|depuis|seit|desde|dal|sinds|منذ)$/iu.test(lead[1])) written = written.slice(lead[0].length)
   const start = line.indexOf(written, match.index)
-  return parseDateRange(written)?.start ? { written, before: line.slice(0, start), after: line.slice(start + written.length) } : null
+  // A season before the year ("été 2024") is part of the date, not of the title.
+  const before = line.slice(0, start).replace(/(?:^|\s)(?:[ée]t[ée]|hiver|printemps|automne|summer|winter|spring|fall|autumn|sommer|fr[üu]hling|herbst|verano|invierno|primavera|oto[ñn]o)\s*$/iu, " ")
+  return parseDateRange(written)?.start ? { written, before, after: line.slice(start + written.length) } : null
 }
 
 /* ------------------------------------------------------------------ blocks: one per entry */
@@ -163,7 +166,9 @@ function work(block: Block, kind: "experience" | "other"): RuleEntry {
   const all = block.head.join(" ")
   // "(stage)" and "Remote" are the contract and the work mode, not a place or an employer; "Research Intern" is a job title.
   const only = (part: string, list: [RegExp, string][]) => list.some(([pattern]) => !part.replace(new RegExp(pattern.source, "gi"), "").replace(/[\s\-()]/g, ""))
-  const parts = pieces(block.head).filter((part) => !only(part, EMPLOYMENT) && !only(part, WORK_MODE) && !EMAIL.test(part))
+  const named = pieces(block.head).filter((part) => !only(part, WORK_MODE) && !EMAIL.test(part))
+  // "Intern" alone is the job's title when nothing else names it.
+  const parts = named.some((part) => !only(part, EMPLOYMENT)) && named.findIndex((part) => !only(part, EMPLOYMENT)) === 0 ? named.filter((part) => !only(part, EMPLOYMENT)) : named.filter((part, index) => index === 0 || !only(part, EMPLOYMENT))
   // The employer comes first on some CVs: a piece that reads like an organisation, before one that reads like a job.
   const role = parts.findIndex((part) => ROLE.test(part) && !ORG.test(part))
   const position = parts[role >= 0 ? role : 0] ?? ""
@@ -322,6 +327,8 @@ export function readCvWithRules(text: string, links: SourceLink[] = []): RuleImp
   // Profile links are the person's, not a project's.
   for (const item of kept) for (const key of ["url", "repo"] as const) if (typeof item.fields[key] === "string" && profileSite(item.fields[key] as string) && identity.links.some((link) => linkKey(link.url) === linkKey(item.fields[key] as string))) delete item.fields[key]
   // Language lines become a name and a level: their own words count as read.
-  const consumed = sections.filter((section) => section.kind === "language").flatMap((section) => section.lines)
+  // So do dates, contract types and work modes, which are stored as values.
+  const values = sections.flatMap((section) => section.lines).flatMap((line) => [dateIn(line)?.written ?? "", line.match(/(?:^|\s)([ée]t[ée]|hiver|printemps|automne|summer|winter|spring|fall|autumn)\s+(?:19|20)\d{2}/iu)?.[1] ?? "", ...[...EMPLOYMENT, ...WORK_MODE].map(([pattern]) => line.match(pattern)?.[0] ?? "")]).filter(Boolean)
+  const consumed = [...values, ...sections.filter((section) => section.kind === "language").flatMap((section) => section.lines)]
   return { language: textLanguage(text), identity, entries: kept, unread: unreadLines(text, identity, kept, consumed) }
 }

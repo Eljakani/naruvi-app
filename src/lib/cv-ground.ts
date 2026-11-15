@@ -58,6 +58,8 @@ const hostOf = (url: string) => {
     return ""
   }
 }
+/** A person's page on a profile site, not a repository or a post under it: "github.com/me", not "github.com/me/project". */
+const profilePage = (url: string) => Boolean(profileSite(url)) && (/GitHub|GitLab|Bitbucket|Hugging Face/.test(profileSite(url)!) ? linkKey(url).split("/").length === 2 : linkKey(url).includes("/"))
 /** "LinkedIn", "GitHub"… for a profile site, else null. */
 export const profileSite = (url: string) => HOST_LABELS.find(([pattern]) => pattern.test(hostOf(url)))?.[1] ?? null
 
@@ -104,10 +106,10 @@ export function groundIdentity(identity: Identity, text: string, links: SourceLi
   // Links behind a word or an icon: profile sites, and anything linked from the top of the page.
   for (const link of links) {
     if (!/^https?:/i.test(link.url)) continue
-    if (profileSite(link.url) || (link.text && top.includes(link.text))) add(link.text && !/[./]/.test(link.text) ? link.text : "", link.url)
+    if (profilePage(link.url) || (link.text && top.includes(link.text))) add(link.text && !/[./]/.test(link.text) ? link.text : "", link.url)
   }
-  // Profile addresses written in the text that the model left out.
-  for (const url of allowed) if (profileSite(url) && linkKey(url).includes("/")) add("", url)
+  // Addresses written in the text that the model left out: profile pages anywhere, and a personal site at the top of the page.
+  for (const url of allowed) if (profilePage(url) || top.toLowerCase().includes(linkKey(url))) add("", url)
   return {
     fullName: grounded(identity.fullName, source, 1) ? identity.fullName : "",
     headline: grounded(identity.headline, source) ? identity.headline : "",
@@ -138,7 +140,7 @@ export function groundDates(model: unknown, written: string, source: string): Da
   const parsed: DateRange | null = written.trim() ? parseDateRange(written.replace(/[()]/g, " ")) : null
   if (parsed?.start) {
     const value = fromRange(parsed)
-    if (yearsOf(value).every((year) => hasYear(source, year))) return value
+    if (yearsOf(value).every((year) => hasYear(source, year))) return { ...(value.start ? { start: value.start } : {}), ...(value.end ? { end: value.end } : {}) }
   }
   const fromModel: DatesValue | null = typeof model === "string" ? ((range) => (range?.start ? fromRange(range) : null))(parseDateRange(model)) : model && typeof model === "object" ? (model as DatesValue) : null
   if (!fromModel || (!fromModel.start && !fromModel.end)) return undefined
@@ -147,7 +149,7 @@ export function groundDates(model: unknown, written: string, source: string): Da
   if (!yearsOf(value).length || !yearsOf(value).every((year) => hasYear(source, year))) return undefined
   // "été 2024" is 2024, not June 2024.
   if (written.trim() && !namesMonth(written)) value = { start: value.start?.slice(0, 4), end: value.end === "present" ? "present" : value.end?.slice(0, 4) }
-  return value.start || value.end ? value : undefined
+  return value.start || value.end ? { ...(value.start ? { start: value.start } : {}), ...(value.end ? { end: value.end } : {}) } : undefined
 }
 
 /** A single month ("issued", "date") from the same rules; `end` is the second point when the text gives a span. */
