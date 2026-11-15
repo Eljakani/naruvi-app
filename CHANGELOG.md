@@ -3,7 +3,7 @@
 Each release is a signed Git tag `vX.Y.Z` with a GitHub release of the same name.
 Update an installation from a terminal with `naruvi update`.
 
-## Unreleased
+## 0.6.0 — 2026-11-15
 
 ### Added
 - CV import reads Word (.docx) and OpenDocument (.odt) files, including tables, text boxes, headers and the addresses behind linked words. Before, a Word file was mistaken for a LinkedIn export and refused.
