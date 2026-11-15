@@ -1,12 +1,14 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { CheckIcon, PaletteIcon } from "lucide-react"
 import { PdfThumb } from "@/components/templates/pdf-thumb"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { ALL_PRESETS, DEFAULT_PRESET, PRESETS, presetTokens, type DesignTokens } from "@/lib/design"
+import { ALL_PRESETS, DEFAULT_PRESET, PRESET_TAGS, PRESETS, presetTokens, type DesignTokens, type PresetTag } from "@/lib/design"
+import { designInsights } from "@/lib/design-insights"
 import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
 
@@ -36,27 +38,41 @@ export function DesignPicker({
   disabled?: boolean
 }) {
   const t = useTranslations("designPicker")
+  const ti = useTranslations("designInsights")
+  const [tag, setTag] = useState<PresetTag | "all">("all")
   const current = design ?? { ...presetTokens(template), accent }
   const customizeHref = templateRef ? `/templates/${templateRef}` : `/templates/new?from=${ALL_PRESETS[template] ? template : DEFAULT_PRESET}`
   const options = [
-    ...saved.map((item) => ({ key: item.id, name: item.name, tokens: item.tokens, active: templateRef === item.id, pick: () => onChange({ template: "custom", design: item.tokens, templateRef: item.id, accent: item.tokens.accent }) })),
+    // A design fitted or suggested for this CV belongs to no template: list it so the selection is visible.
+    ...(design && !templateRef ? [{ key: "adjusted", name: t("adjusted"), tokens: design, tags: null as readonly PresetTag[] | null, active: true, pick: () => {} }] : []),
+    ...saved.map((item) => ({ key: item.id, name: item.name, tokens: item.tokens, tags: null as readonly PresetTag[] | null, active: templateRef === item.id, pick: () => onChange({ template: "custom", design: item.tokens, templateRef: item.id, accent: item.tokens.accent }) })),
     // A document on an earlier built-in style keeps it listed so it stays selected.
     ...Object.entries({ ...(!PRESETS[template] && ALL_PRESETS[template] && !design ? { [template]: ALL_PRESETS[template] } : {}), ...PRESETS }).map(([id, preset]) => {
       const active = !templateRef && !design && template === id
       // Each theme brings its own colour; the current one keeps the colour already chosen.
-      return { key: id, name: preset.name, tokens: { ...preset.tokens, accent: active ? accent : preset.tokens.accent }, active, pick: () => onChange({ template: id, design: null, templateRef: null, accent: preset.tokens.accent }) }
+      return { key: id, name: preset.name, tags: preset.tags ?? [], tokens: { ...preset.tokens, accent: active ? accent : preset.tokens.accent }, active, pick: () => onChange({ template: id, design: null, templateRef: null, accent: preset.tokens.accent }) }
     }),
   ]
+  // Your own designs and the one in use stay listed whatever the filter.
+  const shown = options.filter((option) => tag === "all" || option.active || !option.tags || option.tags.includes(tag))
   return (
     <div className="grid gap-4">
+      <div className="flex flex-wrap gap-1" role="radiogroup" aria-label={t("filter")}>
+        {(["all", ...PRESET_TAGS] as const).map((value) => (
+          <button key={value} type="button" role="radio" aria-checked={tag === value} onClick={() => setTag(value)} className={cn("rounded-full border px-2 py-0.5 text-xs transition-colors", tag === value ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
+            {t(`tags.${value}`)}
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup" aria-label={t("design")}>
-        {options.map((option) => (
+        {shown.map((option) => (
           <button key={option.key} type="button" role="radio" aria-checked={option.active} disabled={disabled} onClick={option.pick} className="group grid gap-1.5 text-start disabled:opacity-60">
             <PdfThumb tokens={option.tokens} className={cn("transition-shadow", option.active ? "ring-2 ring-foreground" : "group-hover:shadow-md")} />
             <span className="flex items-center justify-between gap-1 text-xs font-medium">
               <span className="truncate">{option.name}</span>
               {option.active ? <CheckIcon className="size-3.5 shrink-0" /> : null}
             </span>
+            <span className="-mt-1 truncate text-[11px] text-muted-foreground">{ti(`ats.${designInsights(option.tokens).ats}`)}</span>
           </button>
         ))}
       </div>

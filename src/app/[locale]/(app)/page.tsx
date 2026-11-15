@@ -2,7 +2,7 @@ import { setupChoices } from "@/server/queries/setup"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
-import { ArrowRightIcon, BriefcaseBusinessIcon, CheckCircle2Icon, ChevronRightIcon, CircleIcon, FileTextIcon, PlusIcon, SendIcon, UserRoundCheckIcon } from "lucide-react"
+import { ArrowRightIcon, BriefcaseBusinessIcon, CheckIcon, ChevronRightIcon, FileTextIcon, PlusIcon, SendIcon, UserRoundCheckIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Otter, type OtterPose } from "@/components/naruvi/otter"
 import { FitRing } from "@/components/applications/fit-ring"
@@ -11,9 +11,10 @@ import { NeedsAttention } from "@/components/tracking/needs-attention"
 import { DashboardCalendar } from "@/components/tracking/dashboard-calendar"
 import { OutcomeFunnel } from "@/components/tracking/outcome-funnel"
 import { AddJobDialog } from "@/components/jobs/add-job-dialog"
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "@/components/reui/badge"
+import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from "@/components/reui/frame"
+import { IconTile } from "@/components/reui/icon-tile"
 import { Button } from "@/components/ui/button"
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { LiveRefresh } from "@/components/refresh-runs"
 import { ago, workflowLabel } from "@/components/runs/labels"
@@ -22,7 +23,6 @@ import { COLUMNS } from "@/lib/stages"
 import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { StoredAnalysis } from "@/server/applications/repository"
 import { displayFitScore } from "@/server/analysis/match"
 import { getDashboard } from "@/server/queries/dashboard"
@@ -54,17 +54,24 @@ export default function DashboardPage() {
 
 function DashboardSkeleton() {
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-4 @min-[32rem]/workspace:grid-cols-2 @min-[64rem]/workspace:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-28 rounded-xl" />
-        ))}
-      </div>
+    <div className="grid gap-4" aria-hidden>
+      <Skeleton className="h-36 rounded-xl" />
+      <Skeleton className="h-32 rounded-xl" />
       <div className="grid gap-4 @min-[54rem]/workspace:grid-cols-3">
-        <Skeleton className="h-72 rounded-xl @min-[54rem]/workspace:col-span-2" />
-        <Skeleton className="h-72 rounded-xl" />
+        <Skeleton className="h-96 rounded-xl @min-[54rem]/workspace:col-span-2" />
+        <Skeleton className="h-96 rounded-xl" />
       </div>
     </div>
+  )
+}
+
+/** The otter with a soft shadow under it, as it sits in Naruvi's note. */
+function NoteOtter({ pose, height }: { pose: OtterPose; height: number }) {
+  return (
+    <span className="relative grid shrink-0 place-items-end">
+      <span className="absolute inset-x-1 bottom-0 h-4 rounded-[50%] bg-brand/15 blur-md" aria-hidden />
+      <Otter pose={pose} height={height} className="relative" priority />
+    </span>
   )
 }
 
@@ -120,6 +127,11 @@ async function DashboardData() {
             ? { pose: "finding-opportunity", title: t("note.unchecked.title", { count: unchecked }), text: t("note.unchecked.text"), href: "/applications", cta: t("note.unchecked.cta") }
             : { pose: "planning-next-step", title: t("note.caughtUp.title"), text: t("note.caughtUp.text"), href: "/jobs?add=1", cta: t("addJob") }
 
+  // When the note is about the list right below it, it becomes that list's heading instead of a second card.
+  const attentionShown = Boolean(data.applications && (data.attention.length || data.replies.length))
+  const inAttention = note?.href === "#attention"
+  const ready = sum(["ready"])
+
   return (
     <>
       <PageHeader
@@ -128,122 +140,151 @@ async function DashboardData() {
         actions={<AddJobDialog trigger={<Button><PlusIcon /> {t("addJob")}</Button>} />}
       />
       {setupDone < setup.length ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("setup.title")}</CardTitle>
-            <CardDescription>
-              {t("setup.progress", { done: setupDone, total: setup.length })}
-            </CardDescription>
-            <CardAction className="flex items-center gap-3">
-              <Progress value={(setupDone / setup.length) * 100} className="w-24" />
-              <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/setup" />}>
-                {t("setup.guide")} <ArrowRightIcon />
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3">
+        <Frame>
+          <FrameHeader className="flex-row flex-wrap items-center gap-3">
+            <div className="grid min-w-0 flex-1 basis-40">
+              <FrameTitle><h2>{t("setup.title")}</h2></FrameTitle>
+              <FrameDescription>{t("setup.progress", { done: setupDone, total: setup.length })}</FrameDescription>
+            </div>
+            <Progress value={(setupDone / setup.length) * 100} className="w-24" />
+            <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/setup" />}>
+              {t("setup.guide")} <ArrowRightIcon />
+            </Button>
+          </FrameHeader>
+          <FramePanel className="grid gap-4 md:grid-cols-3">
             {setup.map((step) => (
-              <div key={step.label} className="flex items-start gap-3 rounded-lg border p-4">
-                {step.done ? <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-primary" /> : <CircleIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
-                <div className="grid flex-1 gap-1">
+              <div key={step.label} className="flex items-start gap-3">
+                <IconTile variant="soft" size="sm" className={step.done ? "text-success" : "text-muted-foreground"}>
+                  {step.done ? <CheckIcon aria-hidden /> : <step.icon aria-hidden />}
+                </IconTile>
+                <div className="grid min-w-0 flex-1 gap-1">
                   <div className="text-sm font-medium">{step.label}</div>
-                  <p className="text-sm text-muted-foreground">{step.detail}</p>
+                  <p className="text-sm text-pretty text-muted-foreground">{step.detail}</p>
                   {!step.done ? (
-                    <Button size="sm" variant="outline" className="mt-2 w-fit" nativeButton={false} render={<Link href={step.href} />}>
+                    <Button size="sm" variant="outline" className="mt-1 w-fit" nativeButton={false} render={<Link href={step.href} />}>
                       {t("setup.start")} <ArrowRightIcon />
                     </Button>
                   ) : null}
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </FramePanel>
+        </Frame>
       ) : null}
 
-      {note ? (
-        <section aria-label="Naruvi" className="cb-enter flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-brand/20 bg-gradient-to-r from-brand-soft via-brand-soft/40 to-card px-4 py-3">
-          <span className="relative grid shrink-0 place-items-end">
-            <span className="absolute inset-x-1 bottom-0 h-4 rounded-[50%] bg-brand/15 blur-md" aria-hidden />
-            <Otter pose={note.pose} height={72} className="relative" priority />
-          </span>
-          <div className="grid min-w-0 flex-1 gap-0.5">
-            <p className="text-xs font-medium tracking-wide text-brand uppercase">Naruvi</p>
-            <p className="text-base font-semibold tracking-tight text-balance">{note.title}</p>
-            <p className="text-sm text-pretty text-muted-foreground">{note.text}</p>
-          </div>
-          <Button variant="outline" className="shrink-0 border-brand/30 bg-background/80 hover:bg-background max-sm:ms-[5.5rem]" nativeButton={false} render={<Link href={note.href} />}>
-            {note.cta} <ArrowRightIcon />
-          </Button>
-        </section>
+      {attentionShown ? (
+        <div id="attention" className="scroll-mt-4">
+          <NeedsAttention
+            items={data.attention}
+            now={data.now}
+            replies={data.replies}
+            lead={note && inAttention ? (
+              <>
+                <NoteOtter pose={note.pose} height={52} />
+                <div className="grid min-w-0 flex-1">
+                  <FrameTitle className="text-base text-balance"><h2>{note.title}</h2></FrameTitle>
+                  <FrameDescription className="text-pretty">{note.text}</FrameDescription>
+                </div>
+              </>
+            ) : undefined}
+          />
+        </div>
       ) : null}
 
-      {data.applications && (data.attention.length || data.replies.length) ? <div id="attention" className="scroll-mt-4"><NeedsAttention items={data.attention} now={data.now} replies={data.replies} /></div> : null}
+      {note && !(attentionShown && inAttention) ? (
+        <Frame className="cb-enter" role="region" aria-label="Naruvi">
+          <FramePanel className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <NoteOtter pose={note.pose} height={72} />
+            <div className="grid min-w-0 flex-1 gap-0.5">
+              <p className="text-xs font-medium tracking-wide text-brand uppercase">Naruvi</p>
+              <p className="text-base font-semibold tracking-tight text-balance">{note.title}</p>
+              <p className="text-sm text-pretty text-muted-foreground">{note.text}</p>
+            </div>
+            <Button variant="outline" className="shrink-0 max-sm:ms-[5.5rem]" nativeButton={false} render={<Link href={note.href} />}>
+              {note.cta} <ArrowRightIcon />
+            </Button>
+          </FramePanel>
+        </Frame>
+      ) : null}
 
-      {/* One strip, four numbers: each opens the list behind it. */}
-      <Card className="grid grid-cols-2 gap-0 overflow-hidden py-0 @min-[48rem]/workspace:grid-cols-4">
-        <Stat title={t("stats.active.title")} value={active} hint={t("stats.active.hint")} href="/applications" />
-        <Stat title={t("stats.ready.title")} value={sum(["ready"])} hint={t("stats.ready.hint")} href="/applications?view=list&stage=documents" />
-        <Stat title={t("stats.sent.title")} value={sum(["submitted", "interviewing", "offer"])} hint={t("stats.sent.hint", { count: sum(["interviewing", "offer"]) })} href="/applications?view=list&stage=sent" />
-        <Stat title={t("stats.facts.title")} value={data.verifiedFacts} hint={t("stats.facts.hint")} href="/profile" />
-      </Card>
+      {/* One strip for the whole pipeline: each stage opens the list behind it. */}
+      {data.applications ? (
+        <Frame>
+          <FrameHeader className="flex-row items-center gap-3">
+            <div className="grid min-w-0 flex-1">
+              <FrameTitle><h2>{t("pipeline.title")}</h2></FrameTitle>
+              <FrameDescription>{active ? t("pipeline.active", { count: active }) : t("pipeline.none")}</FrameDescription>
+            </div>
+            <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/applications" />}>{t("pipeline.board")} <ArrowRightIcon /></Button>
+          </FrameHeader>
+          <FramePanel className="grid gap-3">
+            {active > 0 ? <div aria-hidden="true" className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-muted">
+              {pipeline.filter((stage) => stage.count > 0).map((stage) => (
+                <span key={stage.id} className={STAGE_COLOR[stage.id]} style={{ flexGrow: stage.count, flexBasis: 0 }} />
+              ))}
+            </div> : null}
+            <ul className="-mx-1.5 grid grid-cols-2 gap-x-1 @min-[40rem]/workspace:grid-cols-5">
+              {pipeline.map((stage) => (
+                <li key={stage.id}>
+                  <Link href={`/applications?view=list&stage=${stage.id}`} className="grid h-full content-start gap-0.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2">
+                    <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                      <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full ring-1 ring-foreground/20", STAGE_COLOR[stage.id])} />
+                      <span className="truncate">{tl(`column.${stage.id}`)}</span>
+                    </span>
+                    <span className={cn("text-2xl font-semibold tabular-nums tracking-tight", !stage.count && "text-muted-foreground")}>{stage.count}</span>
+                    {stage.id === "documents" && ready ? <span className="text-xs font-medium text-brand">{t("pipeline.ready", { count: ready })}</span> : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </FramePanel>
+        </Frame>
+      ) : null}
 
       <div className="grid gap-4 @min-[54rem]/workspace:grid-cols-3">
         <div className="grid min-w-0 content-start gap-4 @min-[54rem]/workspace:col-span-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("recent.title")}</CardTitle>
-            <CardDescription>{t("recent.description")}</CardDescription>
-            <CardAction>
+        <Frame>
+          <FrameHeader className="flex-row items-center gap-3">
+            <div className="grid min-w-0 flex-1">
+              <FrameTitle><h2>{t("recent.title")}</h2></FrameTitle>
+              <FrameDescription>{t("recent.description")}</FrameDescription>
+            </div>
+            {data.recent.length ? (
               <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/applications" />}>
                 {t("recent.viewAll")} <ArrowRightIcon />
               </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
+            ) : null}
+          </FrameHeader>
+          <FramePanel className="py-1.5">
             {data.recent.length ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("recent.role")}</TableHead>
-                    <TableHead>{t("recent.stage")}</TableHead>
-                    <TableHead className="text-end">{t("recent.fit")}</TableHead>
-                    <TableHead className="hidden text-end sm:table-cell">{t("recent.updated")}</TableHead>
-                    <TableHead className="w-8" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.recent.map((application) => {
-                    const score = displayFitScore(application.analysis as StoredAnalysis | null)
-                    return (
-                      <TableRow key={application.id}>
-                        <TableCell>
-                          <Link href={`/applications/${application.id}`} className="flex min-w-0 items-center gap-3">
-                            <EntryLogo path={application.job.company?.logoPath} name={application.job.company?.name ?? "?"} size={32} />
-                            <div className="min-w-0">
-                              <div className="truncate font-medium">{application.job.title}</div>
-                              <div className="truncate text-xs text-muted-foreground">{application.job.company?.name}</div>
-                            </div>
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={application.status === "ready" ? "default" : "secondary"}>{application.status === "rejected" ? tl("column.closed") : tl(`status.${application.status}`)}</Badge>
-                        </TableCell>
-                        <TableCell className="text-end">
-                          <FitRing score={score} className="ms-auto" />
-                        </TableCell>
-                        <TableCell className="hidden text-end text-muted-foreground sm:table-cell">{relative(application.updatedAt, locale)}</TableCell>
-                        <TableCell>
-                          <Button size="icon-sm" variant="ghost" aria-label={t("open")} nativeButton={false} render={<Link href={`/applications/${application.id}`} />}>
-                            <ChevronRightIcon />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+              <ul className="-mx-2.5 divide-y">
+                {data.recent.map((application) => {
+                  const score = displayFitScore(application.analysis as StoredAnalysis | null)
+                  const stage = application.status === "rejected" ? tl("column.closed") : tl(`status.${application.status}`)
+                  return (
+                    <li key={application.id}>
+                      <Link href={`/applications/${application.id}`} className="group/row flex min-w-0 items-center gap-3 rounded-md px-2.5 py-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2">
+                        <EntryLogo path={application.job.company?.logoPath} name={application.job.company?.name ?? "?"} size={32} />
+                        <span className="grid min-w-0 flex-1 gap-0.5">
+                          <span className="truncate font-medium">{application.job.title}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {/* On a phone the stage and the time join the company line, so nothing scrolls sideways. */}
+                            <span className="@min-[36rem]/workspace:hidden">{stage} · </span>
+                            {application.job.company?.name}
+                            <span className="@min-[36rem]/workspace:hidden"> · {relative(application.updatedAt, locale)}</span>
+                          </span>
+                        </span>
+                        <Badge variant={application.status === "ready" ? "primary-light" : application.status === "offer" ? "success-light" : "outline"} className="hidden shrink-0 @min-[36rem]/workspace:inline-flex">{stage}</Badge>
+                        <span className="hidden w-24 shrink-0 text-end text-xs text-muted-foreground @min-[36rem]/workspace:block">{relative(application.updatedAt, locale)}</span>
+                        <FitRing score={score} className="w-8 text-center" />
+                        <ChevronRightIcon aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-hover/row:translate-x-0.5 rtl:rotate-180 rtl:group-hover/row:-translate-x-0.5" />
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
             ) : (
-              <Empty className="border">
+              <Empty>
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
                     <SendIcon />
@@ -252,41 +293,12 @@ async function DashboardData() {
                   <EmptyDescription>{t("recent.emptyBody")}</EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
-                  <Button nativeButton={false} render={<Link href="/jobs" />}>
-                    <PlusIcon /> {t("addJob")}
-                  </Button>
+                  <AddJobDialog trigger={<Button><PlusIcon /> {t("addJob")}</Button>} />
                 </EmptyContent>
               </Empty>
             )}
-          </CardContent>
-        </Card>
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle><h2>{t("pipeline.title")}</h2></CardTitle>
-              <CardDescription>{active ? t("pipeline.active", { count: active }) : t("pipeline.none")}</CardDescription>
-              <CardAction>
-                <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/applications" />}>{t("pipeline.board")} <ArrowRightIcon /></Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent className="grid gap-2">
-              {active > 0 ? <div aria-hidden="true" className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-muted">
-                {pipeline.filter((stage) => stage.count > 0).map((stage) => (
-                  <span key={stage.id} className={STAGE_COLOR[stage.id]} style={{ flexGrow: stage.count, flexBasis: 0 }} />
-                ))}
-              </div> : null}
-              <ul className="grid grid-cols-2 gap-x-2 @min-[40rem]/workspace:grid-cols-5">
-                {pipeline.map((stage) => (
-                  <li key={stage.id}>
-                    <Link href={`/applications?view=list&stage=${stage.id}`} className="flex min-h-8 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2">
-                      <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full ring-1 ring-foreground/20", STAGE_COLOR[stage.id])} />
-                      <span className="min-w-0 flex-1">{tl(`column.${stage.id}`)}</span>
-                      <span className="font-medium tabular-nums">{stage.count}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+          </FramePanel>
+        </Frame>
           {data.funnel[0].count ? <OutcomeFunnel stages={data.funnel} /> : null}
         </div>
 
@@ -294,14 +306,14 @@ async function DashboardData() {
           <LiveRefresh active every={busy ? 5000 : 20000} />
           <DashboardCalendar events={data.events} now={data.now} />
 
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle><h2>{t("activity.title")}</h2></CardTitle>
-              <CardAction><Button size="xs" variant="ghost" nativeButton={false} render={<Link href="/runs" />}>{t("activity.allRuns")} <ArrowRightIcon /></Button></CardAction>
-            </CardHeader>
-            <CardContent>
+          <Frame spacing="sm">
+            <FrameHeader className="flex-row items-center gap-3">
+              <FrameTitle className="min-w-0 flex-1"><h2>{t("activity.title")}</h2></FrameTitle>
+              <Button size="xs" variant="ghost" nativeButton={false} render={<Link href="/runs" />}>{t("activity.allRuns")} <ArrowRightIcon /></Button>
+            </FrameHeader>
+            <FramePanel className="py-1.5">
               {data.recentRuns.length ? (
-                <ul className="divide-y">
+                <ul className="-mx-1.5 divide-y">
                   {data.recentRuns.slice(0, 3).map((run) => (
                     <li key={run.id}>
                       <Link href={`/runs/${run.id}`} className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2">
@@ -321,23 +333,10 @@ async function DashboardData() {
               ) : (
                 <p className="py-2 text-sm text-muted-foreground">{t("activity.empty")}</p>
               )}
-            </CardContent>
-          </Card>
+            </FramePanel>
+          </Frame>
         </div>
       </div>
     </>
-  )
-}
-
-function Stat({ title, value, hint, href }: { title: string; value: number; hint: string; href: string }) {
-  return (
-    <Link href={href} className="group/stat grid gap-0.5 border-b border-e p-4 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none @min-[48rem]/workspace:border-b-0 [&:nth-child(2n)]:border-e-0 @min-[48rem]/workspace:[&:nth-child(2n)]:border-e @min-[48rem]/workspace:last:border-e-0">
-      <span className="flex items-center justify-between text-sm text-muted-foreground">
-        {title}
-        <ArrowRightIcon className="size-3.5 opacity-0 transition-[opacity,translate] group-hover/stat:translate-x-0.5 group-hover/stat:opacity-100 rtl:group-hover/stat:-translate-x-0.5" aria-hidden />
-      </span>
-      <span className="text-3xl font-semibold tabular-nums tracking-tight">{value}</span>
-      <span className="text-xs text-muted-foreground">{hint}</span>
-    </Link>
   )
 }

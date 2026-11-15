@@ -7,7 +7,7 @@
       "application_analyze": "Vérification de correspondance", "mail_classify": "Lecture des réponses par e-mail", "mail_draft": "Brouillon d’e-mail", "mail_send": "E-mail envoyé",
       "assistant_chat": "Discussion avec Naruvi", "company_research": "Recherche sur l’entreprise", "cv_generate": "Génération du CV", "cv_revise": "Révision du CV",
       "letter_generate": "Génération de la lettre de motivation", "letter_revise": "Révision de la lettre de motivation", "job_preview": "Import d’offre", "job_enrich": "Enrichissement de l’offre",
-      "profile_bullets": "Suggestions de puces", "profile_describe": "Description du profil", "template_design": "Conception de modèle",
+      "profile_bullets": "Suggestions de puces", "profile_describe": "Description du profil", "template_design": "Conception de modèle", "cv_design": "Suggestions de design de CV",
       "ai_sdk_smoke": "Test de connexion au modèle", "ai_sdk_large_cv_check": "Test de la limite de sortie du modèle"
     },
     "stepKind": { "ai": "Requête IA", "decision": "Décision", "render": "Rendu", "step": "Étape" },
@@ -58,18 +58,11 @@
       "unchecked": { "title": "{count, plural, one {# offre enregistrée à vérifier} other {# offres enregistrées à vérifier}}", "text": "Une vérification prend environ une minute et vous dit si l’offre vaut votre temps.", "cta": "Les vérifier" },
       "caughtUp": { "title": "Vous êtes à jour", "text": "Le bon moment pour ajouter une nouvelle offre ou vérifier quelques faits de plus dans votre profil." }
     },
-    "stats": {
-      "active": { "title": "Actives", "hint": "candidatures en cours" },
-      "ready": { "title": "Prêtes à envoyer", "hint": "toutes les vérifications passées" },
-      "sent": { "title": "Envoyées", "hint": "{count} en entretien" },
-      "facts": { "title": "Faits vérifiés", "hint": "utilisables par vos documents" }
-    },
     "recent": {
       "title": "Candidatures récentes", "description": "Reprenez là où vous en étiez.", "viewAll": "Tout voir",
-      "role": "Poste", "stage": "Étape", "fit": "Correspondance", "updated": "Mise à jour",
       "emptyTitle": "Aucune candidature pour l’instant", "emptyBody": "Ajoutez une offre et vérifiez la correspondance pour en démarrer une."
     },
-    "pipeline": { "title": "Pipeline", "active": "{count, plural, one {# candidature active} other {# candidatures actives}}", "none": "Aucune candidature active", "board": "Tableau" },
+    "pipeline": { "title": "Pipeline", "ready": "{count, plural, one {# prête à envoyer} other {# prêtes à envoyer}}", "active": "{count, plural, one {# candidature active} other {# candidatures actives}}", "none": "Aucune candidature active", "board": "Tableau" },
     "activity": { "title": "Activité récente", "allRuns": "Toutes les exécutions", "empty": "Les imports d’offres, analyses et brouillons de documents apparaîtront ici." }
   },
   "board": {

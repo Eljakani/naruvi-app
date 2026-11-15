@@ -20,8 +20,13 @@ import { completionForRun } from "@/server/llm/client"
 import { CV_EDITORIAL_REVIEW_VERSION, CV_TAILOR_PROMPT_VERSION, enrichCv, enrichLetter, LETTER_PROMPT_VERSION, POLISH_PROMPT_VERSION, polishCv, researchSources, REVISE_PROMPT_VERSION, reviewCvTailoring, reviseCv } from "./ai-compose"
 import { runCvAgent } from "./cv-agent"
 import { composeCv } from "./compose"
-import { cvDocument, type CvDocument } from "./model"
-import { checkQuality, type QualityReport } from "./quality"
+import { cvBrief, cvDocument, resolveDesign, type CvBrief, type CvDocument } from "./model"
+import { checkQuality, keywordCoverage, type QualityReport } from "./quality"
+import { CV_STRATEGY_PROMPT_VERSION, guidanceFor, planCv, type TailoringPlan } from "./strategy"
+import { fitDesign } from "@/lib/design-fit"
+import { designInsights } from "@/lib/design-insights"
+import { layoutMetrics } from "@/server/templates/layout-metrics"
+import { DESIGN_DIRECTOR_VERSION, proposeDesigns, type CvShape } from "@/server/templates/design-director"
 import { checkLetter, composeLetter, isPlaceholder, letterDocument, type LetterDocument } from "./letter"
 import { contactVersion, getLiveContact } from "./live-contact"
 import { renderCvPdf, renderLetterPdf } from "./render"
@@ -55,7 +60,9 @@ async function documentFor(applicationId: string, language: string, kind: Kind =
 async function evaluate(content: CvDocument | LetterDocument, requirements: Parameters<typeof checkQuality>[2]) {
   const isLetter = "kind" in content && content.kind === "cover_letter"
   const rendered = isLetter ? await renderLetterPdf(content as LetterDocument) : await renderCvPdf(content as CvDocument)
-  const quality = isLetter ? checkLetter(content as LetterDocument, rendered.pages) : checkQuality(content as CvDocument, rendered.pages, requirements)
+  // A second page that is nearly empty is worth flagging; one page needs no measuring.
+  const fill = !isLetter && rendered.pages > 1 ? await layoutMetrics(rendered.buffer).then((metrics) => metrics.lastPageFill, () => undefined) : undefined
+  const quality = isLetter ? checkLetter(content as LetterDocument, rendered.pages) : checkQuality(content as CvDocument, rendered.pages, requirements, { lastPageFill: fill })
   if (rendered.missingScripts.length) {
     // Text in a script whose font could not be loaded would print as empty boxes.
     quality.checks.push({ id: "fonts", status: "fail", label: "Fonts for every script", detail: `No font available for ${rendered.missingScripts.join(", ")} text. Connect to the internet once so Naruvi can download it.` })
@@ -92,14 +99,80 @@ async function addRevision(documentId: string, content: CvDocument | LetterDocum
   })
 }
 
+/** The CV rendered with another design, measured: what the layout fitter and the design director work from. */
+const measureCv = (doc: CvDocument) => async (tokens: DesignTokens) => layoutMetrics((await renderCvPdf({ ...doc, template: "custom", design: tokens, accent: tokens.accent })).buffer)
+
+/** The document with a fitted design. A design that came from a saved template no longer matches it, so the link is dropped. */
+function withDesign(doc: CvDocument, tokens: DesignTokens): CvDocument {
+  const next = { ...doc, design: tokens, accent: tokens.accent }
+  delete next.templateRef
+  return next
+}
+
+/**
+ * Tightens a CV's layout towards a page target, for the content agent. Stops at 70% of the way to the
+ * readable limit: past that, dropping a weak line is the better trade, and the agent does that next.
+ */
+export async function fitCvLayout(doc: CvDocument, target: number): Promise<CvDocument | null> {
+  const fitted = await fitDesign(resolveDesign(doc), target, measureCv(doc), { fill: false, maxTighten: 0.7 })
+  return fitted.direction === "none" ? null : withDesign(doc, fitted.tokens)
+}
+
+/** "Fit to N pages" in the Look tab: the loosest design that fits, or a fuller page when there is room. */
+export async function fitCvDesign(doc: CvDocument, target: number) {
+  const fitted = await fitDesign(resolveDesign(doc), target, measureCv(doc))
+  return { tokens: fitted.tokens, pages: fitted.pages, fits: fitted.fits, direction: fitted.direction, changed: fitted.changed.length }
+}
+
+const LANGUAGE_NAMES: Record<string, string> = { en: "English", fr: "French", es: "Spanish", de: "German", ar: "Arabic", it: "Italian", pt: "Portuguese", nl: "Dutch" }
+
+/** Three looks for this application, each rendered with this CV and checked before it is shown. */
+export async function suggestCvDesigns(applicationId: string, doc: CvDocument, locale: string) {
+  const application = await getApplication(applicationId)
+  if (!application) throw new Error("Application not found.")
+  const model = await getLlmOverview().catch(() => null)
+  const run = await startRun("cv.design", { applicationId }, applicationId)
+  try {
+    const measure = measureCv(doc)
+    const tokens = resolveDesign(doc)
+    const sections = doc.sections.filter((section) => section.included)
+    const items = sections.flatMap((section) => section.items.filter((item) => item.included))
+    const shape: CvShape = {
+      pages: (await measure(tokens)).pages,
+      entries: items.length,
+      bullets: items.flatMap((item) => item.bullets.filter((bullet) => bullet.included)).length,
+      skills: sections.filter((section) => section.kind === "skills").flatMap((section) => section.groups.flatMap((group) => group.values)).length,
+      hasSummary: Boolean(doc.header.summary.trim()),
+      showsPhoto: doc.header.showPhoto,
+      language: doc.language,
+    }
+    const proposals = await run.step("propose, render and check designs", () => proposeDesigns(
+      { job: { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }, shape, current: tokens, writeIn: LANGUAGE_NAMES[locale] ?? "English" },
+      { complete: model?.configured ? completionForRun(run, "design directions", DESIGN_DIRECTOR_VERSION) : undefined, measure },
+    ), (value) => `${value.length} design(s): ${value.map((item) => item.base).join(", ")}`)
+    await run.finish("succeeded", { designs: proposals.map((item) => item.base) })
+    return { proposals, current: designInsights(tokens), byModel: Boolean(model?.configured) }
+  } catch (error) {
+    await run.finish("failed", undefined, error instanceof Error ? error.message : String(error))
+    throw error
+  }
+}
+
+/** How many lines each entry starts with, by how much detail was asked for. */
+const DETAIL: Record<CvBrief["tone"], { bulletsTop: number; bulletsOther: number }> = { concise: { bulletsTop: 3, bulletsOther: 1 }, balanced: { bulletsTop: 4, bulletsOther: 2 }, detailed: { bulletsTop: 5, bulletsOther: 3 } }
+
 /** Compose a grounded CV for an application and store it as a new revision. */
-export async function generateCv(applicationId: string, language?: string) {
+export async function generateCv(applicationId: string, language?: string, briefInput?: unknown) {
   const application = await getApplication(applicationId)
   if (!application) throw new Error("Application not found.")
   const profile = await getProfile()
   if (!profile) throw new Error("Create your profile first.")
   const lang = language ?? application.language
-  const run = await startRun("cv.generate", { applicationId, language: lang }, applicationId)
+  const document = await documentFor(application.id, lang)
+  // Regenerating without new choices keeps the ones this CV was last written with.
+  const previous = document.currentRevisionId ? (await db.select({ content: revisions.content }).from(revisions).where(eq(revisions.id, document.currentRevisionId)))[0]?.content as { brief?: unknown } | undefined : undefined
+  const brief = cvBrief.parse(briefInput ?? previous?.brief ?? {})
+  const run = await startRun("cv.generate", { applicationId, language: lang, brief }, applicationId)
   try {
     let entries = await run.step("load profile", () => listEntries(), (value) => `${value.length} entries`)
     // An entry saved moments ago, or while no model was connected, may not be in this language yet: translate it before it is used.
@@ -118,18 +191,25 @@ export async function generateCv(applicationId: string, language?: string) {
           { fullName: profile.fullName, headlines: profile.headlines, summaries: profile.summaries, email: profile.email, phone: profile.phone, location: profile.location, links: profile.links, photoPath: profile.photoPath, defaultLanguage: profile.defaultLanguage },
           entries,
           application.analysis,
-          { language: lang },
+          { language: lang, ...DETAIL[brief.tone] },
         ),
       (value) => `${value.sections.length} sections · ${value.sections.flatMap((s) => s.items.flatMap((i) => i.bullets.filter((b) => b.included))).length} bullets`,
     )
+    content.brief = brief
+    content.jobKeywords = (application.analysis?.keywords ?? []).slice(0, 20).map((keyword) => keyword.key)
     const baseline = content
     const model = await run.step("Check AI configuration", () => getLlmOverview(), (value) => value.configured ? `${value.model} configured` : "AI skipped: no usable model key or local model is configured.").catch(() => null)
     if (model?.configured) {
-      content = await run.step("AI tailor CV", () => enrichCv(content, entries, application.analysis, {
-        title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText,
-      }, completionForRun(run, "CV tailoring", CV_TAILOR_PROMPT_VERSION)), (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} entries tailored${value.aiAssistance?.reason ? ` · ${value.aiAssistance.reason}` : ""}`)
+      const jobContext = { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }
+      // Decide the positioning first, so tailoring, ordering, headline and summary pull one way.
+      const plan: TailoringPlan | null = await run
+        .step("AI plan the positioning", () => planCv(content, application.analysis, jobContext, brief, LANGUAGE_NAMES[lang] ?? lang, completionForRun(run, "CV strategy", CV_STRATEGY_PROMPT_VERSION)), (value) => `${value.strategy.angle ? "angle set" : "no angle"} · ${value.strategy.strengths.length} selling point(s) · ${value.lead.length} lead entr${value.lead.length === 1 ? "y" : "ies"} · ${value.strategy.gaps.length} gap(s)`)
+        .catch(() => null) // a plan sharpens the CV; without one the steps below still work
+      if (plan) content.strategy = plan.strategy
+      const guidance = guidanceFor(plan, brief)
+      content = await run.step("AI tailor CV", () => enrichCv(content, entries, application.analysis, jobContext, completionForRun(run, "CV tailoring", CV_TAILOR_PROMPT_VERSION), { guidance, lead: plan?.lead }), (value) => `${value.aiAssistance?.status ?? "unchanged"} · ${value.aiAssistance?.changes ?? 0} entries tailored${value.aiAssistance?.reason ? ` · ${value.aiAssistance.reason}` : ""}`)
       const polished = await run
-        .step("AI order sections & headline", () => polishCv(content, { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }, completionForRun(run, "CV ordering", POLISH_PROMPT_VERSION)), (value) => `headline ${value.headline ? `→ “${value.doc.header.headline}”` : "kept"} · summary ${value.summary ? "tailored" : "kept"} · ${value.sectionsMoved ? "sections reordered · " : ""}${value.reordered} list(s) reordered · ${value.hidden} off-topic item(s) hidden`)
+        .step("AI order sections & headline", () => polishCv(content, jobContext, completionForRun(run, "CV ordering", POLISH_PROMPT_VERSION), guidance), (value) => `headline ${value.headline ? `→ “${value.doc.header.headline}”` : "kept"} · summary ${value.summary ? "tailored" : "kept"} · ${value.sectionsMoved ? "sections reordered · " : ""}${value.reordered} list(s) reordered · ${value.hidden} off-topic item(s) hidden`)
         .catch(() => null) // ordering is polish, never a blocker
       if (polished) content = polished.doc
       const decisions = await decisionClient().catch(() => null)
@@ -140,7 +220,6 @@ export async function generateCv(applicationId: string, language?: string) {
         if (checked) content = checked.doc
       }
     }
-    const document = await documentFor(application.id, lang)
     const design = await designFor(document.id)
     content.template = design.template
     if (design.design) content.design = design.design
@@ -153,9 +232,10 @@ export async function generateCv(applicationId: string, language?: string) {
       const job = { title: application.job.title, company: application.job.company?.name ?? "", description: application.job.rawText }
       const requirements = application.analysis?.requirements ?? []
       const agent = await run
-        .step("CV agent (render, score, fix)", () => runCvAgent(content, {}, {
+        .step("CV agent (render, score, fix)", () => runCvAgent(content, { pages: brief.pages === "auto" ? null : Number(brief.pages), protectFacts: new Set(requirements.filter((r) => r.kind === "must" && (r.status === "met" || r.status === "partial")).flatMap((r) => r.factIds)) }, {
           evaluate: (doc) => evaluate(doc, requirements).then(({ pages, quality }) => ({ pages, quality })),
           revise: (doc, instruction) => reviseWithChecks(run, doc, instruction, facts, job, entries),
+          fitLayout: fitCvLayout,
         }), (value) => `${value.rounds.length} round(s) · score ${value.scoreBefore} → ${value.scoreAfter} · ${value.pages} page(s)`)
         .catch(() => null)
       if (agent?.improved) content = agent.doc
@@ -165,6 +245,11 @@ export async function generateCv(applicationId: string, language?: string) {
         (value) => `${value.accepted} worthwhile rewrite(s) kept · ${value.rejected} reverted`,
       )
       content = edited.doc
+    }
+    // No model, but a page target: the layout fitter needs none.
+    if (!model?.configured && brief.pages !== "auto") {
+      const fitted = await run.step("fit layout to the page target", () => fitCvLayout(content, Number(brief.pages)), (value) => (value ? "layout tightened" : "already fits")).catch(() => null)
+      if (fitted) content = fitted
     }
     // Last net: no line in another language than the document's leaves this function.
     content = keepCvLanguage(content).doc
@@ -302,6 +387,8 @@ async function getWorkspace(applicationId: string, language: string, kind: Kind)
     document: doc,
     contactVersion: contactVersion(await getLiveContact()),
     current: current ? { ...current, content: current.content as unknown as CvDocument, quality: current.quality as unknown as QualityReport } : null,
+    // Which of the job's keywords the saved CV shows (CVs only; letters carry none).
+    coverage: current && kind === "cv" ? keywordCoverage(cvDocument.parse(current.content)) : null,
     history: history.map((item) => ({ ...item, quality: item.quality as unknown as QualityReport | null })),
   }
 }
@@ -344,6 +431,7 @@ export async function reviseSavedCv(applicationId: string, language: string, req
     const agent = await run.step("CV agent (revise, render, score, fix)", () => runCvAgent(cvDocument.parse(workspace.current!.content), { request, protectFacts: new Set(requirements.filter((r) => r.kind === "must" && (r.status === "met" || r.status === "partial")).flatMap((r) => r.factIds)) }, {
       evaluate: (doc) => scoreCvDraft(doc, requirements),
       revise: (doc, instruction) => reviseWithChecks(run, doc, instruction, facts, job, entries),
+      fitLayout: fitCvLayout,
     }), (value) => `${value.rounds.length} round(s) · score ${value.scoreBefore} → ${value.scoreAfter} · ${value.pages} page(s)`)
     const saved = agent.improved ? await saveCvEdit(workspace.document.id, agent.doc) : null
     await run.finish("succeeded", { rounds: agent.rounds.length, scoreBefore: agent.scoreBefore, scoreAfter: agent.scoreAfter, saved: Boolean(saved) })

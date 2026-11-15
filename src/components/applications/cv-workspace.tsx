@@ -3,11 +3,15 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useCallback, useState, useTransition } from "react"
-import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, ExternalLinkIcon, SparklesIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, ChevronRightIcon, ExternalLinkIcon, RefreshCwIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 import { generateCvAction, saveCvEditAction, setCurrentRevisionAction } from "@/app/[locale]/(app)/applications/[id]/cv/actions"
 import { DocumentStart } from "@/components/documents/document-start"
-import { DEFAULT_PRESET, PRESETS, type DesignTokens } from "@/lib/design"
+import { DEFAULT_PRESET, PRESETS, presetTokens, type DesignTokens } from "@/lib/design"
+import { BriefFields } from "@/components/applications/cv-brief"
+import { CvStrategyPanel } from "@/components/applications/cv-strategy"
+import { DesignAdvisor } from "@/components/applications/design-advisor"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 import { DesignPicker, type DesignChange, type SavedDesign } from "@/components/applications/design-picker"
 import { AiReviewPanel } from "@/components/documents/ai-review-panel"
@@ -21,21 +25,33 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import type { CvDocument } from "@/server/documents/model"
+import type { CvBrief, CvDocument } from "@/server/documents/model"
 import type { getCvWorkspace } from "@/server/documents/service"
 import { useLocale, useTranslations } from "next-intl"
 import { languageName } from "@/i18n/config"
 
 type Workspace = NonNullable<Awaited<ReturnType<typeof getCvWorkspace>>>
 
-function GenerateForm({ applicationId, language, label }: { applicationId: string; language: string; label?: string }) {
+/** Regenerate, with the same choices as the first time (length, detail, what to stress) prefilled from this CV. */
+function GenerateForm({ applicationId, language, brief }: { applicationId: string; language: string; brief?: CvBrief }) {
   const t = useTranslations("cvWorkspace")
   return (
-    <form action={generateCvAction}>
-      <input type="hidden" name="applicationId" value={applicationId} />
-      <input type="hidden" name="language" value={language} />
-      <RegenerateButton label={label ?? t("regenerate")} steps={AI_STEPS.cv} />
-    </form>
+    <Popover>
+      <PopoverTrigger render={<Button size="sm" variant="outline" />}>
+        <RefreshCwIcon /> <span className="max-sm:hidden">{t("regenerate")}</span> <ChevronDownIcon />
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-3">
+        <form action={generateCvAction} className="grid gap-3">
+          <input type="hidden" name="applicationId" value={applicationId} />
+          <input type="hidden" name="language" value={language} />
+          <BriefFields brief={brief} />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground">{t("regenerateNote")}</span>
+            <RegenerateButton label={t("regenerate")} steps={AI_STEPS.cv} variant="default" />
+          </div>
+        </form>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -56,6 +72,7 @@ export function CvWorkspace({ applicationId, jobTitle, company, language, worksp
         icon={<SparklesIcon />}
         title={t("title")}
         lead={t("lead", { language: languageName(language, locale) })}
+        options={<BriefFields />}
         design={startDesign.tokens}
         designName={startDesign.name}
       />
@@ -121,7 +138,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, savedTe
       kind="cv"
       language={language}
       quality={current.quality as unknown as Quality}
-      regenerate={<GenerateForm applicationId={applicationId} language={language} />}
+      regenerate={<GenerateForm applicationId={applicationId} language={language} brief={draft.brief} />}
       downloadHref={`/api/revisions/${current.id}/pdf?contact=${workspace.contactVersion}&download=1`}
       previewUrl={`/api/revisions/${current.id}/pdf?contact=${workspace.contactVersion}`}
       pageBudget={2}
@@ -130,7 +147,10 @@ function Editor({ applicationId, jobTitle, company, language, workspace, savedTe
       checkFix={checkFix}
       onSave={() => persist(draft, t("saved"))}
       onDiscard={() => setDraft(current.content)}
-      design={<DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} design={draft.design} templateRef={draft.templateRef} saved={savedTemplates} onChange={applyDesign} photo={{ available: Boolean(draft.header.photoPath), shown: draft.header.showPhoto }} disabled={pending} />}
+      design={<div className="grid gap-5">
+        <DesignAdvisor applicationId={applicationId} draft={draft} tokens={draft.design ?? { ...presetTokens(draft.template), accent: draft.accent ?? presetTokens(draft.template).accent }} pages={(current.quality as unknown as Quality).pages ?? current.pages ?? 1} onApply={applyDesign} disabled={pending} />
+        <DesignPicker template={draft.template ?? "classic"} accent={draft.accent ?? "#2563eb"} design={draft.design} templateRef={draft.templateRef} saved={savedTemplates} onChange={applyDesign} photo={{ available: Boolean(draft.header.photoPath), shown: draft.header.showPhoto }} disabled={pending} />
+      </div>}
       versions={<VersionsPanel revisions={workspace.history} currentId={current.id} pending={pending} onRestore={restore} />}
       content={<div className="grid gap-5">
         <AiReviewPanel assistance={draft.aiAssistance} pending={pending}
@@ -140,6 +160,7 @@ function Editor({ applicationId, jobTitle, company, language, workspace, savedTe
             if (next.aiAssistance) next.aiAssistance.reviewed = true
             persist(next, t("reviewed"), () => setDraft(next))
           }} />
+        <CvStrategyPanel strategy={draft.strategy} coverage={workspace.coverage} />
         <CvAssistant applicationId={applicationId} draft={draft} apply={setDraft} />
         <CvContent draft={draft} update={update} language={language} lineAssistant={(bulletId) => <LineAssistant applicationId={applicationId} draft={draft} bulletId={bulletId} apply={setDraft} />} />
       </div>}

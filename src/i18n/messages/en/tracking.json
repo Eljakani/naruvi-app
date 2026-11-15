@@ -7,7 +7,7 @@
       "application_analyze": "Fit check", "mail_classify": "Read email replies", "mail_draft": "Drafted an email", "mail_send": "Sent an email",
       "assistant_chat": "Chat with Naruvi", "company_research": "Company research", "cv_generate": "CV generation", "cv_revise": "CV revision",
       "letter_generate": "Cover letter generation", "letter_revise": "Cover letter revision", "job_preview": "Job import", "job_enrich": "Job enrichment",
-      "profile_bullets": "Bullet suggestions", "profile_describe": "Profile description", "template_design": "Template design",
+      "profile_bullets": "Bullet suggestions", "profile_describe": "Profile description", "template_design": "Template design", "cv_design": "CV design suggestions",
       "ai_sdk_smoke": "Model connection test", "ai_sdk_large_cv_check": "Model output-limit test"
     },
     "stepKind": { "ai": "AI request", "decision": "Decision", "render": "Render", "step": "Step" },
@@ -58,18 +58,11 @@
       "unchecked": { "title": "{count, plural, one {# saved job to check} other {# saved jobs to check}}", "text": "A fit check takes about a minute and tells you if it’s worth your time.", "cta": "Check them" },
       "caughtUp": { "title": "You’re all caught up", "text": "A good moment to add a new job, or to verify a few more facts in your profile." }
     },
-    "stats": {
-      "active": { "title": "Active", "hint": "applications in progress" },
-      "ready": { "title": "Ready to send", "hint": "passed every check" },
-      "sent": { "title": "Sent", "hint": "{count} in interviews" },
-      "facts": { "title": "Verified facts", "hint": "your documents can use" }
-    },
     "recent": {
       "title": "Recent applications", "description": "Pick up where you left off.", "viewAll": "View all",
-      "role": "Role", "stage": "Stage", "fit": "Fit", "updated": "Updated",
       "emptyTitle": "No applications yet", "emptyBody": "Add a job and check your fit to start one."
     },
-    "pipeline": { "title": "Pipeline", "active": "{count, plural, one {# active application} other {# active applications}}", "none": "No active applications", "board": "Board" },
+    "pipeline": { "title": "Pipeline", "ready": "{count} ready to send", "active": "{count, plural, one {# active application} other {# active applications}}", "none": "No active applications", "board": "Board" },
     "activity": { "title": "Recent activity", "allRuns": "All runs", "empty": "Job imports, analyses, and document drafts will appear here." }
   },
   "board": {

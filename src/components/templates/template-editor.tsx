@@ -27,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { affectedDocuments, designTokens, FONTS, ALL_PRESETS as PRESETS, type DesignTokens } from "@/lib/design"
+import { affectedDocuments, designTokens, FONTS, ALL_PRESETS as PRESETS, SIDEBAR_KINDS, type DesignTokens, type SidebarKind } from "@/lib/design"
 import { cn } from "@/lib/utils"
 import { mergeDesignChanges } from "@/lib/template-edit"
 import { useLocale, useTranslations } from "next-intl"
@@ -487,7 +487,7 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                         <Field>
                           <FieldLabel>{td("columns")}</FieldLabel>
                           <Choice label={td("columns")} value={tokens.layout} onChange={(value) => set("layout", value)} options={[{ value: "single", label: td("oneColumn") }, { value: "sidebar", label: td("sideColumn") }]} />
-                          {tokens.layout === "sidebar" ? <FieldDescription>Skills, languages and certifications move to a side column.</FieldDescription> : null}
+                          {tokens.layout === "sidebar" ? <FieldDescription>{td("sideColumnHint")}</FieldDescription> : null}
                         </Field>
                       </Flash>
                       <Flash on={glow("headerAlign")}>
@@ -496,6 +496,8 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                           <Choice label={td("headerAlignment")} value={tokens.headerAlign} onChange={(value) => set("headerAlign", value)} options={[{ value: "left", label: td("left") }, { value: "center", label: td("centred") }]} />
                         </Field>
                       </Flash>
+                      {tokens.headerAlign === "left" ? <Flash on={glow("headerLayout")}><Field><FieldLabel>{td("headerLayout")}</FieldLabel><Choice label={td("headerLayout")} value={tokens.headerLayout} onChange={(value) => set("headerLayout", value)} options={[{ value: "stacked", label: td("headerStacked") }, { value: "split", label: td("headerSplit") }]} /></Field></Flash> : null}
+                      {!tokens.headerBand ? <Flash on={glow("headerRule")}><Field><FieldLabel>{td("headerRule")}</FieldLabel><Choice label={td("headerRule")} value={tokens.headerRule} onChange={(value) => set("headerRule", value)} options={[{ value: "none", label: td("noLine") }, { value: "line", label: td("line") }, { value: "accent", label: td("accentLine") }, { value: "double", label: td("doubleLine") }]} /></Field></Flash> : null}
                       <Flash on={glow("headerBand")}><Toggle label={td("colouredHeaderBand")} checked={tokens.headerBand} onChange={(value) => set("headerBand", value)} /></Flash>
                       <Flash on={glow("margin")}><Range label={td("pageMargins")} value={tokens.margin} min={20} max={60} step={1} unit=" pt" onChange={(value) => set("margin", value)} /></Flash>
                       <Flash on={glow("spacing")}><Range label={td("spacingBetweenParts")} value={tokens.spacing} min={0.6} max={1.6} step={0.05} unit="×" onChange={(value) => set("spacing", value)} /></Flash>
@@ -507,7 +509,7 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                   <AccordionTrigger>{td("sectionHeadings")}</AccordionTrigger>
                   <AccordionContent>
                     <FieldGroup className="gap-3 pt-1">
-                      <Flash on={glow("headingStyle")}><Choice label={td("headingStyle")} value={tokens.headingStyle} onChange={(value) => set("headingStyle", value)} options={[{ value: "rule", label: td("line") }, { value: "underline-accent", label: td("accentLine") }, { value: "bar", label: td("sideBar") }, { value: "filled", label: td("filled") }, { value: "plain", label: td("plain") }]} /></Flash>
+                      <Flash on={glow("headingStyle")}><Choice label={td("headingStyle")} value={tokens.headingStyle} onChange={(value) => set("headingStyle", value)} options={[{ value: "rule", label: td("line") }, { value: "underline-accent", label: td("accentLine") }, { value: "bar", label: td("sideBar") }, { value: "filled", label: td("filled") }, { value: "line-after", label: td("lineAfter") }, { value: "centered", label: td("centredBetweenLines") }, { value: "plain", label: td("plain") }]} /></Flash>
                       <Flash on={glow("sectionIcons")}><Toggle label={td("iconsOnSectionHeadings")} hint={td("experienceEducationSkills")} checked={tokens.sectionIcons} onChange={(value) => set("sectionIcons", value)} /></Flash>
                       <Flash on={glow("headingCase")}><Choice label={td("headingCase")} value={tokens.headingCase} onChange={(value) => set("headingCase", value)} options={[{ value: "upper", label: td("uppercase") }, { value: "none", label: td("normal") }]} /></Flash>
                     </FieldGroup>
@@ -524,12 +526,24 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                           <Choice label={td("bulletStyle")} value={tokens.bullet} onChange={(value) => set("bullet", value)} options={[{ value: "dot", label: "•" }, { value: "dash", label: "–" }, { value: "arrow", label: "›" }, { value: "square", label: "▪" }, { value: "none", label: td("none") }]} />
                         </Field>
                       </Flash>
-                      <Flash on={glow("datePosition")}>
+                      <Flash on={glow("entryLayout")}>
                         <Field>
-                          <FieldLabel>{td("dates")}</FieldLabel>
-                          <Choice label={td("datePosition")} value={tokens.datePosition} onChange={(value) => set("datePosition", value)} options={[{ value: "right", label: td("onTheRight") }, { value: "below", label: td("underTheTitle") }]} />
+                          <FieldLabel>{td("entryLayout")}</FieldLabel>
+                          <Choice label={td("entryLayout")} value={tokens.entryLayout} onChange={(value) => set("entryLayout", value)} options={[{ value: "stacked", label: td("entryStacked") }, { value: "timeline", label: td("entryTimeline") }]} />
+                          {tokens.entryLayout === "timeline" ? <FieldDescription>{td("entryTimelineHint")}</FieldDescription> : null}
                         </Field>
                       </Flash>
+                      <Flash on={glow("entryOrder")}><Field><FieldLabel>{td("entryOrder")}</FieldLabel><Choice label={td("entryOrder")} value={tokens.entryOrder} onChange={(value) => set("entryOrder", value)} options={[{ value: "title", label: td("entryTitleFirst") }, { value: "org", label: td("entryOrgFirst") }]} /></Field></Flash>
+                      {tokens.entryLayout === "stacked" ? (
+                        <Flash on={glow("datePosition")}>
+                          <Field>
+                            <FieldLabel>{td("dates")}</FieldLabel>
+                            <Choice label={td("datePosition")} value={tokens.datePosition} onChange={(value) => set("datePosition", value)} options={[{ value: "right", label: td("onTheRight") }, { value: "below", label: td("underTheTitle") }]} />
+                          </Field>
+                        </Flash>
+                      ) : null}
+                      <Flash on={glow("dateStyle")}><Field><FieldLabel>{td("dateStyle")}</FieldLabel><Choice label={td("dateStyle")} value={tokens.dateStyle} onChange={(value) => set("dateStyle", value)} options={[{ value: "plain", label: td("plain") }, { value: "accent", label: td("accentColour") }, ...(tokens.entryLayout === "stacked" ? [{ value: "pill" as const, label: td("datePill") }] : [])]} /></Field></Flash>
+                      <Flash on={glow("accentTitles")}><Toggle label={td("entryTitlesInAccent")} checked={tokens.accentTitles} onChange={(value) => set("accentTitles", value)} /></Flash>
                       <Flash on={glow("photoShape")}>
                         <Field>
                           <FieldLabel>{td("photoShape")}</FieldLabel>
@@ -579,7 +593,7 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                       <Flash on={glow("itemSpacing")}><Range label={td("spaceBetweenEntries")} value={tokens.itemSpacing} min={0.4} max={2} step={0.05} unit="×" onChange={(value) => set("itemSpacing", value)} /></Flash>
                       <Flash on={glow("bulletSpacing")}><Range label={td("spaceBetweenBullets")} value={tokens.bulletSpacing} min={0} max={4} step={0.25} unit=" pt" onChange={(value) => set("bulletSpacing", value)} /></Flash>
                       <Flash on={glow("textAlign")}><Field><FieldLabel>{td("textAlignment")}</FieldLabel><Choice label={td("textAlignment")} value={tokens.textAlign} onChange={(value) => set("textAlign", value)} options={[{ value: "left", label: td("left") }, { value: "justify", label: td("justified") }]} /></Field></Flash>
-                      <Flash on={glow("skillsStyle")}><Field><FieldLabel>{td("skillsLookLike")}</FieldLabel><Choice label={td("skillsStyle")} value={tokens.skillsStyle} onChange={(value) => set("skillsStyle", value)} options={[{ value: "inline", label: "A · B · C" }, { value: "tags", label: td("tags") }, { value: "list", label: td("aList") }]} /></Field></Flash>
+                      <Flash on={glow("skillsStyle")}><Field><FieldLabel>{td("skillsLookLike")}</FieldLabel><Choice label={td("skillsStyle")} value={tokens.skillsStyle} onChange={(value) => set("skillsStyle", value)} options={[{ value: "inline", label: "A · B · C" }, { value: "tags", label: td("tags") }, { value: "pills", label: td("pills") }, { value: "columns", label: td("inColumns") }, { value: "list", label: td("aList") }]} /></Field></Flash>
                     </FieldGroup>
                   </AccordionContent>
                 </AccordionItem>
@@ -589,6 +603,15 @@ export function TemplateEditor({ initial, previewVersion }: { initial: Initial; 
                     <AccordionTrigger>{td("sideColumn")}</AccordionTrigger>
                     <AccordionContent>
                       <FieldGroup className="gap-4 pt-1">
+                        <Flash on={glow("sidebarSections")}>
+                          <Field>
+                            <FieldLabel>{td("sidebarSections")}</FieldLabel>
+                            <ToggleGroup multiple value={tokens.sidebarSections} onValueChange={(next) => next.length && set("sidebarSections", SIDEBAR_KINDS.filter((kind) => (next as string[]).includes(kind)) as SidebarKind[])} variant="outline" size="sm" aria-label={td("sidebarSections")} className="flex-wrap justify-start">
+                              {SIDEBAR_KINDS.map((kind) => <ToggleGroupItem key={kind} value={kind}>{td(`sectionKind.${kind}`)}</ToggleGroupItem>)}
+                            </ToggleGroup>
+                            <FieldDescription>{td("sidebarSectionsHint")}</FieldDescription>
+                          </Field>
+                        </Flash>
                         <Flash on={glow("sidebarSide")}><Field><FieldLabel>{td("side")}</FieldLabel><Choice label={td("sideColumnPosition")} value={tokens.sidebarSide} onChange={(value) => set("sidebarSide", value)} options={[{ value: "left", label: td("left") }, { value: "right", label: td("right") }]} /></Field></Flash>
                         <Flash on={glow("sidebarWidth")}><Range label={td("width")} value={tokens.sidebarWidth} min={24} max={40} step={1} unit="%" onChange={(value) => set("sidebarWidth", value)} /></Flash>
                         <Flash on={glow("sidebarTint")}><Toggle label={td("tintedBackground")} hint={td("aLightWashOfTheAccentColour")} checked={tokens.sidebarTint} onChange={(value) => set("sidebarTint", value)} /></Flash>

@@ -1,4 +1,6 @@
 {
+  "cvBrief": {"pages": "Length", "pagesAuto": "Auto", "pagesOne": "1 page", "pagesTwo": "2 pages", "tone": "Detail", "concise": "Concise", "balanced": "Balanced", "detailed": "Detailed", "focus": "What to stress (optional)", "focusPlaceholder": "e.g. my migration projects and the team I led", "focusHint": "Followed only where your verified facts support it."},
+  "cvStrategy": {"title": "How this CV positions you", "keywordsCount": "{covered}/{total} keywords", "strengths": "Selling points it leads with", "gaps": "What it cannot show", "gapsHint": "Must-haves your profile does not prove. If you have the evidence, add it to your profile and regenerate.", "keywords": "The job’s keywords", "hidden": "In lines you left out (tick them to show these):", "missing": "Not in this CV’s wording:", "savedNote": "Counted on the saved version."},
   "cvAssistant": {
     "ideas": { "shorter": "Make it shorter", "onePage": "Fit on one page", "leadership": "Stress leadership", "technical": "More technical", "simpler": "Simpler words", "results": "Lead with results" },
     "steps": { "read": "Reading your request", "rewrite": "Rewriting with your facts only", "render": "Rendering and scoring the CV", "fix": "Fixing what the checks flag", "keep": "Keeping the best version" },
@@ -27,6 +29,7 @@
     "improveTitle": "Improve this line"
   },
   "cvWorkspace": {
+    "regenerateNote": "Replaces the draft with a new version. The old one stays in History.",
     "regenerate": "Regenerate",
     "write": "Write my CV",
     "title": "Your CV for this job",

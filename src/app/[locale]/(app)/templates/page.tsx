@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { ALL_PRESETS, PRESETS } from "@/lib/design"
+import { designInsights } from "@/lib/design-insights"
+import { AtsBadge } from "@/components/applications/design-advisor"
 import { getDocumentDefaults } from "@/server/settings/service"
 import { listTemplates, previewFingerprint } from "@/server/templates/service"
 import { titled } from "@/i18n/metadata"
@@ -53,6 +55,7 @@ function Tile({ href, name, hint, tokens, badge, revision }: { href: string; nam
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{name}</div>
           <div className="text-xs break-words text-muted-foreground">{hint}</div>
+          <AtsBadge insights={designInsights(tokens)} className="relative z-10 mt-1.5" />
         </div>
         {badge ? <Badge variant="secondary">{badge}</Badge> : null}
       </Link>

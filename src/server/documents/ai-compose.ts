@@ -10,7 +10,10 @@ import type { CvDocument, CvBullet } from "./model"
 import { isPlaceholder, type LetterDocument } from "./letter"
 
 export const DOCUMENT_PROMPT_VERSION = "grounded-documents-v1"
-export const CV_TAILOR_PROMPT_VERSION = "cv-tailor-v2"
+export const CV_TAILOR_PROMPT_VERSION = "cv-tailor-v3"
+/** The tailoring plan and the person's brief, as the prompts receive them (see strategy.ts). */
+type Guidance = { positioning?: string; sellingPoints?: string[]; candidateEmphasis?: string; detail?: string }
+const GUIDED = ' When "guidance" is present: positioning and sellingPoints are the plan for this CV, so choose and order evidence that supports them; candidateEmphasis is the candidate\'s own request, honoured only as far as the verified evidence allows; detail says how long lines should be. Guidance never licenses a new claim.'
 export const CV_EDITORIAL_REVIEW_VERSION = "cv-editorial-review-v1"
 type Complete = (input: CompletionInput) => Promise<Completion>
 export type JobContext = { title: string; company: string; description: string; url?: string; contract?: string; programme?: { duration: string; start: string; rhythm: string }; /** The candidate's own, from their search goal: "YYYY-MM" and months. */ availability?: { availableFrom?: string; months?: string } }
@@ -54,7 +57,9 @@ function verifiedFacts(entries: ComposeEntry[]) {
   return new Map(entries.filter((entry) => entry.status === "verified").map((entry) => [entry.id, new Map(entry.facts.map((fact) => [fact.id, fact]))]))
 }
 
-export async function enrichCv(base: CvDocument, entries: ComposeEntry[], analysis: ComposeAnalysis | null, job: JobContext, complete: Complete): Promise<CvDocument> {
+export async function enrichCv(base: CvDocument, entries: ComposeEntry[], analysis: ComposeAnalysis | null, job: JobContext, complete: Complete, plan: { guidance?: Guidance; lead?: string[] } = {}): Promise<CvDocument> {
+  // Entries the plan leads with may show one more line than the composer gave them.
+  const lead = new Set(plan.lead ?? [])
   const facts = verifiedFacts(entries)
   const offered = new Map<string, { entryId: string; bullet: CvBullet; support: FactLike[] }>()
   let count = 0
@@ -72,7 +77,7 @@ export async function enrichCv(base: CvDocument, entries: ComposeEntry[], analys
         relevantRequirements: (analysis?.requirements ?? []).filter((r) => r.factIds.some((factId) => bullet.factIds.includes(factId))).map((r) => r.text ?? r.keywords.join(", ")),
       }]
     })
-    return bullets.length ? [{ id: `E${index + 1}`, entryId: item.entryId, title: item.title, organization: item.organization, limit: Math.max(1, item.bullets.filter((bullet) => bullet.included).length), bullets }] : []
+    return bullets.length ? [{ id: `E${index + 1}`, entryId: item.entryId, title: item.title, organization: item.organization, limit: Math.min(6, Math.max(1, item.bullets.filter((bullet) => bullet.included).length) + (lead.has(item.entryId) ? 1 : 0)), bullets }] : []
   })
   if (!items.length) return fallback(base, "AI was skipped: no verified bullets with supported facts are available in this language.")
   let response: Completion | undefined
@@ -82,7 +87,8 @@ export async function enrichCv(base: CvDocument, entries: ComposeEntry[], analys
       schema: cvReply,
       maxTokens: 6000,
       user: JSON.stringify({
-        task: 'Tailor the CV by selecting and ordering the strongest evidence for this job. Put proof of the role’s priorities first. Rewrite a bullet only when it surfaces relevant verified evidence, clarifies the contribution or outcome, or substantially improves readability while preserving useful detail. Copy good wording verbatim. Punctuation and synonym swaps are not improvements. Keep at least one bullet per entry and respect each limit. Preserve evidence for already covered must-haves. Use only offered E/B ids. Return {"language":"requested code","items":[{"id":"E1","bullets":[{"id":"B1","text":"supported wording"}]}]}. Omitted entries retain their original selection. Never change job titles, dates, organizations or section order.',
+        task: 'Tailor the CV by selecting and ordering the strongest evidence for this job. Put proof of the role’s priorities first. Rewrite a bullet only when it surfaces relevant verified evidence, clarifies the contribution or outcome, or substantially improves readability while preserving useful detail. Copy good wording verbatim. Punctuation and synonym swaps are not improvements. Keep at least one bullet per entry and respect each limit. Preserve evidence for already covered must-haves. Use only offered E/B ids. Return {"language":"requested code","items":[{"id":"E1","bullets":[{"id":"B1","text":"supported wording"}]}]}. Omitted entries retain their original selection. Never change job titles, dates, organizations or section order.' + GUIDED,
+        guidance: plan.guidance,
         language: base.language,
         job: { title: job.title, company: job.company, description: job.description.slice(0, 16_000) },
         items: items.map((item) => ({ id: item.id, title: item.title, organization: item.organization, limit: item.limit, bullets: item.bullets })),
@@ -307,7 +313,7 @@ export function researchSources(input: unknown): CompanySource[] {
 /* Ordering and headline: safe polish after bullet tailoring           */
 /* ------------------------------------------------------------------ */
 
-export const POLISH_PROMPT_VERSION = "cv-polish-v2"
+export const POLISH_PROMPT_VERSION = "cv-polish-v3"
 const LANGUAGE_NAME: Record<string, string> = { en: "English", fr: "French", es: "Spanish", de: "German", it: "Italian", pt: "Portuguese", nl: "Dutch", ar: "Arabic" }
 const REORDERABLE = new Set(["skills", "languages", "project", "certification", "achievement"])
 const HIDEABLE = new Set(["project", "certification", "achievement"])
@@ -331,6 +337,7 @@ const POLISH_SYSTEM = `You tailor a CV's structure and headline to one job. Retu
 2. sectionOrder: all section ids, most convincing for this job first (experience usually first; projects can come before education when they prove more).
 3. For each listed section, items/values: the SAME ids/values reordered by relevance to this job. Do not add, drop, rename or translate.
 4. hide: for projects, certifications and achievements only, ids clearly irrelevant to this job (at most half of that section). Never hide experience or education.
+5. When "guidance" is present, the headline and summary express its positioning and the order reflects its sellingPoints; candidateEmphasis is the candidate's own request. Guidance never licenses a claim the evidence does not state.
 Reply {"headline":"…","sectionOrder":["…"],"sections":[{"id":"…","items":["…"],"hide":[],"groups":[{"id":"G1","values":["…"]}]}]}`
 
 const samePermutation = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join("\u0000") === [...b].sort().join("\u0000")
@@ -341,7 +348,7 @@ const samePermutation = (a: string[], b: string[]) => a.length === b.length && [
  * permutations are accepted; the headline passes the grounding check and
  * cannot add seniority.
  */
-export async function polishCv(base: CvDocument, job: JobContext, complete: Complete): Promise<{ doc: CvDocument; reordered: number; headline: boolean; hidden: number; sectionsMoved: boolean; summary: boolean }> {
+export async function polishCv(base: CvDocument, job: JobContext, complete: Complete, guidance?: Guidance): Promise<{ doc: CvDocument; reordered: number; headline: boolean; hidden: number; sectionsMoved: boolean; summary: boolean }> {
   const evidence = base.sections.flatMap((section) => section.items.flatMap((item) => [item.title, item.organization ?? "", ...item.bullets.filter((bullet) => bullet.included).map((bullet) => bullet.text)]))
     .concat(base.sections.flatMap((section) => section.groups.flatMap((group) => [group.label, ...group.values])))
   const completion = await complete({
@@ -350,6 +357,7 @@ export async function polishCv(base: CvDocument, job: JobContext, complete: Comp
       language: base.language,
       writeHeadlineIn: LANGUAGE_NAME[base.language] ?? base.language,
       job: { title: job.title, company: job.company, description: job.description.slice(0, 10_000) },
+      guidance,
       currentHeadline: base.header.headline,
       currentSummary: base.header.summary,
       evidence: evidence.slice(0, 140),

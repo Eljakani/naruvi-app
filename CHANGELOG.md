@@ -12,6 +12,12 @@ Update an installation from a terminal with `naruvi update`.
 - Without a language model, a CV is still read, by its layout and section titles; those entries are saved as "needs review".
 - The review screen lists the lines of your CV that ended up in no entry, so a missed job or diploma is visible.
 - `npm run profile:eval` scores the import against a set of invented CVs (PDF and Word, one and two columns, English, French, Spanish, German and Arabic).
+- Before a CV is written you can choose its length (auto, 1 or 2 pages), how much detail it gives, and what it should stress. What you ask for is followed only where your verified facts support it.
+- Each tailored CV shows how it positions you for the job: the angle it takes, the selling points it leads with, the must-haves your profile can't prove, and which of the job's keywords it shows or leaves out. None of this is printed.
+- **Suggest designs for this job** in the Look tab proposes three designs chosen for the role, each rendered with your CV, fitted to its page count and checked before you see it. Without a language model they are chosen by rule.
+- **Fit to # pages** tightens or opens up text size, line height, margins and gaps within readable limits, so a CV fits its page count without cutting a line.
+- Every design says how applicant tracking systems read it (ATS-safe, ATS-friendly, or check reading order, with the reason) and how dense it is. The design gallery can be filtered by kind (ATS-safe, formal, tech, creative, compact, two columns, academic).
+- New design options: contact beside the name, a line under the header, dates in a left rail, employer or job title first, date pills, skill pills or columns, and which sections go in the side column. Six new built-in designs: Chrono, Summit, Mosaic, Quartz, Beacon and Folio.
 
 ### Changed
 - CV import no longer completes what the CV doesn't say: a link is kept only when the file has it (the address behind "LinkedIn" is read from the file instead of being guessed from your name), a language level only when the CV states one, and a month only when the CV names it ("été 2024" stays 2024). A job is marked full-time, remote or similar only when the CV says so, and an imported language is matched to an existing one by its name, not its level.
@@ -20,6 +26,8 @@ Update an installation from a terminal with `naruvi update`.
 - A long CV is read section by section; a part the model fails on is reported instead of failing the whole import.
 - The summary paragraph of a CV fills your profile summary instead of becoming an entry.
 - A file that can't be read says why: a scan, a password-protected PDF, an old .doc, a picture, a damaged file.
+- The dashboard is simpler: the pipeline shows how many applications are ready to send, and the stat tiles are gone.
+- The assistant panel and its approval cards are fully translated (French, Arabic) instead of showing English labels.
 
 ### Fixed
 - A CV or cover letter is written in one language only. Before, an entry with no approved bullets printed its facts as they were typed, so facts typed in French appeared in French inside an English CV. Facts are now printed in the document's language (their translation), entries are translated before a CV is generated, and titles, skill group names and spoken languages are never borrowed from another language. What has no text in the document's language is left out and listed under Checks, and a new check, "One language throughout", fails when any line reads as another language.
