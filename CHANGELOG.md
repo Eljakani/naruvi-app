@@ -6,6 +6,7 @@ Update an installation from a terminal with `naruvi update`.
 ## Unreleased
 
 ### Fixed
+- A CV or cover letter is written in one language only. Before, an entry with no approved bullets printed its facts as they were typed, so facts typed in French appeared in French inside an English CV. Facts are now printed in the document's language (their translation), entries are translated before a CV is generated, and titles, skill group names and spoken languages are never borrowed from another language. What has no text in the document's language is left out and listed under Checks, and a new check, "One language throughout", fails when any line reads as another language.
 - Fit check: questions in a posting are no longer counted as requirements. One that titles a section ("What do you bring?", "What will you do?", "What you'll get in return?") now sorts the lines under it into requirements, duties or benefits; before, the question could be kept and the real requirements dropped.
 - Fit check: accommodation and equal-opportunity notes ("Do you have specific needs or require adjustments during the recruitment process?") are never listed as missing from your profile.
 - Fit check: headings decorated with emoji ("🎯 Your profile", "Nice to have ✨") are read as headings, and the same emoji starting each line ("✅ Python") reads as a bullet.
