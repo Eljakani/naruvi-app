@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { groundDates, groundIdentity, groundLevel, groundLink, groundMonth, namesMonth, sourceLinks, unreadLines } from "./cv-ground"
+import { groundChoice, groundDates, groundIdentity, groundLevel, groundLink, groundMonth, namesMonth, sourceLinks, unreadLines } from "./cv-ground"
 
 const cv = `Ana Silva
 Backend Engineer · Leeds, United Kingdom
@@ -61,4 +61,15 @@ test("unread: lines in no entry are reported; titles, contact lines and dates ar
   const entries = [{ text: { position: "Senior Engineer", location: "London" }, fields: { company: "Monzo" }, facts: ["Cut p99 latency from 480 ms to 120 ms."], skills: [], bullets: [] }]
   assert.deepEqual(unreadLines(cv, identity, entries), ["Intern — Arm, Cambridge", "English (native), French (B2), Yoruba (conversational), Welsh"])
   assert.deepEqual(unreadLines(cv, identity, entries, ["English (native), French (B2), Yoruba (conversational), Welsh", "Intern Arm Cambridge"]), [])
+})
+
+test("groundChoice: a contract type or work mode needs a word for it in the CV", () => {
+  const cv = "Senior Backend Engineer, Monzo, London (Remote)\nSoftware Engineering Intern, Arm\nDéveloppeuse, CDI, télétravail"
+  assert.equal(groundChoice("full_time", "Backend Engineer, Deliveroo, London"), undefined)
+  assert.equal(groundChoice("full_time", cv), "full_time")
+  assert.equal(groundChoice("remote", cv), "remote")
+  assert.equal(groundChoice("internship", cv), "internship")
+  assert.equal(groundChoice("hybrid", cv), undefined)
+  assert.equal(groundChoice("internship", "Worked on international payments"), undefined)
+  assert.equal(groundChoice(undefined, cv), undefined)
 })

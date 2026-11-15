@@ -307,7 +307,7 @@
   },
   "enrichment": {
     "button": "Look up organisations, certifications, events and skills online",
-    "hint": "Only their names are sent, to Wikidata, Wikipedia and the French business registry. Nothing is added until you keep it.",
+    "hint": "Only their names are sent, to Wikidata and Wikipedia. Nothing is added until you keep it.",
     "loading": "Looking them up…",
     "none": "Nothing clear was found online. Your entries stay as they are.",
     "failed": "{count, plural, one {# lookup got no answer. Try again in a minute.} other {# lookups got no answer. Try again in a minute.}}",

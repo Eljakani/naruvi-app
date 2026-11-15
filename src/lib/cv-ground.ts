@@ -212,3 +212,27 @@ export function unreadLines(text: string, identity: Identity, entries: ReadEntry
   }
   return out.slice(0, 40)
 }
+
+/** Words a CV uses for each contract type and work mode (text folded: no accents, lower case). */
+const CHOICE_WORDS: Record<string, RegExp> = {
+  full_time: /full[- ]?time|temps plein|temps complet|\bcdi\b|permanent|vollzeit|unbefristet|festanstellung|tiempo completo|jornada completa|indefinido|tempo pieno|indeterminato|tempo integral|voltijd|دوام كامل/,
+  part_time: /part[- ]?time|temps partiel|teilzeit|tiempo parcial|media jornada|tempo parziale|meio periodo|deeltijd|دوام جزئي/,
+  fixed_term: /\bcdd\b|fixed[- ]term|\bcontract(?:or)?\b|temporary|befristet|contrato temporal|determinato|duree determinee|عقد محدد/,
+  internship: /\bintern(?:ship)?\b|\bstage\b|stagiaire|\bpfe\b|praktik|practicas|becari|tirocinio|estagi|تدريب|متدرب/,
+  apprenticeship: /alternan|apprenti|ausbildung|werkstudent|duales studium|aprendiz|تمهين|تدرج/,
+  freelance: /freelance|independant|self[- ]employed|freiberuf|selbststandig|autonomo|libero professionista|عمل حر|مستقل/,
+  volunteer: /volunt|benevol|ehrenamt|تطوع/,
+  remote: /\bremote\b|teletravail|a distance|home ?office|\bremoto\b|teletrabajo|thuiswerk|عن بعد/,
+  hybrid: /hybrid|hibrid|ibrido|هجين/,
+  onsite: /on[- ]?site|sur site|presentiel|vor ort|presencial|in sede|حضوري/,
+}
+
+/**
+ * A contract type or work mode is kept only when the CV has a word for it:
+ * a job with no such word is not "full-time", it is unstated.
+ */
+export function groundChoice(value: unknown, source: string): string | undefined {
+  if (typeof value !== "string" || !value) return undefined
+  const words = CHOICE_WORDS[value]
+  return !words || words.test(fold(source)) ? value : undefined
+}

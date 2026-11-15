@@ -9,7 +9,7 @@ import { extractNumbers } from "@/server/domain/grounding"
 import type { CompletionInput, Completion } from "@/server/llm/transport"
 import { fieldGuide, importedFieldsSchema, KIND_FIELDS, looseFields, type EntryFields, type EntryKind } from "@/lib/entry-fields"
 import { entryKinds } from "./schemas"
-import { groundDates, groundIdentity, groundLevel, groundLink, groundMonth, linkKey, sourceLinks, unreadLines, type SourceLink } from "@/lib/cv-ground"
+import { groundChoice, groundDates, groundIdentity, groundLevel, groundLink, groundMonth, linkKey, sourceLinks, unreadLines, type SourceLink } from "@/lib/cv-ground"
 import { splitForReading } from "@/lib/cv-sections"
 
 export const IMPORT_PROMPT_VERSION = "profile-import-v5"
@@ -96,6 +96,7 @@ function tidy(item: RawEntry, language: string, source: Source): Pick<ImportedEn
   const written = item.datesText.trim() || (typeof raw.dates === "string" ? raw.dates : typeof raw.issued === "string" && !/^\d{4}(-\d{2})?$/.test(raw.issued) ? raw.issued : typeof raw.date === "string" && !/^\d{4}(-\d{2})?$/.test(raw.date) ? raw.date : "")
   for (const spec of KIND_FIELDS[kind]) {
     if (spec.type === "dates") raw[spec.key] = groundDates(raw[spec.key], written, source.text)
+    else if (spec.key === "employment" || spec.key === "workMode") raw[spec.key] = groundChoice(raw[spec.key], source.text)
     else if (spec.type === "url") {
       const url = typeof raw[spec.key] === "string" ? groundLink(raw[spec.key] as string, source.links) : null
       // A project's address cut back to the person's profile ("github.com/me"): the CV's longer address that names the project is the one meant.

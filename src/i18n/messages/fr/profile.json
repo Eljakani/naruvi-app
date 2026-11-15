@@ -307,7 +307,7 @@
   },
   "enrichment": {
     "button": "Rechercher en ligne les organisations, certifications, événements et compétences",
-    "hint": "Seuls leurs noms sont envoyés, à Wikidata, à Wikipédia et à l’Annuaire des entreprises. Rien n’est ajouté tant que vous ne le conservez pas.",
+    "hint": "Seuls leurs noms sont envoyés, à Wikidata et à Wikipédia. Rien n’est ajouté tant que vous ne le conservez pas.",
     "loading": "Recherche en cours…",
     "none": "Rien de sûr n’a été trouvé en ligne. Vos entrées restent telles quelles.",
     "failed": "{count, plural, one {# recherche est restée sans réponse. Réessayez dans une minute.} other {# recherches sont restées sans réponse. Réessayez dans une minute.}}",
