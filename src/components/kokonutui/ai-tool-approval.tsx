@@ -61,6 +61,22 @@ export interface ToolCall {
   icon?: ReactNode;
 }
 
+interface ApprovalLabels {
+  needsApproval: string;
+  notNow: string;
+  hold: string;
+  holdLabel: string;
+  destructive: string;
+}
+
+const DEFAULT_LABELS: ApprovalLabels = {
+  needsApproval: "Needs your approval",
+  notNow: "Not now",
+  hold: "Hold to confirm",
+  holdLabel: "Confirm. Press and hold",
+  destructive: "Destructive",
+};
+
 interface AIToolApprovalProps {
   /**
    * The conversation's tool calls, oldest first. When omitted, a demo run
@@ -73,6 +89,8 @@ interface AIToolApprovalProps {
    */
   onRespond?: (id: string, approved: boolean, always: boolean) => void;
   className?: string;
+  /** The card's own words, for apps that translate it. */
+  labels?: Partial<ApprovalLabels>;
 }
 
 const EASE_OUT = [0.23, 1, 0.32, 1] as const;
@@ -297,7 +315,7 @@ function ToolInput({ input }: { input: ToolCall["input"] }) {
  * Allow for destructive calls. The red fill wipes across while held and
  * runs back quickly when let go early, so a slip never confirms.
  */
-function HoldToAllow({ onConfirm }: { onConfirm: () => void }) {
+function HoldToAllow({ onConfirm, labels }: { onConfirm: () => void; labels: ApprovalLabels }) {
   const [holding, setHolding] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -327,11 +345,11 @@ function HoldToAllow({ onConfirm }: { onConfirm: () => void }) {
     []
   );
 
-  const label = "Hold to confirm";
+  const label = labels.hold;
   return (
     <button
-      aria-label="Confirm. Press and hold"
-      className="relative h-8 select-none overflow-hidden rounded-lg bg-red-50 px-3 font-medium text-red-700 text-sm outline-hidden ring-1 ring-red-600/15 focus-visible:ring-2 focus-visible:ring-red-500 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-400/20"
+      aria-label={labels.holdLabel}
+      className="relative h-8 select-none overflow-hidden whitespace-nowrap rounded-lg bg-red-50 px-3 font-medium text-red-700 text-sm outline-hidden ring-1 ring-red-600/15 focus-visible:ring-2 focus-visible:ring-red-500 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-400/20"
       onBlur={stop}
       onContextMenu={(event) => event.preventDefault()}
       onKeyDown={(event) => {
@@ -376,9 +394,11 @@ function HoldToAllow({ onConfirm }: { onConfirm: () => void }) {
 function ApprovalCard({
   call,
   onRespond,
+  labels,
 }: {
   call: ToolCall;
   onRespond: (approved: boolean, always: boolean) => void;
+  labels: ApprovalLabels;
 }) {
   const titleId = useId();
 
@@ -408,7 +428,7 @@ function ApprovalCard({
         </h3>
         {call.destructive && (
           <span className="ms-auto rounded-md bg-red-50 px-1.5 py-0.5 font-medium text-[11px] text-red-600 dark:bg-red-500/10 dark:text-red-400">
-            Destructive
+            {labels.destructive}
           </span>
         )}
       </header>
@@ -419,20 +439,20 @@ function ApprovalCard({
         </p>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted-foreground">Needs your approval</span>
-        <div className="ms-auto flex items-center gap-1.5">
+        <span className="text-xs text-muted-foreground">{labels.needsApproval}</span>
+        <div className="ms-auto flex flex-wrap items-center justify-end gap-1.5">
           <button
-            className="h-8 rounded-lg px-3 text-sm text-zinc-600 outline-hidden transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
+            className="h-8 whitespace-nowrap rounded-lg px-3 text-sm text-zinc-600 outline-hidden transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
             onClick={() => onRespond(false, false)}
             type="button"
           >
-            Not now
+            {labels.notNow}
           </button>
           {call.destructive ? (
-            <HoldToAllow onConfirm={() => onRespond(true, false)} />
+            <HoldToAllow labels={labels} onConfirm={() => onRespond(true, false)} />
           ) : (
             <button
-              className="h-8 rounded-lg bg-primary px-3 font-medium text-sm text-primary-foreground outline-hidden transition-colors duration-150 hover:bg-primary/85 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
+              className="h-8 whitespace-nowrap rounded-lg bg-primary px-3 font-medium text-sm text-primary-foreground outline-hidden transition-colors duration-150 hover:bg-primary/85 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
               onClick={() => onRespond(true, false)}
               type="button"
             >
@@ -623,6 +643,7 @@ export default function AIToolApproval({
   calls: callsProp,
   onRespond,
   className,
+  labels,
 }: AIToolApprovalProps) {
   const demo = useDemoCalls(callsProp === undefined);
   const calls = callsProp ?? demo.calls;
@@ -716,6 +737,7 @@ export default function AIToolApproval({
                 )}
                 <ApprovalCard
                   call={current}
+                  labels={{ ...DEFAULT_LABELS, ...labels }}
                   onRespond={(approved, always) =>
                     respond(current.id, approved, always)
                   }

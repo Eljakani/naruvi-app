@@ -29,7 +29,7 @@ export const cvItem = z.object({
 })
 
 /** Visual templates; all single-column with real text, so ATS-safe. */
-export const templateIds = ["classic", "modern", "serif", "minimal", "compact", "executive", "sidebar", "bold", "tech", "elegant", "atlas", "harbor", "ledger", "studio", "slate", "nordic", "scholar", "vertex", "meridian", "pulse", "custom"] as const
+export const templateIds = ["classic", "modern", "serif", "minimal", "compact", "executive", "sidebar", "bold", "tech", "elegant", "atlas", "harbor", "ledger", "studio", "slate", "nordic", "scholar", "vertex", "meridian", "pulse", "chrono", "summit", "mosaic", "quartz", "beacon", "folio", "custom"] as const
 export type TemplateId = (typeof templateIds)[number]
 export const ACCENTS = ["#2563eb", "#0f766e", "#7c3aed", "#be123c", "#c2410c", "#111827"] as const
 
@@ -45,8 +45,29 @@ export const cvSection = z.object({
   groups: z.array(z.object({ label: z.string(), values: z.array(z.string()) })).default([]),
 })
 
+/** What the person asked for when generating: length, how much detail, and what to stress. */
+export const cvBrief = z.object({
+  pages: z.enum(["auto", "1", "2"]).catch("auto").default("auto"),
+  tone: z.enum(["concise", "balanced", "detailed"]).catch("balanced").default("balanced"),
+  focus: z.string().trim().max(300).catch("").default(""),
+})
+export type CvBrief = z.infer<typeof cvBrief>
+
+/** How this CV positions the person for the job; guides tailoring and is shown to them. Never printed. */
+export const cvStrategy = z.object({
+  angle: z.string().max(300).default(""),
+  strengths: z.array(z.object({ text: z.string().max(220), entryIds: z.array(z.string()).default([]) })).max(6).default([]),
+  /** Must-haves the profile cannot prove: stated, never papered over. */
+  gaps: z.array(z.string().max(220)).max(5).default([]),
+})
+export type CvStrategy = z.infer<typeof cvStrategy>
+
 export const cvDocument = z.object({
   aiAssistance: aiAssistance.optional(),
+  brief: cvBrief.optional(),
+  strategy: cvStrategy.optional(),
+  /** The job's main keywords when this CV was generated, most important first. */
+  jobKeywords: z.array(z.string().max(80)).max(40).optional(),
   version: z.literal(1),
   language: z.string().regex(/^[a-z]{2}$/),
   template: z.enum(templateIds).catch("classic").default("classic"),

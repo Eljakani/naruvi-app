@@ -178,7 +178,7 @@ export function DocumentShell({
               {design}
             </TabsContent>
             <TabsContent value="checks" className="p-4 [animation:cb-rise_200ms_var(--ease-out)_both]">
-              <QualityPanel quality={quality} checkFix={checkFix} dirty={dirty} onReview={() => setTab("content")} />
+              <QualityPanel quality={quality} checkFix={checkFix} dirty={dirty} onReview={() => setTab("content")} onLook={() => setTab("design")} />
             </TabsContent>
             <TabsContent value="versions" className="p-4 [animation:cb-rise_200ms_var(--ease-out)_both]">
               {versions}
@@ -213,7 +213,7 @@ export function DocumentShell({
   )
 }
 
-export function QualityPanel({ quality, checkFix, dirty = false, onReview }: { onReview?: () => void; quality: Quality; checkFix?: { fixing: string | null; fix: (check: { id: string; label: string; detail: string }) => void }; dirty?: boolean }) {
+export function QualityPanel({ quality, checkFix, dirty = false, onReview, onLook }: { onReview?: () => void; onLook?: () => void; quality: Quality; checkFix?: { fixing: string | null; fix: (check: { id: string; label: string; detail: string }) => void }; dirty?: boolean }) {
   const t = useTranslations("documentShell")
   const order = { fail: 0, warn: 1, pass: 2 }
   const checks = [...quality.checks].sort((a, b) => order[a.status] - order[b.status])
@@ -242,6 +242,11 @@ export function QualityPanel({ quality, checkFix, dirty = false, onReview }: { o
                 <Button size="xs" variant="outline" className="w-fit bg-background" disabled={checkFix.fixing !== null} onClick={() => checkFix.fix(check)}>
                   {checkFix.fixing === check.id ? <Loader2Icon className="animate-spin" /> : <SparklesIcon className="text-brand" />}
                   {checkFix.fixing === check.id ? t("fixing") : t("fix")}
+                </Button>
+              ) : check.id === "fill" && check.status !== "pass" && onLook ? (
+                // A nearly empty page is a layout matter: the Look tab fits it without cutting a line.
+                <Button size="xs" variant="outline" className="w-fit bg-background" onClick={onLook}>
+                  <PaletteIcon /> {t("fitInLook")}
                 </Button>
               ) : check.id === "ai-review" && check.status === "fail" && onReview ? (
                 // Only you can approve AI wording, so this takes you to it instead of fixing it.

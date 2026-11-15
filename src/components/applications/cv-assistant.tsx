@@ -64,6 +64,8 @@ const CHECK_FIX: Record<string, string> = {
   pages: "Make the CV fit the page budget: drop the weakest bullets and shorten long ones, keeping the strongest evidence for the job.",
   coverage: "Bring forward bullets that prove the job's must-haves, and reword them so the match is obvious. Use only my verified facts.",
   density: "Make the bullets denser: lead with the result, cut repetition and filler, keep the facts.",
+  keywords: "Some of the job's keywords are only in lines that are left out. Include the lines that carry them, and leave out weaker ones if the CV gets too long. Do not add a keyword to a line whose facts don't state it.",
+  repetition: "Several bullets open with the same word. Vary the opening verbs, keeping each line's facts and meaning.",
   headline: "Write a sharper headline under my name for this job, using only my verified facts.",
 }
 

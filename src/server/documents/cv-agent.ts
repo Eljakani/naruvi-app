@@ -14,6 +14,8 @@ const FIXABLE = AI_FIXABLE_CHECKS
 export type Evaluation = { pages: number; quality: QualityReport }
 export type Revise = (doc: CvDocument, instruction: string) => Promise<{ doc: CvDocument; changed: number; rejected: number; note: string }>
 export type Evaluate = (doc: CvDocument) => Promise<Evaluation>
+/** Tightens the layout towards a page target without touching content; null when it has nothing to offer. */
+export type FitLayout = (doc: CvDocument, target: number) => Promise<CvDocument | null>
 
 export type CvRound = { round: number; note: string; changed: number; rejected: number; score: number; pages: number; problems: string[] }
 export type CvAgentResult = { doc: CvDocument; rounds: CvRound[]; scoreBefore: number; scoreAfter: number; pages: number; changed: number; note: string; improved: boolean }
@@ -74,9 +76,9 @@ export function trimCandidates(doc: CvDocument, protect: Set<string>) {
   return out.sort((a, b) => b.weight - a.weight)
 }
 
-export async function runCvAgent(start: CvDocument, input: { request?: string; maxRounds?: number; protectFacts?: Set<string> }, deps: { revise: Revise; evaluate: Evaluate }): Promise<CvAgentResult> {
+export async function runCvAgent(start: CvDocument, input: { request?: string; maxRounds?: number; protectFacts?: Set<string>; pages?: number | null }, deps: { revise: Revise; evaluate: Evaluate; fitLayout?: FitLayout }): Promise<CvAgentResult> {
   const maxRounds = input.maxRounds ?? 3
-  const target = pageTarget(input.request)
+  const target = input.pages ?? pageTarget(input.request)
   const requestProblems = (evaluation: Evaluation) =>
     target && evaluation.pages > target ? [`The person asked for ${target} page${target === 1 ? "" : "s"}; it is ${evaluation.pages}. Set included=false on the least relevant lines that are currently included (older or generic ones) and shorten long ones, keeping must-have evidence, until it fits. Only return lines you change.`] : []
   const first = await deps.evaluate(start)
@@ -106,7 +108,19 @@ export async function runCvAgent(start: CvDocument, input: { request?: string; m
     // A request round is kept unless it made the CV clearly worse; fix-up rounds must improve.
     if (rank(evaluation) > rank(best.evaluation) || (userTurn && rank(evaluation) >= rank(best.evaluation) - 5)) best = current
   }
-  // Page target still missed: drop the least important lines one by one, measuring each time.
+  // Page target still missed: tighten the layout first. Smaller gaps cost nothing; a dropped line is lost evidence.
+  if (target && best.evaluation.pages > target && deps.fitLayout) {
+    const fitted = await deps.fitLayout(best.doc, target).catch(() => null)
+    if (fitted) {
+      const evaluation = await deps.evaluate(fitted)
+      if (evaluation.pages <= best.evaluation.pages) {
+        best = { doc: fitted, evaluation }
+        total += 1
+        rounds.push({ round: rounds.length + 1, note: `Tightened the layout${evaluation.pages <= target ? ` to fit ${target} page${target === 1 ? "" : "s"}` : ""}`, changed: 1, rejected: 0, score: evaluation.quality.score, pages: evaluation.pages, problems: [] })
+      }
+    }
+  }
+  // Still missed: drop the least important lines one by one, measuring each time.
   if (target && best.evaluation.pages > target) {
     let doc = structuredClone(best.doc)
     let dropped = 0
@@ -128,7 +142,7 @@ export async function runCvAgent(start: CvDocument, input: { request?: string; m
   }
   const met = !target || best.evaluation.pages <= target
   const lastNote = [...rounds].reverse().find((round) => round.changed)?.note
-  const note = !met ? `Couldn’t get it to ${target} page${target === 1 ? "" : "s"} without dropping must-have evidence` : target && best !== undefined && rounds.at(-1)?.note.startsWith("Hid ") ? rounds.at(-1)!.note : lastNote || rounds[0]?.note || ""
+  const note = !met ? `Couldn’t get it to ${target} page${target === 1 ? "" : "s"} without dropping must-have evidence` : target && best !== undefined && /^(Hid |Tightened )/.test(rounds.at(-1)?.note ?? "") ? rounds.at(-1)!.note : lastNote || rounds[0]?.note || ""
   return {
     doc: best.doc,
     rounds,

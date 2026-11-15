@@ -89,7 +89,16 @@ function makeStyles(t: Tokens, fontFamily: string[], headingFamily: string[], rt
     link: { color: t.accentLinks ? t.accent : MUTED, textDecoration: "none" },
     pageNumber: { position: "absolute", bottom: t.margin * 0.4, left: 0, right: 0, textAlign: "center", fontSize: t.size - 1.5, color: MUTED },
     tags: { flexDirection: row, flexWrap: "wrap", marginTop: 1.5 },
-    tag: { fontSize: t.size - 1, borderWidth: 0.6, borderColor: tint(t.accent, 0.55), color: t.ink, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1, marginRight: 3, marginBottom: 3 },
+    tag: t.skillsStyle === "pills"
+      ? { fontSize: t.size - 1, backgroundColor: tint(t.accent, 0.88), color: t.ink, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 1.5, marginRight: 3, marginBottom: 3 }
+      : { fontSize: t.size - 1, borderWidth: 0.6, borderColor: tint(t.accent, 0.55), color: t.ink, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1, marginRight: 3, marginBottom: 3 },
+    grid: { flexDirection: row, flexWrap: "wrap", marginTop: 1 },
+    headerRule: { marginTop: -gap(6), marginBottom: gap(7), borderBottomWidth: t.headerRule === "accent" ? 1.4 : 0.8, borderBottomColor: t.headerRule === "accent" ? t.accent : t.headerRule === "double" ? t.ink : RULE, ...(t.headerRule === "double" ? { borderTopWidth: 0.8, borderTopColor: t.ink, height: 3.2 } : {}) },
+    contactSide: { alignItems: (t.photoPosition === "right") !== rtl ? "flex-start" : "flex-end", fontSize: t.size - 1, color: MUTED, marginLeft: 12, marginRight: 12 },
+    headLine: { flex: 1, borderBottomWidth: 0.8, borderBottomColor: t.accentHeadings ? tint(t.accent, 0.45) : RULE },
+    rail: { width: t.size * 9.8, paddingRight: rtl ? 0 : 9, paddingLeft: rtl ? 9 : 0, paddingTop: 0.6 },
+    itemDate: { fontSize: t.size - 1, color: t.dateStyle === "accent" ? t.accent : MUTED, ...(t.dateStyle === "accent" ? { fontWeight: 700 as const } : {}) },
+    datePill: { backgroundColor: tint(t.accent, 0.9), borderRadius: 7, paddingHorizontal: 5, paddingVertical: 0.5 },
     columns: { flexDirection: (t.sidebarSide === "left") !== rtl ? "row" : "row-reverse" },
     side: (() => {
       const onLeft = (t.sidebarSide === "left") !== rtl
@@ -117,7 +126,7 @@ function makeStyles(t: Tokens, fontFamily: string[], headingFamily: string[], rt
     logo: { width: 18, height: 18, marginRight: rtl ? 0 : 7, marginLeft: rtl ? 7 : 0, marginTop: 1, objectFit: "contain" },
     itemBody: { flex: 1 },
     line: { flexDirection: row, justifyContent: "space-between" },
-    itemTitle: { fontFamily: headingFamily, fontWeight: 700, fontSize: t.size + 0.4, flex: 1, paddingRight: rtl ? 0 : 8, paddingLeft: rtl ? 8 : 0 },
+    itemTitle: { fontFamily: headingFamily, fontWeight: 700, fontSize: t.size + 0.4, flex: 1, ...(t.accentTitles ? { color: t.accent } : {}), paddingRight: rtl ? 0 : 8, paddingLeft: rtl ? 8 : 0 },
     orgText: { flex: 1, paddingRight: rtl ? 0 : 8, paddingLeft: rtl ? 8 : 0 },
     itemMeta: { fontSize: t.size - 1, color: MUTED },
     org: { fontSize: t.size - 0.6, color: MUTED, ...(t.orgItalic ? { fontStyle: "italic" as const } : {}) },
@@ -154,24 +163,42 @@ function Icon({ name, size, color }: { name: PdfIcon; size: number; color: strin
 
 const SECTION_ICON: Record<string, PdfIcon> = { experience: "experience", education: "education", project: "project", certification: "certification", skills: "skills", languages: "languages", achievement: "achievement" }
 
+/** The date of an entry, in the chosen style. */
+function ItemDate({ dates, s, t }: { dates: string; s: Styles; t: Tokens }) {
+  if (t.dateStyle === "pill") return <View style={s.datePill}><Text style={[s.itemDate, { color: t.ink }]}>{dates}</Text></View>
+  return <Text style={s.itemDate}>{dates}</Text>
+}
+
 function Item({ item, logo, s, t, narrow = false }: { item: CvItem; logo: string | null; s: Styles; t: Tokens; narrow?: boolean }) {
   const bullets = item.bullets.filter((bullet) => bullet.included)
+  // A date rail needs room: in a narrow column entries stack as usual.
+  const timeline = t.entryLayout === "timeline" && !narrow
   // In a narrow column there is no room beside the title: dates go underneath.
-  const below = narrow || t.datePosition === "below"
+  const below = !timeline && (narrow || t.datePosition === "below")
+  // Some fields lead with the employer; the bold line is whichever comes first.
+  const orgFirst = t.entryOrder === "org" && Boolean(item.organization)
+  const primary = orgFirst ? item.organization : item.title
+  const secondary = orgFirst ? item.title : item.organization
   return (
     <View style={s.item} wrap={bullets.length > 4}>
       <View style={s.itemRow}>
+        {timeline ? (
+          <View style={s.rail}>
+            {item.dates ? <Text style={s.itemDate}>{item.dates}</Text> : null}
+            {item.location ? <Text style={s.itemMeta}>{item.location}</Text> : null}
+          </View>
+        ) : null}
         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
         {logo ? <Image src={logo} style={s.logo} /> : null}
         <View style={s.itemBody}>
           <View style={s.line}>
-            <Text style={s.itemTitle}>{item.title}</Text>
-            {item.dates && !below ? <Text style={s.itemMeta}>{item.dates}</Text> : null}
+            <Text style={s.itemTitle}>{primary}</Text>
+            {item.dates && !below && !timeline ? <ItemDate dates={item.dates} s={s} t={t} /> : null}
           </View>
-          {item.organization || item.location || (below && item.dates) ? (
+          {secondary || (!timeline && item.location) || (below && item.dates) ? (
             <View style={s.line}>
-              <Text style={[s.org, s.orgText]}>{[item.organization, below ? item.dates : ""].filter(Boolean).join(" · ")}</Text>
-              {item.location ? <Text style={s.itemMeta}>{item.location}</Text> : null}
+              <Text style={[s.org, s.orgText]}>{[secondary, below ? item.dates : ""].filter(Boolean).join(" · ")}</Text>
+              {item.location && !timeline ? <Text style={s.itemMeta}>{item.location}</Text> : null}
             </View>
           ) : null}
           {bullets.length ? (
@@ -190,23 +217,34 @@ function Item({ item, logo, s, t, narrow = false }: { item: CvItem; logo: string
   )
 }
 
+/** A section heading in the chosen style; the summary's optional "Profile" heading uses it too. */
+function Head({ title, kind, s, t }: { title: string; kind?: string; s: Styles; t: Tokens }) {
+  const centered = t.headingStyle === "centered"
+  return (
+    <View style={s.sectionHead}>
+      {t.headingStyle === "bar" ? <View style={s.bar} /> : null}
+      {centered ? <View style={[s.headLine, { marginRight: 8 }]} /> : null}
+      {t.sectionIcons && kind && SECTION_ICON[kind] ? (
+        <View style={{ marginRight: 5, marginLeft: 0 }}>
+          <Icon name={SECTION_ICON[kind]} size={t.size * t.headingSize} color={t.accentHeadings ? t.accent : t.ink} />
+        </View>
+      ) : null}
+      <Text style={s.sectionTitle}>{title}</Text>
+      {centered || t.headingStyle === "line-after" ? <View style={[s.headLine, { marginLeft: 8 }]} /> : null}
+    </View>
+  )
+}
+
 function Section({ section, logos, s, t, stacked = false }: { section: CvSection; logos: Map<string, string | null>; s: Styles; t: Tokens; stacked?: boolean }) {
   const items = section.items.filter((item) => item.included)
   if (!items.length && !section.groups.length) return null
-  const head = (
-    <View style={s.sectionHead}>
-      {t.headingStyle === "bar" ? <View style={s.bar} /> : null}
-      {t.sectionIcons && SECTION_ICON[section.kind] ? (
-        <View style={{ marginRight: 5, marginLeft: 0 }}>
-          <Icon name={SECTION_ICON[section.kind]} size={t.size * t.headingSize} color={t.accentHeadings ? t.accent : t.ink} />
-        </View>
-      ) : null}
-      <Text style={s.sectionTitle}>{section.title}</Text>
-    </View>
-  )
+  const head = <Head title={section.title} kind={section.kind} s={s} t={t} />
   const values = (group: CvSection["groups"][number], color?: string) =>
-    t.skillsStyle === "tags" ? (
+    t.skillsStyle === "tags" || t.skillsStyle === "pills" ? (
       <View style={s.tags}>{group.values.map((value) => <Text key={value} style={s.tag}>{value}</Text>)}</View>
+    ) : t.skillsStyle === "columns" ? (
+      // Two columns in a side column, three across the full page.
+      <View style={s.grid}>{group.values.map((value) => <Text key={value} style={{ width: stacked ? "50%" : "33.3%", paddingRight: 6, ...(color ? { color } : {}) }}>{value}</Text>)}</View>
     ) : t.skillsStyle === "list" ? (
       <View>{group.values.map((value) => <Text key={value} style={color ? { color } : undefined}>{BULLETS[t.bullet === "none" ? "dot" : t.bullet]} {value}</Text>)}</View>
     ) : (
@@ -263,14 +301,11 @@ function DocHeader({ s, t, rtl, photo, header }: { s: Styles; t: Tokens; rtl: bo
   const contactFields = ([[header.email, "mail"], [header.phone, "phone"], [header.location, "location"]] as const).filter(([value]) => value).map(([value, icon]) => ({ value, icon: icon as PdfIcon }))
   const iconBox = { marginRight: rtl ? 0 : 3, marginLeft: rtl ? 3 : 0 }
   const iconColor = t.accentLinks ? t.accent : MUTED
-  return (
-    <View style={s.header}>
-      {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
-      {photo ? <Image src={photo} style={s.photo} /> : null}
-      <View style={s.headerText}>
-        <Text style={s.name}>{header.name}</Text>
-        {header.headline ? <Text style={s.headline}>{header.headline}</Text> : null}
-        <View style={s.contact}>
+  // Split: name on one side, contact details stacked on the other.
+  const split = t.headerLayout === "split" && t.headerAlign !== "center"
+  const inline = !split && t.contactLayout === "inline"
+  const contact = (
+        <View style={split ? s.contactSide : s.contact}>
           {[
             ...contactFields.map(({ value, icon }) => (
               <View key={value} style={{ flexDirection: rtl ? "row-reverse" : "row", alignItems: "center" }}>
@@ -288,19 +323,28 @@ function DocHeader({ s, t, rtl, photo, header }: { s: Styles; t: Tokens; rtl: bo
             )),
           ].map((node, index) => (
             <View key={index} style={{ flexDirection: rtl ? "row-reverse" : "row" }}>
-              {index > 0 && t.contactLayout === "inline" && t.contactSeparator !== "space" ? <Text style={s.separator}>{t.contactSeparator === "dot" ? "·" : "|"}</Text> : null}
-              <View style={t.contactLayout === "inline" ? s.contactItem : undefined}>{node}</View>
+              {index > 0 && inline && t.contactSeparator !== "space" ? <Text style={s.separator}>{t.contactSeparator === "dot" ? "·" : "|"}</Text> : null}
+              <View style={inline ? s.contactItem : undefined}>{node}</View>
             </View>
           ))}
         </View>
+  )
+  return (
+    <View style={s.header}>
+      {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
+      {photo ? <Image src={photo} style={s.photo} /> : null}
+      <View style={s.headerText}>
+        <Text style={s.name}>{header.name}</Text>
+        {header.headline ? <Text style={s.headline}>{header.headline}</Text> : null}
+        {split ? null : contact}
       </View>
+      {split ? contact : null}
     </View>
   )
 }
 
 const RTL_LANGUAGES = ["ar", "he", "fa", "ur"]
 const SUMMARY_TITLE: Record<string, string> = { en: "Profile", fr: "Profil", es: "Perfil", de: "Profil", it: "Profilo", pt: "Perfil", nl: "Profiel" }
-const SIDE_KINDS = new Set(["skills", "languages", "certification"])
 
 export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
   const t = resolveDesign(doc)
@@ -318,7 +362,7 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
   }
   const photo = doc.header.showPhoto ? await pngData(doc.header.photoPath, 56, t.photoShape !== "square") : null
   const visible = doc.sections.filter((section) => section.included)
-  const side = t.layout === "sidebar" ? visible.filter((section) => SIDE_KINDS.has(section.kind)) : []
+  const side = t.layout === "sidebar" ? visible.filter((section) => (t.sidebarSections as string[]).includes(section.kind)) : []
   const main = visible.filter((section) => !side.includes(section))
 
   const buffer = await renderToBuffer(
@@ -326,14 +370,10 @@ export async function renderCvPdf(doc: CvDocument): Promise<RenderResult> {
       <Page size={t.pageSize} style={s.page}>
         {t.pageNumbers ? <Text style={s.pageNumber} fixed render={({ pageNumber, totalPages }) => (totalPages > 1 ? `${pageNumber} / ${totalPages}` : "")} /> : null}
         <DocHeader s={s} t={t} rtl={rtl} photo={photo} header={doc.header} />
+        {t.headerRule !== "none" && !t.headerBand ? <View style={s.headerRule} /> : null}
         {doc.header.summary.trim() ? (
           <View wrap={false}>
-            {t.summaryTitle ? (
-              <View style={s.sectionHead}>
-                {t.headingStyle === "bar" ? <View style={s.bar} /> : null}
-                <Text style={s.sectionTitle}>{SUMMARY_TITLE[doc.language] ?? SUMMARY_TITLE.en}</Text>
-              </View>
-            ) : null}
+            {t.summaryTitle ? <Head title={SUMMARY_TITLE[doc.language] ?? SUMMARY_TITLE.en} s={s} t={t} /> : null}
             <Text style={s.summary}>{doc.header.summary.trim()}</Text>
           </View>
         ) : null}

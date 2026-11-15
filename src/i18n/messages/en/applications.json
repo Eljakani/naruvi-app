@@ -1,4 +1,6 @@
 {
+  "designInsights": {"ats": {"high": "ATS-safe", "good": "ATS-friendly", "fair": "ATS: check reading order"}, "clean": "One column of real text: applicant tracking systems read it in order.", "reasons": {"columns": "Two columns: some systems read the side column out of order.", "timeline": "Dates in a left rail: a few systems read dates apart from their entry.", "split": "Contact details beside the name may be read after it.", "labels": "Links show a name, not the address: older systems miss the URL.", "small": "Text under 9 pt is harder to read on paper."}, "density": {"compact": "Compact layout", "balanced": "Balanced layout", "airy": "Airy layout"}},
+  "designAdvisor": {"fitTo": "{count, plural, one {Fit to # page} other {Fit to # pages}}", "fill": "{count, plural, one {Fill the page} other {Fill # pages}}", "fitHint": "Adjusts text size, margins and gaps within readable limits. No line is cut.", "failed": "Couldn’t do that. Try again.", "cantFit": "{count, plural, one {Layout alone can’t reach # page.} other {Layout alone can’t reach # pages.}} Ask Naruvi to shorten the CV in Edit.", "nothing": "Nothing to adjust: the layout already suits this length.", "tightened": "{count, plural, one {Layout tightened: now # page} other {Layout tightened: now # pages}}", "loosened": "Layout opened up to fill the page", "suggest": "Suggest designs for this job", "suggestAgain": "Suggest again", "suggesting": "Choosing and testing designs…", "suggestHint": "Three looks chosen for this job, each rendered with this CV and checked before you see it.", "empty": "No design passed the checks for this CV. Pick one below.", "first": "First choice", "basedOn": "From {name}", "pages": "{count, plural, one {# page} other {# pages}}", "fitted": {"tightened": "tightened to fit", "loosened": "opened up to fill the page"}, "use": "Use this design", "byRule": "Chosen by rule. Connect an AI model for reasons tied to this job.", "rules": {"tech": "Suits engineering and tech roles.", "creative": "Suits design, marketing and product roles.", "formal": "Restrained and formal, for conservative fields.", "academic": "Suits research and academic roles.", "compact": "Dense layout for a long CV.", "columns": "A side column for your skills.", "ats": "One column that applicant tracking systems read cleanly.", "safe": "A safe choice that tracking systems read cleanly.", "current": "Your current design, fitted to this CV."}},
   "applications": {
     "title": "Applications",
     "description": "Every job you're pursuing, from saved to offer. Drag a card or use its menu to move or archive it.",
@@ -157,6 +159,9 @@
     }
   },
   "designPicker": {
+    "adjusted": "Fitted to this CV",
+    "filter": "Filter designs",
+    "tags": {"all": "All", "ats": "ATS-safe", "formal": "Formal", "tech": "Tech", "creative": "Creative", "compact": "Compact", "columns": "Two columns", "academic": "Academic"},
     "design": "Design",
     "accentLabel": "Accent colour",
     "accent": "Accent",

@@ -33,6 +33,7 @@ export function DocumentStart({
   note,
   design,
   designName,
+  options,
 }: {
   applicationId: string
   jobTitle: string
@@ -48,6 +49,8 @@ export function DocumentStart({
   note?: string
   design: DesignTokens
   designName: string
+  /** Choices sent with the form (the CV's length, detail and focus). */
+  options?: React.ReactNode
 }) {
   const t = useTranslations("documentShell")
   const stepText = useAiStepText()
@@ -111,6 +114,7 @@ export function DocumentStart({
                   </motion.div>
                 ) : null}
               </AnimatePresence>
+              {options ? <div className="mb-2 rounded-lg border bg-card p-3">{options}</div> : null}
               {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
               <fieldset disabled={modelReady === false} className="contents">
                 <RegenerateButton label={label} steps={steps} variant="default" size="default" icon={icon} />

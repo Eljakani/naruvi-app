@@ -1,5 +1,5 @@
 /** Workflows with a translated name (`labels.workflow.<id with _>`). */
-const WORKFLOWS = ["application_analyze", "mail_classify", "mail_draft", "mail_send", "assistant_chat", "company_research", "cv_generate", "cv_revise", "letter_generate", "letter_revise", "job_preview", "job_enrich", "profile_bullets", "profile_describe", "template_design", "ai_sdk_smoke", "ai_sdk_large_cv_check"] as const
+const WORKFLOWS = ["application_analyze", "mail_classify", "mail_draft", "mail_send", "assistant_chat", "company_research", "cv_generate", "cv_revise", "letter_generate", "letter_revise", "job_preview", "job_enrich", "profile_bullets", "profile_describe", "template_design", "cv_design", "ai_sdk_smoke", "ai_sdk_large_cv_check"] as const
 export type WorkflowKey = (typeof WORKFLOWS)[number]
 
 /** Unknown ids ("foo.bar_baz") still read as words, never as code. */

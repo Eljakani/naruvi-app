@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from "@/components/reui/frame"
 import { useTranslations } from "next-intl"
 
 type Stage = { id: "tracked" | "sent" | "interviewing" | "offer"; label: string; count: number }
@@ -12,12 +12,12 @@ export function OutcomeFunnel({ stages }: { stages: Stage[] }) {
   const offers = stages.at(-1)?.count ?? 0
   const t = useTranslations("funnel")
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle><h2>{t("title")}</h2></CardTitle>
-        <CardDescription>{sent ? t("rate", { percent: pct(offers, sent) }) : t("empty")}</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Frame>
+      <FrameHeader>
+        <FrameTitle><h2>{t("title")}</h2></FrameTitle>
+        <FrameDescription>{sent ? t("rate", { percent: pct(offers, sent) }) : t("empty")}</FrameDescription>
+      </FrameHeader>
+      <FramePanel>
         <ol className="grid gap-2.5">
           {stages.map((stage, index) => {
             const previous = index ? stages[index - 1] : null
@@ -41,7 +41,7 @@ export function OutcomeFunnel({ stages }: { stages: Stage[] }) {
             )
           })}
         </ol>
-      </CardContent>
-    </Card>
+      </FramePanel>
+    </Frame>
   )
 }

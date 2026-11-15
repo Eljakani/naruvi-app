@@ -5,6 +5,18 @@ Update an installation from a terminal with `naruvi update`.
 
 ## Unreleased
 
+### Added
+- Before a CV is written you can choose its length (auto, 1 or 2 pages), how much detail it gives, and what it should stress. What you ask for is followed only where your verified facts support it.
+- Each tailored CV shows how it positions you for the job: the angle it takes, the selling points it leads with, the must-haves your profile can't prove, and which of the job's keywords it shows or leaves out. None of this is printed.
+- **Suggest designs for this job** in the Look tab proposes three designs chosen for the role, each rendered with your CV, fitted to its page count and checked before you see it. Without a language model they are chosen by rule.
+- **Fit to # pages** tightens or opens up text size, line height, margins and gaps within readable limits, so a CV fits its page count without cutting a line.
+- Every design says how applicant tracking systems read it (ATS-safe, ATS-friendly, or check reading order, with the reason) and how dense it is. The design gallery can be filtered by kind (ATS-safe, formal, tech, creative, compact, two columns, academic).
+- New design options: contact beside the name, a line under the header, dates in a left rail, employer or job title first, date pills, skill pills or columns, and which sections go in the side column. Six new built-in designs: Chrono, Summit, Mosaic, Quartz, Beacon and Folio.
+
+### Changed
+- The dashboard is simpler: the pipeline shows how many applications are ready to send, and the stat tiles are gone.
+- The assistant panel and its approval cards are fully translated (French, Arabic) instead of showing English labels.
+
 ### Fixed
 - Fit check: questions in a posting are no longer counted as requirements. One that titles a section ("What do you bring?", "What will you do?", "What you'll get in return?") now sorts the lines under it into requirements, duties or benefits; before, the question could be kept and the real requirements dropped.
 - Fit check: accommodation and equal-opportunity notes ("Do you have specific needs or require adjustments during the recruitment process?") are never listed as missing from your profile.

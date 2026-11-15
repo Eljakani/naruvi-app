@@ -6,7 +6,7 @@ import { CalendarDaysIcon } from "lucide-react"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from "@/components/reui/frame"
 import { useLocale, useTranslations } from "next-intl"
 
 export type CalendarEvent = { id: string; title: string; company: string; logoPath: string | null; nextStep: string; due: string }
@@ -34,18 +34,16 @@ export function DashboardCalendar({ events, now }: { events: CalendarEvent[]; no
   const comingUp = upcoming.filter((event) => dayKey(new Date(event.due)) !== dayKey(selected)).slice(0, 3)
 
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle><h2>{t("title")}</h2></CardTitle>
-        <CardDescription>{upcoming.length ? t("upcoming", { count: upcoming.length }) : t("noneDated")}</CardDescription>
-        {!isToday ? (
-          <CardAction>
-            <Button size="xs" variant="ghost" onClick={() => setSelected(today)}>{t("today")}</Button>
-          </CardAction>
-        ) : null}
-      </CardHeader>
+    <Frame spacing="sm">
+      <FrameHeader className="flex-row items-center gap-3">
+        <div className="grid min-w-0 flex-1">
+          <FrameTitle><h2>{t("title")}</h2></FrameTitle>
+          <FrameDescription>{upcoming.length ? t("upcoming", { count: upcoming.length }) : t("noneDated")}</FrameDescription>
+        </div>
+        {!isToday ? <Button size="xs" variant="ghost" onClick={() => setSelected(today)}>{t("today")}</Button> : null}
+      </FrameHeader>
       {/* Side by side when the card is wide, stacked when it's narrow. */}
-      <CardContent className="@container/cal">
+      <FramePanel className="@container/cal">
         <div className="grid gap-4 @min-[34rem]/cal:grid-cols-[auto_minmax(0,1fr)] @min-[34rem]/cal:gap-6">
         <Calendar
           mode="single"
@@ -79,8 +77,8 @@ export function DashboardCalendar({ events, now }: { events: CalendarEvent[]; no
           ) : null}
         </div>
         </div>
-      </CardContent>
-    </Card>
+      </FramePanel>
+    </Frame>
   )
 }
 

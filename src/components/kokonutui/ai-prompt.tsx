@@ -37,6 +37,8 @@ interface AIPromptProps {
   /** Images attached so far, and how many fit in one message. */
   attachmentCount?: number;
   attachmentLimit?: number;
+  /** What the drop overlay says in each state. */
+  dropLabels?: { wait: string; reading: string; full: string; drop: string };
 }
 
 function SendButton({
@@ -95,7 +97,7 @@ function SendButton({
 export default function AIPrompt({
   value, onChange, onSubmit, onStop, onAttach, accept, placeholder,
   responding, readingAttachment, canSend, attachment, queued, attachmentError,
-  attachmentCount = 0, attachmentLimit = 1,
+  attachmentCount = 0, attachmentLimit = 1, dropLabels,
 }: AIPromptProps) {
   const t = useTranslations("assistantWelcome");
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 56, maxHeight: 160 });
@@ -184,7 +186,7 @@ export default function AIPrompt({
             <label className={cn(
               "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground ring-1 ring-border hover:bg-muted has-focus-visible:ring-2 has-focus-visible:ring-ring",
               attachmentDisabled && "cursor-not-allowed opacity-50",
-            )} title={full ? `Up to ${attachmentLimit} images` : "Add images"}>
+            )} title={full ? t("imageLimit") : t("addImages")}>
               <input
                 accept={accept}
                 aria-label={t("addImages")}
@@ -199,14 +201,14 @@ export default function AIPrompt({
               />
               <Plus aria-hidden="true" className="size-4" />
             </label>
-            <span role="status" key={hint} className="cb-fade min-w-0 flex-1 truncate text-xs text-muted-foreground">
+            <span role="status" key={hint} className="cb-fade line-clamp-2 min-w-0 flex-1 text-[11px] leading-tight text-pretty text-muted-foreground">
               {hint}
             </span>
             <SendButton canSend={canSend} onStop={onStop} responding={responding} />
           </div>
           {isDragging && (
             <div className="pointer-events-none absolute inset-0 z-10 grid place-content-center rounded-[inherit] bg-background/95 text-center text-sm font-medium">
-              {responding ? "Wait for the reply to finish" : readingAttachment ? "Reading the images" : full ? `Up to ${attachmentLimit} images per message` : "Drop images to attach"}
+              {responding ? dropLabels?.wait : readingAttachment ? dropLabels?.reading : full ? dropLabels?.full : dropLabels?.drop}
             </div>
           )}
         </div>

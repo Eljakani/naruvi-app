@@ -17,6 +17,10 @@ export const FONTS = {
 } as const
 export type FontId = keyof typeof FONTS
 
+/** Sections that may move to the side column. Experience always stays in the main column. */
+export const SIDEBAR_KINDS = ["skills", "languages", "certification", "education", "achievement", "project"] as const
+export type SidebarKind = (typeof SIDEBAR_KINDS)[number]
+
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i)
 
 export const designTokens = z.object({
@@ -31,7 +35,7 @@ export const designTokens = z.object({
   accentName: z.boolean().default(false),
   accentHeadings: z.boolean().default(false),
   accentBullets: z.boolean().default(false),
-  headingStyle: z.enum(["rule", "bar", "plain", "filled", "underline-accent"]).default("rule"),
+  headingStyle: z.enum(["rule", "bar", "plain", "filled", "underline-accent", "line-after", "centered"]).default("rule"),
   headingCase: z.enum(["upper", "none"]).default("upper"),
   nameSize: z.number().min(14).max(32).default(20),
   headerAlign: z.enum(["left", "center"]).default("left"),
@@ -75,17 +79,29 @@ export const designTokens = z.object({
   headingSize: z.number().min(0.85).max(1.6).default(1.1),
   itemSpacing: z.number().min(0.4).max(2).default(1),
   bulletSpacing: z.number().min(0).max(4).default(1.5),
-  skillsStyle: z.enum(["inline", "tags", "list"]).default("inline"),
+  skillsStyle: z.enum(["inline", "tags", "list", "pills", "columns"]).default("inline"),
+  // Entries (jobs, studies, projects)
+  entryLayout: z.enum(["stacked", "timeline"]).default("stacked"),
+  entryOrder: z.enum(["title", "org"]).default("title"),
+  dateStyle: z.enum(["plain", "accent", "pill"]).default("plain"),
+  accentTitles: z.boolean().default(false),
+  // Header arrangement and the line under it
+  headerLayout: z.enum(["stacked", "split"]).default("stacked"),
+  headerRule: z.enum(["none", "line", "accent", "double"]).default("none"),
   // Side column
   sidebarSide: z.enum(["left", "right"]).default("left"),
   sidebarWidth: z.number().min(24).max(40).default(31),
   sidebarTint: z.boolean().default(false),
+  sidebarSections: z.array(z.enum(SIDEBAR_KINDS)).max(SIDEBAR_KINDS.length).default(["skills", "languages", "certification"]),
 })
 export type DesignTokens = z.infer<typeof designTokens>
 
 const base = designTokens.parse({})
 
-type Preset = { name: string; hint: string; tokens: DesignTokens }
+/** What a design is good for; the gallery filters on these. */
+export const PRESET_TAGS = ["ats", "formal", "tech", "creative", "compact", "columns", "academic"] as const
+export type PresetTag = (typeof PRESET_TAGS)[number]
+type Preset = { name: string; hint: string; tags?: readonly PresetTag[]; tokens: DesignTokens }
 const theme = (tokens: Partial<DesignTokens>): DesignTokens => designTokens.parse({ ...base, ...tokens })
 
 /**
@@ -93,45 +109,68 @@ const theme = (tokens: Partial<DesignTokens>): DesignTokens => designTokens.pars
  * cover letter as a pair, and uses one font pairing, one accent and one idea.
  */
 export const PRESETS: Record<string, Preset> = {
-  atlas: { name: "Atlas", hint: "Clean and balanced; works for any field", tokens: theme({
+  atlas: { name: "Atlas", hint: "Clean and balanced; works for any field", tags: ["ats"], tokens: theme({
     font: "inter", size: 9.5, accent: "#1d4ed8", accentHeadings: true, headingStyle: "rule", headingCase: "upper", headingSize: 1.05,
     contactIcons: true, contactSeparator: "space", linkStyle: "label", orgItalic: false, summaryStyle: "plain",
     letterSubject: "accent", letterSignature: "name" }) },
-  harbor: { name: "Harbor", hint: "Tinted side column for skills, languages and links", tokens: theme({
+  harbor: { name: "Harbor", hint: "Tinted side column for skills, languages and links", tags: ["columns"], tokens: theme({
     font: "plex", layout: "sidebar", sidebarSide: "left", sidebarWidth: 30, sidebarTint: true, accent: "#0f766e", accentName: true, accentHeadings: true,
     headingStyle: "plain", headingCase: "upper", headingSize: 1, skillsStyle: "tags", sectionIcons: true, contactIcons: true, contactSeparator: "dot",
     linkStyle: "label", orgItalic: false, photoShape: "circle", letterSubject: "accent", letterSignature: "headline" }) },
-  ledger: { name: "Ledger", hint: "Serif, centred and formal: law, finance, public sector", tokens: theme({
+  ledger: { name: "Ledger", hint: "Serif, centred and formal: law, finance, public sector", tags: ["formal", "ats"], tokens: theme({
     font: "serif", size: 9.7, lineHeight: 1.34, margin: 34, headerAlign: "center", nameSize: 23, nameCase: "upper", nameSpacing: 1.5, accent: "#1e3a5f",
     accentHeadings: true, headingStyle: "underline-accent", headingCase: "upper", contactSeparator: "pipe", textAlign: "justify", showLogos: false,
     bullet: "dash", summaryStyle: "italic", summaryAlign: "center", letterSubject: "caps", letterDateAlign: "right", letterSignature: "contact" }) },
-  studio: { name: "Studio", hint: "Colour band header, larger photo: creative and product roles", tokens: theme({
+  studio: { name: "Studio", hint: "Colour band header, larger photo: creative and product roles", tags: ["creative"], tokens: theme({
     font: "lato", headingFont: "inter", headerBand: true, accent: "#6d28d9", accentHeadings: true, accentBullets: true, headingStyle: "bar", headingCase: "none",
     headingSize: 1.2, nameSize: 26, photoSize: 70, photoPosition: "right", photoShape: "rounded", skillsStyle: "tags", summaryStyle: "box",
     contactSeparator: "dot", linkStyle: "label", orgItalic: false, letterPhoto: true, letterSubject: "accent" }) },
-  slate: { name: "Slate", hint: "Dense and tidy: fits a long career on one page", tokens: theme({
+  slate: { name: "Slate", hint: "Dense and tidy: fits a long career on one page", tags: ["compact", "ats"], tokens: theme({
     font: "roboto", size: 8.9, lineHeight: 1.28, margin: 28, spacing: 0.8, itemSpacing: 0.8, bulletSpacing: 0.8, nameSize: 18, photoSize: 46,
     accent: "#334155", headingStyle: "rule", headingCase: "upper", headingSize: 1, contactSeparator: "pipe", linkStyle: "label", summarySize: 0.95,
     letterSpacing: 0.9 }) },
-  nordic: { name: "Nordic", hint: "Quiet and airy: no lines, lots of white space", tokens: theme({
+  nordic: { name: "Nordic", hint: "Quiet and airy: no lines, lots of white space", tags: ["creative", "ats"], tokens: theme({
     font: "lato", size: 9.6, lineHeight: 1.5, margin: 48, spacing: 1.25, nameCase: "upper", nameSpacing: 2, nameSize: 19, accent: "#475569",
     headingStyle: "plain", headingCase: "none", headingSize: 1.15, accentHeadings: true, showLogos: false, orgItalic: false, bullet: "dash",
     summaryStyle: "italic", summaryLineHeight: 1.55, letterSpacing: 1.3, letterDateAlign: "left" }) },
-  scholar: { name: "Scholar", hint: "Garamond with page numbers: academia and research", tokens: theme({
+  scholar: { name: "Scholar", hint: "Garamond with page numbers: academia and research", tags: ["academic", "formal", "ats"], tokens: theme({
     font: "garamond", size: 10.8, lineHeight: 1.35, nameSize: 24, accent: "#7f1d1d", headingStyle: "rule", headingCase: "upper", headingSize: 1,
     showLogos: false, pageNumbers: true, summaryTitle: true, textAlign: "justify", contactSeparator: "dot", letterSubject: "plain", letterSignature: "headline" }) },
-  vertex: { name: "Vertex", hint: "Right side column, tags and icons: engineering and tech", tokens: theme({
+  vertex: { name: "Vertex", hint: "Right side column, tags and icons: engineering and tech", tags: ["columns", "tech"], tokens: theme({
     font: "plex", layout: "sidebar", sidebarSide: "right", sidebarWidth: 29, sidebarTint: true, accent: "#2563eb", accentName: true, accentHeadings: true,
     accentLinks: true, headingStyle: "bar", headingCase: "none", skillsStyle: "tags", sectionIcons: true, contactIcons: true, linkStyle: "label",
     contactSeparator: "dot", orgItalic: false, bullet: "arrow", letterSubject: "accent" }) },
-  meridian: { name: "Meridian", hint: "Merriweather titles, centred header: senior and executive", tokens: theme({
+  meridian: { name: "Meridian", hint: "Merriweather titles, centred header: senior and executive", tags: ["formal"], tokens: theme({
     font: "inter", headingFont: "merriweather", size: 9.6, headerAlign: "center", nameSize: 27, nameCase: "upper", nameSpacing: 2.5, accent: "#881337",
     accentHeadings: true, headingStyle: "underline-accent", headingCase: "upper", headingSize: 1.1, contactSeparator: "pipe", linkStyle: "label",
     summaryStyle: "bar", summarySize: 1.05, showLogos: false, letterSubject: "caps", letterSignature: "headline" }) },
-  pulse: { name: "Pulse", hint: "Warm accent and section icons: modern and friendly", tokens: theme({
+  pulse: { name: "Pulse", hint: "Warm accent and section icons: modern and friendly", tags: ["creative", "tech"], tokens: theme({
     font: "inter", size: 9.5, accent: "#c2410c", accentName: true, accentHeadings: true, accentBullets: true, headingStyle: "bar", headingCase: "none",
     headingSize: 1.12, sectionIcons: true, contactIcons: true, linkStyle: "label", bullet: "square", summaryStyle: "bar", skillsStyle: "inline", bulletSpacing: 1.1,
     orgItalic: false, photoShape: "rounded", letterSubject: "accent" }) },
+  chrono: { name: "Chrono", hint: "Dates in a left rail: a career that reads as a timeline", tags: ["tech", "ats"], tokens: theme({
+    font: "inter", size: 9.4, entryLayout: "timeline", dateStyle: "accent", accent: "#0e7490", accentHeadings: true, headingStyle: "line-after", headingCase: "upper",
+    headingSize: 1, headerRule: "accent", contactIcons: true, linkStyle: "label", orgItalic: false, skillsStyle: "columns", bullet: "dash", showLogos: false,
+    letterSubject: "accent" }) },
+  summit: { name: "Summit", hint: "Name left, contact right, serif titles: senior and consulting", tags: ["formal", "ats"], tokens: theme({
+    font: "inter", headingFont: "serif", size: 9.5, headerLayout: "split", contactLayout: "stacked", headerRule: "double", nameSize: 25, accent: "#14532d",
+    accentHeadings: true, accentTitles: false, headingStyle: "line-after", headingCase: "none", headingSize: 1.2, linkStyle: "label", orgItalic: false,
+    entryOrder: "org", summaryStyle: "plain", showLogos: false, letterSubject: "caps", letterSignature: "headline" }) },
+  mosaic: { name: "Mosaic", hint: "Centred titles and filled skill pills: design and marketing", tags: ["creative"], tokens: theme({
+    font: "lato", headingFont: "merriweather", size: 9.6, headerAlign: "center", nameSize: 26, accent: "#9d174d", accentName: true, accentHeadings: true,
+    headingStyle: "centered", headingCase: "upper", headingSize: 1, skillsStyle: "pills", dateStyle: "pill", summaryStyle: "italic", summaryAlign: "center",
+    contactSeparator: "dot", linkStyle: "label", orgItalic: false, photoShape: "circle", photoSize: 64, letterSubject: "accent" }) },
+  quartz: { name: "Quartz", hint: "Black on white, one column, no decoration: safest for applicant tracking systems", tags: ["ats", "formal", "compact"], tokens: theme({
+    font: "sans", size: 9.6, accent: "#111827", headingStyle: "rule", headingCase: "upper", headingSize: 1, showLogos: false, contactSeparator: "pipe",
+    linkStyle: "url", orgItalic: false, skillsStyle: "inline", bullet: "dot", letterSubject: "plain" }) },
+  beacon: { name: "Beacon", hint: "Wide side column with education and skills: graduates and career changers", tags: ["columns"], tokens: theme({
+    font: "roboto", size: 9.3, layout: "sidebar", sidebarSide: "right", sidebarWidth: 34, sidebarTint: true, sidebarSections: ["education", "skills", "languages", "certification"],
+    accent: "#4338ca", accentName: true, accentHeadings: true, accentTitles: true, headingStyle: "underline-accent", headingCase: "none", headingSize: 1.1,
+    skillsStyle: "pills", contactIcons: true, linkStyle: "label", orgItalic: false, headerRule: "line", letterSubject: "accent" }) },
+  folio: { name: "Folio", hint: "Garamond, centred titles and a double rule: editorial and academic", tags: ["academic", "formal", "ats"], tokens: theme({
+    font: "garamond", size: 10.8, lineHeight: 1.34, headerAlign: "center", nameSize: 26, nameCase: "upper", nameSpacing: 2, accent: "#3f3f46",
+    headingStyle: "centered", headingCase: "upper", headingSize: 0.95, headerRule: "double", entryLayout: "timeline", showLogos: false, contactSeparator: "dot",
+    textAlign: "justify", pageNumbers: true, summaryStyle: "italic", summaryAlign: "center", bullet: "dash", letterSubject: "caps", letterSignature: "contact" }) },
 }
 
 /**
@@ -162,7 +201,7 @@ export const presetTokens = (template: string | undefined) => (ALL_PRESETS[templ
 export const LETTER_ONLY = new Set<keyof DesignTokens>(["letterHeadline", "letterPhoto", "letterRecipient", "letterDateAlign", "letterSubject", "letterSpacing", "letterSignature"])
 /** Tokens that only change the CV (the letter has no sections, skills or summary). */
 export const CV_ONLY = new Set<keyof DesignTokens>([
-  "layout", "sidebarSide", "sidebarWidth", "sidebarTint", "skillsStyle", "showLogos", "sectionIcons", "datePosition", "orgItalic",
+  "layout", "sidebarSide", "sidebarWidth", "sidebarTint", "sidebarSections", "skillsStyle", "entryLayout", "entryOrder", "dateStyle", "accentTitles", "headerRule", "showLogos", "sectionIcons", "datePosition", "orgItalic",
   "itemSpacing", "bulletSpacing", "headingSize", "headingCase", "summaryStyle", "summarySize", "summaryAlign", "summaryLineHeight", "summaryTitle", "photoShape",
 ])
 

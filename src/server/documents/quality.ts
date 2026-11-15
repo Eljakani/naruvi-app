@@ -6,13 +6,36 @@
 import type { QualitySummary } from "@/server/db/schema"
 import type { CvDocument } from "./model"
 import { aiReviewCheck } from "./ai-metadata"
+import { keywordsIn } from "@/server/analysis/keywords"
+import { documentText } from "./model"
+
+/** Which of the job's keywords the CV shows, which sit in lines left out, and which the CV cannot show. */
+export function keywordCoverage(doc: CvDocument) {
+  const wanted = (doc.jobKeywords ?? []).slice(0, 20)
+  const shown = new Set(keywordsIn(documentText(doc)))
+  const spare = new Set(keywordsIn(doc.sections.flatMap((section) => section.items.flatMap((item) => item.bullets.filter((bullet) => !section.included || !item.included || !bullet.included).map((bullet) => bullet.text))).join("\n")))
+  const covered = wanted.filter((key) => shown.has(key))
+  const hidden = wanted.filter((key) => !shown.has(key) && spare.has(key))
+  return { wanted, covered, hidden, missing: wanted.filter((key) => !shown.has(key) && !spare.has(key)) }
+}
+
+/** The word that opens too many bullets, if any ("Led" ×4). */
+export function repeatedOpening(bullets: { text: string }[]) {
+  const counts = new Map<string, number>()
+  for (const bullet of bullets) {
+    const word = bullet.text.trim().match(/^[\p{L}]{3,}/u)?.[0].toLowerCase()
+    if (word) counts.set(word, (counts.get(word) ?? 0) + 1)
+  }
+  const [word, count] = [...counts].sort((a, b) => b[1] - a[1])[0] ?? ["", 0]
+  return count >= 3 && count / bullets.length >= 0.25 ? { word, count } : null
+}
 
 export type Check = { id: string; status: "pass" | "warn" | "fail"; label: string; detail: string }
 export type QualityReport = QualitySummary & { ready: boolean; checks: Check[] }
 
 type Req = { kind: string; status: string; text: string; factIds: string[] }
 
-export function checkQuality(doc: CvDocument, pages: number | null, requirements: Req[] = []): QualityReport {
+export function checkQuality(doc: CvDocument, pages: number | null, requirements: Req[] = [], layout: { lastPageFill?: number } = {}): QualityReport {
   const checks: Check[] = []
   const aiCheck = aiReviewCheck(doc.aiAssistance)
   if (aiCheck) checks.push(aiCheck)
@@ -50,6 +73,20 @@ export function checkQuality(doc: CvDocument, pages: number | null, requirements
   add("length", long.length ? "warn" : "pass", "Scannable bullets", long.length ? `${long.length} bullet(s) over 240 characters — shorten them in your profile.` : "All bullets are concise.")
   const crowded = items.filter((item) => item.bullets.filter((b) => b.included).length > 6)
   add("density", crowded.length ? "warn" : "pass", "Not too many bullets per entry", crowded.length ? `${crowded.map((item) => item.title).join(", ")}: more than 6 bullets.` : "Balanced.")
+
+  const coverage = keywordCoverage(doc)
+  if (coverage.wanted.length >= 4) {
+    const base = `${coverage.covered.length} of the job’s ${coverage.wanted.length} main keywords appear.`
+    add("keywords", coverage.hidden.length >= 2 ? "warn" : "pass", "Uses the job’s vocabulary", coverage.hidden.length ? `${base} In lines you left out: ${coverage.hidden.slice(0, 5).join(", ")}. Tick those lines to show them.` : base)
+  }
+
+  const repeated = repeatedOpening(bullets)
+  add("repetition", repeated ? "warn" : "pass", "Varied bullet openings", repeated ? `“${repeated.word[0].toUpperCase()}${repeated.word.slice(1)}” opens ${repeated.count} bullets: vary the first word.` : "No word opens too many bullets.")
+
+  if (pages !== null && pages > 1 && layout.lastPageFill !== undefined) {
+    const used = Math.round(layout.lastPageFill * 100)
+    add("fill", layout.lastPageFill < 0.25 ? "warn" : "pass", "No nearly empty last page", layout.lastPageFill < 0.25 ? `Page ${pages} is only ${used}% used. Fit the layout to ${pages - 1} page${pages === 2 ? "" : "s"} in Look, or add lines.` : `Page ${pages} is ${used}% used.`)
+  }
 
   const errors = checks.filter((check) => check.status === "fail").length
   const warnings = checks.filter((check) => check.status === "warn").length

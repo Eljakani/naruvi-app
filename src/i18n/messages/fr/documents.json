@@ -1,4 +1,6 @@
 {
+  "cvBrief": {"pages": "Longueur", "pagesAuto": "Auto", "pagesOne": "1 page", "pagesTwo": "2 pages", "tone": "Niveau de détail", "concise": "Concis", "balanced": "Équilibré", "detailed": "Détaillé", "focus": "À mettre en avant (facultatif)", "focusPlaceholder": "ex. mes projets de migration et l’équipe que j’ai encadrée", "focusHint": "Suivi uniquement là où vos faits vérifiés le permettent."},
+  "cvStrategy": {"title": "Comment ce CV vous positionne", "keywordsCount": "{covered}/{total} mots-clés", "strengths": "Les arguments mis en avant", "gaps": "Ce qu’il ne peut pas montrer", "gapsHint": "Exigences que votre profil ne prouve pas. Si vous avez la preuve, ajoutez-la à votre profil puis régénérez.", "keywords": "Les mots-clés de l’offre", "hidden": "Dans des lignes écartées (cochez-les pour les afficher) :", "missing": "Absents du texte de ce CV :", "savedNote": "Compté sur la version enregistrée."},
   "cvAssistant": {
     "ideas": { "shorter": "Raccourcis-le", "onePage": "Tenir sur une page", "leadership": "Mettre en avant le leadership", "technical": "Plus technique", "simpler": "Mots plus simples", "results": "Commencer par les résultats" },
     "steps": { "read": "Lecture de votre demande", "rewrite": "Réécriture avec vos seuls faits", "render": "Mise en page et notation du CV", "fix": "Correction des points signalés", "keep": "Conservation de la meilleure version" },
@@ -27,6 +29,7 @@
     "improveTitle": "Améliorer cette ligne"
   },
   "cvWorkspace": {
+    "regenerateNote": "Remplace le brouillon par une nouvelle version. L’ancienne reste dans l’historique.",
     "regenerate": "Régénérer",
     "write": "Rédiger mon CV",
     "title": "Votre CV pour ce poste",

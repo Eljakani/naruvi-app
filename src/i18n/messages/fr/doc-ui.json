@@ -39,7 +39,7 @@
   "fixing": "Naruvi corrige…",
   "fix": "Corriger avec Naruvi",
   "reviewInEditor": "Revoir dans l’éditeur",
-  "versionsHint": "Chaque enregistrement crée une nouvelle version ; rien n’est jamais écrasé. Restaurer rend une ancienne version de nouveau actuelle.",
+  "fitInLook":"Ajuster la mise en page dans Apparence","versionsHint": "Chaque enregistrement crée une nouvelle version ; rien n’est jamais écrasé. Restaurer rend une ancienne version de nouveau actuelle.",
   "origin": {
    "generate": "Généré",
    "manual": "Modifié",

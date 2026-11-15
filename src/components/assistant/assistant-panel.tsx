@@ -3,7 +3,7 @@
 import { ComposeEmail } from "@/components/mail/compose-email"
 import { PresenceList } from "@/components/presence"
 import Link from "next/link"
-import { useFormatter, useTranslations } from "next-intl"
+import { useFormatter, useLocale, useTranslations } from "next-intl"
 import { NaruviAvatar, Otter } from "@/components/naruvi/otter"
 import { usePathname, useRouter } from "next/navigation"
 import { useDirection } from "@base-ui/react/direction-provider"
@@ -26,7 +26,9 @@ import { DotmCircular5 } from "@/components/ui/dotm-circular-5"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { AiStatus, AiStatusIcon } from "@/components/ui/ai-status"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert"
+import { Badge } from "@/components/reui/badge"
+import { IconTile } from "@/components/reui/icon-tile"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
@@ -37,6 +39,7 @@ import { SidebarMenuButton } from "@/components/ui/sidebar"
 import { TraceDescription, TraceIcon, TraceLine, TraceTitle } from "@/components/ui/trace"
 import { CHAT_IMAGE_BYTES, CHAT_IMAGE_MAX, CHAT_IMAGE_TYPES, limitChatImages } from "@/lib/assistant-images"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 import type { assistantTools } from "@/server/assistant/tools"
 import type { apiApplications } from "@/server/integrations/api-data"
 
@@ -165,6 +168,7 @@ function DockedAssistant() {
   const panel = useRef<HTMLElement>(null)
   const drag = useRef<{ startX: number; startWidth: number } | null>(null)
   const [resizing, setResizing] = useState(false)
+  const tc = useTranslations("assistantChat")
   // Visual state trails `open` by a frame, so the very first open (when this
   // mounts) still animates from closed instead of appearing fully formed.
   const [shown, setShown] = useState(false)
@@ -227,7 +231,7 @@ function DockedAssistant() {
     >
       <div
         role="separator"
-        aria-label="Resize assistant panel"
+        aria-label={tc("resize")}
         aria-controls={PANEL_ID}
         aria-orientation="vertical"
         tabIndex={0}
@@ -299,6 +303,7 @@ function loadMessages(): UIMessage[] {
 
 function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null; onQueuedSent: () => void; onClose: () => void }) {
   const t = useTranslations("assistantWelcome")
+  const tc = useTranslations("assistantChat")
   const router = useRouter()
   const [initial] = useState(loadMessages)
   const transport = useMemo(() => new DefaultChatTransport({
@@ -374,15 +379,15 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
     const room = CHAT_IMAGE_MAX - images.length
     const accepted = valid.slice(0, Math.max(0, room))
     const problems = [
-      valid.length < files.length ? "Only PNG, JPEG or WebP images up to 2 MB" : "",
-      valid.length > accepted.length ? `Up to ${CHAT_IMAGE_MAX} images per message` : "",
+      valid.length < files.length ? tc("imageTypes") : "",
+      valid.length > accepted.length ? tc("imageMax", { limit: CHAT_IMAGE_MAX }) : "",
     ].filter(Boolean)
     setImageError(problems.join(". "))
     if (!accepted.length) return
     setReadingImage(true)
     Promise.all(accepted.map(readImage))
       .then((parts) => setImages((current) => [...current, ...parts].slice(0, CHAT_IMAGE_MAX)))
-      .catch(() => setImageError("Couldn’t read an image. Try attaching it again."))
+      .catch(() => setImageError(tc("imageRead")))
       .finally(() => setReadingImage(false))
   }
   useEffect(() => {
@@ -433,6 +438,14 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
   const writing = status === "streaming" && latestStep.some((part) => part.type === "text" && part.state === "streaming" && part.text.trim())
   const mood = !busy ? null : writing ? t("writing") : toolOwnsStatus ? t("working") : t("thinking")
   const retry = () => { setTurnStartedAt(Date.now()); clearError(); void regenerate() }
+  // Starting over is one press, so it can be taken back for a few seconds.
+  const startOver = () => {
+    const previous = messages
+    clearError()
+    setMessages([])
+    sessionStorage.removeItem(STORAGE)
+    toast(tc("cleared"), { action: { label: tc("undo"), onClick: () => setMessages(previous) } })
+  }
 
 
   return (
@@ -446,7 +459,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
           </p>
         </div>
         {messages.length ? (
-          <Button size="icon-sm" variant="ghost" aria-label={t("newChat")} title={t("newChat")} disabled={busy} onClick={() => { setMessages([]); sessionStorage.removeItem(STORAGE) }}>
+          <Button size="icon-sm" variant="ghost" aria-label={t("newChat")} title={t("newChat")} disabled={busy} onClick={startOver}>
             <SquarePenIcon />
           </Button>
         ) : null}
@@ -458,7 +471,7 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
       {/* Open at the latest message; when you send, your question anchors at the top while the reply streams below. */}
       <MessageScrollerProvider defaultScrollPosition="end">
         <MessageScroller className="min-h-0 flex-1">
-          <MessageScrollerViewport aria-label="Conversation" tabIndex={0} className="focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
+          <MessageScrollerViewport aria-label={tc("conversation")} tabIndex={0} className="focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
             <MessageScrollerContent className="gap-5 px-4 py-5">
               {messages.length ? (
                 messages.map((message) => (
@@ -477,16 +490,13 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
               </AnimatePresence>
               {error ? (
                 <MessageScrollerItem>
-                  <div role="alert" className="cb-step flex items-start gap-2.5 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm">
-                    <Otter pose="careful" height={44} className="-my-1 shrink-0" />
-                    <div className="grid min-w-0 flex-1 gap-2">
-                      <p className="text-pretty">{friendlyError(error.message)}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button size="xs" onClick={retry}><RotateCcwIcon /> Try again</Button>
-                        {/model|settings|api key/i.test(error.message) ? <Button size="xs" variant="outline" nativeButton={false} render={<Link href="/integrations#ai" onClick={onNavigate} />}>Open AI settings</Button> : null}
-                      </div>
-                    </div>
-                  </div>
+                  <Alert variant="destructive" className="cb-step">
+                    <AlertDescription className="text-pretty text-foreground">{friendlyError(error.message, tc)}</AlertDescription>
+                    <AlertAction className="col-start-2 mt-2 flex-wrap justify-start sm:col-start-2 sm:row-start-auto sm:justify-start">
+                      <Button size="xs" onClick={retry}><RotateCcwIcon /> {tc("tryAgain")}</Button>
+                      {/model|settings|api key/i.test(error.message) ? <Button size="xs" variant="outline" nativeButton={false} render={<Link href="/integrations#ai" onClick={onNavigate} />}>{tc("aiSettings")}</Button> : null}
+                    </AlertAction>
+                  </Alert>
                 </MessageScrollerItem>
               ) : null}
             </MessageScrollerContent>
@@ -509,25 +519,26 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
         queued={followUp ? (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
             className="mb-2 flex items-center gap-2 rounded-xl border bg-muted/40 py-1.5 ps-3 pe-1 text-xs">
-            <span className="shrink-0 font-medium text-brand">Up next</span>
+            <span className="shrink-0 font-medium text-brand">{tc("upNext")}</span>
             <span className="min-w-0 flex-1 truncate text-muted-foreground">{followUp}</span>
-            <button type="button" aria-label="Edit follow-up" title="Edit" onClick={() => { setDraft(followUp); setFollowUp(null) }} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><SquarePenIcon className="size-3.5" /></button>
-            <button type="button" aria-label="Cancel follow-up" title="Cancel" onClick={() => setFollowUp(null)} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><XIcon className="size-3.5" /></button>
+            <button type="button" aria-label={tc("editFollowUp")} title={tc("editFollowUp")} onClick={() => { setDraft(followUp); setFollowUp(null) }} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><SquarePenIcon className="size-3.5" /></button>
+            <button type="button" aria-label={tc("cancelFollowUp")} title={tc("cancelFollowUp")} onClick={() => setFollowUp(null)} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><XIcon className="size-3.5" /></button>
           </motion.div>
         ) : null}
         readingAttachment={readingImage}
         canSend={busy ? Boolean(draft.trim()) : !readingImage && Boolean(draft.trim() || images.length)}
         attachmentError={imageError}
+        dropLabels={{ wait: tc("dropWait"), reading: tc("dropReading"), full: tc("imageMax", { limit: CHAT_IMAGE_MAX }), drop: tc("dropHere") }}
         attachment={images.length ? (
-          <ul className="flex flex-wrap gap-2" aria-label="Attached images">
+          <ul className="flex flex-wrap gap-2" aria-label={tc("attached")}>
             <PresenceList>
               {images.map((part, index) => (
                 <motion.li key={part.url.slice(-48) + index} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }} className="group/thumb relative">
                   <ChatImage part={part} className="size-14 rounded-lg border object-cover" />
                   <button
                     type="button"
-                    aria-label={`Remove ${part.filename || `image ${index + 1}`}`}
-                    title="Remove"
+                    aria-label={tc("removeImage", { name: part.filename || tc("imageN", { n: index + 1 }) })}
+                    title={tc("removeImage", { name: part.filename || tc("imageN", { n: index + 1 }) })}
                     onClick={() => { setImages((current) => current.filter((_, i) => i !== index)); setImageError("") }}
                     className="absolute -top-1.5 -end-1.5 flex size-5 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
                   >
@@ -544,16 +555,16 @@ function Conversation({ queued, onQueuedSent, onClose }: { queued: string | null
 }
 
 function ChatImage({ part, className }: { part: FileUIPart; className: string }) {
+  const t = useTranslations("assistantChat")
   // eslint-disable-next-line @next/next/no-img-element -- local attachment preview uses an inline data URL
-  return <img src={part.url} alt={part.filename || "Attached image"} className={className} />
+  return <img src={part.url} alt={part.filename || t("attachedImage")} className={className} />
 }
 
-function friendlyError(message: string) {
-  if (/image|vision|multimodal/i.test(message)) {
-    return "The AI model couldn’t process this image. Check that your model in Integrations supports images."
-  }
+function friendlyError(message: string, t: ReturnType<typeof useTranslations<"assistantChat">>) {
+  if (/image|vision|multimodal/i.test(message)) return t("errorImage")
+  // A message about the model or its key says what to fix, so it is shown as it came.
   if (/model|settings|api key/i.test(message)) return message
-  return "Something went wrong. Try again, or check your AI model in Integrations."
+  return t("errorGeneric")
 }
 
 const greeting = (): "late" | "morning" | "afternoon" | "evening" => {
@@ -645,10 +656,15 @@ const TranscriptMessage = memo(function TranscriptMessage(props: Parameters<type
 })
 
 function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, stale = false, onRetry }: { message: UIMessage; onNavigate: () => void; onAnswer: (toolCallId: string, choice: string) => void; onApproval: (id: string, approved: boolean) => void; busy: boolean; stale?: boolean; onRetry?: () => void }) {
+  const t = useTranslations("assistantChat")
   // Consecutive look-ups collapse into one trace; everything else renders in order.
   const blocks: ReactNode[] = []
   // The card owns the outcome for this turn, including after an approval changes state.
-  const hasAction = message.parts.some((part) => isTool(part) && Object.hasOwn(ACTIONS, toolName(part)))
+  const isAction = (part: Part): part is ToolPart => isTool(part) && Object.hasOwn(ACTIONS, toolName(part))
+  const lastAction = message.parts.findLastIndex(isAction)
+  // Before a card, its words would only repeat it. Once every card is settled, what Naruvi says next
+  // (what it found, what to do now) is the point of the turn, so it shows.
+  const shows = (index: number) => lastAction < 0 || (index > lastAction && message.parts.every((part) => !isAction(part) || settled(part)))
   let reads: ToolPart[] = []
   const flush = () => {
     if (reads.length) blocks.push(<ReadTrace key={`reads-${blocks.length}`} parts={reads} busy={busy} />)
@@ -657,7 +673,7 @@ function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, sta
   message.parts.forEach((part, index) => {
     if (isTool(part) && isReadTool(toolName(part))) return void reads.push(part)
     flush()
-    if (!hasAction && part.type === "text" && part.text.trim()) blocks.push(<Markdown key={index} text={part.text} onNavigate={onNavigate} streaming={busy && part.state === "streaming"} />)
+    if (part.type === "text" && part.text.trim() && shows(index)) blocks.push(<Markdown key={index} text={part.text} onNavigate={onNavigate} streaming={busy && part.state === "streaming"} />)
     else if (isTool(part) && toolName(part) === "ask_user" && (busy || part.state !== "input-streaming")) blocks.push(<AskCard key={index} part={part} onAnswer={onAnswer} disabled={busy && part.state !== "input-available"} />)
     else if (isTool(part) && toolName(part) === "show_applications" && part.state === "output-available") {
       const applications = part.output?.applications as Awaited<ReturnType<typeof apiApplications>>["applications"] | undefined
@@ -669,21 +685,24 @@ function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, sta
     else if (isTool(part) && toolName(part) === "draft_email") {
       if (part.state === "output-available" && part.output) {
         const draft = part.output as InferUITools<typeof assistantTools>["draft_email"]["output"]
-        blocks.push(<div key={index} className="grid min-w-0 gap-3 rounded-lg border bg-card p-3 text-sm">
-          <div className="grid gap-1"><p className="flex items-center gap-2 font-medium"><MailIcon className="size-4" /> Email draft · {draft.company}</p><p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">To {draft.to || "Choose a recipient in the composer"}</p></div>
-          <p className="font-medium [overflow-wrap:anywhere]">{draft.subject}</p>
-          <p dir="auto" className="max-h-64 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{draft.body}</p>
-          {draft.missingDetails.length ? <p className="text-xs text-muted-foreground">To complete: {draft.missingDetails.join(" · ")}</p> : null}
-          <div className="flex items-center justify-between gap-2 border-t pt-2"><span className="text-xs text-muted-foreground">Draft only · not sent</span><ComposeEmail applicationId={draft.applicationId} connected={draft.canSend} hasReplies={Boolean(draft.replyTo)} initialDraft={draft} /></div>
+        blocks.push(<div key={index} className="cb-step grid min-w-0 gap-3 rounded-xl border bg-card p-3 text-sm">
+          <div className="flex items-start gap-2.5">
+            <IconTile variant="soft" size="sm" className="text-muted-foreground"><MailIcon aria-hidden /></IconTile>
+            <div className="grid min-w-0 flex-1 gap-0.5"><p className="font-medium wrap-anywhere">{t("emailDraft", { company: draft.company })}</p><p className="text-xs text-muted-foreground wrap-anywhere">{draft.to ? t("emailTo", { to: draft.to }) : t("emailChoose")}</p></div>
+          </div>
+          <p className="font-medium wrap-anywhere">{draft.subject}</p>
+          <p dir="auto" className="max-h-64 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">{draft.body}</p>
+          {draft.missingDetails.length ? <p className="text-xs text-muted-foreground">{t("emailMissing", { list: draft.missingDetails.join(" · ") })}</p> : null}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-2"><Badge variant="outline" size="sm">{t("emailNote")}</Badge><ComposeEmail applicationId={draft.applicationId} connected={draft.canSend} hasReplies={Boolean(draft.replyTo)} initialDraft={draft} /></div>
         </div>)
-      } else if (part.state === "output-error") blocks.push(<p key={index} role="alert" className="text-sm text-destructive">{part.errorText || "Couldn’t write the email draft."}</p>)
-      else if (busy) blocks.push(<PendingActivity key={index} label="Drafting an email from the conversation" />)
+      } else if (part.state === "output-error") blocks.push(<p key={index} role="alert" className="text-sm text-destructive">{part.errorText || t("emailFailed")}</p>)
+      else if (busy) blocks.push(<PendingActivity key={index} label={t("emailDrafting")} />)
     }
-    else if (isTool(part) && toolName(part) === "open_page" && part.state === "output-available") blocks.push(<OpenButton key={index} path={String(part.input?.path ?? "/")} label={String(part.input?.label ?? "Open")} onNavigate={onNavigate} />)
+    else if (isTool(part) && toolName(part) === "open_page" && part.state === "output-available") blocks.push(<OpenButton key={index} path={String(part.input?.path ?? "/")} label={String(part.input?.label ?? t("open"))} onNavigate={onNavigate} />)
     else if (isTool(part) && ACTIONS[toolName(part)]) blocks.push(<ActionCard key={index} part={part} busy={busy} stale={stale} onApproval={onApproval} onNavigate={onNavigate} />)
   })
   flush()
-  const text = hasAction ? "" : message.parts.flatMap((part) => part.type === "text" ? [part.text.trim()] : []).filter(Boolean).join("\n\n")
+  const text = message.parts.flatMap((part, index) => part.type === "text" && shows(index) ? [part.text.trim()] : []).filter(Boolean).join("\n\n")
   if (!blocks.length) return null
   return (
     <Message className="group/reply cb-step items-start gap-2.5">
@@ -697,6 +716,7 @@ function AssistantMessage({ message, onNavigate, onAnswer, onApproval, busy, sta
 }
 
 function ReplyActions({ text, onRetry }: { text: string; onRetry?: () => void }) {
+  const t = useTranslations("assistantChat")
   const [copied, setCopied] = useState(false)
   const button = "inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
   return (
@@ -705,10 +725,10 @@ function ReplyActions({ text, onRetry }: { text: string; onRetry?: () => void })
         <button type="button" className={button} onClick={() => {
           void navigator.clipboard?.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }).catch(() => {})
         }}>
-          {copied ? <CheckIcon className="cb-pop size-3.5 text-brand" /> : <CopyIcon className="size-3.5" />}{copied ? "Copied" : "Copy"}
+          {copied ? <CheckIcon className="cb-pop size-3.5 text-brand" /> : <CopyIcon className="size-3.5" />}<span aria-live="polite">{copied ? t("copied") : t("copy")}</span>
         </button>
       ) : null}
-      {onRetry ? <button type="button" className={button} onClick={onRetry}><RotateCcwIcon className="size-3.5" />Ask again</button> : null}
+      {onRetry ? <button type="button" className={button} onClick={onRetry}><RotateCcwIcon className="size-3.5" />{t("askAgain")}</button> : null}
     </div>
   )
 }
@@ -717,6 +737,7 @@ type ApplicationResult = Awaited<ReturnType<typeof apiApplications>>["applicatio
 type ProfileResult = NonNullable<InferUITools<typeof assistantTools>["show_profile"]["output"]["profile"]>
 
 function ProfileCard({ profile, onNavigate }: { profile: ProfileResult; onNavigate: () => void }) {
+  const t = useTranslations("assistantChat")
   return (
     <Link
       href="/profile"
@@ -735,9 +756,9 @@ function ProfileCard({ profile, onNavigate }: { profile: ProfileResult; onNaviga
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t pt-2 text-xs">
-        <span className="text-muted-foreground">{profile.verified} of {profile.entries} {profile.entries === 1 ? "entry" : "entries"} verified</span>
+        <span className="text-muted-foreground">{t("profileVerified", { verified: profile.verified, entries: profile.entries })}</span>
         <span className="inline-flex items-center gap-1 font-medium group-hover/result:underline">
-          Open profile <ArrowRightIcon aria-hidden className="size-3.5" />
+          {t("openProfile")} <ArrowRightIcon aria-hidden className="size-3.5 rtl:rotate-180" />
         </span>
       </div>
     </Link>
@@ -762,12 +783,12 @@ function ApplicationResults({ applications, onNavigate }: { applications: Applic
               {application.company || application.location ? (
                 <span className="text-xs text-muted-foreground">{[application.company, application.location].filter(Boolean).join(" · ")}</span>
               ) : null}
-              <Badge variant={application.status === "ready" && !application.archived ? "default" : "secondary"} className="mt-1">
+              <Badge variant={application.archived ? "outline" : application.status === "ready" ? "primary-light" : application.status === "offer" ? "success-light" : "outline"} className="mt-1">
                 {application.archived ? t("archived") : status.has(application.status) ? status(application.status) : application.stage}
               </Badge>
             </div>
             {application.fit != null ? <FitRing score={application.fit} /> : null}
-            <ArrowRightIcon aria-hidden className="mt-2 size-4 shrink-0 text-muted-foreground" />
+            <ArrowRightIcon aria-hidden className="mt-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover/result:translate-x-0.5 rtl:rotate-180 rtl:group-hover/result:-translate-x-0.5" />
           </Link>
         </li>
       ))}
@@ -790,13 +811,13 @@ function ReadTrace({ parts, busy }: { parts: ToolPart[]; busy: boolean }) {
   const failed = steps.filter((step) => step.failed).length
   const settled = steps.filter((step) => !step.pending).length
   const rows = (
-    <div className="grid min-w-0 gap-2">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
       {steps.map(({ part, pending, failed, label }) => {
         const source = !pending && !failed && toolName(part) === "read_careers_page"
           ? (part.output?.page as { url?: string; title?: string } | null | undefined)
           : null
         return (
-          <div key={part.toolCallId} className="grid min-w-0 gap-1.5">
+          <div key={part.toolCallId} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5">
             {pending ? (
               <AiStatus state="researching" label={label} timer={false} className="text-xs" />
             ) : (
@@ -834,7 +855,7 @@ function CareersSource({ source }: { source: { url?: string; title?: string } })
   const url = new URL(source.url)
   if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) return null
   return (
-    <a href={url.href} target="_blank" rel="noreferrer" title={source.title || url.hostname} className="ms-6 inline-flex w-fit max-w-[calc(100%-1.5rem)] items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+    <a href={url.href} target="_blank" rel="noreferrer" title={source.title || url.hostname} className="ms-6 inline-flex w-fit min-w-0 max-w-[calc(100%-1.5rem)] items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
       <GlobeIcon aria-hidden className="size-3 shrink-0" />
       <span className="truncate">{source.title || url.hostname}</span>
       <ExternalLinkIcon aria-hidden className="size-3 shrink-0" />
@@ -887,7 +908,7 @@ function Markdown({ text, onNavigate, streaming }: { text: string; onNavigate: (
 function OpenButton({ path, label, onNavigate }: { path: string; label: string; onNavigate: () => void }) {
   return (
     <Button variant="outline" size="sm" className="cb-step h-auto min-h-8 w-fit max-w-full py-1.5 text-start whitespace-normal wrap-anywhere" nativeButton={false} render={<Link href={path} onClick={onNavigate} />}>
-      {label} <ArrowRightIcon />
+      {label} <ArrowRightIcon className="rtl:rotate-180" />
     </Button>
   )
 }
@@ -895,31 +916,30 @@ function OpenButton({ path, label, onNavigate }: { path: string; label: string; 
 /* ───────────────────────────── ask the user ───────────────────────────── */
 
 function AskCard({ part, onAnswer, disabled }: { part: ToolPart; onAnswer: (toolCallId: string, choice: string) => void; disabled: boolean }) {
+  const t = useTranslations("assistantChat")
   const [other, setOther] = useState("")
   const question = String(part.input?.question ?? "")
   const options = (part.input?.options as string[] | undefined) ?? []
   const answered = part.state === "output-available" ? String(part.output?.choice ?? "") : null
-  if (part.state === "input-streaming") return <PendingActivity label="Preparing a question" />
+  if (part.state === "input-streaming") return <PendingActivity label={t("preparingQuestion")} />
   return (
     <div className="cb-step grid gap-2.5 rounded-xl border bg-card p-3">
-      <p className="flex items-start gap-2 text-sm font-medium">
-        <span className="min-w-0">{question}</span>
-      </p>
+      <p className="text-sm font-medium text-pretty wrap-anywhere">{question}</p>
       {answered !== null ? (
-        <p className="flex items-start gap-1.5 ps-6 text-sm text-muted-foreground"><CheckIcon className="cb-pop mt-0.5 size-3.5 shrink-0 text-primary" /> <span className="min-w-0 wrap-anywhere">{answered}</span></p>
+        <p className="flex items-start gap-1.5 text-sm text-muted-foreground"><CheckIcon className="cb-pop mt-0.5 size-3.5 shrink-0 text-primary" /> <span className="min-w-0 wrap-anywhere">{answered}</span></p>
       ) : (
         <>
-          {options.length ? <div className="cb-stagger flex min-w-0 flex-wrap gap-1.5 ps-6">
+          {options.length ? <div className="cb-stagger grid min-w-0 gap-1.5">
             {options.map((option) => (
-              <Button key={option} size="sm" variant="outline" className="h-auto min-h-8 max-w-full py-1.5 text-start whitespace-normal wrap-anywhere" disabled={disabled} onClick={() => onAnswer(part.toolCallId, option)}>{option}</Button>
+              <Button key={option} size="sm" variant="outline" className="h-auto min-h-9 w-full justify-start py-1.5 text-start whitespace-normal wrap-anywhere" disabled={disabled} onClick={() => onAnswer(part.toolCallId, option)}>{option}</Button>
             ))}
           </div> : null}
           {!options.length || part.input?.allowOther !== false ? (
-            <form className="ps-6" onSubmit={(event) => { event.preventDefault(); if (other.trim()) onAnswer(part.toolCallId, other.trim()) }}>
+            <form onSubmit={(event) => { event.preventDefault(); if (other.trim()) onAnswer(part.toolCallId, other.trim()) }}>
               <InputGroup className="h-8">
-                <InputGroupInput value={other} onChange={(event) => setOther(event.target.value)} placeholder={options.length ? "Something else…" : "Type your answer…"} aria-label={options.length ? "Other answer" : question} disabled={disabled} />
+                <InputGroupInput value={other} onChange={(event) => setOther(event.target.value)} placeholder={options.length ? t("otherPlaceholder") : t("answerPlaceholder")} aria-label={options.length ? t("otherLabel") : question} disabled={disabled} />
                 <InputGroupAddon align="inline-end">
-                  <InputGroupButton type="submit" size="icon-xs" disabled={!other.trim() || disabled} aria-label="Send answer"><ArrowUpIcon /></InputGroupButton>
+                  <InputGroupButton type="submit" size="icon-xs" disabled={!other.trim() || disabled} aria-label={t("sendAnswer")}><ArrowUpIcon /></InputGroupButton>
                 </InputGroupAddon>
               </InputGroup>
             </form>
@@ -990,180 +1010,219 @@ function PendingActivity({ label, className, analyzing = false }: { label: strin
 /* ───────────────────────────── actions ───────────────────────────── */
 
 type Input = Record<string, unknown>
-type Action = { icon: LucideIcon; title: (input: Input) => string; details: (input: Input) => string[]; approve: string; working: string; done: (output: Input) => string; destructive?: boolean; note?: string }
+type Values = Record<string, string | number>
+/** What an action needs to describe itself in the reader's language. */
+type Ctx = {
+  /** A string of this action, e.g. `t("title", { label })`. */
+  t: (key: string, values?: Values) => string
+  /** A string shared by several actions. */
+  common: (key: string, values?: Values) => string
+  language: (code: string) => string
+  stage: (status: string) => string
+  day: (iso: string) => string
+}
+type Action = { icon: LucideIcon; title: (input: Input, c: Ctx) => string; details: (input: Input, c: Ctx) => string[]; done: (output: Input, c: Ctx) => string; destructive?: boolean }
 const s = (value: unknown) => (typeof value === "string" ? value : "")
-const LANG: Record<string, string> = { en: "English", fr: "French", de: "German", es: "Spanish", it: "Italian", pt: "Portuguese", nl: "Dutch", ar: "Arabic" }
-const STAGE: Record<string, string> = { submitted: "Sent", interviewing: "Interviewing", offer: "Offer", rejected: "Rejected", withdrawn: "Withdrawn" }
-const day = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })
-
-const PROFILE_DETAIL_LABELS: Record<string, string> = {
-  fullName: "name", email: "email", phone: "phone", location: "location", availability: "availability",
+const n = (value: unknown) => (typeof value === "number" ? value : 0)
+const list = (value: unknown) => (Array.isArray(value) ? value.map(s).filter(Boolean) : [])
+const pairs = (value: unknown) => Object.entries((value ?? {}) as Record<string, unknown>)
+/** A date range field ("2021 – present"), or plain text. */
+const fieldValue = (value: unknown, open: string) => {
+  if (typeof value !== "object" || !value) return s(value)
+  const range = value as Record<string, unknown>
+  return [s(range.start), s(range.end) || open].filter(Boolean).join(" – ")
 }
 
-function profileEditValue(value: unknown) {
-  if (value && typeof value === "object" && "label" in value && "url" in value) {
-    return `${s(value.label)} · ${s(value.url)}`
-  }
-  return s(value) || "None"
+function useActionCtx(name: string): Ctx {
+  const t = useTranslations("assistantActions")
+  const status = useTranslations("labels.status")
+  const locale = useLocale()
+  return useMemo(() => {
+    const say = (key: string, values?: Values) => t(key as never, values as never) as string
+    return {
+      t: (key, values) => say(`${name}.${key}`, values),
+      common: (key, values) => say(`common.${key}`, values),
+      language: (code) => {
+        if (!code) return ""
+        try { return new Intl.DisplayNames(locale, { type: "language" }).of(code) ?? code } catch { return code }
+      },
+      stage: (value) => (status.has(value as never) ? status(value as never) : value),
+      day: (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" }),
+    }
+  }, [t, status, locale, name])
 }
 
 const ACTIONS: Record<string, Action> = {
   edit_profile_details: {
     icon: UserPenIcon,
-    title: (i) => {
-      if (i.kind === "link") return !i.previous ? "Add a profile link" : !i.value ? "Remove a profile link" : "Update a profile link"
-      return `Update profile ${PROFILE_DETAIL_LABELS[s(i.field)] ?? "detail"}`
+    title: (i, c) => {
+      if (i.kind === "link") return c.t(!i.previous ? "titleAdd" : !i.value ? "titleRemove" : "titleLink")
+      return c.t("title", { field: s(i.field) || "other" })
     },
-    details: (i) => [`Current: ${profileEditValue(i.previous)}`, `After approval: ${profileEditValue(i.value)}`],
-    approve: "Apply change", working: "Updating profile details", done: () => "Profile updated",
+    details: (i, c) => {
+      const show = (value: unknown) => (value && typeof value === "object" && "label" in value && "url" in value ? `${s(value.label)} · ${s(value.url)}` : s(value) || c.common("none"))
+      return [c.t("current", { value: show(i.previous) }), c.t("after", { value: show(i.value) })]
+    },
+    done: (_, c) => c.t("done"),
   },
   edit_profile_entry: {
-    icon: UserPenIcon, title: (i) => s(i.label) || "Update a profile entry",
-    details: (i) => [
-      ...Object.entries((i.text ?? {}) as Record<string, unknown>).map(([key, value]) => `${key}: ${s(value) || "(cleared)"}`),
-      ...Object.entries((i.fields ?? {}) as Record<string, unknown>).map(([key, value]) => `${key}: ${typeof value === "object" && value ? [s((value as Record<string, unknown>).start), s((value as Record<string, unknown>).end)].filter(Boolean).join(" – ") : s(value) || "(cleared)"}`),
+    icon: UserPenIcon, title: (i, c) => s(i.label) || c.t("title"),
+    details: (i, c) => [
+      ...pairs(i.text).map(([key, value]) => c.common("line", { key, value: s(value) || c.common("cleared") })),
+      ...pairs(i.fields).map(([key, value]) => c.common("line", { key, value: fieldValue(value, "") || c.common("cleared") })),
     ],
-    approve: "Apply change", working: "Updating the entry", done: (o) => `Updated ${s(o.name)}`,
+    done: (o, c) => c.t("done", { name: s(o.name) }),
   },
   create_profile_entry: {
-    icon: UserPenIcon, title: (i) => `Add to your profile · ${s(i.label)}`,
-    details: (i) => [
-      ...Object.entries((i.text ?? {}) as Record<string, unknown>).map(([key, value]) => `${key}: ${s(value)}`),
-      ...Object.entries((i.fields ?? {}) as Record<string, unknown>).map(([key, value]) => `${key}: ${typeof value === "object" && value ? [s((value as Record<string, unknown>).start), s((value as Record<string, unknown>).end) || "present"].filter(Boolean).join(" – ") : s(value)}`),
-      ...(Array.isArray(i.facts) ? i.facts.map((fact) => `• ${s(fact)}`) : []),
-      Array.isArray(i.skills) && i.skills.length ? `Skills: ${i.skills.join(", ")}` : "",
+    icon: UserPenIcon, title: (i, c) => c.t("title", { label: s(i.label) }),
+    details: (i, c) => [
+      ...pairs(i.text).map(([key, value]) => c.common("line", { key, value: s(value) })),
+      ...pairs(i.fields).map(([key, value]) => c.common("line", { key, value: fieldValue(value, c.common("present")) })),
+      ...list(i.facts).map((fact) => `• ${fact}`),
+      list(i.skills).length ? c.common("skills", { list: list(i.skills).join(", ") }) : "",
     ],
-    approve: "Add entry", working: "Adding to your profile", done: (o) => `Added ${s(o.name)}`,
+    done: (o, c) => c.t("done", { name: s(o.name) }),
   },
   add_profile_fact: {
-    icon: UserPenIcon, title: (i) => `Add a fact to ${s(i.label)}`,
-    details: (i) => [s(i.statement), Array.isArray(i.skills) && i.skills.length ? `Skills: ${i.skills.join(", ")}` : ""],
-    approve: "Save fact", working: "Updating the profile",
-    done: (o) => o.added || o.skillsAdded ? o.verified ? "Profile updated" : "Saved. Entry needs verification." : "Already on this entry",
+    icon: UserPenIcon, title: (i, c) => c.t("title", { label: s(i.label) }),
+    details: (i, c) => [s(i.statement), list(i.skills).length ? c.common("skills", { list: list(i.skills).join(", ") }) : ""],
+    done: (o, c) => c.t(o.added || o.skillsAdded ? (o.verified ? "done" : "doneUnverified") : "doneExisting"),
   },
   update_application: {
-    icon: CalendarClockIcon, title: (i) => s(i.label) || "Update application",
-    details: (i) => [i.status ? `Stage → ${STAGE[s(i.status)]}` : "", i.nextStep ? `Next step → ${s(i.nextStep)}` : "", i.nextStepDue ? `Due → ${day(s(i.nextStepDue))}` : "", i.archived === true ? "Archive it" : i.archived === false ? "Restore it" : ""],
-    approve: "Apply", working: "Updating", done: () => "Updated",
+    icon: CalendarClockIcon, title: (i, c) => s(i.label) || c.t("title"),
+    details: (i, c) => [
+      i.status ? c.t("stage", { value: c.stage(s(i.status)) }) : "",
+      i.nextStep ? c.t("nextStep", { value: s(i.nextStep) }) : "",
+      i.nextStepDue ? c.t("due", { value: c.day(s(i.nextStepDue)) }) : "",
+      i.archived === true ? c.t("archive") : i.archived === false ? c.t("restore") : "",
+    ],
+    done: (_, c) => c.t("done"),
   },
   add_job_from_link: {
-    icon: BriefcaseBusinessIcon, title: () => "Add this job", details: (i) => [s(i.url) || "From the pasted posting"],
-    approve: "Read and save", working: "Reading the posting", done: (o) => (o.saved ? `Saved ${s(o.title)}${o.company ? ` at ${s(o.company)}` : ""}` : "Already saved, nothing added"),
+    icon: BriefcaseBusinessIcon, title: (_, c) => c.t("title"), details: (i, c) => [s(i.url) || c.t("detail")],
+    done: (o, c) => (!o.saved ? c.t("doneExisting") : o.company ? c.t("doneAt", { title: s(o.title), company: s(o.company) }) : c.t("done", { title: s(o.title) })),
   },
   start_application: {
-    icon: GaugeIcon, title: (i) => `Start application · ${s(i.label)}`, details: () => ["Analyzes your fit against your verified facts"],
-    approve: "Check fit", working: "Checking your fit", done: (o) => (typeof o.fit === "number" ? `Application started · fit ${o.fit}` : "Application started"),
+    icon: GaugeIcon, title: (i, c) => c.t("title", { label: s(i.label) }), details: (_, c) => [c.t("detail")],
+    done: (o, c) => (typeof o.fit === "number" ? c.t("doneFit", { fit: o.fit }) : c.t("done")),
   },
   draft_cv: {
-    icon: FileTextIcon, title: (i) => `Draft CV · ${s(i.label)}`, details: (i) => [LANG[s(i.language)] ?? s(i.language), "Only from verified facts"],
-    approve: "Draft CV", working: "Drafting the CV (about a minute)", done: () => "CV drafted",
+    icon: FileTextIcon, title: (i, c) => c.t("title", { label: s(i.label) }), details: (i, c) => [c.language(s(i.language)), c.t("detail")],
+    done: (_, c) => c.t("done"),
   },
   draft_letter: {
-    icon: MailIcon, title: (i) => `Draft cover letter · ${s(i.label)}`, details: (i) => [LANG[s(i.language)] ?? s(i.language), s(i.notes)],
-    approve: "Draft cover letter", working: "Drafting the cover letter", done: () => "Cover letter drafted",
+    icon: MailIcon, title: (i, c) => c.t("title", { label: s(i.label) }), details: (i, c) => [c.language(s(i.language)), s(i.notes)],
+    done: (_, c) => c.t("done"),
   },
   research_company: {
-    icon: GlobeIcon, title: (i) => `Research · ${s(i.label)}`, details: () => ["Reads the company’s public website"],
-    approve: "Research", working: "Reading their website", done: (o) => (o.researched ? "Research ready" : "Couldn’t find enough on their site"),
+    icon: GlobeIcon, title: (i, c) => c.t("title", { label: s(i.label) }), details: (_, c) => [c.t("detail")],
+    done: (o, c) => c.t(o.researched ? "done" : "doneEmpty"),
   },
   add_contact: {
-    icon: UserPlusIcon, title: (i) => `Add ${s(i.name)}`, details: (i) => [[s(i.title), s(i.companyName)].filter(Boolean).join(" · "), s(i.email) || s(i.linkedinUrl)],
-    approve: "Add contact", working: "Adding", done: () => "Added to contacts",
+    icon: UserPlusIcon, title: (i, c) => c.t("title", { name: s(i.name) }), details: (i) => [[s(i.title), s(i.companyName)].filter(Boolean).join(" · "), s(i.email) || s(i.linkedinUrl)],
+    done: (_, c) => c.t("done"),
   },
   update_contact: {
-    icon: UserPenIcon, title: (i) => `Update ${s(i.name) || "contact"}`, details: (i) => Object.entries(i).filter(([key, value]) => key !== "id" && value).map(([key, value]) => `${key === "companyName" ? "Company" : key[0].toUpperCase() + key.slice(1)} → ${String(value)}`),
-    approve: "Save", working: "Saving", done: () => "Contact updated",
+    icon: UserPenIcon, title: (i, c) => (s(i.name) ? c.t("title", { name: s(i.name) }) : c.t("titleFallback")),
+    details: (i, c) => Object.entries(i).filter(([key, value]) => key !== "id" && value).map(([key, value]) => c.t("field", { field: key, value: String(value) })),
+    done: (_, c) => c.t("done"),
   },
   set_entry_status: {
     icon: BadgeCheckIcon,
-    title: (i) => `${{ verified: "Verify", needs_review: "Send back to review", archived: "Archive" }[s(i.status)] ?? "Update"} · ${s(i.label)}`,
-    details: (i) => [s(i.status) === "verified" ? "Its facts can then be used in your CVs and letters" : s(i.status) === "archived" ? "Hidden from your profile and documents, kept in the archive" : "Its facts won't be used until you verify it again"],
-    approve: "Apply", working: "Updating the entry", done: (o) => `${s(o.name)} is now ${s(o.status).replace("_", " ")}`,
+    title: (i, c) => c.t("title", { status: s(i.status) || "other", label: s(i.label) }),
+    details: (i, c) => [c.t("detail", { status: s(i.status) || "other" })],
+    done: (o, c) => c.t("done", { name: s(o.name), status: s(o.status) || "other" }),
   },
   delete_profile_entry: {
-    icon: Trash2Icon, title: (i) => `Delete ${s(i.label)}`, details: () => ["Deletes the entry with its facts and CV lines. This can't be undone."],
-    approve: "Delete", working: "Deleting", done: (o) => `Deleted ${s(o.name)}`, destructive: true,
+    icon: Trash2Icon, title: (i, c) => c.t("title", { label: s(i.label) }), details: (_, c) => [c.t("detail")],
+    done: (o, c) => c.t("done", { name: s(o.name) }), destructive: true,
   },
   edit_profile_fact: {
-    icon: UserPenIcon, title: (i) => s(i.statement) ? `Reword a fact · ${s(i.label)}` : `Remove a fact · ${s(i.label)}`,
-    details: (i) => [s(i.statement) ? `New wording: ${s(i.statement)}` : "The fact is removed and unlinked from your CV lines"],
-    approve: "Apply", working: "Updating the fact", done: (o) => (o.removed ? "Fact removed" : "Fact updated"), destructive: false,
+    icon: UserPenIcon, title: (i, c) => c.t(s(i.statement) ? "title" : "titleRemove", { label: s(i.label) }),
+    details: (i, c) => [s(i.statement) ? c.t("detail", { statement: s(i.statement) }) : c.t("detailRemove")],
+    done: (o, c) => c.t(o.removed ? "doneRemoved" : "done"),
   },
   remove_entry_skills: {
-    icon: UserPenIcon, title: (i) => `Remove skills · ${s(i.label)}`, details: (i) => [Array.isArray(i.skills) ? i.skills.join(", ") : ""],
-    approve: "Remove", working: "Updating skills", done: (o) => `Removed ${typeof o.removed === "number" ? o.removed : 0} skill(s)`,
+    icon: UserPenIcon, title: (i, c) => c.t("title", { label: s(i.label) }), details: (i) => [list(i.skills).join(", ")],
+    done: (o, c) => c.t("done", { count: n(o.removed) }),
   },
   set_entry_guards: {
-    icon: ShieldIcon, title: (i) => s(i.label) || "Update NDA and rules",
-    details: (i) => [
-      i.confidential === true ? "Mark as NDA: documents stay high-level about it" : i.confidential === false ? "Remove the NDA mark" : "",
-      ...(Array.isArray(i.addRules) ? i.addRules.map((rule) => `+ ${s(rule)}`) : []),
-      ...(Array.isArray(i.removeRules) ? i.removeRules.map((rule) => `− ${s(rule)}`) : []),
+    icon: ShieldIcon, title: (i, c) => s(i.label) || c.t("title"),
+    details: (i, c) => [
+      i.confidential === true ? c.t("nda") : i.confidential === false ? c.t("ndaOff") : "",
+      ...list(i.addRules).map((rule) => `+ ${rule}`),
+      ...list(i.removeRules).map((rule) => `− ${rule}`),
     ],
-    approve: "Apply", working: "Updating the entry", done: () => "Entry updated",
+    done: (_, c) => c.t("done"),
   },
   save_search_goal: {
-    icon: TargetIcon, title: (i) => s(i.label) || "Update a search goal",
-    details: (i) => {
-      if (i.remove === true) return ["Remove this goal"]
+    icon: TargetIcon, title: (i, c) => s(i.label) || c.t("title"),
+    details: (i, c) => {
+      if (i.remove === true) return [c.t("remove")]
       const goal = (i.goal ?? {}) as Record<string, unknown>
-      const list = (key: string) => (Array.isArray(goal[key]) ? (goal[key] as unknown[]).map(s).filter(Boolean).join(", ") : "")
-      return [s(goal.name), list("roles") && `Roles: ${list("roles")}`, list("contracts") && `Contracts: ${list("contracts")}`, list("places") && `Places: ${list("places")}`, list("workModes") && `Work mode: ${list("workModes")}`, s(goal.startFrom) && `Start: ${s(goal.startFrom)}`].filter(Boolean) as string[]
+      const row = (key: string) => (list(goal[key]).length ? c.t(key, { list: list(goal[key]).join(", ") }) : "")
+      return [s(goal.name), row("roles"), row("contracts"), row("places"), row("workModes"), s(goal.startFrom) ? c.t("start", { value: s(goal.startFrom) }) : ""]
     },
-    approve: "Save goal", working: "Saving your goals", done: () => "Goals updated",
+    done: (_, c) => c.t("done"),
   },
   import_profile_text: {
-    icon: FileUpIcon, title: (i) => `Import into your profile · ${s(i.label)}`, details: (i) => [`${s(i.text).length.toLocaleString()} characters`, "Creates new entries with facts and skills, skips ones you already have. New entries need review."],
-    approve: "Import", working: "Reading and importing", done: (o) => `${typeof o.created === "number" ? o.created : 0} entr${o.created === 1 ? "y" : "ies"} added${o.skipped ? `, ${o.skipped} already there` : ""}`,
+    icon: FileUpIcon, title: (i, c) => c.t("title", { label: s(i.label) }), details: (i, c) => [c.t("chars", { count: s(i.text).length }), c.t("detail")],
+    done: (o, c) => (o.skipped ? c.t("doneSkipped", { created: n(o.created), skipped: n(o.skipped) }) : c.t("done", { created: n(o.created) })),
   },
   dismiss_job_leads: {
-    icon: ArchiveIcon, title: (i) => s(i.label) || "Dismiss job leads", details: (i) => [`${Array.isArray(i.leadIds) ? i.leadIds.length : 0} lead(s)`],
-    approve: "Dismiss", working: "Dismissing", done: (o) => `Dismissed ${typeof o.dismissed === "number" ? o.dismissed : 0}`,
+    icon: ArchiveIcon, title: (i, c) => s(i.label) || c.t("title"), details: (i, c) => [c.t("detail", { count: Array.isArray(i.leadIds) ? i.leadIds.length : 0 })],
+    done: (o, c) => c.t("done", { count: n(o.dismissed) }),
   },
   tag_job: {
-    icon: TagIcon, title: (i) => `Tags · ${s(i.label)}`, details: (i) => [Array.isArray(i.tags) && i.tags.length ? i.tags.join(", ") : "No tags"],
-    approve: "Apply", working: "Tagging", done: () => "Tags updated",
+    icon: TagIcon, title: (i, c) => c.t("title", { label: s(i.label) }), details: (i, c) => [list(i.tags).length ? list(i.tags).join(", ") : c.t("none")],
+    done: (_, c) => c.t("done"),
   },
   revise_cv: {
-    icon: FileTextIcon, title: (i) => `Revise CV · ${s(i.label)}`, details: (i) => [s(i.request), `${LANG[s(i.language)] ?? s(i.language)} CV · checked against your verified facts, saved as a new revision`],
-    approve: "Revise", working: "Revising the CV", done: (o) => (o.changed ? `CV revised · score ${String(o.scoreBefore)} → ${String(o.scoreAfter)}` : s(o.note) || "No change needed"),
+    icon: FileTextIcon, title: (i, c) => c.t("title", { label: s(i.label) }), details: (i, c) => [s(i.request), c.t("detail", { language: c.language(s(i.language)) })],
+    done: (o, c) => (o.changed ? c.t("done", { before: String(o.scoreBefore), after: String(o.scoreAfter) }) : s(o.note) || c.t("doneNone")),
   },
   unlink_contact: {
-    icon: UnlinkIcon, title: (i) => s(i.label) || "Unlink contact", details: () => ["The contact stays in your contacts"],
-    approve: "Unlink", working: "Unlinking", done: () => "Unlinked",
+    icon: UnlinkIcon, title: (i, c) => s(i.label) || c.t("title"), details: (_, c) => [c.t("detail")],
+    done: (_, c) => c.t("done"),
   },
   delete_contact: {
-    icon: Trash2Icon, title: (i) => `Delete ${s(i.name)}`, details: () => ["Removes them from Naruvi and their links to applications"],
-    approve: "Delete", working: "Deleting", done: () => "Deleted", destructive: true,
+    icon: Trash2Icon, title: (i, c) => c.t("title", { name: s(i.name) }), details: (_, c) => [c.t("detail")],
+    done: (_, c) => c.t("done"), destructive: true,
   },
   link_contact: {
-    icon: LinkIcon, title: (i) => s(i.label) || "Link contact", details: (i) => [s(i.role) ? `As ${s(i.role)}` : ""],
-    approve: "Link", working: "Linking", done: () => "Linked",
+    icon: LinkIcon, title: (i, c) => s(i.label) || c.t("title"), details: (i, c) => [s(i.role) ? c.t("detail", { role: s(i.role) }) : ""],
+    done: (_, c) => c.t("done"),
   },
   find_contact_email: {
-    icon: MailSearchIcon, title: (i) => `Find ${s(i.name)}’s email`, details: (i) => [s(i.website) ? `Website → ${s(i.website)}` : "", "Sends their name and company domain to Hunter.io"],
-    approve: "Find email", working: "Looking it up", done: (o) => (o.needsWebsite ? `Needs ${s(o.company)}’s website first` : o.email ? `Found ${s(o.email)}${typeof o.confidence === "number" ? ` · ${o.confidence}% confidence` : ""}` : "No email found"),
+    icon: MailSearchIcon, title: (i, c) => c.t("title", { name: s(i.name) }), details: (i, c) => [s(i.website) ? c.common("website", { url: s(i.website) }) : "", c.t("detail")],
+    done: (o, c) => (o.needsWebsite ? c.t("doneNeedsWebsite", { company: s(o.company) }) : !o.email ? c.t("doneNone") : typeof o.confidence === "number" ? c.t("doneConfidence", { email: s(o.email), confidence: o.confidence }) : c.t("done", { email: s(o.email) })),
   },
   add_company: {
-    icon: Building2Icon, title: (i) => `Add ${s(i.name)}`, details: (i) => [s(i.website) ? `Website → ${s(i.website)}` : "No website yet"],
-    approve: "Add company", working: "Adding the company", done: () => "Company added",
+    icon: Building2Icon, title: (i, c) => c.t("title", { name: s(i.name) }), details: (i, c) => [s(i.website) ? c.common("website", { url: s(i.website) }) : c.t("noWebsite")],
+    done: (_, c) => c.t("done"),
   },
   set_company_website: {
-    icon: GlobeIcon, title: (i) => `${s(i.name)}’s website`, details: (i) => [`Website → ${s(i.website)}`],
-    approve: "Save website", working: "Saving", done: (o) => `Saved ${s(o.website)}`,
+    icon: GlobeIcon, title: (i, c) => c.t("title", { name: s(i.name) }), details: (i, c) => [c.common("website", { url: s(i.website) })],
+    done: (o, c) => c.t("done", { website: s(o.website) }),
   },
   spontaneous_application: {
-    icon: SendIcon, title: (i) => `Spontaneous application · ${s(i.companyName)}`, details: (i) => [s(i.role) || "Open application", LANG[s(i.language)] ?? "", s(i.context), s(i.careersUrl)],
-    approve: "Create", working: "Creating the application", done: () => "Application created",
+    icon: SendIcon, title: (i, c) => c.t("title", { company: s(i.companyName) }), details: (i, c) => [s(i.role) || c.t("open"), c.language(s(i.language)), s(i.context), s(i.careersUrl)],
+    done: (_, c) => c.t("done"),
   },
 }
 
+/** An action has not settled while it is being written, awaits an answer, or runs. */
+const settled = (part: ToolPart) => part.state === "output-available" || part.state === "output-error" || part.state === "output-denied" || (part.state === "approval-responded" && part.approval?.approved === false)
+
 function ActionCard({ part, busy, stale, onApproval, onNavigate }: { part: ToolPart; busy: boolean; stale: boolean; onApproval: (id: string, approved: boolean) => void; onNavigate: () => void }) {
-  const action = ACTIONS[toolName(part)]
+  const name = toolName(part)
+  const action = ACTIONS[name]
+  const c = useActionCtx(name)
+  const t = useTranslations("assistantChat")
   const input = part.input ?? {}
-  if (part.state === "input-streaming") return busy ? <PendingActivity label="Preparing a suggestion" /> : null
+  if (part.state === "input-streaming") return busy ? <PendingActivity label={t("preparing")} /> : null
   const Icon = action.icon
-  const details = action.details(input).filter(Boolean)
+  const details = action.details(input, c).filter(Boolean)
   const state = part.state
   // A suggestion the conversation moved past without an answer counts as skipped.
   const skipped = state === "approval-requested" && stale
@@ -1173,52 +1232,57 @@ function ActionCard({ part, busy, stale, onApproval, onNavigate }: { part: ToolP
   const done = state === "output-available"
   const failed = state === "output-error"
   const href = done && typeof part.output?.href === "string" ? part.output.href : null
-  const title = action.title(input)
+  const title = action.title(input, c)
   const approvalId = part.approval?.id
 
   if (asking && approvalId) {
     return (
       <AIToolApproval
         className="cb-step max-w-none"
-        calls={[{ id: approvalId, tool: toolName(part), title, input: details, destructive: action.destructive, approveLabel: action.approve, state: "approval-requested", icon: <Icon className="size-3.5" /> }]}
+        labels={{ needsApproval: t("needsApproval"), notNow: t("notNow"), hold: t("hold"), holdLabel: t("holdLabel"), destructive: t("destructive") }}
+        calls={[{ id: approvalId, tool: name, title, input: details, destructive: action.destructive, approveLabel: c.t("approve"), state: "approval-requested", icon: <Icon className="size-3.5" /> }]}
         onRespond={(id, approved) => onApproval(id, approved)}
       />
     )
   }
 
+  // Settled: the outcome leads, what was asked sits under it, and the next place to go is one press away.
   if (done || declined) {
-    const Icon = done ? CheckIcon : BanIcon
     return (
-      <div className="flex min-w-0 items-start gap-2 rounded-lg border bg-muted/25 p-2 text-xs">
-        <Icon aria-hidden className="mt-1 size-3.5 shrink-0 text-muted-foreground" />
-        <details className="min-w-0 flex-1">
-          <summary className="cursor-pointer rounded-sm py-0.5 font-medium focus-visible:outline-2 focus-visible:outline-ring">
-            {title} <span className="font-normal text-muted-foreground">· {done ? action.done(part.output ?? {}) : skipped ? "Skipped" : "Declined"}</span>
+      <div className="cb-step flex min-w-0 items-center gap-2.5 rounded-xl border bg-card p-2.5">
+        <IconTile variant="soft" size="sm" className={cn("self-start", done ? "text-success" : "text-muted-foreground")}>
+          {done ? <CheckIcon aria-hidden className="cb-pop" /> : <BanIcon aria-hidden />}
+        </IconTile>
+        <details className="group/details min-w-0 flex-1 text-sm">
+          <summary className={cn("grid list-none gap-0.5 rounded-sm focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden", details.length ? "cursor-pointer" : "pointer-events-none")} tabIndex={details.length ? undefined : -1}>
+            <span className="leading-snug font-medium wrap-anywhere">{done ? action.done(part.output ?? {}, c) : title}</span>
+            <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+              <span className="truncate">{done ? title : skipped ? t("skipped") : t("declined")}</span>
+              {details.length ? <ChevronDownIcon aria-label={t("details")} className="size-3 shrink-0 transition-transform duration-150 group-open/details:rotate-180 motion-reduce:transition-none" /> : null}
+            </span>
           </summary>
-          {details.length ? <ul className="mt-1.5 grid gap-1 text-muted-foreground">{details.map((line, index) => <li key={index}>{line}</li>)}</ul> : null}
+          {details.length ? <ul className="mt-1.5 grid gap-1 border-t pt-1.5 text-xs text-muted-foreground">{details.map((line, index) => <li key={index} className="wrap-anywhere">{line}</li>)}</ul> : null}
         </details>
-        {href ? <Button size="xs" variant="outline" nativeButton={false} render={<Link href={href} onClick={onNavigate} />}>Open <ArrowRightIcon /></Button> : null}
+        {href ? <Button size="sm" className="shrink-0 self-start" nativeButton={false} render={<Link href={href} onClick={onNavigate} />}>{t("open")} <ArrowRightIcon className="rtl:rotate-180" /></Button> : null}
       </div>
     )
   }
 
   return (
-    <div className={cn("cb-step grid gap-2 rounded-xl border bg-card p-3 text-sm transition-colors", asking && "border-foreground/25")}>
+    <div className={cn("cb-step grid gap-2 rounded-xl border bg-card p-2.5 text-sm", failed && "border-destructive/30")}>
       <div className="flex items-start gap-2.5">
-        <span className={cn("mt-px flex size-7 shrink-0 items-center justify-center rounded-md border bg-muted/40", action.destructive && "text-destructive")}>
-          <Icon className="size-3.5" />
-        </span>
+        <IconTile variant="soft" size="sm" className={failed || action.destructive ? "text-destructive" : "text-muted-foreground"}>
+          {failed ? <CircleAlertIcon aria-hidden /> : <Icon aria-hidden />}
+        </IconTile>
         <div className="grid min-w-0 flex-1 gap-0.5">
-          <span className="font-medium break-words">{title}</span>
-          {details.map((line) => <span key={line} className="text-xs break-words text-muted-foreground">{line}</span>)}
+          <span className="leading-snug font-medium wrap-anywhere">{title}</span>
+          {details.map((line) => <span key={line} className="text-xs wrap-anywhere text-muted-foreground">{line}</span>)}
         </div>
       </div>
-
-
-      {running && busy ? (
-        <PendingActivity analyzing label={action.working} className="ps-9.5" />
+      {running && busy ? <PendingActivity analyzing label={c.t("working")} className="ps-10.5" /> : null}
+      {failed ? (
+        <p role="alert" className="ps-10.5 text-xs font-medium text-destructive wrap-anywhere">{part.errorText || t("failed")}</p>
       ) : null}
-      {failed ? <p className="flex items-start gap-1.5 ps-9.5 text-xs text-destructive"><CircleAlertIcon className="mt-px size-3.5 shrink-0" /> {part.errorText || "That didn’t work."}</p> : null}
     </div>
   )
 }
