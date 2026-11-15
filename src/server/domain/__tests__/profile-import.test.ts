@@ -104,7 +104,7 @@ test("import: links, dates and levels come from the CV, never from the model's c
       { kind: "experience", text: { position: "Senior Engineer", location: "London" }, fields: { company: "Monzo", dates: { start: "2021-04", end: "present" } }, datesText: "Mar 2021 – Present", facts: ["Mentored 5 engineers."], skills: [], bullets: [] },
       // A season is not a month.
       { kind: "experience", text: { position: "Intern", location: "Cambridge" }, fields: { company: "Arm", dates: { start: "2017-06", end: "2017-08" } }, datesText: "été 2017", facts: [], skills: [], bullets: [] },
-      { kind: "event", text: { title: "Ledgers at scale", location: "London" }, fields: { event: "GopherCon UK 2022", date: "2022", url: "https://gophercon.example/2022" }, facts: [], skills: [], bullets: [] },
+      { kind: "event", text: { title: "Ledgers at scale", location: "London" }, fields: { event: "GopherCon UK 2022", url: "https://gophercon.example/2022" }, facts: [], skills: [], bullets: [] },
       { kind: "language", text: { language: "English" }, fields: { level: "C2" }, levelText: "native" },
       { kind: "language", text: { language: "French" }, fields: {}, levelText: "" },
       { kind: "language", text: { language: "Yoruba" }, fields: { level: "B2" }, levelText: "conversational" },
@@ -121,6 +121,7 @@ test("import: links, dates and levels come from the CV, never from the model's c
   assert.deepEqual(senior.fields.dates, { start: "2021-03", end: "present" })
   assert.deepEqual(intern.fields.dates, { start: "2017" })
   assert.equal(talk.kind, "event")
+  // The year in the event's name is its date; an address the CV doesn't have is dropped.
   assert.deepEqual(talk.fields, { event: "GopherCon UK 2022", date: "2022" })
   assert.deepEqual([english, french, yoruba, welsh].map((entry) => entry.fields.level), ["native", "B2", "B1", undefined])
   assert.deepEqual(result.unread, [])

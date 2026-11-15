@@ -9,7 +9,7 @@ import { extractNumbers } from "@/server/domain/grounding"
 import type { CompletionInput, Completion } from "@/server/llm/transport"
 import { fieldGuide, importedFieldsSchema, KIND_FIELDS, looseFields, type EntryFields, type EntryKind } from "@/lib/entry-fields"
 import { entryKinds } from "./schemas"
-import { groundDates, groundIdentity, groundLevel, groundLink, groundMonth, sourceLinks, unreadLines, type SourceLink } from "@/lib/cv-ground"
+import { groundDates, groundIdentity, groundLevel, groundLink, groundMonth, linkKey, sourceLinks, unreadLines, type SourceLink } from "@/lib/cv-ground"
 import { splitForReading } from "@/lib/cv-sections"
 
 export const IMPORT_PROMPT_VERSION = "profile-import-v5"
@@ -96,13 +96,21 @@ function tidy(item: RawEntry, language: string, source: Source): Pick<ImportedEn
   const written = item.datesText.trim() || (typeof raw.dates === "string" ? raw.dates : typeof raw.issued === "string" && !/^\d{4}(-\d{2})?$/.test(raw.issued) ? raw.issued : typeof raw.date === "string" && !/^\d{4}(-\d{2})?$/.test(raw.date) ? raw.date : "")
   for (const spec of KIND_FIELDS[kind]) {
     if (spec.type === "dates") raw[spec.key] = groundDates(raw[spec.key], written, source.text)
-    else if (spec.type === "url") raw[spec.key] = typeof raw[spec.key] === "string" ? groundLink(raw[spec.key] as string, source.links) ?? undefined : undefined
+    else if (spec.type === "url") {
+      const url = typeof raw[spec.key] === "string" ? groundLink(raw[spec.key] as string, source.links) : null
+      // A project's address cut back to the person's profile ("github.com/me"): the CV's longer address that names the project is the one meant.
+      const name = typeof raw.name === "string" ? raw.name.trim().toLowerCase() : ""
+      const longer = url && name ? source.links.find((link) => linkKey(link).startsWith(`${linkKey(url)}/`) && linkKey(link).includes(name)) : undefined
+      raw[spec.key] = longer ?? url ?? undefined
+    }
   }
+  // "PyData Berlin 2023": the year in an event's name is its date when the model gave none.
+  const eventYear = kind === "event" && !written && !raw.date ? [raw.event, text.title].map((value) => (typeof value === "string" ? value.match(/(?<!\d)(?:19|20)\d{2}(?!\d)/)?.[0] : undefined)).find(Boolean) : undefined
   if (kind === "certification") {
     const issued = groundMonth(raw.issued, written, source.text)
     raw.issued = issued.point
     raw.expires = groundMonth(raw.expires, "", source.text).point ?? issued.end
-  } else if (kind === "achievement" || kind === "event") raw.date = groundMonth(raw.date, written, source.text).point
+  } else if (kind === "achievement" || kind === "event") raw.date = groundMonth(raw.date, written || eventYear || "", source.text).point
   else if (kind === "language") {
     const level = groundLevel({ level: raw.level, test: raw.test }, item.levelText || (typeof raw.level === "string" && !/^(native|[ABC][12])$/.test(raw.level) ? raw.level : ""), source.text, text.language ?? "")
     raw.level = level.level

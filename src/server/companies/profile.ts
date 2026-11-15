@@ -37,29 +37,60 @@ export async function setCompanyFactsEnabled(enabled: boolean) {
   await db.insert(settings).values({ key: SETTING_KEY, value: { enabled } }).onConflictDoUpdate({ target: settings.key, set: { value: { enabled }, updatedAt: new Date() } })
 }
 
-/** Wikidata answers 429 to bursts: its requests go out one at a time, a beat apart, and a refusal is retried once. */
-let wikidataGate: Promise<void> = Promise.resolve()
+/**
+ * Wikimedia's APIs (Wikidata, Wikipedia) allow anonymous clients about ten
+ * calls in a rolling window of some twenty seconds, then refuse for a while.
+ * Calls are spaced, kept under that budget (waiting when it is spent), and a
+ * refusal is retried after the delay the server asks for.
+ */
+const WIKIMEDIA = /(^|\.)(wikidata|wikipedia)\.org$/
+const BUDGET = { calls: 7, windowMs: 26_000, spacingMs: 300 }
+const recent: number[] = []
+/** Set when the server refuses: every call waits it out, not only the one refused. */
+let blockedUntil = 0
+let gate: Promise<void> = Promise.resolve()
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
-function wikidataTurn(): Promise<void> {
-  const turn = wikidataGate
-  wikidataGate = turn.then(() => pause(250))
+function wikimediaTurn(): Promise<void> {
+  const turn = gate.then(async () => {
+    if (blockedUntil > Date.now()) await pause(blockedUntil - Date.now())
+    const now = Date.now()
+    while (recent.length && now - recent[0] > BUDGET.windowMs) recent.shift()
+    if (recent.length >= BUDGET.calls) await pause(recent[0] + BUDGET.windowMs - now)
+    recent.push(Date.now())
+    if (recent.length > BUDGET.calls) recent.shift()
+  })
+  gate = turn.then(() => pause(BUDGET.spacingMs), () => undefined)
   return turn
 }
 
 export async function getJson(url: string): Promise<unknown> {
-  const wikidata = new URL(url).hostname === "www.wikidata.org"
+  const wikimedia = WIKIMEDIA.test(new URL(url).hostname) && new URL(url).pathname.startsWith("/w/")
   for (let attempt = 0; ; attempt += 1) {
-    if (wikidata) await wikidataTurn()
+    if (wikimedia) await wikimediaTurn()
     const response = await fetch(url, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(TIMEOUT), cache: "no-store" })
-    // A short wait is worth it; a long one is not: the caller falls back or goes without.
-    const wait = Number(response.headers.get("retry-after")) * 1000 || 1500 * (attempt + 1)
-    if (response.status === 429 && attempt < 2 && wait <= 4000) {
+    const wait = Number(response.headers.get("retry-after")) * 1000 || 2000 * (attempt + 1)
+    if (response.status === 429 && attempt < 3 && wait <= 20_000) {
+      blockedUntil = Math.max(blockedUntil, Date.now() + wait)
       await pause(wait)
       continue
     }
     if (!response.ok) throw new Error(`${new URL(url).hostname} answered ${response.status}`)
     return response.json()
   }
+}
+
+/**
+ * One Wikidata item from its own data page. Those pages are served from
+ * cache and do not count against the API's budget, so details are read here
+ * and the API is kept for searching.
+ */
+export async function entityData(id: string): Promise<Entity | null> {
+  if (!/^Q\d+$/.test(id)) return null
+  const response = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${id}.json`, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(TIMEOUT), cache: "no-store" })
+  if (!response.ok) throw new Error(`wikidata.org answered ${response.status}`)
+  const data = (await response.json()) as { entities?: Record<string, Entity> }
+  // A redirected item comes back under its new id.
+  return data.entities?.[id] ?? Object.values(data.entities ?? {})[0] ?? null
 }
 
 export const normalize = (name: string) =>
@@ -94,21 +125,15 @@ export async function entities(ids: string[]): Promise<Record<string, Entity>> {
     const data = (await getJson(url)) as { entities?: Record<string, Entity> }
     return data.entities ?? {}
   } catch {
-    // The API refuses bursts; each item's own data page is served from cache and is not limited the same way.
-    const pages = await Promise.allSettled(wanted.slice(0, 12).map(async (id) => {
-      const response = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${id}.json`, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(TIMEOUT), cache: "no-store" })
-      if (!response.ok) throw new Error(`wikidata.org answered ${response.status}`)
-      const data = (await response.json()) as { entities?: Record<string, Entity> }
-      // A redirected item comes back under its new id.
-      return [id, data.entities?.[id] ?? Object.values(data.entities ?? {})[0]] as const
-    }))
-    const found = pages.flatMap((page) => (page.status === "fulfilled" && page.value[1] ? [page.value] : []))
+    // The API is refusing: read each item's own data page instead.
+    const pages = await Promise.allSettled(wanted.slice(0, 12).map(async (id) => [id, await entityData(id)] as const))
+    const found = pages.flatMap((page) => (page.status === "fulfilled" && page.value[1] ? [[page.value[0], page.value[1]] as const] : []))
     if (!found.length) throw new Error("www.wikidata.org is not answering")
     return Object.fromEntries(found)
   }
 }
 
-async function fromWikidata(name: string, website: string | null): Promise<Omit<CompanyProfile, "fetchedAt" | "sources"> & { url: string; name: string; website: string | null } | null> {
+async function fromWikidata(name: string, website: string | null): Promise<Omit<CompanyProfile, "fetchedAt" | "sources"> & { url: string } | null> {
   const search = (await getJson(`https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&type=item&limit=7&language=en&search=${encodeURIComponent(name)}`)) as { search?: { id: string }[] }
   const candidates = await entities((search.search ?? []).map((item) => item.id))
   const host = website ? bareHost(website) : null
@@ -159,8 +184,7 @@ async function fromWikidata(name: string, website: string | null): Promise<Omit<
   if (wiki) links.push({ label: "Wikipedia", url: `https://${entity.sitelinks?.enwiki ? "en" : "fr"}.wikipedia.org/wiki/${encodeURIComponent(wiki.replace(/ /g, "_"))}` })
 
   const description = entity.descriptions?.en?.value ?? entity.descriptions?.fr?.value ?? null
-  const site = values(entity, "P856").map(String).find((url) => /^https?:\/\//.test(url)) ?? null
-  return { description, facts, links, match, url: `https://www.wikidata.org/wiki/${entity.id}`, name: label(entity) ?? name, website: site }
+  return { description, facts, links, match, url: `https://www.wikidata.org/wiki/${entity.id}` }
 }
 
 /**
@@ -212,18 +236,10 @@ const titleCase = (value: string) => value.toLowerCase().replace(/(^|[\s-])\p{L}
 
 /* ---------------------------------- public ---------------------------------- */
 
-/**
- * Public facts about an organisation by its name (and website when known),
- * without touching the database. `name` and `website` are the organisation's
- * own as the source gives them. Null when both sources are down or neither
- * has a clear match.
- */
-export async function lookupOrganization(name: string, website: string | null = null): Promise<(CompanyProfile & { name: string; website: string | null }) | null> {
-  const found = await gatherProfile({ name, website })
-  return found && found.profile.match ? { ...found.profile, name: found.name, website: found.website } : null
-}
-
-async function gatherProfile(company: { name: string; website: string | null }): Promise<{ profile: CompanyProfile; name: string; website: string | null } | null> {
+/** Fetch, merge and store. Never throws: a source that fails is just left out. */
+export async function refreshCompanyProfile(companyId: string): Promise<CompanyProfile | null> {
+  const [company] = await db.select({ name: companies.name, website: companies.website }).from(companies).where(eq(companies.id, companyId))
+  if (!company) return null
   const [wiki, registry] = await Promise.allSettled([fromWikidata(company.name, company.website), fromRegistry(company.name)])
   const w = wiki.status === "fulfilled" ? wiki.value : null
   const r = registry.status === "fulfilled" ? registry.value : null
@@ -245,17 +261,8 @@ async function gatherProfile(company: { name: string; website: string | null }):
   }
   // Both sources down: don't store an empty profile, so the next visit tries again.
   if (wiki.status === "rejected" && registry.status === "rejected") return null
-  return { profile, name: w?.name ?? company.name, website: w?.website ?? company.website }
-}
-
-/** Fetch, merge and store. Never throws: a source that fails is just left out. */
-export async function refreshCompanyProfile(companyId: string): Promise<CompanyProfile | null> {
-  const [company] = await db.select({ name: companies.name, website: companies.website }).from(companies).where(eq(companies.id, companyId))
-  if (!company) return null
-  const found = await gatherProfile(company)
-  if (!found) return null
-  await db.update(companies).set({ profile: found.profile, profiledAt: new Date() }).where(eq(companies.id, companyId))
-  return found.profile
+  await db.update(companies).set({ profile, profiledAt: new Date() }).where(eq(companies.id, companyId))
+  return profile
 }
 
 const STALE_MS = 1000 * 60 * 60 * 24 * 60

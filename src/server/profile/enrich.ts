@@ -1,12 +1,12 @@
 import "server-only"
-import { companyFactsEnabled, entities, getJson, label, lookupOrganization, values, type Entity } from "@/server/companies/profile"
+import { companyFactsEnabled, entityData, getJson, label, values, type Entity } from "@/server/companies/profile"
 import { companyBrandingFromLink } from "@/server/jobs/ingest"
-import { eventEdition, genericSkillGroup, nameKey, nameVariants, skillKey, type EnrichmentFact, type EnrichmentSuggestion, type SkillCategory } from "@/lib/enrichment"
+import { eventEdition, genericSkillGroup, nameKey, nameVariants, skillKey, type EnrichmentFact, type EnrichmentSource, type EnrichmentSuggestion, type SkillCategory } from "@/lib/enrichment"
 
 /**
  * Looks up what an entry names (its organisation, certification or event,
- * and its skills) in open sources: Wikidata, the French business registry,
- * and the organisation's own website for its logo. Only names are sent. A
+ * and its skills) in open sources: Wikidata, Wikipedia, and the
+ * organisation's own website for its logo. Only names are sent. A
  * result is offered only on a clear match, always with its source, and it
  * describes the organisation, certification or event, never the person.
  */
@@ -23,19 +23,22 @@ async function hits(query: string, language = "en"): Promise<Hit[]> {
   const data = (await getJson(`https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&type=item&limit=6&language=${language}&uselang=${language}&search=${encodeURIComponent(query)}`)) as { search?: { id: string; label?: string; description?: string; match?: { text?: string } }[] }
   return (data.search ?? []).map((item) => ({ id: item.id, label: item.label ?? "", description: item.description ?? "", matched: item.match?.text ?? item.label ?? "" }))
 }
-/** The first hit that passes `accept`, with its claims. Two requests at most. */
-async function find(query: string, accept: (hit: Hit) => boolean): Promise<Entity | null> {
-  const hit = (await hits(query)).find(accept)
-  return hit ? (await entities([hit.id]))[hit.id] ?? null : null
+/** The first hit that passes `accept` (and `confirm`, once its claims are read). One search; details come from the items' own data pages. */
+async function find(query: string, accept: (hit: Hit) => boolean, confirm: (entity: Entity) => boolean = () => true): Promise<Entity | null> {
+  for (const hit of (await hits(query)).filter(accept).slice(0, 3)) {
+    const entity = await entityData(hit.id).catch(() => null)
+    if (entity && confirm(entity)) return entity
+  }
+  return null
 }
 const ids = (entity: Entity, property: string) => values(entity, property).map((value) => (value as { id?: string }).id).filter((id): id is string => Boolean(id))
 const year = (entity: Entity, property: string) => (values(entity, property)[0] as { time?: string } | undefined)?.time?.match(/^\+?(\d{4})-(\d{2})/)
 const site = (entity: Entity) => values(entity, "P856").map(String).find((url) => /^https?:\/\//.test(url)) ?? null
 const describe = (entity: Entity) => entity.descriptions?.en?.value ?? entity.descriptions?.fr?.value ?? null
+/** Names of up to two linked items (a city, a sector, an organiser). */
 async function labelsOf(list: string[]): Promise<string> {
-  if (!list.length) return ""
-  const found = await entities(list.slice(0, 4)).catch(() => ({}) as Record<string, Entity>)
-  return list.map((id) => label(found[id])).filter(Boolean).slice(0, 2).join(", ")
+  const found = await Promise.all([...new Set(list)].slice(0, 2).map((id) => once(`label:${id}`, async () => label((await entityData(id)) ?? undefined) ?? null)))
+  return found.filter(Boolean).join(", ")
 }
 
 /* ------------------------------------------------------------------ organisation */
@@ -56,20 +59,47 @@ const once = <T,>(key: string, load: () => Promise<T>): Promise<T> => {
   return cache.get(key) as Promise<T>
 }
 
-const FACT_LABELS: Record<string, EnrichmentFact["label"]> = { Employees: "employees", "Staff (France)": "employees", Size: "size", Founded: "founded", Registered: "founded", Headquarters: "headquarters", "Head office": "headquarters", Industry: "industry", Parent: "parent" }
+const NOT_AN_ORGANIZATION = /\b(?:human|person|given name|family name|surname|disambiguation|film|album|song|novel|painting|species|genus|village|river|asteroid|city|town|commune|municipality|fruit|colou?r)\b/i
+const ORGANIZATION = /compan|corporat|business|enterprise|bank|universit|school|college|institut|organi[sz]ation|foundation|agency|firm|manufacturer|retailer|group|association|consortium|start-?up|provider|operator|airline|hospital|ministry|laborator|publisher|studio|brand|chain|conglomerate|academy|society|soci[ée]t[ée]|entreprise|[ée]cole|unternehmen|hochschule|empresa|universidad/i
+
+type Organization = { name: string; description: string | null; website: string | null; facts: EnrichmentFact[]; sources: EnrichmentSource[] }
+
+/**
+ * An organisation by its exact name, from Wikidata. The name must be the
+ * item's own name or alias, and the item must be an organisation: described
+ * as one, or with a sector or a headcount. (The French business registry is
+ * not used here: by name alone it also matches unrelated small companies.)
+ */
+async function organizationFacts(name: string): Promise<Organization | null> {
+  const key = nameKey(name)
+  const entity = await find(
+    name,
+    // Its own name, or an alias of an item whose name holds it ("RWTH Aachen" → "RWTH Aachen University"), never an alias of something else.
+    (hit) => (nameKey(hit.label) === key || (nameKey(hit.matched) === key && (nameKey(hit.label).includes(key) || key.includes(nameKey(hit.label))))) && !NOT_AN_ORGANIZATION.test(hit.description),
+    (candidate) => ORGANIZATION.test(describe(candidate) ?? "") || values(candidate, "P452").length > 0 || values(candidate, "P1128").length > 0,
+  )
+  if (!entity) return null
+  const employees = (values(entity, "P1128").at(-1) as { amount?: string } | undefined)?.amount
+  const founded = year(entity, "P571")?.[1]
+  const [seat, sector, parent] = await Promise.all([labelsOf(ids(entity, "P159")), labelsOf(ids(entity, "P452")), labelsOf(ids(entity, "P749"))])
+  const facts: EnrichmentFact[] = []
+  if (sector) facts.push({ label: "industry", value: sector })
+  if (employees) facts.push({ label: "employees", value: new Intl.NumberFormat("en").format(Number(employees.replace("+", ""))) })
+  if (founded) facts.push({ label: "founded", value: founded })
+  if (seat) facts.push({ label: "headquarters", value: seat })
+  if (parent) facts.push({ label: "parent", value: parent })
+  const description = describe(entity)
+  return { name: label(entity) ?? name, description: description && !/wiki[mp]edia/i.test(description) ? description : null, website: site(entity), facts, sources: [{ name: "Wikidata", url: wikidataUrl(entity) }] }
+}
 
 async function organization(name: string, field: string): Promise<EnrichmentSuggestion> {
   const out = empty()
   if (name.length < 2) return out
-  const profile = await once(`org:${nameKey(name)}`, () => lookupOrganization(name))
-  if (!profile) return out
-  const seen = new Set<string>()
-  // A French registry record found by name alone may be a subsidiary: it speaks only when Wikidata has nothing.
-  const wikidata = profile.facts.some((fact) => fact.source === "wikidata")
-  const facts = profile.facts.filter((fact) => !wikidata || fact.source === "wikidata").map((fact) => ({ label: FACT_LABELS[fact.label], value: fact.value })).filter((fact): fact is EnrichmentFact => Boolean(fact.label) && !seen.has(fact.label) && (seen.add(fact.label), true))
-  out.about = { subject: "organization", query: name, name: profile.name, description: profile.description && !/wiki[mp]edia/i.test(profile.description) ? profile.description : null, website: profile.website, facts, sources: wikidata ? profile.sources.filter((source) => source.name === "Wikidata") : profile.sources, fetchedAt: profile.fetchedAt }
-  if (nameKey(profile.name) === nameKey(name) && profile.name !== name) out.officialName = { field, value: profile.name }
-  if (profile.website) out.logoPath = (await once(`logo:${profile.website}`, () => companyBrandingFromLink(profile.website!)))?.logo?.path ?? null
+  const found = await once(`org:${nameKey(name)}`, () => organizationFacts(name))
+  if (!found) return out
+  out.about = { subject: "organization", query: name, ...found, fetchedAt: new Date().toISOString() }
+  if (nameKey(found.name) === nameKey(name) && found.name !== name) out.officialName = { field, value: found.name }
+  if (found.website) out.logoPath = (await once(`logo:${found.website}`, () => companyBrandingFromLink(found.website!)))?.logo?.path ?? null
   return out
 }
 
@@ -81,7 +111,8 @@ async function certification(name: string, issuer: string): Promise<EnrichmentSu
   const base = issuer ? await organization(issuer, "issuer") : empty()
   const variants = nameVariants(name)
   const found = await once(`cert:${nameKey(name)}`, async () => {
-    for (const variant of variants) {
+    // The full name, then its acronym: two searches at most.
+    for (const variant of variants.filter((item) => item !== name || variants.length === 1).slice(0, 2)) {
       // A short name or an acronym ("PMP") must also be described as a certification.
       const match = await find(variant, (hit) => [hit.label, hit.matched].some((item) => variants.some((wanted) => nameKey(item) === nameKey(wanted))) && (variant.length >= 16 || CERT_WORDS.test(hit.description)))
       if (match) return match
@@ -240,7 +271,11 @@ async function pooled<T, R>(items: T[], size: number, run: (item: T, index: numb
 export async function enrichEntries(entries: EnrichmentRequest[]): Promise<{ enabled: boolean; failed: number; suggestions: (EnrichmentSuggestion | null)[] }> {
   if (!(await companyFactsEnabled().catch(() => true))) return { enabled: false, failed: 0, suggestions: entries.map(() => null) }
   failures = 0
-  const suggestions = await pooled(entries.slice(0, 120), 4, async (entry) => {
+  // Skills cost three calls for the whole list and organisations one each: the calls are few, so they go out in order, skills first.
+  const order = entries.slice(0, 120).map((entry, index) => ({ entry, index })).sort((a, b) => Number(b.entry.kind === "skill") - Number(a.entry.kind === "skill"))
+  const suggestions = new Array<EnrichmentSuggestion | null>(entries.length).fill(null)
+  await pooled(order, 3, async ({ entry, index }) => {
+    suggestions[index] = await (async () => {
     try {
       const result =
         entry.kind === "experience" ? await organization(text(entry.fields.company), "company")
@@ -253,6 +288,7 @@ export async function enrichEntries(entries: EnrichmentRequest[]): Promise<{ ena
     } catch {
       return null
     }
+    })()
   })
   return { enabled: true, failed: failures, suggestions }
 }
