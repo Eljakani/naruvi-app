@@ -6,7 +6,27 @@ Want to try it without touching your machine? Use the [container sandbox](INSTAL
 
 ## Requirements
 
-Linux, macOS (Docker Desktop) or Windows through WSL2. Docker with Compose v2, Git and OpenSSL. If Docker is missing, the installer offers to install it: on Linux with Docker's official script (needs sudo), on macOS as Docker Desktop through Homebrew. Non-interactive installs opt in with `--yes --install-docker`. About 6 GB of disk. Building from source (branches, `--build`) also needs about 2 GB of memory. Node.js is not needed on the host.
+Linux, macOS (Docker Desktop) or Windows through WSL2. Docker with Compose v2, Git, curl and OpenSSL. About 6 GB of disk. Building from source (branches, `--build`) also needs about 2 GB of memory. Node.js is not needed on the host.
+
+The installer reads `/etc/os-release` and recognises the main Linux families, then fixes what is missing with that system's own tools. It always asks first. Non-interactive installs opt in with flags.
+
+| Family | Examples | Missing tools | Docker |
+| --- | --- | --- | --- |
+| Debian | Debian, Ubuntu, Raspberry Pi OS, Mint, Pop!_OS | `apt-get` | Docker's script on Debian, Ubuntu and Raspberry Pi OS; `docker.io` elsewhere |
+| Fedora / RHEL | Fedora, RHEL, CentOS Stream, Rocky, AlmaLinux, Oracle Linux | `dnf` / `yum` | Docker's script on Fedora, RHEL and CentOS; Docker's CentOS repository on the rebuilds |
+| Cloud | Amazon Linux 2 and 2023, Azure Linux | `dnf`, `yum`, `tdnf` | The distribution's `docker` / `moby` packages |
+| SUSE | openSUSE Leap and Tumbleweed, SLES | `zypper` | `docker`, `docker-compose` |
+| Others | Arch, Manjaro, Alpine, Void | `pacman`, `apk`, `xbps` | The distribution's packages |
+| macOS | | Homebrew | Docker Desktop through Homebrew |
+
+- **Missing Git, curl or OpenSSL** are installed with the package manager (`--install-deps`).
+- **Missing Docker** is installed and started at boot, using systemd, OpenRC or runit (`--install-docker`). If `docker` is Podman's look-alike, the installer says so, because Naruvi needs Docker Engine.
+- **Missing Compose v2 or Buildx plugins** (old installs, distribution packages, Amazon Linux) are fetched from Docker's GitHub releases and checked against their published SHA-256 checksums (also `--install-docker`).
+- **Adding you to the `docker` group** is offered, and the new group is used for the rest of the run.
+- **Small servers** building from source without swap are offered a 2 GB swap file (`--swap`).
+- **Fresh cloud servers:** the installer waits for cloud-init to finish, and for an APT lock held by automatic updates, before installing packages.
+
+It also checks internet access to GitHub and the system clock, because a wrong clock breaks HTTPS and signature checks. It shows the machine it found, for example `Ubuntu 24.04 LTS · x86_64 · AWS EC2`. NixOS and image-based systems (Flatcar, Fedora CoreOS, Container-Optimized OS) get instructions instead of package installs. Snap's Docker can't read hidden folders, so the default directory becomes `~/naruvi`.
 
 ## Run the installer
 
@@ -26,7 +46,7 @@ bash install.sh --yes --mode hosted --domain careers.example.com
 bash install.sh --yes --mode proxy --domain careers.example.com --port 3000
 ```
 
-Other options: `--dir PATH` (default `~/.local/share/naruvi`), `--ref TAG` (default: the latest release; a branch such as `main` is built from source), `--build` (build the image on this machine instead of downloading it), `--bind ADDRESS` for proxy mode. See `bash install.sh --help`.
+Add `--install-deps`, `--install-docker`, `--firewall` or `--swap` to let an unattended install fix the matching problem. Other options: `--dir PATH` (default `~/.local/share/naruvi`), `--ref TAG` (default: the latest release; a branch such as `main` is built from source), `--build` (build the image on this machine instead of downloading it), `--bind ADDRESS` for proxy mode. See `bash install.sh --help`.
 
 ## Choose where Naruvi runs
 
@@ -38,7 +58,24 @@ Other options: `--dir PATH` (default `~/.local/share/naruvi`), `--ref TAG` (defa
 
 **Local.** Nothing leaves your machine. You still sign in: other programs on the computer can reach the port. Don't forward the port to the internet; switch to Hosted instead.
 
-**Hosted.** Before installing, point the domain's A record (and AAAA, if the server has IPv6; a stale AAAA blocks certificates) at the server, and open inbound TCP 80 and 443 in your provider's firewall, if it has one. When the server's own firewall (ufw or firewalld) is on, the installer offers to open the two ports there; it asks for sudo right after you choose Hosted, and opens them once you confirm the install. Non-interactive installs opt in with `--yes --firewall`. A firewall that is off stays off. The installer checks DNS, and stops before changing anything when port 80 or 443 is already taken (stop that web server, or use *Behind your proxy*). If DNS does not point at the server yet, the install still finishes: Naruvi keeps asking for the certificate and the address starts working once the record is right. Caddy issues and renews certificates and redirects HTTP to HTTPS. The app and database publish no host ports.
+**Hosted.** Point the domain's A record at the server (and AAAA only if the server has IPv6; a stale AAAA blocks certificates). Open inbound TCP 80 and 443 in your provider's firewall, if it has one. On AWS, Google Cloud, Azure, Oracle, DigitalOcean, Hetzner, Linode, Vultr and similar clouds, the installer recognises the provider and names the exact place, such as the security group of the instance.
+
+The installer checks DNS the way Let's Encrypt will. It asks public DNS (over HTTPS) instead of this machine's possibly cached resolver, and compares the answer with the server's public address. It catches:
+
+- a missing record
+- a record pointing elsewhere
+- a stale AAAA record
+- a Cloudflare-proxied record
+- CAA records that don't allow Let's Encrypt
+- a home server behind a router, where it says which local address to forward ports 80 and 443 to
+
+When something is off, it prints the exact records to create, with the server's addresses filled in. Then you can check again, wait (it rechecks every 15 seconds), use another domain, or continue anyway. If DNS does not point at the server yet, the install still finishes: Naruvi keeps asking for the certificate, and the address starts working once the record is right. Non-interactive installs warn and continue.
+
+When the server's own firewall (ufw or firewalld) is on, the installer offers to open the two ports there. It asks for sudo right after you choose Hosted, and opens them once you confirm the install. Non-interactive installs opt in with `--yes --firewall`. A firewall that is off stays off. With rootless Docker, it offers to let Docker use ports 80 and 443.
+
+If port 80 or 443 is already taken, for example by Coolify, Traefik or nginx, the installer names the program. Interactively, it offers to switch to *Behind your proxy* so that program can stay. Caddy issues and renews certificates and redirects HTTP to HTTPS. The app and database publish no host ports.
+
+After starting, the installer waits for the HTTPS address to answer. If Let's Encrypt saw DNS from before you fixed it, the installer asks for the certificate again straight away instead of waiting out the back-off. If the address still doesn't answer, you can keep waiting, ask for the certificate again (a few times at most, because Let's Encrypt limits failed tries), or finish and check later with `naruvi doctor`.
 
 **Behind your proxy.** Your proxy must terminate HTTPS for the domain you enter and forward to the app port. `NARUVI_URL` is set to `https://<domain>`, so sign-in only works through that address. Choose *On this host* when the proxy runs directly on the server. Choose *In Docker or on another host* to listen on all interfaces; Docker-published ports bypass host firewalls such as ufw, so restrict the port with your provider's firewall or Docker's `DOCKER-USER` chain. Naruvi does not trust forwarded client IP headers in this mode, so sign-in rate limits apply to all clients together, which is stricter rather than weaker.
 
@@ -109,8 +146,11 @@ Start with `naruvi doctor`. It checks each layer and prints the next step.
 | What you see | What to do |
 | --- | --- |
 | Docker missing, stopped, or `permission denied` | The installer offers to install or start it on Linux. Otherwise start Docker Desktop or `sudo systemctl start docker`; for permissions, `sudo usermod -aG docker $USER` and log in again. |
-| `Docker Compose v2 plugin missing` | Install the `docker-compose-plugin` package. The old `docker-compose` v1 command is not enough. |
+| `Docker Compose v2 plugin missing` | Run the installer again and accept the offer to add it, or install the `docker-compose-plugin` package. The old `docker-compose` v1 command is not enough. |
+| `github.com can't be reached` | Check the network or DNS (`/etc/resolv.conf`). Behind a proxy, set `HTTPS_PROXY`, and configure Docker's proxy too. |
+| `Clock … minutes off` | Turn on time synchronisation (`sudo timedatectl set-ntp true`); certificates and signatures fail otherwise. |
 | `Port N is already in use` | Local and proxy: choose another port. Hosted: stop the web server on 80/443, or install with `--mode proxy` behind it. |
+| A step failed during the install | Network steps (downloading the source, packages, the image build, starting the services) retry by themselves. Starting is retried once with fresh containers; data is kept. The installer then names known causes: full disk, package lock, Docker Hub rate limit, DNS, certificates or clock, out of memory, a taken port. Interactively, it offers to try the step again, show more of the log, or stop. |
 | The install stopped half-way | Run the installer again with the same directory. |
 | `A Naruvi database from an earlier installation` | Put that installation's folder (or its `.env`) back and run its `naruvi start`. Only to start over: `docker volume rm naruvi_db-data naruvi_assets`, which deletes that data. |
 | `Setting problem in .env` | `SETTINGS_ENCRYPTION_KEY` (64 hex characters) and `POSTGRES_PASSWORD` must be the original values: copy them back from `backups/<timestamp>/env`. `NARUVI_URL` must be the exact address you open, such as `https://careers.example.com`, with no trailing slash. The database address is built from `POSTGRES_PASSWORD`; a `DATABASE_URL` line in `.env` is not used. |
@@ -143,7 +183,15 @@ It asks twice for a hidden 16–128 character password and never accepts one as 
 
 ## Installer tests
 
-`bash -n install.sh deploy/naruvi` and `python3 tests/installer/test_install.py` exercise every mode in a pseudo-terminal with mocked Docker, Git and curl, plus file permissions, reruns, resuming an interrupted install, a leftover database volume, unapplied migrations, broken `.env` values and non-interactive use. They don't deploy real containers or request certificates.
+`bash -n install.sh deploy/naruvi` and `python3 tests/installer/test_install.py` exercise every mode in a pseudo-terminal with mocked Docker, Git and curl. They also cover:
+
+- the DNS record hint
+- domains and ports that are refused and asked again
+- Docker installs routed per distribution (Rocky, Alpine, Arch)
+- missing tools installed through the package manager, or explained when declined
+- file permissions, reruns and resuming an interrupted install
+- a leftover database volume, unapplied migrations and broken `.env` values
+- non-interactive use They don't deploy real containers or request certificates.
 
 ## Browser authentication flow
 
