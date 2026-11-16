@@ -554,7 +554,8 @@ plugin_dir() { # system-wide when root is available, else this user's own Docker
 place_plugin() { # file name
   local dir; dir=$(plugin_dir)
   chmod 755 "$1"
-  if [[ $dir == /usr/* ]]; then as_root mkdir -p "$dir" && as_root cp "$1" "$dir/$2" && as_root chmod 755 "$dir/$2"
+  # This script runs with umask 077, and sudo keeps it: set modes so every user's Docker can load the plugin.
+  if [[ $dir == /usr/* ]]; then as_root sh -c 'umask 022; mkdir -p "$1" && chmod 755 "$1" "$(dirname "$1")" && cp "$2" "$1/$3" && chmod 755 "$1/$3"' _ "$dir" "$1" "$2"
   else mkdir -p "$dir" && cp "$1" "$dir/$2"; fi
   local status=$?; rm -f "$1"; return $status
 }
@@ -657,6 +658,7 @@ ensure_compose() {
   else note 'Docker Compose v2 is missing.'; fi
   offer "Add the Compose plugin (official release, checksum verified, into $(plugin_dir))?" || return 0
   docker_log; run_attempts=3; run 'Add Docker Compose' install_compose_plugin; run_attempts=1
+  docker compose version >/dev/null 2>&1 || check warn 'Docker Compose' "added to $(plugin_dir), but Docker doesn't load it"
 }
 # Building from source needs Buildx (the Dockerfile uses BuildKit cache mounts).
 ensure_buildx() {
