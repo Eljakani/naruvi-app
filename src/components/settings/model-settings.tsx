@@ -1,14 +1,15 @@
 "use client"
 
 import Image from "next/image"
-import { useState } from "react"
-import { ArrowUpRightIcon, CheckIcon, Loader2Icon, PlugIcon, PlugZapIcon } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { ArrowUpRightIcon, CheckIcon, CircleAlertIcon, Loader2Icon, PlugIcon, PlugZapIcon } from "lucide-react"
 import { listLlmModelsAction, saveLlmSettingsAction, testLlmAction } from "@/app/[locale]/(app)/settings/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { ModelPicker, type ModelListState, type ModelOption } from "@/components/settings/model-picker"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AI_PROVIDERS, BEDROCK_REGIONS, bedrockEndpoint, bedrockRegionForEndpoint, providerForEndpoint } from "@/lib/ai-providers"
 import type { LlmOverview } from "@/server/settings/llm"
@@ -50,16 +51,14 @@ export function ModelSettings({ initial }: { initial: LlmOverview }) {
   const [model, setModel] = useState(initial.model)
   const [apiKey, setApiKey] = useState("")
   const [removeKey, setRemoveKey] = useState(false)
-  const [models, setModels] = useState<{ id: string; label: string }[]>([])
-  const [modelFilter, setModelFilter] = useState("")
-  const [busy, setBusy] = useState<"save" | "test" | "list" | null>(null)
+  const [list, setList] = useState<{ key: string; state: ModelListState; models: ModelOption[]; error: string }>({ key: "", state: "idle", models: [], error: "" })
+  const [busy, setBusy] = useState<"save" | "test" | null>(null)
+  const listRequest = useRef(0)
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null)
 
   const provider = AI_PROVIDERS.find((item) => item.id === providerId)
   const bedrockRegion = bedrockRegionForEndpoint(baseUrl)
   const activeProvider = providerForEndpoint(saved.baseUrl)
-  const query = modelFilter.trim().toLowerCase()
-  const visibleModels = models.filter((item) => item.id === model || item.label.toLowerCase().includes(query) || item.id.toLowerCase().includes(query))
   const sameEndpoint = normalize(baseUrl) === saved.baseUrl
   const local = localEndpoint(baseUrl)
   const keepsKey = sameEndpoint && saved.hasKey && !removeKey
@@ -69,6 +68,36 @@ export function ModelSettings({ initial }: { initial: LlmOverview }) {
   const dirty = !sameEndpoint || model.trim() !== saved.model || Boolean(apiKey.trim()) || removeKey || (saved.keySource === "environment" && saved.encryptionReady)
   const testNeedsSave = !providerForEndpoint(baseUrl) && !sameEndpoint
   const input = { baseUrl, model, apiKey, removeKey: removeKey || discardOldKey }
+  const canList = Boolean(provider) && (hasAccess || local)
+  const connection = { baseUrl, apiKey: apiKey.trim(), removeKey: removeKey || discardOldKey }
+  const connectionKey = canList ? JSON.stringify(connection) : ""
+
+  // Results belong to the connection they were fetched for; a stale list never shows.
+  const current = list.key === connectionKey ? list : null
+  const models = current?.models ?? []
+  const listState: ModelListState = !connectionKey ? "idle" : current ? current.state : "loading"
+  const listError = current?.error ?? ""
+
+  const loadModels = useCallback(async (key: string) => {
+    const request = ++listRequest.current
+    setList({ key, state: "loading", models: [], error: "" })
+    try {
+      const result = await listLlmModelsAction(JSON.parse(key))
+      if (request !== listRequest.current) return
+      setList(result.ok ? { key, state: "ready", models: result.models, error: "" } : { key, state: "error", models: [], error: result.message })
+    } catch {
+      if (request === listRequest.current) setList({ key, state: "error", models: [], error: t("requestFailed") })
+    }
+  }, [t])
+
+  // Fetch the provider's list as soon as there is something to authenticate with,
+  // so the user picks from it instead of typing. Debounced for keys being typed.
+  useEffect(() => {
+    listRequest.current++
+    if (!connectionKey) return
+    const timer = setTimeout(() => void loadModels(connectionKey), 450)
+    return () => clearTimeout(timer)
+  }, [connectionKey, loadModels])
 
   function chooseProvider(id: string) {
     const next = AI_PROVIDERS.find((item) => item.id === id)
@@ -78,7 +107,6 @@ export function ModelSettings({ initial }: { initial: LlmOverview }) {
     setModel(isSavedProvider ? saved.model : "")
     setApiKey("")
     setRemoveKey(false)
-    setModels([])
     setFeedback(null)
   }
 
@@ -87,7 +115,6 @@ export function ModelSettings({ initial }: { initial: LlmOverview }) {
     setModel(normalize(endpoint) === saved.baseUrl ? saved.model : "")
     setApiKey("")
     setRemoveKey(false)
-    setModels([])
     setFeedback(null)
   }
 
@@ -105,15 +132,9 @@ export function ModelSettings({ initial }: { initial: LlmOverview }) {
         setApiKey("")
         setRemoveKey(false)
         setFeedback({ ok: true, message: t("saved") })
-      } else if (action === "test") {
+      } else {
         const result = await testLlmAction(input)
         setFeedback({ ok: result.ok, message: result.message ?? t("checked") })
-      } else {
-        const result = await listLlmModelsAction(input)
-        if (!result.ok) { setFeedback(result); return }
-        setModels(result.models)
-        setModelFilter("")
-        setFeedback({ ok: true, message: t("loaded", { count: result.models.length }) })
       }
     } catch {
       setFeedback({ ok: false, message: t("requestFailed") })
@@ -181,7 +202,7 @@ export function ModelSettings({ initial }: { initial: LlmOverview }) {
                     disabled={Boolean(busy)}
                     onValueChange={(id) => { if (id) changeEndpoint(bedrockEndpoint(id)) }}
                   >
-                    <SelectTrigger id="bedrock-region" className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="bedrock-region" className="h-9 w-full"><SelectValue /></SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} className="max-h-80">
                       {BEDROCK_REGIONS.map(({ id, label }) => <SelectItem key={id} value={id} label={label}>{label} ({id})</SelectItem>)}
                     </SelectContent>
@@ -191,18 +212,18 @@ export function ModelSettings({ initial }: { initial: LlmOverview }) {
               )}
               {!provider ? <Field>
                 <FieldLabel htmlFor="llm-endpoint">{t("baseUrl")}</FieldLabel>
-                <Input id="llm-endpoint" type="url" required value={baseUrl} onChange={(event) => { setBaseUrl(event.target.value); setApiKey(""); setRemoveKey(false); setModels([]); setFeedback(null) }} placeholder="https://your-server.example/v1" autoCapitalize="none" spellCheck={false} />
+                <Input id="llm-endpoint" className="h-9" type="url" required value={baseUrl} onChange={(event) => { setBaseUrl(event.target.value); setApiKey(""); setRemoveKey(false); setFeedback(null) }} placeholder="https://your-server.example/v1" autoCapitalize="none" spellCheck={false} />
                 <FieldDescription>{t("baseUrlHint")}</FieldDescription>
               </Field> : null}
               <Field>
                 <FieldLabel htmlFor="llm-api-key">{local ? t("keyOptional") : t("key")}</FieldLabel>
-                <Input id="llm-api-key" type="password" autoComplete="new-password" autoCapitalize="none" spellCheck={false} maxLength={4096} value={apiKey} onChange={(event) => { setApiKey(event.target.value); setRemoveKey(false); setModels([]); setFeedback(null) }} disabled={!saved.encryptionReady} placeholder={keepsKey ? t("keepKey") : local ? t("notNeeded") : provider?.id === "bedrock" ? t("pasteBedrock") : t("pasteKey")} aria-describedby="llm-key-help" />
+                <Input id="llm-api-key" className="h-9" type="password" autoComplete="new-password" autoCapitalize="none" spellCheck={false} maxLength={4096} value={apiKey} onChange={(event) => { setApiKey(event.target.value); setRemoveKey(false); setFeedback(null) }} disabled={!saved.encryptionReady} placeholder={keepsKey ? t("keepKey") : local ? t("notNeeded") : provider?.id === "bedrock" ? t("pasteBedrock") : t("pasteKey")} aria-describedby="llm-key-help" />
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <FieldDescription id="llm-key-help">
                     {removeKey || discardOldKey ? t("keyRemoved") : !sameEndpoint && saved.hasKey ? t("keyOther") : keepsKey && saved.keySource === "environment" ? t("keyEnv") : t("keyEncrypted")}
                   </FieldDescription>
                   {sameEndpoint && saved.hasKey && !apiKey ? (
-                    <Button type="button" variant="ghost" size="sm" className="-ms-2 shrink-0" onClick={() => { setRemoveKey(!removeKey); setModels([]); setFeedback(null) }}>
+                    <Button type="button" variant="ghost" size="sm" className="-ms-2 shrink-0" onClick={() => { setRemoveKey(!removeKey); setFeedback(null) }}>
                       {removeKey ? t("keepCurrent") : t("removeCurrent")}
                     </Button>
                   ) : null}
@@ -211,16 +232,24 @@ export function ModelSettings({ initial }: { initial: LlmOverview }) {
               </Field>
               <Field>
                 <FieldLabel htmlFor="llm-model">{t("modelId")}</FieldLabel>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input className="min-w-0 basis-40 grow" id="llm-model" required maxLength={160} value={model} onChange={(event) => { setModel(event.target.value); setFeedback(null) }} placeholder={t("modelPlaceholder")} autoCapitalize="none" spellCheck={false} />
-                  {provider ? <Button type="button" variant="outline" disabled={!hasAccess && !local} onClick={() => void run("list")}>{busy === "list" ? <Loader2Icon className="animate-spin motion-reduce:animate-none" /> : null} {t("loadModels")}</Button> : null}
-                </div>
-                {models.length > 12 ? <Input type="search" aria-label={t("filter")} placeholder={t("filter")} value={modelFilter} onChange={(event) => setModelFilter(event.target.value)} /> : null}
-                {models.length ? <select aria-label={t("available")} className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-ring" value={models.some((item) => item.id === model) ? model : ""} onChange={(event) => { setModel(event.target.value); setFeedback(null) }}>
-                  <option value="" disabled>{visibleModels.length ? t("select") : t("noMatch")}</option>
-                  {visibleModels.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                </select> : null}
-                <FieldDescription>{provider ? t("modelHint") : t("modelHintCustom")}</FieldDescription>
+                <ModelPicker
+                  id="llm-model"
+                  value={model}
+                  onValueChange={(next) => { setModel(next); setFeedback(null) }}
+                  models={models}
+                  state={listState}
+                  onReload={canList ? () => void loadModels(connectionKey) : undefined}
+                  disabled={Boolean(busy)}
+                  describedBy="llm-model-help"
+                />
+                <FieldDescription id="llm-model-help" role="status" aria-live="polite" className={listState === "error" ? "flex items-start gap-1.5" : undefined}>
+                  {!provider ? t("modelHintCustom")
+                    : listState === "loading" ? t("loadingFrom", { name: provider.name })
+                    : listState === "ready" ? t("modelsReady", { count: models.length })
+                    : listState === "error" ? <><CircleAlertIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden /><span>{listError} {t("typeInstead")}</span></>
+                    : !canList ? t("needsKey", { name: provider.name })
+                    : t("modelHint")}
+                </FieldDescription>
               </Field>
               <div className="flex flex-wrap gap-2 border-t pt-4">
                 <Button type="submit" disabled={!dirty || !canSave}>{busy === "save" ? <Loader2Icon className="animate-spin motion-reduce:animate-none" /> : null} {t("save")}</Button>

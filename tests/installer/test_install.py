@@ -14,10 +14,13 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class InstallerTest(unittest.TestCase):
-    def run_install(self, mode, preview=False, install_docker=None, release=None, verified=True, pull_error=None, firewall=None):
+    def run_install(self, mode, preview=False, install_docker=None, release=None, verified=True, pull_error=None, firewall=None,
+                    domains=('careers.example.com',), ports=('3456',), expect=()):
         """install_docker: None = Docker present; 'y'/'n' = Docker missing, answer to the offer.
         release: a published release tag (the image path); None = no release, so main is built.
-        firewall: None = no host firewall; 'y'/'n' = ufw is on, answer to the offer to open ports."""
+        firewall: None = no host firewall; 'y'/'n' = ufw is on, answer to the offer to open ports.
+        domains, ports: answers in order; all but the last are expected to be refused and asked again.
+        expect: text the transcript must contain."""
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
             binaries = base / 'bin'
@@ -33,6 +36,7 @@ class InstallerTest(unittest.TestCase):
                            '  *__drizzle_migrations*) echo "${TEST_MIGRATED:-30}";;\n'
                            '  "volume inspect"*) [ -n "$TEST_OLD_VOLUME" ] || exit 1;;\n'
                            '  "compose up"*) echo "$*" >> "$MOCK_BIN/up.log";;\n'
+                           '  *setup-link.mts*) echo "http://localhost:3456/auth/setup?token=$(printf %064d 0)";;\n'
                            'esac\n'),
                 'git': ('#!/bin/sh\ncase "$*" in\n'
                         '  *ls-remote*) [ -z "$TEST_RELEASE" ] || printf \'%040d\\trefs/tags/%s\\n\' 0 "$TEST_RELEASE";;\n'
@@ -40,6 +44,9 @@ class InstallerTest(unittest.TestCase):
                         '  *clone*) for last; do :; done; mkdir -p "$last"; cp -R "$TEST_REPO/deploy" "$last/deploy";;\n'
                         'esac\n'),
                 'curl': '#!/bin/sh\nprintf "%s" "$TEST_STATUS"\n',
+                # No public DNS here: every name is unresolved, the same on every machine.
+                'getent': '#!/bin/sh\nexit 2\n',
+                'cloud-init': '#!/bin/sh\necho "status: done"\n',
                 # Never read or touch the real machine's firewall.
                 'systemctl': '#!/bin/sh\nexit 3\n',
                 'sudo': '#!/bin/sh\nwhile case "$1" in -*) true;; *) false;; esac; do shift; done\n[ $# -eq 0 ] || exec "$@"\n',
@@ -73,7 +80,10 @@ class InstallerTest(unittest.TestCase):
             home = base / 'home'
             (home / '.local' / 'bin').mkdir(parents=True)  # so the PATH-link prompt always appears
             path = str(binaries) if install_docker else f'{binaries}:{os.environ["PATH"]}'
+            os_release = base / 'os-release'
+            os_release.write_text('ID=ubuntu\nID_LIKE=debian\nVERSION_ID="24.04"\nPRETTY_NAME="Ubuntu 24.04 LTS"\n')
             env = dict(os.environ, PATH=path, HOME=str(home), MOCK_BIN=str(binaries), DOCKER_MOCK=docker_mock,
+                       NARUVI_OS_RELEASE=str(os_release),
                        NARUVI_INSTALL_DIR=str(root), TEST_REPO=str(REPO), NARUVI_UFW_CONF=str(ufw_conf),
                        TEST_STATUS='200', NO_COLOR='1', TEST_RELEASE=release or '', TEST_VERIFIED='1' if verified else '0',
                        TEST_PULL_ERROR=pull_error or '')
@@ -89,14 +99,21 @@ class InstallerTest(unittest.TestCase):
             if firewall:
                 prompts += [('Open ports 80 and 443 in ufw?', firewall)]
             if mode in ('2', '3'):
-                prompts += [('Domain, without', 'careers.example.com')]
+                prompts += [('Domain, without', domain) for domain in domains]
+            if mode == '2' and not preview:
+                # The name doesn't resolve here: the installer shows the record to create and asks.
+                prompts += [('Choose 1-4', '3')]
             if mode in ('1', '3'):
-                prompts += [('App port', '3456')]
+                prompts += [('App port', port) for port in ports]
             if mode == '3':
                 prompts += [('Choose 1-2', '1')]
             prompts += [('Install into', ''), ('Install now?', 'y')]
+            if release and not verified:
+                prompts += [('Choose 1-3', '3')]  # a failed step offers to retry; stop instead
             if not preview:
                 prompts += [('~/.local/bin', 'n')]
+                if mode == '1' and not (release and not verified) and install_docker != 'n':
+                    prompts += [('Open it in your browser now?', 'n')]
             output = ''
             pending = ''
             deadline = time.time() + 20
@@ -115,7 +132,10 @@ class InstallerTest(unittest.TestCase):
                             pending = ''
                     if proc.poll() is not None:
                         break
+                self.assertIsNotNone(proc.poll(), f'still waiting; prompts left: {prompts}\n{output}')
                 proc.wait(timeout=2)
+                for text in expect:
+                    self.assertIn(text, output)
                 if release and not verified:
                     self.assertEqual(proc.returncode, 1, output)
                     self.assertIn('did not pass signature verification', output)
@@ -143,6 +163,7 @@ class InstallerTest(unittest.TestCase):
                 self.assertNotIn('long-test-password-123', output)
                 self.assertEqual((root / '.env').stat().st_mode & 0o777, 0o600)
                 self.assertIn('Naruvi is ready', output)
+                self.assertIn('/auth/setup?token=', output)
                 self.assertEqual((root / 'naruvi').stat().st_mode & 0o777, 0o700)
                 self.assertIn('COMPOSE_PROJECT_NAME=naruvi', config)
                 if release and pull_error:
@@ -223,6 +244,106 @@ class InstallerTest(unittest.TestCase):
 
     def test_proxy(self):
         self.run_install('3')
+
+    def test_hosted_shows_the_dns_record_to_create(self):
+        self.run_install('2', expect=('does not resolve yet', 'Create this record at your DNS provider', 'careers.example.com'))
+
+    def test_bad_domain_is_cleaned_or_asked_again(self):
+        # An IP is refused with the reason; a pasted URL is reduced to its hostname.
+        self.run_install('3', domains=('203.0.113.7', 'https://Careers.Example.com:443/login'),
+                         expect=('That is an IP address',))
+
+    def test_bad_port_is_asked_again(self):
+        self.run_install('1', ports=('80', 'abc', '3456'), expect=('Choose a port from 1024 to 65535',))
+
+    def isolated(self, base, mocks, os_release):
+        """PATH holding only these mocks plus links to every real tool not mocked and not hidden (docker, git)."""
+        binaries = base / 'bin'
+        binaries.mkdir()
+        for name, content in mocks.items():
+            (binaries / name).write_text(content)
+            (binaries / name).chmod(0o700)
+        for directory in os.environ['PATH'].split(os.pathsep):
+            if not os.path.isdir(directory):
+                continue
+            for tool in os.listdir(directory):
+                target = os.path.join(directory, tool)
+                if tool not in ('docker', 'git', 'docker-compose', 'apt-get', 'dnf', 'yum', 'apk', 'pacman', 'zypper', 'tdnf') \
+                        and not (binaries / tool).exists() and os.access(target, os.X_OK):
+                    (binaries / tool).symlink_to(target)
+        (base / 'os-release').write_text(os_release)
+        (base / 'home').mkdir()
+        return dict(os.environ, PATH=str(binaries), HOME=str(base / 'home'), MOCK_BIN=str(binaries), TEST_REPO=str(REPO),
+                    NO_COLOR='1', NARUVI_REF='main', NARUVI_OS_RELEASE=str(base / 'os-release'))
+
+    DOCKER = ('#!/bin/sh\ncase "$*" in\n'
+              '  "volume inspect"*) exit 1;;\n'
+              '  *_journal.json*) echo 30;;\n'
+              '  *__drizzle_migrations*) echo 30;;\n'
+              '  *setup-link.mts*) echo "http://localhost:3456/auth/setup?token=$(printf %064d 0)";;\n'
+              'esac\n')
+    GIT = '#!/bin/sh\ncase "$*" in *clone*) for last; do :; done; mkdir -p "$last"; cp -R "$TEST_REPO/deploy" "$last/deploy";; esac\n'
+    BASE_MOCKS = {
+        'curl': '#!/bin/sh\ncase "$*" in *"-o /dev/null"*|*"--output /dev/null"*) ;; *" -o "*) exit 0;; esac\nprintf 200\n',
+        'sleep': '#!/bin/sh\nexit 0\n',
+        'getent': '#!/bin/sh\nexit 2\n',
+        'cloud-init': '#!/bin/sh\necho "status: done"\n',
+        'uname': '#!/bin/sh\ncase "$1" in -m) echo x86_64;; *) echo Linux;; esac\n',
+        'sudo': '#!/bin/sh\nwhile case "$1" in -*) true;; *) false;; esac; do shift; done\n[ $# -eq 0 ] || exec "$@"\n',
+        'systemctl': '#!/bin/sh\nexit 0\n',
+    }
+
+    def package_manager(self, name):
+        """A package manager mock that logs its arguments and "installs" docker or git by placing their mocks."""
+        return ('#!/bin/sh\necho "$*" >> "$MOCK_BIN/packages.log"\n'
+                'case "$*" in *docker*|*moby*) printf "%s" "$DOCKER_MOCK" > "$MOCK_BIN/docker"; chmod 700 "$MOCK_BIN/docker";; esac\n'
+                'case "$*" in *git*) printf "%s" "$GIT_MOCK" > "$MOCK_BIN/git"; chmod 700 "$MOCK_BIN/git";; esac\n')
+
+    def install_on(self, os_release, manager, *arguments, extra=None):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            mocks = dict(self.BASE_MOCKS, **{manager: self.package_manager(manager)}, **(extra or {}))
+            env = self.isolated(base, mocks, os_release)
+            env.update(DOCKER_MOCK=self.DOCKER, GIT_MOCK=self.GIT)
+            result = subprocess.run(['bash', str(REPO / 'install.sh'), '--yes', '--mode', 'local', '--port', '3456',
+                                     '--dir', str(base / 'installation'), *arguments],
+                                    capture_output=True, text=True, env=env, timeout=60)
+            log = base / 'bin' / 'packages.log'
+            return result, log.read_text() if log.exists() else ''
+
+    def test_rocky_installs_docker_from_dockers_repository(self):
+        result, packages = self.install_on('ID="rocky"\nID_LIKE="rhel centos fedora"\nVERSION_ID="9.4"\nPRETTY_NAME="Rocky Linux 9.4"\n',
+                                           'dnf', '--install-docker', extra={'git': self.GIT})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Rocky Linux 9.4', result.stdout)
+        self.assertIn('--allowerasing docker-ce', packages)
+        self.assertIn('docker-compose-plugin', packages)
+        self.assertIn('Naruvi is ready', result.stdout)
+
+    def test_alpine_installs_docker_with_apk(self):
+        result, packages = self.install_on('ID=alpine\nVERSION_ID=3.20.0\nPRETTY_NAME="Alpine Linux v3.20"\n',
+                                           'apk', '--install-docker', extra={'git': self.GIT})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('add --no-cache docker docker-cli-compose docker-cli-buildx', packages)
+
+    def test_arch_installs_docker_with_pacman(self):
+        result, packages = self.install_on('ID=arch\nPRETTY_NAME="Arch Linux"\n', 'pacman', '--install-docker', extra={'git': self.GIT})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('-S --needed --noconfirm docker docker-compose docker-buildx', packages)
+
+    def test_missing_git_is_installed_with_the_package_manager(self):
+        result, packages = self.install_on('ID=debian\nVERSION_ID="12"\nPRETTY_NAME="Debian GNU/Linux 12 (bookworm)"\n',
+                                           'apt-get', '--install-deps', extra={'docker': self.DOCKER})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Install git', result.stdout)
+        self.assertIn('install -y -q --no-install-recommends git ca-certificates', packages)
+
+    def test_missing_git_without_consent_says_how_to_install_it(self):
+        result, packages = self.install_on('ID=opensuse-tumbleweed\nID_LIKE="opensuse suse"\nPRETTY_NAME="openSUSE Tumbleweed"\n',
+                                           'zypper', extra={'docker': self.DOCKER})
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('git: sudo zypper install git', result.stdout)
+        self.assertEqual(packages, '')
 
     def test_rerun_points_to_manager(self):
         with tempfile.TemporaryDirectory() as tmp:
