@@ -51,9 +51,9 @@ export function DashboardCalendar({ events, now }: { events: CalendarEvent[]; no
           selected={selected}
           onSelect={setSelected}
           defaultMonth={today}
-          className="mx-auto p-0 [--cell-size:--spacing(8)] @min-[34rem]/cal:mx-0"
+          className="mx-auto bg-transparent p-0 [--cell-size:--spacing(9)] @min-[34rem]/cal:mx-0"
           modifiers={{ busy: (date) => byDay.has(dayKey(date)) }}
-          modifiersClassNames={{ busy: "[&>button]:font-semibold [&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:start-1/2 [&>button]:after:size-1 [&>button]:after:-translate-x-1/2 rtl:[&>button]:after:translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-current [&>button]:relative" }}
+          modifiersClassNames={{ busy: "[&>button]:font-semibold [&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:start-1/2 [&>button]:after:size-1 [&>button]:after:-translate-x-1/2 rtl:[&>button]:after:translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-primary [&>button[data-selected-single=true]]:after:bg-primary-foreground [&>button]:relative" }}
         />
         <div className="grid content-start gap-3 border-t pt-3 @min-[34rem]/cal:border-t-0 @min-[34rem]/cal:border-s @min-[34rem]/cal:ps-6 @min-[34rem]/cal:pt-0">
           <div className="grid gap-1.5">
