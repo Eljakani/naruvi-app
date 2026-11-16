@@ -3,6 +3,17 @@
 Each release is a signed Git tag `vX.Y.Z` with a GitHub release of the same name.
 Update an installation from a terminal with `naruvi update`.
 
+## 0.6.1 — 2026-11-16
+
+### Changed
+- The installer recognises the main Linux families (Debian/Ubuntu, Fedora, RHEL rebuilds, Amazon Linux, Azure Linux, openSUSE, Arch, Alpine, Void) and the big clouds. It offers to install missing Git, curl, OpenSSL, Docker, Compose and Buildx with the system's own packages (plugins checksum-verified), and to add swap on small servers. New flags for unattended installs: `--install-deps` and `--swap`.
+- Hosted installs check DNS the way Let's Encrypt does, against the server's public address. The installer catches missing or wrong records, stale AAAA, Cloudflare proxying and blocking CAA records, prints the exact records to create, and can wait and recheck. A port 80/443 already in use can switch the install to *Behind your proxy*.
+- Installer steps retry by themselves on network errors, explain known failures (full disk, package lock, rate limits, memory, clock), and offer to try again, show the log or stop. A certificate refused because of old DNS is asked for again once DNS is right.
+- The model field in AI settings loads your provider's model list by itself and lets you search it or type any ID.
+
+### Fixed
+- The dashboard calendar no longer draws a dark box inside its card.
+
 ## 0.6.0 — 2026-11-15
 
 ### Added
