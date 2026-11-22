@@ -127,7 +127,8 @@ export function ApiSettings({ keys, origin, folder }: { keys: Key[]; origin: str
           <div className="mt-2 grid gap-2">
           <p className="text-muted-foreground">{t("mcp.body")}</p>
           <p className="text-xs text-muted-foreground">Claude Code:</p>
-          <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs">{`claude mcp add naruvi -e NARUVI_URL=${origin} -e NARUVI_API_KEY=nrv_… -- node ${folder}/mcp/naruvi-mcp.mjs`}</pre>
+          <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs">{`claude mcp add --transport http naruvi ${origin}/api/v1/mcp --header "Authorization: Bearer nrv_…"`}</pre>
+          <p className="text-xs text-muted-foreground">{t("mcp.http", { url: `${origin}/api/v1/mcp` })}</p>
           <p className="text-xs text-muted-foreground">{t("mcp.desktop")}</p>
           <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs">{JSON.stringify({ naruvi: { command: "node", args: [`${folder}/mcp/naruvi-mcp.mjs`], env: { NARUVI_URL: origin, NARUVI_API_KEY: "nrv_…" } } }, null, 2)}</pre>
           <p className="text-xs text-muted-foreground">{t.rich("mcp.scripts", { origin, code: (chunks) => <code className="rounded bg-muted px-1">{chunks}</code> })}</p>

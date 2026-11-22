@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     "public/ort/**",
     ".tmp-*.mjs",
     ".impeccable/live/**",
+    // The Skybridge MCP App is its own package with its own checks.
+    "mcp-app/**",
   ]),
 ]);
 

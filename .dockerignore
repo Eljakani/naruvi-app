@@ -8,3 +8,4 @@ data
 .impeccable/live
 __pycache__
 *.py[cod]
+mcp-app

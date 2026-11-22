@@ -61,6 +61,12 @@ export async function setNextStep(id: string, nextStep: string, due: Date | null
   if (!row) throw new Error("Application not found.")
 }
 
+/** Free-text notes kept on the application (also read when drafting emails). */
+export async function setNotes(id: string, notes: string) {
+  const [row] = await db.update(applications).set({ notes: notes.slice(0, 20_000) }).where(eq(applications.id, id)).returning({ id: applications.id })
+  if (!row) throw new Error("Application not found.")
+}
+
 export async function archiveMany(ids: string[]) {
   if (!ids.length) return
   await db.update(applications).set({ archivedAt: new Date() }).where(and(inArray(applications.id, ids), isNull(applications.archivedAt)))
