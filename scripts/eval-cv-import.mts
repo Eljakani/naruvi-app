@@ -9,8 +9,7 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { scoreImport, type Expected, type Imported } from "../evals/profile/score"
 
-config({ path: ".env.local", quiet: true })
-config({ path: ".env", quiet: true })
+config({ path: [".env.local", ".env"], quiet: true })
 
 const root = join(import.meta.dirname, "../evals/profile")
 const expected: Record<string, Expected> = Object.assign({}, ...["expected.json", "expected-long.json"].map((file) => JSON.parse(readFileSync(join(root, file), "utf8"))))

@@ -5,7 +5,7 @@ import { createServer } from "node:http"
 import { config } from "dotenv"
 import postgres from "postgres"
 
-config({ path: ".env.local", quiet: true })
+config({ path: [".env.local", ".env"], quiet: true })
 const originalUrl = process.env.DATABASE_URL
 if (!originalUrl) throw new Error("DATABASE_URL is required.")
 const schema = `naruvi_settings_test_${randomBytes(8).toString("hex")}`

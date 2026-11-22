@@ -9,8 +9,7 @@ if (process.argv.includes("--help")) {
 }
 if (process.argv.length > 2) { console.error("Do not pass passwords as arguments. Run without arguments."); process.exit(1) }
 if (!process.stdin.isTTY || !process.stdout.isTTY) { console.error("Use an interactive terminal. For Docker, use docker compose exec without -T."); process.exit(1) }
-config({ path: ".env.local", quiet: true })
-config({ path: ".env", quiet: true })
+config({ path: [".env.local", ".env"], quiet: true })
 if (!process.env.DATABASE_URL) { console.error("DATABASE_URL is required. Run from your Naruvi checkout or inside the app container."); process.exit(1) }
 let close: (() => Promise<void>) | undefined
 try {

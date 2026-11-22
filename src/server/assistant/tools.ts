@@ -276,8 +276,8 @@ export const assistantTools = {
       entryId: uuid,
       label: z.string().trim().min(1).max(160).describe("What changes, in a few words, for the approval card."),
       language: z.enum(["en", "fr"]).default("en"),
-      text: z.record(z.string(), z.string().max(200)).default({}),
-      fields: z.record(z.string(), z.union([z.string().max(2048), z.object({ start: z.string().optional(), end: z.string().optional() })])).default({}),
+      text: z.record(z.string(), z.unknown()).default({}).describe("Per-language fields, flat: {\"position\": \"…\"}. For both languages at once: {\"en\": {…}, \"fr\": {…}}."),
+      fields: z.record(z.string(), z.unknown()).default({}).describe("Shared fields, flat: {\"company\": \"…\", \"dates\": {\"start\": \"2024-03\", \"end\": \"present\"}}."),
     }),
     needsApproval: true,
     execute: async ({ entryId, language, text, fields }) => {
@@ -287,13 +287,13 @@ export const assistantTools = {
     },
   }),
   create_profile_entry: tool({
-    description: `Propose adding a NEW profile entry (a job, internship, education, project, certification, skill group, language, achievement…) when no existing entry matches. Search with find_profile_entries first; if one matches, use edit_profile_entry or add_profile_fact instead. Each kind has its own fields; use only these:\n${fieldGuide()}\nPer-language fields go in text with the CV language (en or fr); shared fields (company, dates…) go in fields. facts: atomic statements the user supplied (from their message, a screenshot or a document), one claim each, never invented. Requires user approval.`,
+    description: `Propose adding a NEW profile entry (a job, internship, education, project, certification, skill group, language, achievement…) when no existing entry matches. Search with find_profile_entries first; if one matches, use edit_profile_entry or add_profile_fact instead. Each kind has its own fields; use only these:\n${fieldGuide()}\nUse the exact field names above (an \"other\" entry has title, not name). Per-language fields go in text, flat, in the CV language (en or fr); shared fields (company, dates…) go in fields. facts: atomic statements the user supplied (from their message, a screenshot or a document), one claim each, never invented. Requires user approval.`,
     inputSchema: z.object({
       kind: z.enum(ENTRY_KINDS),
       label: z.string().trim().min(1).max(160).describe("What is being added, e.g. \"Cloud & Infrastructure Intern at Acme\", for the approval card."),
       language: z.enum(["en", "fr"]).default("en"),
-      text: z.record(z.string(), z.string().max(200)).default({}),
-      fields: z.record(z.string(), z.union([z.string().max(2048), z.object({ start: z.string().optional(), end: z.string().optional() })])).default({}),
+      text: z.record(z.string(), z.unknown()).default({}).describe("Per-language fields, flat: {\"position\": \"…\"}. For both languages at once: {\"en\": {…}, \"fr\": {…}}."),
+      fields: z.record(z.string(), z.unknown()).default({}).describe("Shared fields, flat: {\"company\": \"…\", \"dates\": {\"start\": \"2024-03\", \"end\": \"present\"}}."),
       facts: z.array(z.string().trim().min(3).max(600)).max(30).default([]),
       skills: z.array(z.string().trim().min(1).max(80)).max(30).default([]),
     }),

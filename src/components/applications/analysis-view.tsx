@@ -13,8 +13,7 @@ import {
   CircleDashedIcon,
   CircleHelpIcon,
   SignalIcon,
-  XCircleIcon,
-} from "lucide-react"
+  XCircleIcon, ArrowUpRightIcon } from "lucide-react"
 import { CompanyResearch } from "@/components/applications/company-research"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import type { CompanyResearch as Research } from "@/server/research/brief"
@@ -25,6 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 import type { LevelCheck } from "@/lib/experience"
 import { displayFitScore, type RequirementMatch } from "@/server/analysis/match"
+import type { JudgedMatch } from "@/server/analysis/judge"
 import type { StoredAnalysis } from "@/server/applications/repository"
 import { useLocale, useTranslations } from "next-intl"
 
@@ -60,6 +60,30 @@ function FitRing({ score }: { score: number }) {
 
 const EASE = [0.23, 1, 0.32, 1] as const
 
+/** The explanation in the reader's language: the judge's own words, else the rule note translated, else the stored text. */
+function NoteText({ match }: { match: RequirementMatch }) {
+  const t = useTranslations("analysis.note")
+  const locale = useLocale()
+  const reasons = (match as JudgedMatch).reasons
+  if (reasons) return <>{reasons[locale as keyof typeof reasons] || reasons.en}</>
+  if (!match.notes?.length) return <>{match.note}</>
+  const list = (items: string[]) => new Intl.ListFormat(locale, { type: "conjunction" }).format(items)
+  return (
+    <>
+      {match.notes.map((part) => {
+        switch (part.key) {
+          case "noFactMentions": case "onlyInSkills": case "onlyInTags": case "notInProfile": case "coursework": case "missing":
+            return t(part.key, { items: list(part.items) })
+          case "relatedOnly": return t(part.key, { items: list(part.items), related: list(part.related) })
+          case "yearsCheck": return t(part.key, { years: part.years })
+          case "shown": return t(part.key, { text: part.text })
+          default: return t(part.key)
+        }
+      }).join(" ")}
+    </>
+  )
+}
+
 function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow[] }) {
   const t = useTranslations("analysis")
   const status = STATUS[match.status]
@@ -79,7 +103,7 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
       >
         <status.icon className={cn("mt-1 size-4 shrink-0", status.className)} aria-hidden />
         <span className="min-w-0 flex-1 text-sm leading-6">{match.text}</span>
-        {!open && evidence.length ? <span className="mt-0.5 shrink-0 text-xs text-muted-foreground tabular-nums">{evidence.length} fact{evidence.length === 1 ? "" : "s"}</span> : null}
+        {!open && evidence.length ? <span className="mt-0.5 shrink-0 text-xs text-muted-foreground tabular-nums">{t("factCount", { count: evidence.length })}</span> : null}
         <span className={cn("mt-0.5 shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium", status.pill)}>{t(`status.${match.status}`)}</span>
         {hasDetail ? <ChevronDownIcon className={cn("mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-200", open && "rotate-180")} aria-hidden /> : <span className="w-4 shrink-0" />}
       </button>
@@ -129,7 +153,17 @@ function Requirement({ match, facts }: { match: RequirementMatch; facts: FactRow
                       <TooltipContent>{t("modelReviewed")}</TooltipContent>
                     </Tooltip>
                   ) : null}
-                  {match.note}
+                  <NoteText match={match} />
+                </p>
+              ) : null}
+              {(match as JudgedMatch).sources?.length ? (
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 ps-5 text-xs text-muted-foreground">
+                  {t("sources")}
+                  {(match as JudgedMatch).sources!.map((source) => (
+                    <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-foreground">
+                      {source.title} <ArrowUpRightIcon className="size-3" aria-hidden />
+                    </a>
+                  ))}
                 </p>
               ) : null}
             </div>

@@ -21,7 +21,8 @@ import {
 import { FitRing } from "@/components/applications/fit-ring"
 import AIPrompt from "@/components/kokonutui/ai-prompt"
 import AITextLoading from "@/components/kokonutui/ai-text-loading"
-import AIToolApproval from "@/components/kokonutui/ai-tool-approval"
+import { ENTRY_KINDS, KIND_FIELDS, looseFields, normalizeEntryDraft, optionLabel, type EntryKind } from "@/lib/entry-fields"
+import { ActionDetails, ActionFrame, type ActionBody, type ActionRow } from "@/components/assistant/action-frame"
 import { DotmCircular5 } from "@/components/ui/dotm-circular-5"
 import { EntryLogo } from "@/components/profile/entry-logo"
 import { AiStatus, AiStatusIcon } from "@/components/ui/ai-status"
@@ -1020,8 +1021,23 @@ type Ctx = {
   language: (code: string) => string
   stage: (status: string) => string
   day: (iso: string) => string
+  /** A profile field's label ("Company"), from the entry editor's own words. */
+  field: (kind: string, key: string) => string
+  /** A profile entry kind, singular ("Experience"). */
+  kind: (kind: string) => string
+  locale: string
 }
-type Action = { icon: LucideIcon; title: (input: Input, c: Ctx) => string; details: (input: Input, c: Ctx) => string[]; done: (output: Input, c: Ctx) => string; destructive?: boolean }
+type Action = {
+  icon: LucideIcon
+  title: (input: Input, c: Ctx) => string
+  details: (input: Input, c: Ctx) => string[]
+  /** Structured proposal (labelled fields, facts, skills) where plain lines would read as raw data. */
+  body?: (input: Input, c: Ctx) => Partial<ActionBody>
+  /** One line under the title, e.g. the kind of entry. */
+  subtitle?: (input: Input, c: Ctx) => string
+  done: (output: Input, c: Ctx) => string
+  destructive?: boolean
+}
 const s = (value: unknown) => (typeof value === "string" ? value : "")
 const n = (value: unknown) => (typeof value === "number" ? value : 0)
 const list = (value: unknown) => (Array.isArray(value) ? value.map(s).filter(Boolean) : [])
@@ -1033,8 +1049,35 @@ const fieldValue = (value: unknown, open: string) => {
   return [s(range.start), s(range.end) || open].filter(Boolean).join(" – ")
 }
 
+/** A proposed entry as labelled rows, sorted into the kind's real fields the way the server will save it. */
+function entryRows(i: Input, c: Ctx, open: string): ActionRow[] {
+  const kind = (ENTRY_KINDS as readonly string[]).includes(s(i.kind)) ? (s(i.kind) as EntryKind) : null
+  if (!kind) return [...pairs(i.text), ...pairs(i.fields)].map(([key, value]) => ({ label: key, value: fieldValue(value, open) || c.common("cleared") }))
+  const draft = normalizeEntryDraft(kind, s(i.language) || "en", i.text, i.fields)
+  const langs = Object.keys(draft.display)
+  const rows: ActionRow[] = []
+  for (const spec of KIND_FIELDS[kind]) {
+    if (spec.translated) {
+      for (const lang of langs) {
+        const value = draft.display[lang][spec.key]
+        if (value !== undefined) rows.push({ label: c.field(kind, spec.key), value: value || c.common("cleared"), hint: langs.length > 1 ? lang : undefined })
+      }
+    } else if (spec.key in draft.fields) {
+      const value = draft.fields[spec.key]
+      // Dates written as text ("Mar 2026 – present") read the way the server will store them.
+      const stored = typeof value === "string" && (spec.type === "dates" || spec.type === "month") ? looseFields(kind, { [spec.key]: value })[spec.key] ?? value : value
+      const shown = fieldValue(stored, open)
+      rows.push({ label: c.field(kind, spec.key), value: (spec.type === "select" ? optionLabel(shown, c.locale) : shown) || c.common("cleared") })
+    }
+  }
+  for (const key of draft.unknown) rows.push({ label: key, value: c.common("unknownField") })
+  return rows
+}
+
 function useActionCtx(name: string): Ctx {
   const t = useTranslations("assistantActions")
+  const tf = useTranslations("entryEditor.kindFields")
+  const tk = useTranslations("profileLabels.kindSingular")
   const status = useTranslations("labels.status")
   const locale = useLocale()
   return useMemo(() => {
@@ -1048,8 +1091,11 @@ function useActionCtx(name: string): Ctx {
       },
       stage: (value) => (status.has(value as never) ? status(value as never) : value),
       day: (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" }),
+      field: (kind, key) => (tf.has(`${kind}.${key}.label` as never) ? (tf(`${kind}.${key}.label` as never) as string) : key),
+      kind: (kind) => (tk.has(kind as never) ? (tk(kind as never) as string) : kind),
+      locale,
     }
-  }, [t, status, locale, name])
+  }, [t, tf, tk, status, locale, name])
 }
 
 const ACTIONS: Record<string, Action> = {
@@ -1067,25 +1113,21 @@ const ACTIONS: Record<string, Action> = {
   },
   edit_profile_entry: {
     icon: UserPenIcon, title: (i, c) => s(i.label) || c.t("title"),
-    details: (i, c) => [
-      ...pairs(i.text).map(([key, value]) => c.common("line", { key, value: s(value) || c.common("cleared") })),
-      ...pairs(i.fields).map(([key, value]) => c.common("line", { key, value: fieldValue(value, "") || c.common("cleared") })),
-    ],
+    details: () => [],
+    body: (i, c) => ({ rows: entryRows(i, c, c.common("present")) }),
     done: (o, c) => c.t("done", { name: s(o.name) }),
   },
   create_profile_entry: {
-    icon: UserPenIcon, title: (i, c) => c.t("title", { label: s(i.label) }),
-    details: (i, c) => [
-      ...pairs(i.text).map(([key, value]) => c.common("line", { key, value: s(value) })),
-      ...pairs(i.fields).map(([key, value]) => c.common("line", { key, value: fieldValue(value, c.common("present")) })),
-      ...list(i.facts).map((fact) => `• ${fact}`),
-      list(i.skills).length ? c.common("skills", { list: list(i.skills).join(", ") }) : "",
-    ],
+    icon: UserPenIcon, title: (i, c) => s(i.label) || c.kind(s(i.kind)),
+    subtitle: (i, c) => c.t("subtitle", { kind: c.kind(s(i.kind)) }),
+    details: () => [],
+    body: (i, c) => ({ rows: entryRows(i, c, c.common("present")), facts: list(i.facts), skills: list(i.skills) }),
     done: (o, c) => c.t("done", { name: s(o.name) }),
   },
   add_profile_fact: {
     icon: UserPenIcon, title: (i, c) => c.t("title", { label: s(i.label) }),
-    details: (i, c) => [s(i.statement), list(i.skills).length ? c.common("skills", { list: list(i.skills).join(", ") }) : ""],
+    details: (i) => [s(i.statement)],
+    body: (i) => ({ skills: list(i.skills) }),
     done: (o, c) => c.t(o.added || o.skillsAdded ? (o.verified ? "done" : "doneUnverified") : "doneExisting"),
   },
   update_application: {
@@ -1222,7 +1264,9 @@ function ActionCard({ part, busy, stale, onApproval, onNavigate }: { part: ToolP
   const input = part.input ?? {}
   if (part.state === "input-streaming") return busy ? <PendingActivity label={t("preparing")} /> : null
   const Icon = action.icon
-  const details = action.details(input, c).filter(Boolean)
+  const body: ActionBody = { rows: [], facts: [], skills: [], ...action.body?.(input, c), lines: action.details(input, c).filter(Boolean) }
+  const hasBody = body.rows.length + body.lines.length + body.facts.length + body.skills.length > 0
+  const labels = { needsApproval: t("needsApproval"), notNow: t("notNow"), hold: t("hold"), holdLabel: t("holdLabel"), destructive: t("destructive"), facts: t("facts"), skills: t("skills"), failed: t("failed") }
   const state = part.state
   // A suggestion the conversation moved past without an answer counts as skipped.
   const skipped = state === "approval-requested" && stale
@@ -1233,20 +1277,10 @@ function ActionCard({ part, busy, stale, onApproval, onNavigate }: { part: ToolP
   const failed = state === "output-error"
   const href = done && typeof part.output?.href === "string" ? part.output.href : null
   const title = action.title(input, c)
+  const subtitle = action.subtitle?.(input, c)
   const approvalId = part.approval?.id
 
-  if (asking && approvalId) {
-    return (
-      <AIToolApproval
-        className="cb-step max-w-none"
-        labels={{ needsApproval: t("needsApproval"), notNow: t("notNow"), hold: t("hold"), holdLabel: t("holdLabel"), destructive: t("destructive") }}
-        calls={[{ id: approvalId, tool: name, title, input: details, destructive: action.destructive, approveLabel: c.t("approve"), state: "approval-requested", icon: <Icon className="size-3.5" /> }]}
-        onRespond={(id, approved) => onApproval(id, approved)}
-      />
-    )
-  }
-
-  // Settled: the outcome leads, what was asked sits under it, and the next place to go is one press away.
+  // Settled: the outcome leads, what was asked folds under it, and the next place to go is one press away.
   if (done || declined) {
     return (
       <div className="cb-step flex min-w-0 items-center gap-2.5 rounded-xl border bg-card p-2.5">
@@ -1254,14 +1288,14 @@ function ActionCard({ part, busy, stale, onApproval, onNavigate }: { part: ToolP
           {done ? <CheckIcon aria-hidden className="cb-pop" /> : <BanIcon aria-hidden />}
         </IconTile>
         <details className="group/details min-w-0 flex-1 text-sm">
-          <summary className={cn("grid list-none gap-0.5 rounded-sm focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden", details.length ? "cursor-pointer" : "pointer-events-none")} tabIndex={details.length ? undefined : -1}>
+          <summary className={cn("grid list-none gap-0.5 rounded-sm focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden", hasBody ? "cursor-pointer" : "pointer-events-none")} tabIndex={hasBody ? undefined : -1}>
             <span className="leading-snug font-medium wrap-anywhere">{done ? action.done(part.output ?? {}, c) : title}</span>
             <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
               <span className="truncate">{done ? title : skipped ? t("skipped") : t("declined")}</span>
-              {details.length ? <ChevronDownIcon aria-label={t("details")} className="size-3 shrink-0 transition-transform duration-150 group-open/details:rotate-180 motion-reduce:transition-none" /> : null}
+              {hasBody ? <ChevronDownIcon aria-label={t("details")} className="size-3 shrink-0 transition-transform duration-150 group-open/details:rotate-180 motion-reduce:transition-none" /> : null}
             </span>
           </summary>
-          {details.length ? <ul className="mt-1.5 grid gap-1 border-t pt-1.5 text-xs text-muted-foreground">{details.map((line, index) => <li key={index} className="wrap-anywhere">{line}</li>)}</ul> : null}
+          {hasBody ? <ActionDetails body={body} labels={labels} className="mt-2 border-t pt-2 text-xs" /> : null}
         </details>
         {href ? <Button size="sm" className="shrink-0 self-start" nativeButton={false} render={<Link href={href} onClick={onNavigate} />}>{t("open")} <ArrowRightIcon className="rtl:rotate-180" /></Button> : null}
       </div>
@@ -1269,20 +1303,18 @@ function ActionCard({ part, busy, stale, onApproval, onNavigate }: { part: ToolP
   }
 
   return (
-    <div className={cn("cb-step grid gap-2 rounded-xl border bg-card p-2.5 text-sm", failed && "border-destructive/30")}>
-      <div className="flex items-start gap-2.5">
-        <IconTile variant="soft" size="sm" className={failed || action.destructive ? "text-destructive" : "text-muted-foreground"}>
-          {failed ? <CircleAlertIcon aria-hidden /> : <Icon aria-hidden />}
-        </IconTile>
-        <div className="grid min-w-0 flex-1 gap-0.5">
-          <span className="leading-snug font-medium wrap-anywhere">{title}</span>
-          {details.map((line) => <span key={line} className="text-xs wrap-anywhere text-muted-foreground">{line}</span>)}
-        </div>
-      </div>
-      {running && busy ? <PendingActivity analyzing label={c.t("working")} className="ps-10.5" /> : null}
-      {failed ? (
-        <p role="alert" className="ps-10.5 text-xs font-medium text-destructive wrap-anywhere">{part.errorText || t("failed")}</p>
-      ) : null}
-    </div>
+    <ActionFrame
+      icon={<Icon aria-hidden />}
+      title={title}
+      subtitle={subtitle}
+      body={body}
+      labels={labels}
+      destructive={action.destructive}
+      approveLabel={c.t("approve")}
+      state={asking && approvalId ? "asking" : failed ? "failed" : "running"}
+      error={part.errorText}
+      progress={running && busy ? <PendingActivity analyzing label={c.t("working")} /> : null}
+      onRespond={approvalId ? (approved) => onApproval(approvalId, approved) : undefined}
+    />
   )
 }

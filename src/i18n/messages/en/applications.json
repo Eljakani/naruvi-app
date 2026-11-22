@@ -172,6 +172,9 @@
     "customise": "Customise fonts, colours and layout"
   },
   "analysis": {
+    "sources": "Sources:",
+    "note": {"noFactMentions": "No fact mentions {items}.", "onlyInSkills": "{items} only appears in entry skills, not in a fact.", "onlyInTags": "{items} only appears in entry tags or skills, not in a fact.", "notInProfile": "Nothing in your verified profile mentions {items}. Don’t claim it.", "coursework": "{items} is only backed by coursework or a certification, not hands-on work.", "missing": "Missing: {items}.", "relatedOnly": "No fact mentions {items} directly; related evidence: {related}. Describe it with those words, not as {items}.", "yearsCheck": "Your profile can’t prove {years}+ years by itself — check your dates.", "shown": "Shown: {text}.", "relatedYourCall": "Related facts found; whether they satisfy this is your call.", "softSkill": "Not something facts can prove (soft skill or context). Decide yourself whether it fits.", "relatedPartial": "Related facts, but they don’t fully cover this.", "gapNoClaim": "Nothing in your verified facts backs this. Don’t claim it.", "judgementDecide": "Not something facts can prove. Decide yourself whether it fits.", "attitude": "A motivation, not a skill: facts can’t prove it. Speak to it in your letter or interview."},
+    "factCount": "{count, plural, one {# fact} other {# facts}}",
     "fit": "fit",
     "modelReviewed": "Reviewed by the language model, limited to the facts shown",
     "status": { "met": "Proven", "partial": "Partly", "gap": "Not in profile", "judgement": "Your call" },

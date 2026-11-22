@@ -414,3 +414,97 @@ export function fromLegacy(kind: EntryKind, name: string, legacy: Record<string,
   }
   return { display: cleanText(kind, display), fields: looseFields(kind, raw) }
 }
+
+/* ------------------------------------------------------------------ drafts */
+
+/** Names a model (or a person) commonly uses for a field, tried when the kind has no field by that name. */
+const FIELD_ALIASES: Record<string, string[]> = {
+  position: ["role", "jobTitle", "job_title", "poste"],
+  company: ["organization", "organisation", "employer", "companyName", "company_name", "entreprise"],
+  school: ["institution", "university", "college", "ecole", "école"],
+  issuer: ["organization", "organisation", "authority", "provider"],
+  url: ["link", "website", "href", "site"],
+  subtitle: ["description", "summary", "details", "tagline"],
+  tagline: ["description", "summary", "subtitle"],
+  context: ["description", "details"],
+  level: ["proficiency"],
+  date: ["dates", "when"],
+  dates: ["period", "duration", "date"],
+}
+/** Generic names for an entry's own name: they mean the kind's required field. */
+const NAME_ALIASES = ["name", "title", "label", "heading"]
+const LANGS = ["en", "fr"] as const
+
+/** A per-language bundle the model sent as JSON text ('{"title": "…"}'). */
+function asObject(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>
+  if (typeof value === "string" && value.trim().startsWith("{")) {
+    try { const parsed = JSON.parse(value); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null } catch { return null }
+  }
+  return null
+}
+
+function resolveKey(kind: EntryKind, key: string): string | null {
+  const specs = KIND_FIELDS[kind]
+  if (specs.some((spec) => spec.key === key)) return key
+  const loose = key.toLowerCase().replace(/[\s_-]/g, "")
+  const exact = specs.find((spec) => spec.key.toLowerCase() === loose)
+  if (exact) return exact.key
+  if (NAME_ALIASES.includes(loose)) return specs.find((spec) => spec.required)?.key ?? null
+  for (const spec of specs) if (FIELD_ALIASES[spec.key]?.some((alias) => alias.toLowerCase().replace(/[\s_-]/g, "") === loose)) return spec.key
+  if (["start", "startdate", "from", "end", "enddate", "to"].includes(loose) && specs.some((spec) => spec.key === "dates")) return "dates"
+  return null
+}
+
+export type EntryDraft = {
+  /** Per-language fields, by CV language. */
+  display: Record<string, Record<string, string>>
+  /** Shared fields, raw (dates may still be text). */
+  fields: Record<string, unknown>
+  /** Keys that match no field of this kind. */
+  unknown: string[]
+}
+
+/**
+ * Sorts what a model proposes for an entry into the kind's real fields. It
+ * accepts the shapes models actually send: text keyed by language
+ * ({en: {...}, fr: {...}}, even as JSON text), per-language fields put under
+ * fields and shared ones under text, common synonyms ("name" for an "other"
+ * entry's title, "role" for a position) and dates split into start and end.
+ * Empty strings are kept so an edit can clear a field.
+ */
+export function normalizeEntryDraft(kind: EntryKind, language: string, text: unknown, fields: unknown): EntryDraft {
+  const draft: EntryDraft = { display: {}, fields: {}, unknown: [] }
+  const put = (lang: string, key: string, value: unknown) => {
+    if (value === undefined || value === null) return
+    const target = resolveKey(kind, key)
+    if (!target) { if (!draft.unknown.includes(key)) draft.unknown.push(key); return }
+    const spec = KIND_FIELDS[kind].find((item) => item.key === target)!
+    const loose = key.toLowerCase().replace(/[\s_-]/g, "")
+    if (spec.translated) {
+      const value_ = typeof value === "string" ? value : typeof value === "number" ? String(value) : ""
+      const bucket = (draft.display[lang] ??= {})
+      if (!(target in bucket) || target === key) bucket[target] = value_.trim()
+      return
+    }
+    if (spec.type === "dates" && target !== key && ["start", "startdate", "from", "end", "enddate", "to"].includes(loose)) {
+      const range = (asObject(draft.fields.dates) ?? {}) as Record<string, unknown>
+      range[/^(start|startdate|from)$/.test(loose) ? "start" : "end"] = value
+      draft.fields.dates = range
+      return
+    }
+    // A shared field given in several languages keeps its first value.
+    if (!(target in draft.fields) || target === key) draft.fields[target] = typeof value === "string" ? value.trim() : value
+  }
+  const read = (source: unknown) => {
+    for (const [key, value] of Object.entries(asObject(source) ?? {})) {
+      const bundle = (LANGS as readonly string[]).includes(key) ? asObject(value) : null
+      if (bundle) for (const [inner, innerValue] of Object.entries(bundle)) put(key, inner, innerValue)
+      else if ((LANGS as readonly string[]).includes(key) && (value === "" || value == null)) continue
+      else put(language, key, value)
+    }
+  }
+  read(text)
+  read(fields)
+  return draft
+}

@@ -172,6 +172,9 @@
     "customise": "Personnaliser les polices, couleurs et la mise en page"
   },
   "analysis": {
+    "sources": "Sources :",
+    "note": {"noFactMentions": "Aucun fait ne mentionne {items}.", "onlyInSkills": "{items} n’apparaît que dans les compétences de l’élément, pas dans un fait.", "onlyInTags": "{items} n’apparaît que dans les étiquettes ou compétences de l’élément, pas dans un fait.", "notInProfile": "Rien dans votre profil vérifié ne mentionne {items}. Ne le revendiquez pas.", "coursework": "{items} n’est appuyé que par une formation ou une certification, pas par une pratique professionnelle.", "missing": "Manque : {items}.", "relatedOnly": "Aucun fait ne mentionne directement {items} ; éléments proches : {related}. Décrivez-le avec ces mots, pas comme {items}.", "yearsCheck": "Votre profil ne prouve pas à lui seul {years} ans ou plus : vérifiez vos dates.", "shown": "Montré : {text}.", "relatedYourCall": "Des faits proches existent ; à vous de juger s’ils suffisent.", "softSkill": "Ce n’est pas prouvable par des faits (savoir-être ou contexte). À vous de juger si cela vous correspond.", "relatedPartial": "Des faits s’en rapprochent, sans le couvrir entièrement.", "gapNoClaim": "Aucun fait vérifié ne l’appuie. Ne le revendiquez pas.", "judgementDecide": "Ce n’est pas prouvable par des faits. À vous de juger si cela vous correspond.", "attitude": "Une motivation, pas une compétence : aucun fait ne la prouve. Parlez-en dans votre lettre ou en entretien."},
+    "factCount": "{count, plural, one {# fait} other {# faits}}",
     "fit": "corresp.",
     "modelReviewed": "Revu par le modèle de langage, limité aux faits affichés",
     "status": { "met": "Prouvé", "partial": "En partie", "gap": "Absent du profil", "judgement": "À vous de juger" },

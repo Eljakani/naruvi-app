@@ -1,7 +1,7 @@
 /** Manual check: rule vs AI fit review and CV polish on your latest application. Reads only; saves nothing. */
 import { entryName } from "../src/lib/entry-fields"
 import { config } from "dotenv"
-config({ path: ".env.local", quiet: true })
+config({ path: [".env.local", ".env"], quiet: true })
 const { completeJson } = await import("../src/server/llm/client")
 const { db } = await import("../src/server/db/client")
 const { applications, documents, revisions } = await import("../src/server/db/schema")
