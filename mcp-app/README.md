@@ -42,6 +42,8 @@ Connect a client from the Naruvi checkout with `npm run mcp:setup -- <client> --
 src/
   server.ts      tools, views and the key check on /mcp
   naruvi.ts      calls Naruvi's MCP endpoint with the request's key
+  inline-views.ts  serves each view as one self-contained page (built by scripts/inline-views.mjs),
+                 so hosts like Claude Desktop need no access to this server from their sandbox
   summaries.ts   text the model reads next to each view; CV Markdown parsing
   types.ts       shapes of Naruvi's structured results
   views/         React views: applications, fit-analysis, cv

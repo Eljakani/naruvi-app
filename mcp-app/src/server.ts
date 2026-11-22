@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { Skybridge } from "skybridge/server";
 import { z } from "zod";
+import { inlineViewsFrom, inlineViewsMiddleware } from "./inline-views.js";
 import { KEY_PATTERN, currentKey, naruviClient, requestKey } from "./naruvi.js";
 import { applicationsText, cvSummary, fitText } from "./summaries.js";
 import type { ApplicationSummary, CvResult, FitAnalysis } from "./types.js";
@@ -101,5 +102,8 @@ app.use("/mcp", (async (req: Req, res: Res, next: (error?: unknown) => void) => 
   }
   requestKey.run(key, () => next());
 }) as never);
+
+// Views as self-contained pages, so a host's sandbox needs no access to this server (see inline-views.ts).
+app.use("/mcp", inlineViewsMiddleware(inlineViewsFrom(new URL("./inline/", import.meta.url))) as never);
 
 export type AppType = typeof app;
