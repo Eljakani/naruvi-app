@@ -1,6 +1,5 @@
 "use client"
 
-import UndoButton from "@/components/kokonutui/undo-button"
 import { Presence, PresenceItem, PresenceList } from "@/components/presence"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
@@ -61,6 +60,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
@@ -584,7 +584,10 @@ export function EntryEditor({ entry, initialKind }: { entry: ProfileEntry | null
             <Button variant="outline" onClick={() => (setConfirmDelete(false), patch({ status: "archived" }))}>
               {t("deleteDialog.archive")}
             </Button>
-            <UndoButton label={t("deleteDialog.delete")} doneLabel={t("deleted")} icon={TrashIcon} className="h-8 text-destructive" resetAfter={null} disabled={pending} onCommit={remove} />
+            {/* The dialog is the confirmation: one click deletes. */}
+            <Button variant="destructive" disabled={pending} onClick={remove}>
+              {pending ? <Spinner className="motion-reduce:animate-none" /> : <TrashIcon />} {t("deleteDialog.delete")}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

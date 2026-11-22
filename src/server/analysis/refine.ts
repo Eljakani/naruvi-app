@@ -9,7 +9,7 @@
 import { z } from "zod"
 import { choice, decideInChunks, type Decide } from "@/server/decisions/jev"
 import { supportedWording } from "@/server/documents/ai-compose"
-import type { RequirementMatch } from "./match"
+import { noteOf, type RequirementMatch } from "./match"
 
 export const PROMPT_VERSION = "refine-v1"
 
@@ -157,9 +157,9 @@ export async function reviewAllMatches(
     if (match.status === "met" && status === "gap") status = "partial"
     const finalFacts = factIds.length ? factIds : status === "gap" ? [] : match.factIds
     const note = reviewNote(review, match.text, factIds.map((id) => catalog.find((fact) => fact.id === id)?.statement ?? ""))
-    if (status === match.status && finalFacts.join() === match.factIds.join() && !note) return match
+    if (status === match.status && finalFacts.join() === match.factIds.join() && !note.note) return match
     if (status !== match.status || finalFacts.join() !== match.factIds.join()) changed += 1
-    return { ...match, status, factIds: finalFacts, note: note || match.note, source: "model" as const }
+    return { ...match, status, factIds: finalFacts, ...(note.note ? note : {}), source: "model" as const }
   })
   return { matches: next, reviewed: reviews.size, changed, failedBatches }
 }
@@ -173,8 +173,7 @@ export function reviewNote(review: { shown: string; missing: string[] }, require
   const shown = review.shown.trim() && citedStatements.length && supportedWording(review.shown, citedStatements) ? review.shown.trim() : ""
   const lower = requirement.toLowerCase()
   const missing = [...new Set(review.missing.map((item) => item.trim()).filter((item) => item.length >= 2 && lower.includes(item.toLowerCase())))]
-  const parts = [shown ? `Shown: ${shown}.` : "", missing.length ? `Missing: ${missing.join(", ")}.` : ""].filter(Boolean)
-  return parts.join(" ")
+  return noteOf(shown && { key: "shown", text: shown }, missing.length && { key: "missing", items: missing })
 }
 
 /* ------------------------------------------------------------------ */
@@ -194,10 +193,10 @@ const MET_SUPPORT = 0.6
 
 /** The rule note explained the rule status; once the status changes it would contradict what is shown. */
 function decidedNote(status: RequirementMatch["status"], match: RequirementMatch) {
-  if (status === "met") return ""
-  if (status === "gap") return "Nothing in your verified facts backs this. Don't claim it."
-  if (status === "partial") return match.missing.length ? `No fact mentions ${match.missing.join(", ")}.` : "Related facts, but they don't fully cover this."
-  return "Not something facts can prove. Decide yourself whether it fits."
+  if (status === "met") return noteOf()
+  if (status === "gap") return noteOf({ key: "gapNoClaim" })
+  if (status === "partial") return match.missing.length ? noteOf({ key: "noFactMentions", items: match.missing }) : noteOf({ key: "relatedPartial" })
+  return noteOf({ key: "judgementDecide" })
 }
 
 /**
@@ -245,7 +244,7 @@ export async function decideMatches(
     const factIds = cited.length ? cited : next === "gap" ? [] : match.factIds
     if (next === match.status && factIds.join() === match.factIds.join()) return match
     changed += 1
-    return { ...match, status: next, factIds, source: "model" as const, note: next === match.status ? match.note : decidedNote(next, match) }
+    return { ...match, status: next, factIds, source: "model" as const, ...(next === match.status ? {} : decidedNote(next, match)) }
   })
   return { matches: next, reviewed, changed, model: result.model }
 }

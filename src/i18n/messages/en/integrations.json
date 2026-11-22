@@ -220,7 +220,8 @@
    },
    "mcp": {
     "title": "Connect an AI assistant (MCP) or your scripts",
-    "body": "Ask Claude or another MCP client “what needs my attention?” or “move Dashlane to interviewing”. It reads and updates Naruvi through your API key and asks before changing anything.",
+    "body": "Ask Claude, Codex or another MCP client “what needs my attention?”, “why is my fit 72 for this role?” or “tailor my CV for this job”. It reads your profile, fit analyses and documents through your API key and asks before changing anything.",
+    "http": "Clients that connect over HTTP (Claude Code, Codex, Cursor, VS Code) use {url} with the same key. Setup for each client: docs/MCP.md, or run npm run mcp:setup.",
     "desktop": "Claude Desktop and other clients (mcpServers in their config file):",
     "scripts": "Your own scripts: send <code>Authorization: Bearer nrv_…</code> to <code>{origin}/api/v1</code> (see docs/API.md)."
    }

@@ -233,7 +233,7 @@ Its key appears under **Integrations → API & browser extension**, where you ca
 | **Mail** | IMAP/SMTP, Google or Microsoft OAuth with your own registered app (Microsoft OAuth: work/school accounts only, not personal Outlook.com/Hotmail) |
 | **Calendar & alerts** | `.ics` downloads, a private calendar feed, ntfy notifications |
 | **Speech** | Local Whisper in the browser, or a cloud provider with your own key |
-| **Automation** | Browser extension, [REST API](docs/API.md), MCP server |
+| **Automation** | Browser extension, [REST API](docs/API.md), [MCP server and MCP App](docs/MCP.md) |
 | **Transparency** | Every AI workflow’s status, attempts, latency, and token usage in **Runs** |
 
 Mailbox sign-in depends on the provider. Some accounts need OAuth or an app password, and IMAP/SMTP access must be turned on. See the [integration details](docs/SELF-HOSTING.md#integrations).
@@ -253,6 +253,7 @@ Mailbox sign-in depends on the provider. Some accounts need OAuth or an app pass
 | [Self-hosting](docs/SELF-HOSTING.md) | Model setup, integrations, backups, and migration notes |
 | [Architecture](docs/ARCHITECTURE.md) | Design principles and how the pieces fit |
 | [REST API](docs/API.md) | API keys and programmatic access |
+| [MCP](docs/MCP.md) | Connect Claude, Codex, Cursor and other AI clients |
 | [Browser extension](extension/README.md) | Save postings and contacts from your browser |
 | [Document generation](docs/adr/0001-cv-rendering-and-generation.md) | How CVs and letters are rendered and generated |
 | [Naruvi’s voice](docs/NARUVI-VOICE.md) | The companion’s tone and product identity |

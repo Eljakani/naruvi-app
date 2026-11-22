@@ -6,7 +6,7 @@
 import { config } from "dotenv"
 import { PgBoss } from "pg-boss"
 
-config({ path: ".env.local" })
+config({ path: [".env.local", ".env"] })
 
 const boss = new PgBoss(process.env.DATABASE_URL!)
 boss.on("error", (error) => console.error("[worker]", error))

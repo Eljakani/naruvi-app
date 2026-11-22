@@ -7,6 +7,10 @@ import { db } from "@/server/db/client"
 import { applications, companies, entries, facts, jobs, runSteps, runs } from "@/server/db/schema"
 import { displayFitScore, factForPrompt, indexFacts, matchRequirement, settleAttitude, summarize, type Analysis, type ProfileFact } from "@/server/analysis/match"
 import { DECISION_REVIEW_VERSION, decideMatches, REVIEW_PROMPT_VERSION, reviewAllMatches } from "@/server/analysis/refine"
+import { JUDGE_VERSION, judgeMatches, timelineText } from "@/server/analysis/judge"
+import { publicLookup } from "@/server/analysis/lookup"
+import { languageModel } from "@/server/llm/provider"
+import { getLlmConfiguration } from "@/server/settings/llm"
 import { decisionClient } from "@/server/settings/decisions"
 import { tracedDecide } from "@/server/runs/decisions"
 import { getLlmOverview } from "@/server/settings/llm"
@@ -38,6 +42,17 @@ export async function loadProfileFacts(profileId: string): Promise<ProfileFact[]
       translations: Object.values(fact.translations ?? {}).filter((item) => item.source === fact.statement).map((item) => item.text),
     }
   })
+}
+
+/** Dated entries, so years of experience are counted from the real dates. */
+export async function loadTimeline(profileId: string) {
+  const verified = await db.select().from(entries).where(and(eq(entries.profileId, profileId), eq(entries.status, "verified")))
+  const text = (value: unknown) => (typeof value === "string" ? value : "")
+  return timelineText(verified.map((entry) => {
+    const fields = (entry.fields ?? {}) as Record<string, unknown>
+    const dates = (fields.dates ?? {}) as Record<string, unknown>
+    return { kind: entry.kind, title: entryName(entry), start: text(dates.start), end: text(dates.end), employment: text(fields.employment) }
+  }))
 }
 
 /** Waits up to `ms` for verified entries whose facts lack a translation. Returns how many were waited on. */
@@ -175,8 +190,28 @@ export async function analyzeJob(jobId: string, openRun?: Awaited<ReturnType<typ
     if (!profileFacts.length) throw new Error("No verified facts yet. Verify at least a few profile entries first.")
     const indexed = indexFacts(profileFacts)
     let matches = await run.step("match evidence (rules)", async () => requirements.map((requirement) => matchRequirement(requirement, indexed)), (value) => `${value.filter((m) => m.status === "met").length} met · ${value.filter((m) => m.status === "partial").length} partial · ${value.filter((m) => m.status === "gap").length} gap`)
-    let modelReview: { reviewed: number; changed: number; model?: string } | null = null
-    if (decide) {
+    let modelReview: { reviewed: number; changed: number; model?: string; lookups?: number } | null = null
+    if (modelConfiguration?.configured) {
+      // The judge reasons over the facts in a short tool loop and may look up public facts (a school, a company).
+      const catalog = profileFacts.map((fact) => ({ id: fact.id, statement: factForPrompt(fact), entry: fact.entryTitle, kind: fact.entryKind }))
+      const judged = await run
+        .step(
+          `AI fit judge (${JUDGE_VERSION})`,
+          async () => {
+            const config = await getLlmConfiguration()
+            return judgeMatches(matches, catalog, { model: languageModel(config), lookup: await publicLookup(), timeline: await loadTimeline(profile.id).catch(() => "") })
+          },
+          (value) => `reviewed ${value.reviewed}/${matches.length} · changed ${value.changed} · ${value.lookups} public lookup(s)${value.failedBatches ? ` · ${value.failedBatches} batch(es) fell back` : ""}`,
+        )
+        .catch(() => null)
+      if (judged && judged.reviewed > 0) {
+        matches = judged.matches
+        modelReview = { reviewed: judged.reviewed, changed: judged.changed, model: modelConfiguration.model, lookups: judged.lookups }
+      }
+    }
+    if (modelReview) {
+      // Judged: the earlier reviews would only overwrite reasoned verdicts.
+    } else if (decide) {
       // Classification belongs to the decision model; the language model is kept for writing.
       const catalog = profileFacts.map((fact) => ({ id: fact.id, statement: factForPrompt(fact), entry: fact.entryTitle, kind: fact.entryKind }))
       const reviewed = await run

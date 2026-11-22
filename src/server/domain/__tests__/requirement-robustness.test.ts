@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { parseJobText } from "../../../lib/job-text"
-import { extractRequirementCandidates, isVagueLine } from "../../analysis/requirements"
+import { extractRequirementCandidates, extractRequirements, isVagueLine } from "../../analysis/requirements"
 
 const texts = (posting: string) => extractRequirementCandidates(posting).requirements.map((item) => item.text)
 
@@ -44,4 +44,45 @@ test("vague lines inside a requirements list are excluded", () => {
   assert.equal(isVagueLine("Motivé et dynamique"), true)
   assert.equal(isVagueLine("Passionate about distributed systems"), false)
   assert.equal(isVagueLine("Eager to learn Rust"), false)
+})
+
+test("a scraped page: button text, one item per line without periods, and a section shown twice", () => {
+  const profile = [
+    "Tu es diplômé·e d’une école d’ingénieur",
+    "Tu as entre 1 et 3 ans d'expérience",
+    "Tu aimes travailler en équipe (revues de code, pair programming)",
+    "Tu souhaites progresser dans un environnement exigeant",
+  ].join("\n")
+  const text = [
+    "Chez Exemplo, nous construisons des produits numériques.",
+    "",
+    "Voir plus",
+    "Vos missions au quotidien",
+    "L’histoire du groupe Exemplo",
+    "",
+    "Exemplo accompagne des entreprises depuis 2010.",
+    "",
+    "Tes missions :",
+    "",
+    "Écrire du code testé et maintenable",
+    "Analyser les problèmes en profondeur",
+    "Travailler avec un LLM pour accélérer les développements",
+    "",
+    "Profil recherché :",
+    "",
+    "Nous cherchons des potentiels.",
+    "",
+    profile,
+    "",
+    "Ce que l’on cherche",
+    profile,
+  ].join("\n")
+  const texts = extractRequirements(text).map((item) => item.text)
+  // Each line is its own requirement, listed once; the page's button and the company's history are not requirements.
+  assert.deepEqual(texts.filter((item) => item.startsWith("Tu ")), profile.split("\n"))
+  assert.ok(texts.includes("Analyser les problèmes en profondeur"))
+  assert.ok(texts.includes("Travailler avec un LLM pour accélérer les développements"))
+  assert.ok(!texts.some((item) => /Voir plus|Vos missions au quotidien|L’histoire/.test(item)), texts.join(" | "))
+  // "Tu souhaites…" is the candidate's wish, not a nice-to-have.
+  assert.equal(extractRequirements(text).find((item) => item.text.startsWith("Tu souhaites"))?.kind, "must")
 })

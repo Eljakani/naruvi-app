@@ -220,7 +220,8 @@
    },
    "mcp": {
     "title": "Connecter un assistant IA (MCP) ou vos scripts",
-    "body": "Demandez à Claude ou à un autre client MCP « qu’est-ce qui demande mon attention ? » ou « passe Dashlane en entretiens ». Il lit et met à jour Naruvi via votre clé API et demande avant de modifier quoi que ce soit.",
+    "body": "Demandez à Claude, Codex ou un autre client MCP « qu’est-ce qui demande mon attention ? », « pourquoi mon adéquation est de 72 pour ce poste ? » ou « adapte mon CV à cette offre ». Il lit votre profil, vos analyses d’adéquation et vos documents via votre clé API et demande avant de modifier quoi que ce soit.",
+    "http": "Les clients qui se connectent en HTTP (Claude Code, Codex, Cursor, VS Code) utilisent {url} avec la même clé. Configuration pour chaque client : docs/MCP.md, ou lancez npm run mcp:setup.",
     "desktop": "Claude Desktop et autres clients (mcpServers dans leur fichier de configuration) :",
     "scripts": "Vos propres scripts : envoyez <code>Authorization: Bearer nrv_…</code> à <code>{origin}/api/v1</code> (voir docs/API.md)."
    }

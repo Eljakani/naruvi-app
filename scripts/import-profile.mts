@@ -1,7 +1,7 @@
 /** Usage: npm run profile:import -- /path/to/my-cv/profile */
 import { config } from "dotenv"
 
-config({ path: ".env.local" })
+config({ path: [".env.local", ".env"] })
 
 const folder = process.argv[2]
 if (!folder) {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { randomBytes } from "node:crypto"
 import { config } from "dotenv"
 import postgres from "postgres"
-config({ path: ".env.local", quiet: true })
+config({ path: [".env.local", ".env"], quiet: true })
 const url = process.env.DATABASE_URL!
 const control = postgres(url, { max: 1, onnotice: () => {} })
 const schema = `auth_test_${randomBytes(8).toString("hex")}`

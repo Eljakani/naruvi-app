@@ -60,6 +60,6 @@ test("full review: finds semantic matches for rule gaps, with guards", async () 
 test("review note: drops 'shown' claims the cited facts don't support", async () => {
   const { reviewNote } = await import("../../analysis/refine")
   const requirement = "Infrastructure: AWS, Databricks"
-  assert.equal(reviewNote({ shown: "AWS/OCI cloud operations", missing: ["Databricks"] }, requirement, ["Optimized OCI cloud workflows."]), "Missing: Databricks.")
-  assert.equal(reviewNote({ shown: "OCI cloud workflows", missing: ["AWS", "Databricks", "Snowflake"] }, requirement, ["Optimized OCI cloud workflows."]), "Shown: OCI cloud workflows. Missing: AWS, Databricks.")
+  assert.equal(reviewNote({ shown: "AWS/OCI cloud operations", missing: ["Databricks"] }, requirement, ["Optimized OCI cloud workflows."]).note, "Missing: Databricks.")
+  assert.equal(reviewNote({ shown: "OCI cloud workflows", missing: ["AWS", "Databricks", "Snowflake"] }, requirement, ["Optimized OCI cloud workflows."]).note, "Shown: OCI cloud workflows. Missing: AWS, Databricks.")
 })

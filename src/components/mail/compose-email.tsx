@@ -72,6 +72,8 @@ function ComposeDialog({ applicationId, kind, replyToId, initialDraft, onClose }
   const [showCc, setShowCc] = useState(false)
   const [subject, setSubject] = useState("")
   const [body, setBody] = useState("")
+  // Bumped only when the AI replaces the text, so the fade replays then and never while the user types.
+  const [bodyVersion, setBodyVersion] = useState(0)
   const [instructions, setInstructions] = useState("")
   const [tone, setTone] = useState<DraftMailInput["tone"]>("professional")
   const [language, setLanguage] = useState<DraftMailInput["language"]>("auto")
@@ -131,6 +133,7 @@ function ComposeDialog({ applicationId, kind, replyToId, initialDraft, onClose }
       setPrevious({ subject, body, missing })
       setSubject(result.draft.subject)
       setBody(result.draft.body)
+      setBodyVersion((value) => value + 1)
       setMissing(result.draft.missingDetails)
       setDirty(true)
       toast.success(t("draftReady"), { description: t("draftReadyBody") })
@@ -185,7 +188,7 @@ function ComposeDialog({ applicationId, kind, replyToId, initialDraft, onClose }
               </HeaderRow>
               <div className="relative flex min-h-64 flex-1 flex-col">
                 <label htmlFor={`${id}-body`} className="sr-only">{t("message")}</label>
-                <textarea dir="auto" key={previous ? `${previous.body.length}-${body.length}` : "body"} id={`${id}-body`} required maxLength={20_000} className={cn("min-h-64 w-full flex-1 resize-none bg-transparent px-5 py-4 text-sm leading-relaxed outline-none transition-opacity duration-200", previous && !drafting && "cb-fade", drafting && "opacity-30")} value={body} onChange={(event) => edit(setBody, event.target.value)} autoFocus={Boolean(to)} placeholder={t("bodyPlaceholder")} />
+                <textarea dir="auto" key={bodyVersion} id={`${id}-body`} required maxLength={20_000} className={cn("min-h-64 w-full flex-1 resize-none bg-transparent px-5 py-4 text-sm leading-relaxed outline-none transition-opacity duration-200", previous && !drafting && "cb-fade", drafting && "opacity-30")} value={body} onChange={(event) => edit(setBody, event.target.value)} autoFocus={Boolean(to)} placeholder={t("bodyPlaceholder")} />
                 {drafting ? <div className="pointer-events-none absolute inset-0 grid place-content-center justify-items-center gap-2"><Otter pose="working-on-it" height={84} /><AITextLoading texts={[t("loading.read"), t("loading.words"), t("loading.short")]} label={t("loading.label")} className="text-sm" /></div> : null}
               </div>
               {missing.length > 0 ? <div className="mx-5 mb-3 grid gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs" role="status"><p className="font-medium">{t("check")}</p><ul className="list-disc space-y-1 ps-4">{missing.map((detail) => <li key={detail}>{detail}</li>)}</ul>{placeholders ? <p>{t("replaceBrackets")}</p> : null}</div> : null}

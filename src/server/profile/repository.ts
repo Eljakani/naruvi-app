@@ -8,7 +8,7 @@ import { db } from "@/server/db/client"
 import { entries, facts, phrasings, profiles } from "@/server/db/schema"
 import { supportFor, verifySupport } from "@/server/domain/grounding"
 import { searchGoals } from "@/lib/search-goals"
-import { cleanText, entryName, entryView, hasHeading, KIND_FIELDS, looseFields, type EntryFields, type EntryText } from "@/lib/entry-fields"
+import { cleanText, entryName, sortKey, entryView, hasHeading, KIND_FIELDS, looseFields, normalizeEntryDraft, type EntryFields, type EntryText } from "@/lib/entry-fields"
 import type { EntryEnrichment } from "@/lib/enrichment"
 import { matchLogo } from "./logo-match"
 import { queueTranslation } from "./auto-translate"
@@ -85,6 +85,9 @@ export async function listEntries() {
   if (!profile) return []
   const rows = await db.select().from(entries).where(eq(entries.profileId, profile.id)).orderBy(asc(entries.kind), asc(entries.sortOrder), asc(entries.createdAt))
   if (!rows.length) return []
+  // Newest first within each kind: ongoing ones lead (latest start first), then by end date. Undated entries keep their saved order.
+  const kindOrder = new Map(rows.map((row, index) => [row.kind, index] as const).reverse())
+  rows.sort((a, b) => kindOrder.get(a.kind)! - kindOrder.get(b.kind)! || sortKey(b) - sortKey(a))
   const ids = rows.map((row) => row.id)
   const [factRows, phrasingRows] = await Promise.all([
     db.select().from(facts).where(inArray(facts.entryId, ids)).orderBy(asc(facts.sortOrder)),
@@ -176,17 +179,27 @@ async function writeEntry(input: EntryInput, entryId?: string, imported = false)
   })
 }
 
+/** Why a proposed entry was refused, in words the assistant can act on. */
+function unknownFieldsError(kind: EntryInput["kind"], unknown: string[]) {
+  return new Error(`Unknown field${unknown.length > 1 ? "s" : ""} for a ${kind} entry: ${unknown.join(", ")}. Use only: ${KIND_FIELDS[kind].map((spec) => spec.key).join(", ")}.`)
+}
+
+/** Shared fields checked one by one, so the error names the value that doesn't fit. */
+function sharedFields(kind: EntryInput["kind"], raw: Record<string, unknown>, keepEmpty: boolean) {
+  return Object.fromEntries(Object.entries(raw).filter(([, value]) => keepEmpty || (value !== "" && value != null)).map(([key, value]) => [key, value === "" ? "" : looseFields(kind, { [key]: value })[key] ?? (() => { throw new Error(`"${String(typeof value === "string" ? value : JSON.stringify(value))}" is not a valid ${key}.`) })()]))
+}
+
 /** Set some of an entry's own fields (approved by the user, e.g. from the assistant). Empty strings clear. */
-export async function updateEntryFields(entryId: string, input: { language: string; text: Record<string, string>; fields: Record<string, unknown> }) {
+export async function updateEntryFields(entryId: string, input: { language: string; text: Record<string, unknown>; fields: Record<string, unknown> }) {
   const profile = await getProfile()
   const [entry] = await db.select().from(entries).where(eq(entries.id, entryId))
   if (!entry || entry.profileId !== profile?.id) throw new Error("Entry not found.")
-  const known = new Set(KIND_FIELDS[entry.kind].map((spec) => spec.key))
-  const unknown = [...Object.keys(input.text), ...Object.keys(input.fields)].filter((key) => !known.has(key))
-  if (unknown.length) throw new Error(`A ${entry.kind} has no ${unknown.join(", ")} field. Its fields: ${[...known].join(", ")}.`)
+  const draft = normalizeEntryDraft(entry.kind, input.language, input.text, input.fields)
+  if (draft.unknown.length) throw unknownFieldsError(entry.kind, draft.unknown)
   const merged = (base: Record<string, unknown>, changes: Record<string, unknown>) => Object.fromEntries(Object.entries({ ...base, ...changes }).filter(([, value]) => value !== "" && value != null))
-  const display = { ...entry.display, [input.language]: merged(entry.display[input.language] ?? {}, input.text) as Record<string, string> }
-  const fields = merged(entry.fields, Object.fromEntries(Object.entries(input.fields).map(([key, value]) => [key, value === "" ? "" : looseFields(entry.kind, { [key]: value })[key] ?? (() => { throw new Error(`"${String(typeof value === "string" ? value : JSON.stringify(value))}" is not a valid ${key}.`) })()])))
+  const display = { ...entry.display }
+  for (const [lang, text] of Object.entries(draft.display)) display[lang] = merged(entry.display[lang] ?? {}, text) as Record<string, string>
+  const fields = merged(entry.fields, sharedFields(entry.kind, draft.fields, true))
   const parsed = entryInput.parse({ kind: entry.kind, status: entry.status, display, fields })
   const [saved] = await db.update(entries).set({ display: parsed.display, fields: parsed.fields }).where(eq(entries.id, entryId)).returning()
   queueTranslation([saved.id])
@@ -194,17 +207,19 @@ export async function updateEntryFields(entryId: string, input: { language: stri
 }
 
 /** Create one entry from kind-specific fields (assistant, after the user approved it). Same validation as updateEntryFields. */
-export async function createEntryFromFields(input: { kind: EntryInput["kind"]; language: string; text: Record<string, string>; fields: Record<string, unknown>; facts: string[]; skills: string[] }) {
-  const known = new Set(KIND_FIELDS[input.kind].map((spec) => spec.key))
-  const unknown = [...Object.keys(input.text), ...Object.keys(input.fields)].filter((key) => !known.has(key))
-  if (unknown.length) throw new Error(`A ${input.kind} has no ${unknown.join(", ")} field. Its fields: ${[...known].join(", ")}.`)
-  const text = Object.fromEntries(Object.entries(input.text).map(([key, value]) => [key, value.trim()]).filter(([, value]) => value))
-  const fields = Object.fromEntries(Object.entries(input.fields).filter(([, value]) => value !== "" && value != null).map(([key, value]) => [key, looseFields(input.kind, { [key]: value })[key] ?? (() => { throw new Error(`"${String(typeof value === "string" ? value : JSON.stringify(value))}" is not a valid ${key}.`) })()]))
+export async function createEntryFromFields(input: { kind: EntryInput["kind"]; language: string; text: Record<string, unknown>; fields: Record<string, unknown>; facts: string[]; skills: string[] }) {
+  const draft = normalizeEntryDraft(input.kind, input.language, input.text, input.fields)
+  if (draft.unknown.length) throw unknownFieldsError(input.kind, draft.unknown)
+  const display = Object.fromEntries(Object.entries(draft.display).map(([lang, text]) => [lang, Object.fromEntries(Object.entries(text).filter(([, value]) => value))]).filter(([, text]) => Object.keys(text).length))
+  if (!hasHeading({ kind: input.kind, display, fields: draft.fields }, input.language) && !Object.keys(display).some((lang) => hasHeading({ kind: input.kind, display, fields: draft.fields }, lang))) {
+    const required = KIND_FIELDS[input.kind].find((spec) => spec.required)
+    if (required) throw new Error(`A ${input.kind} entry needs its ${required.key}.`)
+  }
   return saveEntry({
     kind: input.kind,
     status: "verified",
-    display: Object.keys(text).length ? { [input.language]: text } : {},
-    fields,
+    display,
+    fields: sharedFields(input.kind, draft.fields, false),
     skills: [...new Set(input.skills.map((skill) => skill.trim()).filter(Boolean))],
     facts: input.facts.map((statement) => ({ statement })),
   } as EntryInput)

@@ -1,6 +1,6 @@
 /** Computes insights for every saved job that has none yet (or all with --all). */
 import { config } from "dotenv"
-config({ path: ".env.local", quiet: true })
+config({ path: [".env.local", ".env"], quiet: true })
 const { db } = await import("../src/server/db/client")
 const { refreshJobInsights } = await import("../src/server/jobs/insights")
 const all = process.argv.includes("--all")

@@ -1,8 +1,7 @@
 /** Prints a fresh one-time owner setup link. Replaces any earlier link. Requires database access. */
 import { config } from "dotenv"
 
-config({ path: ".env.local", quiet: true })
-config({ path: ".env", quiet: true })
+config({ path: [".env.local", ".env"], quiet: true })
 if (!process.env.DATABASE_URL) { console.error("DATABASE_URL is required. Run from your Naruvi checkout or inside the app container."); process.exit(1) }
 const { issueSetupLink, closeAuth } = await import("../src/server/auth/store")
 try {

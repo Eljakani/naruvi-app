@@ -1,7 +1,7 @@
 /** Manual check: runs the new AI steps against the configured model (reads data, writes only traces). */
 import { describeEntry, entryName } from "../src/lib/entry-fields"
 import { config } from "dotenv"
-config({ path: ".env.local", quiet: true })
+config({ path: [".env.local", ".env"], quiet: true })
 const { getLlmOverview } = await import("../src/server/settings/llm")
 const overview = await getLlmOverview()
 console.log("model:", overview.model, "@", overview.baseUrl, "configured:", overview.configured)

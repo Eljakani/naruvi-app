@@ -315,7 +315,7 @@ function ToolInput({ input }: { input: ToolCall["input"] }) {
  * Allow for destructive calls. The red fill wipes across while held and
  * runs back quickly when let go early, so a slip never confirms.
  */
-function HoldToAllow({ onConfirm, labels }: { onConfirm: () => void; labels: ApprovalLabels }) {
+export function HoldToAllow({ onConfirm, labels }: { onConfirm: () => void; labels: ApprovalLabels }) {
   const [holding, setHolding] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 

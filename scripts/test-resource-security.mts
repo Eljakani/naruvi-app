@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto"
 import { config } from "dotenv"
 import postgres from "postgres"
 import sharp from "sharp"
-config({ path: ".env.local", quiet: true })
+config({ path: [".env.local", ".env"], quiet: true })
 const original = process.env.DATABASE_URL!
 const control = postgres(original, { max: 1, onnotice: () => {} })
 const schema = `resource_test_${randomBytes(8).toString("hex")}`

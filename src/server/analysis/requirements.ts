@@ -9,7 +9,7 @@ import { keywordsIn, termsIn } from "./keywords"
 export type RequirementKind = "must" | "nice" | "responsibility"
 export type Requirement = { id: string; text: string; kind: RequirementKind; section: string; keywords: string[]; terms?: string[]; years: number | null; /** The sentence just before a list ("Cela se traduit par exemple par :"), as context. */ lead?: string }
 
-const NICE = /nice to have|bonus|\bplus\b|preferred|desirable|ideally|un plus|appréci|souhait|optionnel|would be great|von vorteil|wünschenswert|idealerweise|nice-to-have|deseable|valorable|se valorar|gradit|preferibil|costituisce un plus|pluspunt|een pré|diferencial|desejável/i
+const NICE = /nice to have|bonus|\b(?:a|un|en) plus\b|^(?:les? )?(?:\+|plus)$|preferred|desirable|ideally|un plus|appréci|souhaitée?s?\b|souhaitable|optionnel|would be great|von vorteil|wünschenswert|idealerweise|nice-to-have|deseable|valorable|se valorar|gradit|preferibil|costituisce un plus|pluspunt|een pré|diferencial|desejável/i
 const MUST = /require|qualification|looking for|what (?:do |will |can |should )?you (?:bring|need|have)|who are you|is this you|what (?:do |are )?we (?:expect|look(?:ing)? for|need)|qui êtes-vous|que recherchons-nous|you (?:have|bring)|must|profil|expertise|compétences|skills|experience|about you|who you are|your background|ce que nous recherchons|vous (?:avez|êtes)|critical competencies|meet you if|ideal candidate|you are|you'll need|what we're looking for|nous recherchons|candidat idéal|anforderung|ihr profil|dein profil|bringst du mit|bringen sie mit|voraussetzung|qualifikation|kenntnisse|requisit|perfil|buscamos|lo que buscamos|competenze|cerchiamo|profilo|vereist|wat (?:wij vragen|breng je mee|vragen wij)|profiel|o que procuramos|procuramos/i
 const RESPONSIBILITY = /you(?:['’]ll| will)|what (?:will|do|would) you (?:do|be doing)|responsibilit|what you.?ll do|day[- ]to[- ]day|missions?|livrables|key tasks|the role|your role|in this role|tasks|vos missions|vous (?:serez|allez)|at .+ you will|aufgaben|tätigkeit|responsabilidad|funciones|tus tareas|qué harás|mansioni|responsabilità|cosa farai|(?:jouw|je) taken|werkzaamheden|wat ga je doen|atividades|o que (?:você )?(?:vai|irá) fazer/i
 const SKIP = /benefit|offer|in return|you(?:['’]ll| will) (?:get|receive|enjoy)|what (?:do|will|can) you (?:get|expect)|what(?:['’]s| is) in it for|ce que vous y gagnez|perks|avantages|salary|rémunération|diversity|inclusion|equal|about (?:us|the company)|à propos|who we are|process|interview|how to apply|location|our tech|tech(?:nical)? stack|stack technique|notre stack|additional info|informations? complémentaires|why join|culture|life at|wir bieten|was wir bieten|über uns|beneficio|ofrecemos|sobre nosotros|offriamo|chi siamo|wij bieden|over ons|oferecemos|benefícios|sobre nós/i
@@ -223,9 +223,23 @@ export function extractRequirementCandidates(rawText: string): RequirementExtrac
       else fallback.push(requirement)
     }
   }
+  // A posting copied with its page around it often holds a section twice ("Profil recherché" and
+  // again "Ce que l'on cherche"): the same line is one requirement.
+  const seen = new Set<string>()
+  const repeated = new Set<string>()
+  for (const item of candidates) {
+    const key = item.text.toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, " ").trim()
+    if (seen.has(key)) repeated.add(item.id)
+    else seen.add(key)
+  }
+  const once = (items: Requirement[]) => items.filter((item) => !repeated.has(item.id))
+  if (repeated.size) {
+    for (let index = candidates.length - 1; index >= 0; index -= 1) if (repeated.has(candidates[index].id)) candidates.splice(index, 1)
+    for (let index = excluded.length - 1; index >= 0; index -= 1) if (repeated.has(excluded[index].requirement.id)) excluded.splice(index, 1)
+  }
   // Never reintroduce explicitly excluded benefits/interview steps through fallback.
-  const requirements = dedupe(preferred.length ? preferred : fallback, candidates)
-  if (preferred.length) for (const requirement of fallback) excluded.push({ requirement, category: "other", source: "rules", reason: EXCLUDED_REASONS.other })
+  const requirements = dedupe(once(preferred.length ? preferred : fallback), candidates)
+  if (preferred.length) for (const requirement of once(fallback)) excluded.push({ requirement, category: "other", source: "rules", reason: EXCLUDED_REASONS.other })
   return { candidates, requirements, excluded }
 }
 

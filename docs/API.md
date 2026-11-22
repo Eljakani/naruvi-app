@@ -19,12 +19,14 @@ Errors are JSON: `{ "error": "…" }` with status 400 (invalid request), 401 (mi
 | PATCH | `/api/v1/applications/{id}` | Body: any of `status` (`submitted`, `interviewing`, `offer`, `rejected`, `withdrawn`), `nextStep`, `nextStepDue` (ISO 8601 or `null`), `archived`. |
 | GET | `/api/v1/jobs?q=…&sort=newest\|oldest\|fit\|company&page=1` | Saved jobs, 30 per page. |
 | POST | `/api/v1/captures` | Body: `url`, optional `title` and `text`. Adds a job lead and returns `{ id, review }`. |
+| POST | `/api/v1/mcp` | The MCP server over Streamable HTTP (JSON-RPC). See [MCP.md](MCP.md). |
 
 ## MCP server
 
-`mcp/naruvi-mcp.mjs` exposes the same API as MCP tools (`naruvi_attention`, `naruvi_list_applications`,
-`naruvi_get_application`, `naruvi_update_application`, `naruvi_search_jobs`, `naruvi_save_job_lead`).
-Run it with `NARUVI_URL` and `NARUVI_API_KEY` set; the Integrations page shows ready-to-paste configuration.
+Naruvi is also an MCP server: profile, work history, skills, fit analysis with evidence, CVs, letters, email drafts and
+application updates for Claude Code, Claude Desktop, Codex, Cursor and other clients. It is served at `/api/v1/mcp`
+(Streamable HTTP) and through `mcp/naruvi-mcp.mjs` (stdio), with the same keys. Setup and the full tool list:
+[MCP.md](MCP.md), or run `npm run mcp:setup`.
 
 ## Request limits
 

@@ -63,6 +63,9 @@ function decodeEntities(text: string) {
   })
 }
 
+/** Buttons and links copied along with a posting ("Voir plus", "Show more"): page controls, not content. */
+const PAGE_CONTROL = /^(?:voir (?:plus|moins|l['’]offre|tout)|afficher (?:plus|moins|la suite)|lire la suite|en savoir plus|see (?:more|less)|show (?:more|less)|read more|view more|load more|mehr (?:anzeigen|lesen)|weniger anzeigen|ver (?:más|menos)|mostra(?:re)? (?:di più|altro)|meer (?:weergeven|tonen|lezen)|ver mais|mostrar mais)[.…]*$/i
+
 export function normalizeText(raw: string): string {
   return unflatten(decodeEntities(String(raw ?? "")))
     .replace(/\r\n?/g, "\n")
@@ -78,6 +81,7 @@ export function normalizeText(raw: string): string {
         .replace(/\( +/g, "(")
         .trim(),
     )
+    .map((line) => (PAGE_CONTROL.test(line) ? "" : line))
     .join("\n")
     // A bullet marker alone on its line belongs to the next line ("-\nText").
     .replace(/^([-*•·▪◦‣●○■□➤►▶✓✔–—]|\d{1,2}[.)])\n+(?=\S)/gm, "$1 ")
@@ -122,6 +126,8 @@ function isHeading(raw: string, next: string | undefined, bareRun = false): bool
   if (/^(\*\*|__)[^*_]{2,80}(\*\*|__):?$/.test(line)) return true
   if (line.length > 80) return false
   const words = line.split(/\s+/).length
+  // "Tu es diplômé·e d’une école d’ingénieur", "You have 3 years of Go": a sentence about the reader, not a title.
+  if (words >= 3 && /^(?:tu|vous|you|du|sie|usted|tú|voi|lei|você|jij|je)\s+\p{L}/iu.test(line)) return false
   const letters = line.replace(/[^A-Za-zÀ-ÿ]/g, "")
   if (letters.length >= 4 && letters === letters.toUpperCase() && words <= 8) return true
   // "Skills:" is a heading; "With a degree, you have:" is a sentence leading into a list.
@@ -159,6 +165,9 @@ export function parseJobText(raw: string): Block[] {
     return emoji !== "" && (leadingEmoji(neighbour(index, -1)) === emoji || leadingEmoji(neighbour(index, 1)) === emoji)
   })
   for (let i = 0; i < lines.length; i += 1) if (emojiBullets[i]) lines[i] = `- ${undecorate(lines[i])}`
+  // Hard-wrapped text (e-mail, PDF) continues sentences on lowercase lines. Text without that
+  // (scraped pages) puts one item or sentence per line, even without a final period.
+  const wrapped = lines.filter((line, index) => line && !SENTENCE_END.test(line) && /^[a-zà-ÿ]/.test(lines[index + 1] ?? "")).length >= 3
   const blocks: Block[] = []
   const used = new Set<string>()
   let paragraph: string[] = []
@@ -255,7 +264,7 @@ export function parseJobText(raw: string): Block[] {
     // Join hard-wrapped lines; start a new paragraph after a finished sentence
     // followed by a capitalised line.
     const previous = paragraph.at(-1)
-    if (previous && SENTENCE_END.test(previous) && /^[A-ZÀ-Ý"“]/.test(line)) flushParagraph()
+    if (previous && /^[A-ZÀ-Ý"“]/.test(line) && (SENTENCE_END.test(previous) || (!wrapped && !DANGLING.test(previous)))) flushParagraph()
     paragraph.push(line)
   }
   flushParagraph()

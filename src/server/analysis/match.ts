@@ -38,12 +38,48 @@ export function factForPrompt(fact: Pick<ProfileFact, "statement" | "translation
 
 export type MatchStatus = "met" | "partial" | "gap" | "judgement"
 
+/** A note as data, so the screen shows it in the reader's language. `note` keeps the English text. */
+export type NotePart =
+  | { key: "noFactMentions" | "onlyInSkills" | "onlyInTags" | "notInProfile" | "coursework" | "missing"; items: string[] }
+  | { key: "relatedOnly"; items: string[]; related: string[] }
+  | { key: "yearsCheck"; years: number }
+  | { key: "shown"; text: string }
+  | { key: "relatedYourCall" | "softSkill" | "relatedPartial" | "gapNoClaim" | "judgementDecide" | "attitude" }
+
+function english(part: NotePart): string {
+  switch (part.key) {
+    case "noFactMentions": return `No fact mentions ${part.items.join(", ")}.`
+    case "onlyInSkills": return `${part.items.join(", ")} only appears in entry skills, not in a fact.`
+    case "onlyInTags": return `${part.items.join(", ")} only appears in entry tags/skills, not in a fact.`
+    case "notInProfile": return `Nothing in your verified profile mentions ${part.items.join(", ")}. Don't claim it.`
+    case "coursework": return `${part.items.join(", ")} is only backed by coursework or a certification, not hands-on work.`
+    case "missing": return `Missing: ${part.items.join(", ")}.`
+    case "relatedOnly": return `No fact mentions ${part.items.join(", ")} directly; related evidence: ${part.related.join(", ")}. Describe it with those words, not as ${part.items.join(", ")}.`
+    case "yearsCheck": return `Your profile can't prove ${part.years}+ years by itself — check your dates.`
+    case "shown": return `Shown: ${part.text}.`
+    case "relatedYourCall": return "Related facts found; whether they satisfy this is your call."
+    case "softSkill": return "Not something facts can prove (soft skill or context). Decide yourself whether it fits."
+    case "relatedPartial": return "Related facts, but they don't fully cover this."
+    case "gapNoClaim": return "Nothing in your verified facts backs this. Don't claim it."
+    case "judgementDecide": return "Not something facts can prove. Decide yourself whether it fits."
+    case "attitude": return "A motivation, not a skill: facts can't prove it. Speak to it in your letter or interview."
+  }
+}
+
+/** The note in both forms: English text (logs, assistant) and parts (translated on screen). */
+export function noteOf(...parts: (NotePart | null | undefined | false | "" | 0)[]): { note: string; notes: NotePart[] } {
+  const kept = parts.filter((part): part is NotePart => Boolean(part))
+  return { note: kept.map(english).join(" "), notes: kept }
+}
+
 export type RequirementMatch = Requirement & {
   status: MatchStatus
   factIds: string[]
   covered: string[]
   missing: string[]
   note: string
+  /** Structured form of `note`; absent on analyses made before it existed. */
+  notes?: NotePart[]
   source: "rules" | "model"
 }
 
@@ -95,12 +131,12 @@ export function matchRequirement(requirement: Requirement, facts: Indexed[]): Re
   const covered = [...result.covered, ...coveredTerms.map(label)]
   const missing = [...result.missing, ...missingTools.map(label)]
   if (!requirement.keywords.length) {
-    if (missingTools.length && !coveredTerms.length) return { ...result, status: "gap", factIds: [], covered, missing, note: `Nothing in your verified profile mentions ${missingTools.map(label).join(", ")}. Don't claim it.` }
-    if (coveredTerms.length && !missingTools.length) return { ...result, status: termFacts.length ? "met" : "partial", factIds, covered, missing, note: termFacts.length ? result.note.replace(/^Not something.*$/, "") : `${coveredTerms.map(label).join(", ")} only appears in entry skills, not in a fact.` }
-    if (coveredTerms.length) return { ...result, status: "partial", factIds, covered, missing, note: `No fact mentions ${missingTools.map(label).join(", ")}.` }
+    if (missingTools.length && !coveredTerms.length) return { ...result, status: "gap", factIds: [], covered, missing, ...noteOf({ key: "notInProfile", items: missingTools.map(label) }) }
+    if (coveredTerms.length && !missingTools.length) return { ...result, status: termFacts.length ? "met" : "partial", factIds, covered, missing, ...(termFacts.length ? noteOf(...(result.notes ?? []).filter((part) => part.key !== "softSkill")) : noteOf({ key: "onlyInSkills", items: coveredTerms.map(label) })) }
+    if (coveredTerms.length) return { ...result, status: "partial", factIds, covered, missing, ...noteOf({ key: "noFactMentions", items: missingTools.map(label) }) }
     return result
   }
-  if (result.status === "met" && missingTools.length) return { ...result, status: "partial", factIds, covered, missing, note: `No fact mentions ${missingTools.map(label).join(", ")}.` }
+  if (result.status === "met" && missingTools.length) return { ...result, status: "partial", factIds, covered, missing, ...noteOf({ key: "noFactMentions", items: missingTools.map(label) }) }
   return { ...result, factIds, covered, missing }
 }
 
@@ -128,14 +164,14 @@ function matchKeywords(requirement: Requirement, facts: Indexed[]): RequirementM
   const missing = wanted.filter((key) => !covered.includes(key))
   const base = { ...requirement, covered, missing, source: "rules" as const }
   const evidence = top.filter((item) => item.stmtHits.length || item.entryHits.length || item.lexical >= 0.34).map((item) => item.fact.id)
-  const yearsNote = requirement.years ? ` Your profile can't prove ${requirement.years}+ years by itself — check your dates.` : ""
+  const yearsNote: NotePart | null = requirement.years ? { key: "yearsCheck", years: requirement.years } : null
 
   if (!wanted.length) {
     const best = scored[0]
     if (best && best.lexical >= 0.5) {
-      return { ...base, status: "partial", factIds: evidence.slice(0, 3), note: `Related facts found; whether they satisfy this is your call.${yearsNote}` }
+      return { ...base, status: "partial", factIds: evidence.slice(0, 3), ...noteOf({ key: "relatedYourCall" }, yearsNote) }
     }
-    return { ...base, status: "judgement", factIds: [], note: `Not something facts can prove (soft skill or context). Decide yourself whether it fits.${yearsNote}` }
+    return { ...base, status: "judgement", factIds: [], ...noteOf({ key: "softSkill" }, yearsNote) }
   }
   if (missing.length === 0 && wanted.every((key) => coveredByStatements.has(key))) {
     // Coursework proves knowledge, not practice: "familiarity with X" can be met
@@ -144,23 +180,22 @@ function matchKeywords(requirement: Requirement, facts: Indexed[]): RequirementM
     const practiced = new Set(top.filter((item) => !ACADEMIC.has(item.fact.entryKind)).flatMap((item) => item.stmtHits))
     if (!knowledge && !wanted.every((key) => practiced.has(key))) {
       const academic = wanted.filter((key) => !practiced.has(key))
-      return { ...base, status: "partial", factIds: evidence.slice(0, 3), note: `${academic.join(", ")} is only backed by coursework or a certification, not hands-on work.${yearsNote}`.trim() }
+      return { ...base, status: "partial", factIds: evidence.slice(0, 3), ...noteOf({ key: "coursework", items: academic }, yearsNote) }
     }
-    return { ...base, status: "met", factIds: evidence.slice(0, 3), note: yearsNote.trim() }
+    return { ...base, status: "met", factIds: evidence.slice(0, 3), ...noteOf(yearsNote) }
   }
   if (covered.length) {
     const weak = covered.filter((key) => !coveredByStatements.has(key))
-    const parts = [missing.length ? `No fact mentions ${missing.join(", ")}.` : "", weak.length ? `${weak.join(", ")} only appears in entry tags/skills, not in a fact.` : ""].filter(Boolean)
-    return { ...base, status: "partial", factIds: evidence.slice(0, 3), note: `${parts.join(" ")}${yearsNote}`.trim() }
+    return { ...base, status: "partial", factIds: evidence.slice(0, 3), ...noteOf(missing.length && { key: "noFactMentions", items: missing }, weak.length && { key: "onlyInTags", items: weak }, yearsNote) }
   }
   // Nothing direct — but proven related skills make it "partly", with a clear note.
   const related = [...new Set(wanted.flatMap((key) => RELATED[key] ?? []))]
   const relatedFacts = facts.filter((fact) => related.some((key) => fact.stmtKeywords.has(key))).slice(0, 3)
   if (relatedFacts.length) {
     const shown = related.filter((key) => relatedFacts.some((fact) => fact.stmtKeywords.has(key)))
-    return { ...base, status: "partial", factIds: relatedFacts.map((fact) => fact.id), note: `No fact mentions ${wanted.join(", ")} directly; related evidence: ${shown.join(", ")}. Describe it with those words, not as ${wanted.join(", ")}.${yearsNote}`.trim() }
+    return { ...base, status: "partial", factIds: relatedFacts.map((fact) => fact.id), ...noteOf({ key: "relatedOnly", items: wanted, related: shown }, yearsNote) }
   }
-  return { ...base, status: "gap", factIds: [], note: `Nothing in your verified profile mentions ${wanted.join(", ")}. Don't claim it.` }
+  return { ...base, status: "gap", factIds: [], ...noteOf({ key: "notInProfile", items: wanted }) }
 }
 
 const ACADEMIC = new Set(["education", "certification"])
@@ -182,7 +217,7 @@ export function isAttitude(text: string): boolean {
 /** Attitudes are the person's call: out of the score, with the related facts kept as talking material. */
 export function settleAttitude(match: RequirementMatch): RequirementMatch {
   if (!isAttitude(match.text) || match.status === "judgement") return match
-  return { ...match, status: "judgement", note: "A motivation, not a skill: facts can't prove it. Speak to it in your letter or interview." }
+  return { ...match, status: "judgement", ...noteOf({ key: "attitude" }), reasons: undefined } as RequirementMatch
 }
 
 const WEIGHT: Record<Requirement["kind"], number> = { must: 1, responsibility: 0.6, nice: 0.4 }
